@@ -20,9 +20,13 @@ else
 fi
 
 step "2/4 Swift 데이터 계약 컴파일·왕복"
+# 모듈 캐시를 repo 안(.build/)에 가둔다. 기본값 ~/.cache/clang/ModuleCache 는
+# Codex 샌드박스에서 쓰기가 거부돼 exit 1 이 된다 (2026-09-09 실측).
+MODULE_CACHE="$ROOT/.build/modulecache"
 if command -v swiftc >/dev/null 2>&1; then
   TMP="$(mktemp -d)"
-  if swiftc -swift-version 6 ssot/contracts/DomainContracts.swift scripts/SmokeCheck.swift \
+  if swiftc -swift-version 6 -module-cache-path "$MODULE_CACHE" \
+       ssot/contracts/DomainContracts.swift scripts/SmokeCheck.swift \
        -o "$TMP/contract-check" >"$TMP/build.log" 2>&1 \
      && "$TMP/contract-check" fixtures/normalized-transcript.json \
           fixtures/pyannote-job-succeeded.synthetic.json "$TMP/roundtrip.json" >/dev/null; then

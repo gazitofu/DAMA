@@ -42,7 +42,11 @@ swiftc -swift-version 6 ssot/contracts/DomainContracts.swift scripts/SmokeCheck.
 
 ### Codex 위임 시 (실측 이월)
 
-- **Codex 샌드박스에서 `xcodebuild test`가 돌지 않는다** (키체인·testmanagerd 접근). GAIA gaia-launcher에서 확인(2026-09-08). 발주 계약에 «테스트 실행은 메인» 을 고정하고, 메인이 밖에서 `xcodebuild test`·`swift test`·`bash scripts/check.sh`를 재실행한다. Codex 쪽 테스트 실패를 코드 결함으로 오진하지 않는다.
+규율 [[rule-apple-toolchain-sandbox]] (2026-09-09 승격, GAIA·Dama 2회 관측). Apple 툴체인은 cwd 밖 홈 자원에 쓴다. 두 부류를 구분한다.
+
+- **경로 이전으로 해결됨**: `swiftc`의 clang 모듈 캐시. 기본값 `~/.cache/clang/ModuleCache`(실측 91 MB)에 쓰지 못해 Codex 샌드박스에서 exit 1. `scripts/check.sh`가 `-module-cache-path .build/modulecache`로 고정해 해소했다(2026-09-09 실측 · repo 안 30 MB 생성 · `.build/`는 gitignore). **이 플래그를 빼지 마라.**
+- **해결 안 됨**: `xcodebuild test`는 키체인·testmanagerd에 접근한다. `-derivedDataPath`로도 돌지 않는다(GAIA gaia-launcher 2026-09-08). 코드 서명·공증도 같은 부류다. 발주 계약에 «테스트 실행은 메인»을 고정하고 메인이 밖에서 재실행한다.
+- Codex 쪽 빌드·테스트 실패는 코드 결함으로 단정하기 전에 샌드박스 경로 거부를 먼저 배제한다(`~/.cache`·`~/Library`·키체인 접근 여부).
 - Codex는 이 저장소의 `CLAUDE.md`를 project doc으로 자동 주입받는다 (`~/.codex/config.toml`의 `project_doc_fallback_filenames = ["CLAUDE.md"]`). `AGENTS.md`는 두지 않는다. 절차는 `.claude/commands/`를 파일로 읽는다 (`~/.codex/AGENTS.md` 규약).
 - 병행 발주는 메인이 인터페이스(타입·함수 스텁)를 선커밋해 파일 소유를 가른다. 발주문은 `notes/{유닛}/codex/tNN.md`로 남기고 인라인 반환은 인정하지 않는다.
 
