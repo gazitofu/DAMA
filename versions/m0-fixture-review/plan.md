@@ -1,9 +1,9 @@
 ---
 unit: m0-fixture-review
 branch: work/m0-fixture-review
-status: ready-to-build
+status: building
 decisions_resolved: true
-resume:
+resume: "T-01 앱·Core 골격 발주 및 backpressure"
 spec: notes/review-workspace/review-workspace.src.html
 spec_sections: "02 검수·수정·내보내기; 03 검수 창; 04 검수 관련 규격·문구; 05; 06"
 deployment_target: "26.6.2"
@@ -15,7 +15,7 @@ updated: 2026-09-09
 
 ## 근거
 
-- 사용자 2026-09-09: `/plan 진행하자`; 최소 OS `macOS 26.6.2`, 주 기기 M5 MacBook Pro 명시. 구현 착수 지시와 구분하여 이 턴은 계획만 작성.
+- 사용자 2026-09-09: `/plan 진행하자`; 최소 OS `macOS 26.6.2`, 주 기기 M5 MacBook Pro 명시. 후속 ‘구현 들어가자’로 이 계획의 /build 승인.
 - `notes/review-workspace/review-workspace.src.html` §02–06: 계획 입력 채택, `#s-verdict[data-state=closed]`. 사용자 직접 시각 검수 완료 진술은 없음. 에이전트 브라우저 시각 검수는 file URL 정책으로 미완료.
 - `/Users/gazitofu/.codex/AGENTS.md`, `/Users/gazitofu/CLAUDE.md`, `/Users/gazitofu/Vault/appdev/CLAUDE.md`, `CLAUDE.md`, `README.md`, `/Users/gazitofu/Vault/appdev/Dama/_index.md`: 세션에서 본문 열람. 인덱스 다음 단계는 화면 spec 후 M0 plan.
 - `.claude/commands/spec.md`, `.claude/commands/plan.md`, `.claude/commands/build.md`: 본문 열람. 계획은 300줄·10태스크 이내, 구현·fixture·계약 변경 금지.
@@ -156,7 +156,7 @@ public protocol TranscriptRepository: Sendable {
 | D-01 | 최소 지원 OS | macOS 26.6.2. 사용자 2026-09-09 “macOS 26.6.2 잡자 나는 M5 맥북 프로를 주로 쓰고 있음”. 이전 OS 지원 제외. Swift target-info 인식 확인 |
 
 - 열린 D-NN 없음. 화면 계약·managed 기본 경로·원문 보존을 다시 묻지 않음.
-- ready-to-build는 계획 결정 해소 상태이며 구현·검수 완료가 아니다. 모든 AC는 미체크. 현재 요청은 /plan이므로 /build를 선행하지 않음.
+- /build 착수 시 ready-to-build·decisions_resolved·브랜치·clean을 실측하고 building으로 전환. 모든 AC는 검증 근거가 생기기 전까지 미체크.
 
 ## 막힘
 
