@@ -15,7 +15,7 @@
 
 - Input and persisted model unit are Int64 microseconds. No model timestamp is changed for display.
 - Presentation divides by1000 and rounds half-up using quotient/remainder; no floating-point conversion or value+500 overflow.
--850000µs→00:00:00.850;990000µs→00:00:00.990; difference140000µs→140ms. 849499→.849 and849500→.850.
+- 850000µs→00:00:00.850;990000µs→00:00:00.990; difference140000µs→140ms. 849499→.849 and849500→.850.
 - Fixed tests also exercise Int64.max, missing/negative/reversed presentation values; invalid typed document times still fail validation.
 
 ## Verification
