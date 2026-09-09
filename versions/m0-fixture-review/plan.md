@@ -3,7 +3,7 @@ unit: m0-fixture-review
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-03 완료 (Core38·Debug PASS); T-04 편집·Undo/Redo 구현"
+resume: "T-04 완료 (Core54·Debug PASS); T-05 JSON/TXT 내보내기 구현"
 spec: notes/review-workspace/review-workspace.src.html
 spec_sections: "02 검수·수정·내보내기; 03 검수 창; 04 검수 관련 규격·문구; 05; 06"
 deployment_target: "26.6.2"
