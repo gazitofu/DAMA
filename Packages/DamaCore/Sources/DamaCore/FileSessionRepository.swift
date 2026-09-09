@@ -386,6 +386,22 @@ public actor FileSessionRepository: TranscriptRepository {
         notices
     }
 
+    /// Rejects export destinations that could replace repository-owned state, including symlink
+    /// aliases into the injected/Application Support root. The caller still chooses the destination.
+    public func validateExportDestination(_ destinationURL: URL) throws {
+        guard destinationURL.isFileURL, destinationURL.path.hasPrefix("/") else {
+            throw SessionRepositoryError(code: .unsafePath, context: "export-destination")
+        }
+        let lexicalRoot = rootURL.standardizedFileURL.path
+        let lexicalDestination = destinationURL.standardizedFileURL.path
+        let resolvedRoot = try resolvedPathFollowingExistingAncestors(rootURL)
+        let resolvedDestination = try resolvedPathFollowingExistingAncestors(destinationURL)
+        guard !isContained(lexicalDestination, by: lexicalRoot),
+              !isContained(resolvedDestination, by: resolvedRoot) else {
+            throw SessionRepositoryError(code: .unsafePath, context: "export-destination")
+        }
+    }
+
     private func validateIdentifiers(in document: TranscriptDocument) throws {
         try validateIdentifier(document.sessionId, context: "session-id")
         try validateIdentifier(document.runId, context: "run-id")
@@ -438,11 +454,36 @@ public actor FileSessionRepository: TranscriptRepository {
         guard rootURL.isFileURL, rootURL.path.hasPrefix("/") else {
             throw SessionRepositoryError(code: .unsafePath, context: "storage-root")
         }
-        let resolvedRoot = rootURL.resolvingSymlinksInPath().standardizedFileURL.path
-        let resolved = url.resolvingSymlinksInPath().standardizedFileURL.path
+        let resolvedRoot = try resolvedPathFollowingExistingAncestors(rootURL)
+        let resolved = try resolvedPathFollowingExistingAncestors(url)
         guard resolved == resolvedRoot || resolved.hasPrefix(resolvedRoot + "/") else {
             throw SessionRepositoryError(code: .unsafePath, context: context)
         }
+    }
+
+    private func isContained(_ candidate: String, by root: String) -> Bool {
+        candidate == root || candidate.hasPrefix(root + "/")
+    }
+
+    private func resolvedPathFollowingExistingAncestors(_ input: URL) throws -> String {
+        var ancestor = input.standardizedFileURL
+        var missingComponents: [String] = []
+        while true {
+            var information = stat()
+            if lstat(ancestor.path, &information) == 0 { break }
+            let statError = errno
+            guard statError == ENOENT || statError == ENOTDIR,
+                  ancestor.path != "/" else {
+                throw SessionRepositoryError(code: .ioFailure, context: "stored-path")
+            }
+            missingComponents.append(ancestor.lastPathComponent)
+            ancestor.deleteLastPathComponent()
+        }
+        var resolved = ancestor.resolvingSymlinksInPath().standardizedFileURL
+        for component in missingComponents.reversed() {
+            resolved.appendPathComponent(component)
+        }
+        return resolved.standardizedFileURL.path
     }
 
     private func ensureDirectory(_ url: URL, context: String) throws {

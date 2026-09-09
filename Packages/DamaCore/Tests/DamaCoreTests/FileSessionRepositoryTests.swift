@@ -737,4 +737,29 @@ final class FileSessionRepositoryTests: XCTestCase {
         XCTAssertFalse(error?.description.contains(root.path) ?? true)
         XCTAssertFalse(error?.description.contains("private transcript content") ?? true)
     }
+
+    func testNonexistentSessionBelowEscapingSessionsSymlinkIsRejectedBeforeCreation() async throws {
+        let root = try temporaryRoot()
+        let outside = try temporaryRoot()
+        defer {
+            try? FileManager.default.removeItem(at: root)
+            try? FileManager.default.removeItem(at: outside)
+        }
+        try FileManager.default.createSymbolicLink(
+            at: root.appendingPathComponent("Sessions"),
+            withDestinationURL: outside
+        )
+        let repository = FileSessionRepository(rootURL: root)
+
+        let error = await repositoryError {
+            _ = try await repository.importSyntheticTranscript(self.fixtureData())
+        }
+
+        XCTAssertEqual(error?.code, .unsafePath)
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: outside.appendingPathComponent("session-fixture-001").path
+            )
+        )
+    }
 }

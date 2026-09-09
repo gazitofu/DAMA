@@ -338,6 +338,7 @@ public struct TranscriptEditingState: Sendable {
     public let draft: TranscriptDocument
     public let isDirty: Bool
     public let isSaving: Bool
+    public let isExporting: Bool
     public let failure: TranscriptEditingFailure?
     public let canUndo: Bool
     public let canRedo: Bool
@@ -360,6 +361,8 @@ public actor TranscriptEditingSession {
     private let model: TranscriptDocument
     private let revisionFactory: EditingRevisionFactory
     private let beforeSave: @Sendable () async -> Void
+    private let beforeExport: @Sendable () async -> Void
+    private let exportDestinationValidator: @Sendable (URL) async throws -> Void
     private var committed: TranscriptDocument
     private var draft: TranscriptDocument
     private var undoStack: [HistoryEntry] = []
@@ -367,6 +370,7 @@ public actor TranscriptEditingSession {
     private var pending: PendingTransition?
     private var pendingCancellation: TranscriptDocument?
     private var isSaving = false
+    private var isExporting = false
     private var failure: TranscriptEditingFailure?
 
     public static func open(
@@ -383,7 +387,10 @@ public actor TranscriptEditingSession {
             repository: repository,
             committed: loaded.document,
             model: model,
-            revisionFactory: revisionFactory
+            revisionFactory: revisionFactory,
+            exportDestinationValidator: { destinationURL in
+                try await repository.validateExportDestination(destinationURL)
+            }
         )
     }
 
@@ -392,7 +399,9 @@ public actor TranscriptEditingSession {
         committed: TranscriptDocument,
         model: TranscriptDocument,
         revisionFactory: @escaping EditingRevisionFactory = TranscriptEditingSession.defaultRevisionFactory,
-        beforeSave: @escaping @Sendable () async -> Void = {}
+        beforeSave: @escaping @Sendable () async -> Void = {},
+        beforeExport: @escaping @Sendable () async -> Void = {},
+        exportDestinationValidator: @escaping @Sendable (URL) async throws -> Void = { _ in }
     ) {
         self.repository = repository
         self.committed = committed
@@ -400,6 +409,8 @@ public actor TranscriptEditingSession {
         self.model = model
         self.revisionFactory = revisionFactory
         self.beforeSave = beforeSave
+        self.beforeExport = beforeExport
+        self.exportDestinationValidator = exportDestinationValidator
     }
 
     public func state() -> TranscriptEditingState {
@@ -408,11 +419,52 @@ public actor TranscriptEditingSession {
             draft: draft,
             isDirty: pending != nil,
             isSaving: isSaving,
+            isExporting: isExporting,
             failure: failure,
-            canUndo: !isSaving && pending == nil && !undoStack.isEmpty,
-            canRedo: !isSaving && pending == nil && !redoStack.isEmpty,
-            canExport: !isSaving && pending == nil && failure == nil
+            canUndo: !isSaving && !isExporting && pending == nil && !undoStack.isEmpty,
+            canRedo: !isSaving && !isExporting && pending == nil && !redoStack.isEmpty,
+            canExport: !isSaving && !isExporting && pending == nil && failure == nil
         )
+    }
+
+    public func export(
+        selection: TranscriptExportSelection,
+        format: TranscriptExportFormat,
+        to destinationURL: URL,
+        exporter: TranscriptExporter = TranscriptExporter()
+    ) async throws -> TranscriptExportResult {
+        guard !isSaving, !isExporting else {
+            throw TranscriptEditingError(code: .busy, context: "export")
+        }
+        guard pending == nil, failure == nil else {
+            throw TranscriptEditingError(code: .pendingSaveFailure, context: "export")
+        }
+        let document: TranscriptDocument
+        switch selection.version {
+        case .automatic:
+            document = model
+        case .current:
+            document = committed
+        }
+        guard selection.sessionId == document.sessionId,
+              selection.runId == document.runId,
+              selection.revisionId == document.revision.id else {
+            throw TranscriptExportError(code: .invalidSelection, context: "displayed-version")
+        }
+
+        isExporting = true
+        defer { isExporting = false }
+        await beforeExport()
+        do {
+            try await exportDestinationValidator(destinationURL)
+        } catch let error as TranscriptExportError {
+            throw error
+        } catch {
+            throw TranscriptExportError(code: .unsafeDestination, context: "repository-storage")
+        }
+        let data = try exporter.data(for: document, selection: selection, format: format)
+        try exporter.write(data, to: destinationURL)
+        return TranscriptExportResult(selection: selection, format: format)
     }
 
     public func apply(_ operation: TranscriptEditOperation) async throws {
@@ -444,7 +496,9 @@ public actor TranscriptEditingSession {
     }
 
     public func retry() async throws {
-        guard !isSaving else { throw TranscriptEditingError(code: .busy, context: "save") }
+        guard !isSaving, !isExporting else {
+            throw TranscriptEditingError(code: .busy, context: isExporting ? "export" : "save")
+        }
         guard let pending else {
             throw TranscriptEditingError(code: .noFailedSave, context: "retry")
         }
@@ -477,7 +531,9 @@ public actor TranscriptEditingSession {
     }
 
     public func cancelFailedSave() async throws {
-        guard !isSaving else { throw TranscriptEditingError(code: .busy, context: "save") }
+        guard !isSaving, !isExporting else {
+            throw TranscriptEditingError(code: .busy, context: isExporting ? "export" : "save")
+        }
         guard pending != nil else {
             throw TranscriptEditingError(code: .noFailedSave, context: "cancel")
         }
@@ -515,7 +571,9 @@ public actor TranscriptEditingSession {
     }
 
     private func availableForNewTransition() throws {
-        guard !isSaving else { throw TranscriptEditingError(code: .busy, context: "save") }
+        guard !isSaving, !isExporting else {
+            throw TranscriptEditingError(code: .busy, context: isExporting ? "export" : "save")
+        }
         guard pending == nil else {
             throw TranscriptEditingError(code: .pendingSaveFailure, context: "save")
         }
