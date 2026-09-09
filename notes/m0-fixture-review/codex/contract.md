@@ -14,6 +14,7 @@ The user authorized /build m0-fixture-review on 2026-09-09. You are a limited im
 
 - Run `bash scripts/check.sh`; retain `-module-cache-path` and keep all build caches under repository `.build/`. Core SwiftPM pure tests and unsigned Debug compile are allowed. Never run xcodebuild test, code signing or notarization. No signing identity changes.
 - If a command fails inspect path-denial evidence first (~/.cache, ~/Library, Keychain). Report environment denial versus compiler/assertion failure explicitly; do not label environment failure a code defect. Main can rerun with normal permissions.
+- Measured T01: Xcode local SwiftPM manifest invokes nested sandbox-exec and fails sandbox_apply inside Codex. After this known environment failure, stop retrying that axis and return the report to main. Do not experiment with hidden Xcode preferences, environment switches or global defaults to bypass it. Main runs the approved check.sh outside sandbox for unsigned compile. Use supported documented flags only.
 - Result MUST be written to the task's `tNN-result.md` path: changed files, actual interfaces, commands/results/test counts, failures classified, unverified items, limitations. A final chat reply is not the deliverable.
 - Main monitors log/mtime/CPU progress. Use bounded commands and emit milestones. First runtime is measured, subsequent no-progress timeout is 5 times measured normal task runtime (initial conservative ceiling 20 minutes without any log/file/CPU progress). Do not leave detached processes.
 
