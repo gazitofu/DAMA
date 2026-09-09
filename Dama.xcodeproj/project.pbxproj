@@ -7,12 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		100000000000000000000004 = {isa = PBXBuildFile; fileRef = 200000000000000000000005; };
+		100000000000000000000005 = {isa = PBXBuildFile; fileRef = 200000000000000000000006; };
+		100000000000000000000006 = {isa = PBXBuildFile; fileRef = 200000000000000000000007; };
+		100000000000000000000007 = {isa = PBXBuildFile; fileRef = 200000000000000000000008; };
+		100000000000000000000008 = {isa = PBXBuildFile; fileRef = 200000000000000000000009; };
 		100000000000000000000001 /* DamaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* DamaApp.swift */; };
 		100000000000000000000002 /* ReviewShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* ReviewShell.swift */; };
 		100000000000000000000003 /* DamaCore in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000002 /* DamaCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		200000000000000000000005 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewWorkspace.swift; sourceTree = "<group>"; };
+		200000000000000000000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLifecycle.swift; sourceTree = "<group>"; };
+		200000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvidencePanel.swift; sourceTree = "<group>"; };
+		200000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditDialog.swift; sourceTree = "<group>"; };
+		200000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = text.json; path = fixtures/normalized-transcript.json; sourceTree = SOURCE_ROOT; };
 		200000000000000000000001 /* DamaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DamaApp.swift; sourceTree = "<group>"; };
 		200000000000000000000002 /* ReviewShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewShell.swift; sourceTree = "<group>"; };
 		200000000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -45,6 +55,8 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000001 /* DamaApp.swift */,
+				200000000000000000000005 /* ReviewWorkspace.swift */,
+				200000000000000000000006 /* AppLifecycle.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -53,6 +65,8 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000002 /* ReviewShell.swift */,
+				200000000000000000000007 /* EvidencePanel.swift */,
+				200000000000000000000008 /* EditDialog.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -61,6 +75,7 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000003 /* Info.plist */,
+				200000000000000000000009 /* normalized-transcript.json */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -138,6 +153,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000008 /* normalized-transcript.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -171,6 +187,10 @@
 			files = (
 				100000000000000000000001 /* DamaApp.swift in Sources */,
 				100000000000000000000002 /* ReviewShell.swift in Sources */,
+				100000000000000000000004 /* ReviewWorkspace.swift in Sources */,
+				100000000000000000000005 /* AppLifecycle.swift in Sources */,
+				100000000000000000000006 /* EvidencePanel.swift in Sources */,
+				100000000000000000000007 /* EditDialog.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
