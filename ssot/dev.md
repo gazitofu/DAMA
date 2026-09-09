@@ -40,6 +40,12 @@ swiftc -swift-version 6 ssot/contracts/DomainContracts.swift scripts/SmokeCheck.
 "$TMP/contract-check" fixtures/normalized-transcript.json fixtures/pyannote-job-succeeded.synthetic.json "$TMP/roundtrip.json"
 ```
 
+### Codex 위임 시 (실측 이월)
+
+- **Codex 샌드박스에서 `xcodebuild test`가 돌지 않는다** (키체인·testmanagerd 접근). GAIA gaia-launcher에서 확인(2026-09-08). 발주 계약에 «테스트 실행은 메인» 을 고정하고, 메인이 밖에서 `xcodebuild test`·`swift test`·`bash scripts/check.sh`를 재실행한다. Codex 쪽 테스트 실패를 코드 결함으로 오진하지 않는다.
+- Codex는 이 저장소의 `CLAUDE.md`를 project doc으로 자동 주입받는다 (`~/.codex/config.toml`의 `project_doc_fallback_filenames = ["CLAUDE.md"]`). `AGENTS.md`는 두지 않는다. 절차는 `.claude/commands/`를 파일로 읽는다 (`~/.codex/AGENTS.md` 규약).
+- 병행 발주는 메인이 인터페이스(타입·함수 스텁)를 선커밋해 파일 소유를 가른다. 발주문은 `notes/{유닛}/codex/tNN.md`로 남기고 인라인 반환은 인정하지 않는다.
+
 ## 3. 스펙 문서 빌드
 
 ```sh
