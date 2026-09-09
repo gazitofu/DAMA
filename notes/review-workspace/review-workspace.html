@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>담아 · 메뉴바와 검수 창 스펙 r1</title>
+<style>
+
+
+/* ══════════ 토큰 (ssot 디자인 시스템 정본 값 그대로. 임의 수정 금지) ══════════ */
+:root{
+  /* 지면 */
+  --paper:#FFFFFF; --paper-2:#F7F7F7; --paper-3:#EDEDED;
+  /* 잉크 */
+  --ink:#1A1A1A; --ink-2:#4A4A4A; --ink-3:#6A6A6A;
+  /* 선 */
+  --hair:#DDDDDD;
+  /* 포인트 6색 (apricot 은 본문 #태그 밑줄 전용) */
+  --rose:#FF4D79; --lilac:#8A4BFF; --sky:#1E8AFF; --lemon:#FFF056; --sage:#29C06E; --apricot:#FFC24D;
+  /* 소프트 14% */
+  --rose-soft:#FFE6EC; --lilac-soft:#EFE6FF; --sky-soft:#DFEFFF; --lemon-soft:#FFFDE7; --sage-soft:#E1F6EB; --apricot-soft:#FFF6E6;
+  /* 틴트 8% */
+  --rose-tint:#FFF1F4; --lilac-tint:#F6F1FF; --sky-tint:#EDF6FF; --lemon-tint:#FFFEF1; --sage-tint:#EEFAF3; --apricot-tint:#FFFAF1;
+  /* 스크림 (이미지 위 텍스트 받침) */
+  --scrim:rgba(34,28,22,.62);
+  /* 내비 모션 공통 이징 */
+  --ease-nav:cubic-bezier(.22,1,.36,1);
+  /* 폰트 */
+  --serif:'KoPub Batang',serif;
+  --sans:'KoPub Dotum',-apple-system,'Apple SD Gothic Neo',sans-serif;
+  --num:'Fraunces',Georgia,serif;
+  --w-num:400; --w-num-strong:600;
+  /* 선 굵기 */
+  --lw:0.5px; --lw-strong:1px;
+  /* 라운딩 */
+  --r:3px;
+  /* 여백 자리 */
+  --sp-page:24px; --sp-block:24px; --sp-el:12px;
+  --sp-sec-above:48px; --sp-sec-head:24px; --sp-sec-body:32px;
+  --sp-grid:24px; --sp-grid-tight:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;font-weight:300;line-height:1.8;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+img{max-width:100%;display:block}
+
+/* ── 라인 아이콘 (Phosphor, 잉크색 단색 에셋) ── */
+.ic{display:inline-block;width:22px;height:22px;background:var(--m) center/contain no-repeat;flex:0 0 auto}
+.ic.inv{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRkZGRkZGIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjU2LDEzNmE4LDgsMCwwLDEtOCw4SDIzMnYxNmE4LDgsMCwwLDEtMTYsMFYxNDRIMjAwYTgsOCwwLDAsMSwwLTE2aDE2VjExMmE4LDgsMCwwLDEsMTYsMHYxNmgxNkE4LDgsMCwwLDEsMjU2LDEzNlptLTU3Ljg3LDU4Ljg1YTgsOCwwLDAsMS0xMi4yNiwxMC4zQzE2NS43NSwxODEuMTksMTM4LjA5LDE2OCwxMDgsMTY4cy01Ny43NSwxMy4xOS03Ny44NywzNy4xNWE4LDgsMCwwLDEtMTIuMjUtMTAuM2MxNC45NC0xNy43OCwzMy41Mi0zMC40MSw1NC4xNy0zNy4xN2E2OCw2OCwwLDEsMSw3MS45LDBDMTY0LjYsMTY0LjQ0LDE4My4xOCwxNzcuMDcsMTk4LjEzLDE5NC44NVpNMTA4LDE1MmE1Miw1MiwwLDEsMC01Mi01MkE1Mi4wNiw1Mi4wNiwwLDAsMCwxMDgsMTUyWiIvPjwvc3ZnPg==')}
+.ic-home{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjE5LjMxLDEwOC42OGwtODAtODBhMTYsMTYsMCwwLDAtMjIuNjIsMGwtODAsODBBMTUuODcsMTUuODcsMCwwLDAsMzIsMTIwdjk2YTgsOCwwLDAsMCw4LDhoNjRhOCw4LDAsMCwwLDgtOFYxNjBoMzJ2NTZhOCw4LDAsMCwwLDgsOGg2NGE4LDgsMCwwLDAsOC04VjEyMEExNS44NywxNS44NywwLDAsMCwyMTkuMzEsMTA4LjY4Wk0yMDgsMjA4SDE2MFYxNTJhOCw4LDAsMCwwLTgtOEgxMDRhOCw4LDAsMCwwLTgsOHY1Nkg0OFYxMjBsODAtODAsODAsODBaIi8+PC9zdmc+')}
+.ic-chat{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMTI4LDI0QTEwNCwxMDQsMCwwLDAsMzYuMTgsMTc2Ljg4TDI0LjgzLDIxMC45M2ExNiwxNiwwLDAsMCwyMC4yNCwyMC4yNGwzNC4wNS0xMS4zNUExMDQsMTA0LDAsMSwwLDEyOCwyNFptMCwxOTJhODcuODcsODcuODcsMCwwLDEtNDQuMDYtMTEuODEsOCw4LDAsMCwwLTYuNTQtLjY3TDQwLDIxNiw1Mi40NywxNzguNmE4LDgsMCwwLDAtLjY2LTYuNTRBODgsODgsMCwxLDEsMTI4LDIxNloiLz48L3N2Zz4=')}
+.ic-tools{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjIxLjI4LDM0Ljc1YTY0LDY0LDAsMCwwLTkwLjQ5LDBMNjAuNjksMTA0QTE1LjksMTUuOSwwLDAsMCw1NiwxMTUuMzF2NzMuMzhMMjYuMzQsMjE4LjM0YTgsOCwwLDAsMCwxMS4zMiwxMS4zMkw2Ny4zMiwyMDBIMTQwLjdBMTUuOTIsMTUuOTIsMCwwLDAsMTUyLDE5NS4zMmwwLDAsNjkuMjMtNzBBNjQsNjQsMCwwLDAsMjIxLjI4LDM0Ljc1Wk0xNDIuMDcsNDYuMDZBNDgsNDgsMCwwLDEsMjExLjc5LDExMkgxNTUuMzNsMzQuMzUtMzQuMzRhOCw4LDAsMCwwLTExLjMyLTExLjMyTDEyMCwxMjQuNjlWNjcuODdaTTcyLDExNS4zNWwzMi0zMS42N3Y1N2wtMzIsMzJaTTE0MC43LDE4NEg4My4zMmw1Ni01Nmg1Ni43NFoiLz48L3N2Zz4=')}
+.ic-world{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMTg0LDcySDQwQTE2LDE2LDAsMCwwLDI0LDg4VjIwMGExNiwxNiwwLDAsMCwxNiwxNkgxODRhMTYsMTYsMCwwLDAsMTYtMTZWODhBMTYsMTYsMCwwLDAsMTg0LDcyWm0wLDEyOEg0MFY4OEgxODRWMjAwWk0yMzIsNTZWMTc2YTgsOCwwLDAsMS0xNiwwVjU2SDY0YTgsOCwwLDAsMSwwLTE2SDIxNkExNiwxNiwwLDAsMSwyMzIsNTZaIi8+PC9zdmc+')}
+.ic-lounge{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjI0LDQ4SDMyYTgsOCwwLDAsMC04LDhWMTkyYTE2LDE2LDAsMCwwLDE2LDE2SDIxNmExNiwxNiwwLDAsMCwxNi0xNlY1NkE4LDgsMCwwLDAsMjI0LDQ4Wk0yMDMuNDMsNjQsMTI4LDEzMy4xNSw1Mi41Nyw2NFpNMjE2LDE5Mkg0MFY3NC4xOWw4Mi41OSw3NS43MWE4LDgsMCwwLDAsMTAuODIsMEwyMTYsNzQuMTlWMTkyWiIvPjwvc3ZnPg==')}
+.ic-add{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjU2LDEzNmE4LDgsMCwwLDEtOCw4SDIzMnYxNmE4LDgsMCwwLDEtMTYsMFYxNDRIMjAwYTgsOCwwLDAsMSwwLTE2aDE2VjExMmE4LDgsMCwwLDEsMTYsMHYxNmgxNkE4LDgsMCwwLDEsMjU2LDEzNlptLTU3Ljg3LDU4Ljg1YTgsOCwwLDAsMS0xMi4yNiwxMC4zQzE2NS43NSwxODEuMTksMTM4LjA5LDE2OCwxMDgsMTY4cy01Ny43NSwxMy4xOS03Ny44NywzNy4xNWE4LDgsMCwwLDEtMTIuMjUtMTAuM2MxNC45NC0xNy43OCwzMy41Mi0zMC40MSw1NC4xNy0zNy4xN2E2OCw2OCwwLDEsMSw3MS45LDBDMTY0LjYsMTY0LjQ0LDE4My4xOCwxNzcuMDcsMTk4LjEzLDE5NC44NVpNMTA4LDE1MmE1Miw1MiwwLDEsMC01Mi01MkE1Mi4wNiw1Mi4wNiwwLDAsMCwxMDgsMTUyWiIvPjwvc3ZnPg==')}
+.ic-player{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjMwLjkyLDIxMmMtMTUuMjMtMjYuMzMtMzguNy00NS4yMS02Ni4wOS01NC4xNmE3Miw3MiwwLDEsMC03My42NiwwQzYzLjc4LDE2Ni43OCw0MC4zMSwxODUuNjYsMjUuMDgsMjEyYTgsOCwwLDEsMCwxMy44NSw4YzE4Ljg0LTMyLjU2LDUyLjE0LTUyLDg5LjA3LTUyczcwLjIzLDE5LjQ0LDg5LjA3LDUyYTgsOCwwLDEsMCwxMy44NS04Wk03Miw5NmE1Niw1NiwwLDEsMSw1Niw1NkE1Ni4wNiw1Ni4wNiwwLDAsMSw3Miw5NloiLz48L3N2Zz4=')}
+.ic-turn{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjI0LDQ4Vjk2YTgsOCwwLDAsMS04LDhIMTY4YTgsOCwwLDAsMSwwLTE2aDI4LjY5TDE4Mi4wNiw3My4zN2E3OS41Niw3OS41NiwwLDAsMC01Ni4xMy0yMy40M2gtLjQ1QTc5LjUyLDc5LjUyLDAsMCwwLDY5LjU5LDcyLjcxLDgsOCwwLDAsMSw1OC40MSw2MS4yN2E5Niw5NiwwLDAsMSwxMzUsLjc5TDIwOCw3Ni42OVY0OGE4LDgsMCwwLDEsMTYsMFpNMTg2LjQxLDE4My4yOWE4MCw4MCwwLDAsMS0xMTIuNDctLjY2TDU5LjMxLDE2OEg4OGE4LDgsMCwwLDAsMC0xNkg0MGE4LDgsMCwwLDAtOCw4djQ4YTgsOCwwLDAsMCwxNiwwVjE3OS4zMWwxNC42MywxNC42M0E5NS40Myw5NS40MywwLDAsMCwxMzAsMjIyLjA2aC41M2E5NS4zNiw5NS4zNiwwLDAsMCw2Ny4wNy0yNy4zMyw4LDgsMCwwLDAtMTEuMTgtMTEuNDRaIi8+PC9zdmc+')}
+
+.col{max-width:920px;margin:0 auto;padding:0 24px}
+
+/* ── 문서 헤더 ── */
+header.doc{padding:64px 0 40px;border-bottom:var(--lw-strong) solid var(--ink)}
+.doc .date{font-family:var(--num);font-weight:var(--w-num-strong);font-size:64px;line-height:.95;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.doc .meta{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-top:10px;letter-spacing:.03em}
+.doc h1{font-family:var(--serif);font-weight:700;font-size:30px;line-height:1.35;margin-top:22px;letter-spacing:-.01em}
+.doc .sub{margin-top:12px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.hl{background:linear-gradient(transparent 60%, var(--lemon) 60%);font-weight:500;color:var(--ink)}
+code{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;background:var(--paper-2);padding:1px 5px}
+
+/* ── 00 판정 블록 (헤더 바로 아래 · 사용자가 답할 것만 · 열림/닫힘 2상태) ── */
+.verdict{margin-top:28px;border:var(--lw-strong) solid var(--ink);background:var(--paper)}
+.verdict .vh{display:flex;align-items:baseline;gap:12px;padding:14px 20px;border-bottom:var(--lw) solid var(--ink);background:var(--paper-2)}
+.verdict .vh h2{font-family:var(--serif);font-size:18px;font-weight:700}
+.verdict .vh .cnt{font-family:var(--num);font-size:13px;color:var(--ink-3)}
+.verdict .vh .stamp{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--lemon);padding:2px 8px}
+.verdict[data-state="open"] .stamp{display:none}
+.verdict .vb{padding:6px 20px 18px}
+.vitem{padding:14px 0;border-bottom:var(--lw) solid var(--hair)}
+.vitem:last-child{border-bottom:0}
+.vitem .vt{display:flex;gap:10px;align-items:baseline;font-weight:700;font-size:14.5px}
+.vitem .vt .id{font-family:var(--num);font-weight:400;color:var(--ink-3);font-size:13px;min-width:44px;flex:0 0 auto}
+.vitem .vq{margin:6px 0 0 54px;color:var(--ink-2);font-size:13.5px;max-width:66ch}
+.vitem .vq b{color:var(--ink)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 54px}
+.opts label{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer;user-select:none;line-height:1.4}
+.opts label:has(input:checked){background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.opts label code{color:inherit}
+.opts label:has(input:checked) code{background:rgba(255,255,255,.18)}
+.opts input{position:absolute;opacity:0;width:0;height:0}
+.memo{margin:8px 0 0 54px}
+.memo input{font-family:var(--sans);font-weight:300;font-size:13.5px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--hair);background:none;padding:6px 2px;width:100%;outline:none;border-radius:0}
+.memo input:focus{border-bottom-color:var(--ink)}
+.memo input::placeholder{color:var(--ink-3)}
+.vfoot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 20px;border-top:var(--lw-strong) solid var(--ink);background:var(--paper-2)}
+.vfoot .ok{font-size:12.5px;color:var(--ink-3)}
+.verdict pre.md{margin:0;padding:14px 20px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6;color:var(--ink-2);background:var(--paper);border-top:var(--lw) solid var(--hair);white-space:pre-wrap;user-select:all}
+.verdict[data-state="closed"] .opts,.verdict[data-state="closed"] .memo,.verdict[data-state="closed"] .vfoot,.verdict[data-state="closed"] pre.md{display:none}
+
+/* ── 문서 내비 ── */
+.tabs{position:sticky;top:0;z-index:40;background:var(--paper);border-bottom:var(--lw) solid var(--hair)}
+.tabs .row{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;padding:0 24px;max-width:920px;margin:0 auto}
+.tabs .row::-webkit-scrollbar{display:none}
+.tabs a{text-decoration:none;font-family:var(--sans);font-size:13.5px;font-weight:700;color:var(--ink-3);padding:14px 0 12px;white-space:nowrap}
+.tabs a:hover{color:var(--ink)}
+
+/* ── 섹션 문법 ── */
+section.sec{padding-top:88px}
+.sec>.rule{border-top:var(--lw-strong) solid var(--ink);padding-top:20px;display:flex;align-items:baseline;gap:14px}
+.sec>.rule .no{font-family:var(--num);font-weight:var(--w-num);font-size:15px;color:var(--ink-3)}
+.sec>.rule h2{font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.01em}
+.sec .intro{margin-top:14px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.sec p:not([class]){margin-top:14px;max-width:66ch}
+.sec h3{font-family:var(--sans);font-weight:700;font-size:15px;margin-top:46px;padding-top:12px;border-top:var(--lw) solid var(--ink)}
+.sec h4{font-family:var(--serif);font-weight:700;font-size:15.5px;margin-top:22px}
+.note{margin-top:12px;font-size:12.5px;color:var(--ink-3);max-width:66ch}
+
+/* ── 리스트 (병렬 항목은 본문·표 셀 어디서든 한 항목 한 줄 · 가운뎃점 연결 금지) ── */
+.sec ol,.sec ul{margin:10px 0 0;padding-left:1.6em;max-width:66ch}
+.sec li{margin-top:5px;padding-left:.2em}
+.sec li::marker{font-family:var(--num);color:var(--ink-3);font-size:13px}
+td ol,td ul{margin:0;padding-left:1.5em;max-width:none}
+td li{margin-top:3px}
+td li:first-child{margin-top:0}
+.sec td p:not([class]){margin-top:6px;max-width:none}
+.sec td p:not([class]):first-child{margin-top:0}
+.then{display:block;margin-top:6px}
+
+/* ── 표 (2차원 데이터만 · 셀 안 병렬 항목은 리스트) ── */
+.twrap{overflow-x:auto;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.65}
+th{text-align:left;font-weight:700;font-size:12px;color:var(--ink-3);background:var(--paper-2);padding:8px 12px;border-bottom:var(--lw) solid var(--ink);white-space:nowrap}
+td{padding:10px 12px;border-bottom:var(--lw) solid var(--hair);vertical-align:top;font-weight:300}
+td strong,td b{font-weight:700}
+td.num,.tnum{font-family:var(--num);font-weight:var(--w-num);font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap}
+
+/* ── 각주 (본문에는 번호만 · 정보는 최하단 · 클릭 팝오버. 저자는 span.fn 으로 근거를 쓰고 빌드가 번호를 단다) ── */
+sup.fn{font-family:var(--num);font-size:11px;line-height:0;vertical-align:super;margin-left:1px}
+sup.fn a{color:var(--sky);text-decoration:none;padding:0 2px;border-radius:2px;cursor:pointer}
+sup.fn a:hover,sup.fn a.open{background:var(--sky-soft)}
+.pop{position:absolute;z-index:50;max-width:400px;min-width:220px;padding:10px 12px 11px;background:var(--paper);border:var(--lw) solid var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.10);font-size:12.5px;line-height:1.65;color:var(--ink-2);font-weight:300}
+.pop .pn{font-family:var(--num);color:var(--ink-3);margin-right:6px}
+.pop::after{content:'';position:absolute;left:10px;bottom:-6px;width:10px;height:10px;background:var(--paper);border-right:var(--lw) solid var(--ink);border-bottom:var(--lw) solid var(--ink);transform:rotate(45deg)}
+.pop.below::after{bottom:auto;top:-6px;transform:rotate(225deg)}
+.fnlist{margin-top:14px;padding-left:0;list-style:none;font-size:12.5px;color:var(--ink-2);line-height:1.65;max-width:72ch}
+.fnlist li{display:flex;gap:10px;padding:5px 0;border-bottom:var(--lw) solid var(--hair)}
+.fnlist li:target{background:var(--sky-soft)}
+.fnlist .n{font-family:var(--num);color:var(--ink-3);min-width:22px;flex:0 0 auto}
+.fnlist .t{flex:1 1 auto}
+.fnlist .back{margin-left:6px;color:var(--sky);text-decoration:none;flex:0 0 auto}
+details.audit{margin-top:28px;border-top:var(--lw) solid var(--hair);padding-top:10px}
+details.audit summary{cursor:pointer;font-size:12.5px;color:var(--ink-3);font-weight:500}
+details.audit .body{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.65}
+details.audit table{font-size:12.5px}
+
+/* ── 데모 프레임과 스펙 ── */
+.stage{display:flex;flex-wrap:wrap;gap:24px;margin-top:20px;align-items:flex-start}
+.frame{width:400px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);flex:0 0 auto}
+.frame .fbody{padding:20px 18px 24px}
+.spec{flex:1 1 260px;min-width:240px;font-size:13px}
+.spec dt{font-weight:700;font-size:12.5px;margin-top:12px}
+.spec dd{color:var(--ink-2);margin-top:2px;line-height:1.65}
+
+/* ── 컴포넌트 (디자인 시스템 정본 발췌) ── */
+.btn{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:14px;line-height:1;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.fill{background:var(--ink);color:var(--paper);border:var(--lw) solid var(--ink);height:44px;padding:0 22px}
+.btn.line{background:var(--paper);color:var(--ink);border:var(--lw) solid var(--ink);height:40px;padding:0 18px}
+.btn.soft{background:var(--paper-2);color:var(--ink);border:0;height:40px;padding:0 18px}
+.btn.sm{height:34px;padding:0 14px;font-size:13px}
+.btn.text{background:none;border:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;height:auto;padding:4px 2px;font-weight:500}
+.btn:disabled{background:var(--paper-3);border-color:var(--paper-3);color:var(--ink-3);cursor:default}
+.btn:not(:disabled):active{transform:translateY(1px)}
+.btnrow{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.chip.sel{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.htag{display:inline-block;font-size:12px;font-weight:500;color:var(--ink-2);line-height:1.5;padding:0 2px;background:linear-gradient(transparent 62%, var(--lemon) 62%)}
+.in-line{font-family:var(--sans);font-weight:300;font-size:16px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--ink-3);background:none;padding:7px 2px;width:100%;outline:none;border-radius:0}
+.in-line:focus{border-bottom:var(--lw-strong) solid var(--ink)}
+.in-line::placeholder{color:var(--ink-3)}
+.in-area{font-family:var(--sans);font-weight:300;font-size:14.5px;color:var(--ink);background:var(--paper-2);border:var(--lw) solid transparent;border-radius:var(--r);padding:12px 14px;width:100%;outline:none;line-height:1.7;resize:vertical}
+.in-area:focus{border-color:var(--ink)}
+.in-area::placeholder{color:var(--ink-3)}
+.in-label{display:block;font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:6px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:var(--lw) solid var(--hair);font-size:13px}
+.kv .k{color:var(--ink-3);font-weight:500}
+.kv .v{font-weight:500;color:var(--ink)}
+.stat{display:inline-flex;align-items:center;gap:5px;font-family:var(--num);font-weight:var(--w-num);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.stat .ic{width:14px;height:14px;opacity:.72}
+.sechead h4{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.01em}
+.sechead .sub{font-size:13px;color:var(--ink-2);margin-top:4px}
+
+/* ── 폰 프레임 (모바일 프로토타입) ── */
+.phone{width:390px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;position:relative;overflow:hidden}
+.phone .pbody{padding:18px 20px 120px}
+.pdock{position:absolute;left:0;right:0;bottom:0;height:118px;pointer-events:none;background:linear-gradient(to top, var(--paper) 0%, var(--paper) 34%, rgba(255,255,255,0) 100%);display:flex;align-items:flex-end}
+.pdock .icons{width:100%;display:flex;justify-content:space-around;align-items:center;padding:0 10px 18px}
+.pdock .icons .ic{opacity:.38}
+.pdock .icons .ic.on{opacity:1}
+
+/* ── 데스크탑 조합 목업 ── */
+.mock{border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;overflow:hidden}
+.mock .mkhead{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:var(--lw) solid var(--hair)}
+.mock .mkhead .lg{height:16px;width:auto;display:block}
+.mock .mkhead nav{display:flex;gap:20px;font-size:14px;font-weight:700}
+.mock .mkhead nav span{color:var(--ink-3)}
+.mock .mkhead nav span.on{color:var(--ink)}
+.mock .mkhead .util{display:flex;gap:14px;align-items:center;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.mock .mkbody{padding:26px 24px 34px}
+
+/* ── 데스크탑 실척 스테이지 (맥북 뷰포트 1440x820 을 가로폭에 맞춰 비율 그대로 축소.
+     내부는 1440px 고정 가상 뷰포트라 실서비스 데스크탑 레이아웃이 그대로 재현된다.
+     문서 본문 col(920px)보다 넓게 브레이크아웃해 화면 가로폭을 최대로 쓴다) ── */
+.deskwrap{width:calc(100vw - 48px);max-width:1440px;margin:20px auto 0;margin-left:calc(50% - min(50vw - 24px, 720px))}
+.deskstage{position:relative;width:100%;aspect-ratio:1440/820;border:var(--lw) solid var(--ink);background:var(--paper);overflow:hidden}
+.deskvp{position:absolute;left:0;top:0;width:1440px;height:820px;transform-origin:0 0;transform:scale(var(--ds,1));overflow-y:auto;overscroll-behavior:contain}
+.deskcap{font-size:12.5px;color:var(--ink-3);margin-top:10px;font-weight:500}
+
+/* 상태 세그 (프로토타입 상태 전환 컨트롤) */
+.segrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.seg{height:32px;padding:0 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center}
+.seg.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+
+
+/* Dama 시각 목업. 문서 토큰을 사용하며 제품 고정 색상 계약으로 승격하지 않는다. */
+.preview-note{padding:12px 16px;background:var(--lemon-soft);border-left:3px solid var(--ink);font-size:13px;margin:16px 0}
+.preview-note strong{font-weight:700}
+.native{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;font-weight:400;font-size:13px;line-height:1.5}
+.native h3,.native h4,.native p{margin:0!important;padding:0!important;border:0!important;max-width:none!important;font-family:inherit}
+.native button,.native input,.native select{font:inherit}
+.native .muted{color:var(--ink-3)}
+.native .small{font-size:11px;color:var(--ink-3)}
+.preview-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 10px;align-items:center}
+.preview-toolbar button{font-family:inherit;font-size:13px;background:var(--paper);border:1px solid var(--hair);border-radius:6px;padding:7px 12px;cursor:pointer}
+.preview-toolbar button[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.preview-toolbar label{font-size:13px}
+.review-viewport{width:calc(100vw - 48px);max-width:1230px;margin:18px 0 0 calc(50% - min(50vw - 24px, 615px));overflow-x:auto;padding:16px 20px 22px;background:var(--paper-2);border:1px solid var(--hair)}
+.review-app{width:1180px;height:760px;border:1px solid var(--hair);border-radius:12px;overflow:hidden;background:var(--paper);box-shadow:0 12px 24px #00000012;display:grid;grid-template-rows:54px minmax(0,1fr) 78px}
+.review-app.compact{width:900px;height:600px}
+.titlebar{display:flex;align-items:center;gap:12px;padding:0 18px;border-bottom:1px solid var(--hair);background:var(--paper-2)}
+.traffic{display:flex;gap:7px;margin-right:16px}.traffic i{width:10px;height:10px;border:1px solid var(--hair);border-radius:50%;background:var(--paper-3)}
+.grow{flex:1}.chrome-action{display:inline-flex;border:1px solid var(--hair);background:var(--paper);border-radius:6px;padding:5px 10px;font-size:12px;white-space:nowrap}.chrome-action.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.review-body{display:grid;grid-template-columns:220px minmax(0,1fr) 260px;min-height:0}.review-app.compact .review-body{grid-template-columns:220px minmax(0,1fr)}
+.review-app.compact .inspector{display:none}
+.recordings{background:var(--paper-2);padding:22px 12px;border-right:1px solid var(--hair);overflow:auto}.recordings>p{padding:0 10px!important}
+.rec-card{margin-top:12px;padding:14px 11px;border-radius:7px}.rec-card.selected{background:var(--paper);box-shadow:0 1px 3px #00000008;border:1px solid var(--hair)}
+.rec-card b{display:block;margin-bottom:6px}.rec-card .small{line-height:1.9}
+.transcript{overflow:auto;padding:25px 24px}.transcript .session-heading{font-size:21px;font-weight:650;letter-spacing:-.04em}
+.script-meta{display:flex;gap:12px;align-items:center;margin-top:8px;color:var(--ink-3);font-size:12px}.script-subbar{display:flex;align-items:center;gap:10px;padding:20px 0 17px;border-bottom:1px solid var(--hair);font-size:12px}
+.turn-row{padding:17px 12px;border-bottom:1px solid var(--hair);border-left:3px solid transparent}.turn-meta{display:flex;gap:10px;align-items:center;margin-bottom:10px}.turn-meta time{margin-left:auto;color:var(--ink-3);font-size:11px;font-variant-numeric:tabular-nums}.turn-text{font-size:17px;line-height:1.9!important;letter-spacing:-.025em}.turn-row.focus{background:var(--sky-tint);border-left-color:var(--sky)}
+.turn-row.marker{border:1px dashed var(--ink-3);border-left:3px solid var(--ink-3);border-radius:5px;margin:12px 0;background:var(--paper-2)}
+.turn-row.marker.focus{border-left-color:var(--sky);background:var(--sky-tint)}
+.badge{font-size:10px;border:1px solid var(--hair);border-radius:4px;padding:2px 5px;background:var(--paper);color:var(--ink-2);font-weight:500;white-space:nowrap}.badge.warning{background:var(--apricot-soft);border-color:var(--apricot)}
+.speaker-tag{font-size:12px;font-weight:600}.selected-word{background:var(--sky-soft);border-bottom:2px solid var(--sky);padding:2px 4px}
+.inspector{border-left:1px solid var(--hair);padding:23px 18px;overflow:auto}.inspector .eyebrow{font-size:10px;letter-spacing:.04em;color:var(--ink-3);margin-bottom:8px}.inspector h4{font-size:16px;font-weight:650;margin-bottom:16px!important}.inspector p{font-size:12px;line-height:1.75;margin-bottom:14px!important}.inspector .detail{border-top:1px solid var(--hair);padding:13px 0;font-size:12px}.inspector .detail b{display:block;font-size:11px;margin-bottom:6px}.inspector .chrome-action{display:flex;justify-content:center;margin-top:9px;width:100%}
+.player{border-top:1px solid var(--hair);background:var(--paper-2);display:flex;gap:16px;align-items:center;padding:16px 22px}.player .transport{display:flex;align-items:center;gap:10px}.play-circle{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--paper)}.scrub{flex:1}.scrub-line{height:3px;background:var(--hair);position:relative;margin:10px 0}.scrub-line:before{content:'';display:block;height:100%;width:30%;background:var(--ink-2)}.scrub-line:after{content:'';position:absolute;left:30%;top:-4px;width:10px;height:10px;background:var(--ink);border-radius:50%}.player.disabled{color:var(--ink-3)}.player.disabled .play-circle{background:var(--hair)}
+.empty-state{display:flex;min-height:360px;align-items:center;justify-content:center;text-align:center;flex-direction:column;gap:16px}.empty-state h4{font-size:19px!important}.empty-state p{font-size:13px;line-height:1.8;max-width:340px!important}.notice{padding:14px;border:1px solid var(--hair);background:var(--apricot-soft);border-radius:6px;margin:16px 0}
+.panel-wrap{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap;margin-top:18px}.panel-surround{background:var(--paper-2);padding:18px;border:1px solid var(--hair);border-radius:10px}.menu-strip{display:flex;justify-content:flex-end;gap:14px;margin-bottom:12px;font-size:12px}.record-panel{width:360px;max-height:520px;overflow:auto;background:var(--paper);border:1px solid var(--hair);border-radius:10px;padding:18px;box-shadow:0 8px 20px #00000010}.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;font-weight:650}.panel-status{display:flex;justify-content:space-between;align-items:center;font-size:17px;margin-bottom:14px}.panel-row{padding:10px 0;border-bottom:1px solid var(--hair);font-size:12px}.panel-row>span{display:block;color:var(--ink-3);margin-bottom:5px;font-size:11px}.panel-action{margin:14px 0;width:100%;display:block;text-align:center;border-radius:6px;padding:9px;background:var(--ink);color:var(--paper);font-weight:600}.panel-details{flex:1;min-width:230px;padding-top:10px}.panel-details p{font-size:13px}.level{display:flex;gap:3px;align-items:center;height:18px}.level i{width:7px;height:12px;background:var(--hair);border-radius:2px}.level i.on{background:var(--ink-2)}
+.dialog-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}.sheet{border:1px solid var(--hair);border-radius:10px;background:var(--paper-2);padding:22px;font:13px/1.8 -apple-system,'Apple SD Gothic Neo',sans-serif}.sheet h4{margin-top:0!important;font:600 17px/1.5 -apple-system,'Apple SD Gothic Neo',sans-serif}.sheet p{font-size:13px}.sheet .field{background:var(--paper);padding:9px 12px;border:1px solid var(--hair);border-radius:6px;margin:12px 0}.sheet .sheet-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+.audit .body li{overflow-wrap:anywhere}.verification{border-left:3px solid var(--sage);padding-left:15px;margin-top:20px}
+@media(max-width:760px){.dialog-grid{grid-template-columns:1fr}.review-viewport{margin-left:calc(50% - 50vw + 12px);width:calc(100vw - 24px);padding:10px}.panel-surround{max-width:100%;padding:10px}.record-panel{max-width:100%}}
+
+@media (max-width:760px){
+  .col{padding:0 18px}
+  header.doc{padding:44px 0 30px}
+  .doc .date{font-size:46px}
+  .doc h1{font-size:23px}
+  .sec>.rule h2{font-size:19px}
+  .vitem .vq,.opts,.memo{margin-left:0}
+  .pop{max-width:calc(100vw - 36px)}
+}
+</style>
+</head>
+<body>
+<div class="col"><header class="doc"><div class="date">9.09</div><div class="meta">DAMA · REVIEW WORKSPACE · r1 · 계획 입력 채택</div><h1>담아 듣고,<br>누가 한 말인지 확인한다.</h1><p class="sub">메뉴바에서 녹음을 보존하고, 검수 창에서 화자 전환과 불확실한 구간을 확인하는 P0 화면 스펙. 화면·문구는 2026-09-09 사용자의 /plan 진행 지시로 계획 입력에 채택했다. 데이터·API·아키텍처는 기존 채택 계약을 따른다.</p></header>
+<section class="verdict" id="s-verdict" data-unit="review-workspace" data-round="r1" data-gate="①" data-state="closed"><div class="vh"><h2>화면 컨펌</h2><span class="cnt">계획 입력 채택 · 3축</span><span class="stamp">2026-09-09 /plan 지시</span></div><div class="vb"><div class="vitem" data-k="①"><div class="vt"><span class="id">①</span>녹음과 전사 흐름</div><p class="vq">좌클릭 녹음 시작·종료, 우클릭 패널, 기본 매번 전송 확인, 키 없는 녹음 허용을 계획 입력으로 채택했다.</p><div class="opts"><label><input type="radio" name="①" value="확정" checked>확정</label><label><input type="radio" name="①" value="수정">수정</label></div><div class="memo"><input type="text" aria-label="녹음과 전사 흐름 수정 메모" placeholder="수정할 위치와 원하는 동작"></div></div><div class="vitem" data-k="②"><div class="vt"><span class="id">②</span>검수 창의 읽기와 수정</div><p class="vq">3열 검수 창과 독립 marker, 이름·귀속·이슈 확인 분리, 클릭 선택과 구간 듣기 분리를 계획 입력으로 채택했다.</p><div class="opts"><label><input type="radio" name="②" value="확정" checked>확정</label><label><input type="radio" name="②" value="수정">수정</label></div><div class="memo"><input type="text" aria-label="검수 창의 읽기와 수정 수정 메모" placeholder="수정할 위치와 원하는 동작"></div></div><div class="vitem" data-k="③"><div class="vt"><span class="id">③</span>규격·문구·수용 기준</div><p class="vq">기본 1180×760·최소 900×600과 문구를 계획 입력으로 채택했다. 에이전트의 시각 검수와 실제 앱 검증은 미완료다.</p><div class="opts"><label><input type="radio" name="③" value="확정" checked>확정</label><label><input type="radio" name="③" value="수정">수정</label></div><div class="memo"><input type="text" aria-label="규격·문구·수용 기준 수정 메모" placeholder="수정할 위치와 원하는 동작"></div></div></div><div class="vfoot"><button class="btn fill sm" type="button" data-act="copy">MD 복사</button><button class="btn line sm" type="button" data-act="reset">초기화</button><span class="ok">선택·메모를 복사해 채팅에 붙여 주세요. 선택만으로 승인이 저장되지는 않습니다.</span></div><pre class="md"></pre></section></div><p class="note">승인 근거: 2026-09-09 사용자 “/plan 진행하자”. 계획 입력 채택과 시각 검수 완료는 구분한다. 대상 환경: macOS 26.6.2 이상, M5 MacBook Pro(사용자 지정). 이 문서의 /plan·/build 소비 경로는 유닛별 plan의 spec 필드가 참조한다.</p><nav class="tabs" aria-label="문서 목차"><div class="row"><a href="#s-verdict">판정</a><a href="#s-dir">방향</a><a href="#s-policy">정책</a><a href="#s-screen">화면</a><a href="#s-spec">규격·문구</a><a href="#s-impact">시스템 영향</a><a href="#s-check">수용 기준</a><a href="#s-fn">근거</a></div></nav><div class="col"><section class="sec" id="s-dir"><div class="rule"><span class="no">01</span><h2>원문을 지키는 검수</h2></div><p class="intro">좋은 문장보다 누가 말했는지 확인할 수 있는 원문을 우선한다. 알려지지 않은 화자는 미확정으로 남기고, 짧은 다른 화자의 구간은 독립된 행으로 보존한다.<sup class="fn" id="fnr-1"><a href="#fn-1" data-fn="1">1</a></sup></p><ol><li><b>녹음은 먼저.</b> 제목·화자 수·API 키 입력은 녹음 시작을 막지 않는다.</li><li><b>확인할 곳으로 이동.</b> 다음 확인 구간은 미확인 이슈로 이동하며, 이슈 확인과 화자 수정은 별개다.</li><li><b>근거를 옆에서 읽기.</b> 현재 귀속·모델 후보·공급자 점수·시간 겹침·사람 확인을 구분한다.</li><li><b>수정도 원본과 함께.</b> 모델 결과와 사용자 수정본을 분리하고 내보낼 판을 명시한다.</li></ol><p class="note">비범위: 요약·회의 챗봇·실시간 자막·시스템 오디오·입력 장치 선택·로컬 WhisperKit·모델 비교 UI·배포·실음성/API 검증. 제품 코드와 계약 파일은 이 단계에서 수정하지 않는다.</p></section><section class="sec" id="s-policy"><div class="rule"><span class="no">02</span><h2>상태·경계·기본값</h2></div><h3>녹음과 후처리는 독립 상태</h3><p>첫 입력 프레임을 받았을 때만 ‘녹음 중’을 표시한다. 저장 확정 전에는 ‘원본 저장됨’을 표시하지 않는다. 패널을 닫아도 녹음은 계속되고, 다른 기록의 처리 중에도 새 녹음이 가능하다.<sup class="fn" id="fnr-2"><a href="#fn-2" data-fn="2">2</a></sup></p><div class="twrap"><table><thead><tr><th>녹음 상태</th><th>표시·명령</th><th>전이·경계</th></tr></thead><tbody><tr><td>idle</td><td>녹음 시작 / 대기</td><td>좌클릭 → 권한·저장소 검사. 제목은 시작 시각 기반, 화자 수 자동.</td></tr><tr><td>authorizing / starting</td><td>마이크 권한 확인 중 / 녹음 준비 중</td><td>중복 시작 금지. 권한 거부 시 설정 안내, 가짜 타이머 없음.</td></tr><tr><td>recording</td><td>■ 녹음 중 + HH:MM:SS</td><td>좌클릭·패널 녹음 종료 → finalizing. ESC·외부 클릭은 패널만 닫음.</td></tr><tr><td>finalizing</td><td>녹음 저장 중</td><td>버퍼 배출·파일 확정·프레임 검증. 중복 시작·종료 금지.</td></tr><tr><td>interrupted / failed</td><td>녹음 중단됨 / 녹음을 시작하지 못했습니다</td><td>중단 이유와 보존된 구간을 기록. 장치 자동 전환·wake 자동 재개 없음.</td></tr><tr><td>녹음 중 종료 요청</td><td>계속 녹음 / 녹음을 저장하고 종료</td><td>기본·ESC는 계속 녹음. 저장 실패 시 종료를 완료한 척하지 않고 오류를 유지.</td></tr></tbody></table></div><h3>외부 전송 정책</h3><p>기본은 ‘매번 확인’. ‘종료 후 자동 전송’은 사용자가 외부 전송·과금을 확인한 뒤에만 켠다. 녹음마다 ‘로컬 저장만’이 전역 자동 전송보다 우선한다. 업로드가 시작된 후 ‘로컬 저장만’으로 소급 변경해 서버 삭제를 약속하지 않는다.<sup class="fn" id="fnr-3"><a href="#fn-3" data-fn="3">3</a></sup></p><ul><li>키가 없으면 전사만 ‘API 키 필요’로 대기한다. 녹음 시작은 활성 상태다.</li><li>매번 확인의 동의 창을 닫으면 전송하지 않고 ‘전송 확인 대기’로 남긴다.</li><li>자동 전송과 키 누락이 함께 있으면 키 저장 후 대기열을 재개한다. 이미 받은 녹음별 동의와 원본 가용성을 다시 검사한다.</li><li>파일 가져오기: M4A/WAV를 선택하고 원본 복사·검증 뒤 전송 정책을 적용한다. 실패 시 빈 세션을 정상 기록으로 표시하지 않는다.</li><li>화자 수는 실제로 말한 사람 수. 자동 / 정확히 / 범위를 배타 선택하고 양의 정수·최소≤최대를 검증한다. 오류가 있어도 녹음은 유지하며 전사 제출만 막는다.</li></ul><div class="twrap"><table><thead><tr><th>처리 상태</th><th>화면 문구</th><th>사용자 동작</th></tr></thead><tbody><tr><td>awaitingConsent</td><td>전송 확인 대기</td><td>전송 검토 → 동의 창. 닫으면 대기 유지.</td></tr><tr><td>queued / preparing</td><td>전사 대기 / 전사 준비 중</td><td>새 녹음 가능. 준비 상태를 서버 처리 상태와 구분.</td></tr><tr><td>uploading / submitting</td><td>음성 전송 중 / 작업 접수 중</td><td>제출 중 중복 명령 비활성화. 진척률 미제공이면 불확정 표시.</td></tr><tr><td>remotePending / fetching / normalizing</td><td>서버 처리 중 / 결과 가져오는 중 / 스크립트 준비 중</td><td>알려진 jobId의 조회를 유지. 근거 없는 완료 시간·퍼센트 없음.</td></tr><tr><td>waitingForNetwork / waitingForCredentials / waitingForBilling</td><td>네트워크 연결 대기 / API 키 필요 / 결제 상태 확인 필요</td><td>설정 또는 연결 복구. 녹음·원본은 유지.</td></tr><tr><td>submissionUncertain</td><td>작업 접수 여부를 확인할 수 없습니다</td><td>자동 재제출 금지. 다시 제출 시 중복 과금 가능성 확인 후 새 Run. 작업 목록 대조는 API 응답 실측 전 미지원.</td></tr><tr><td>readyForReview</td><td>전사 완료 · 검수 전</td><td>검수 창 열기. 이슈 0개여도 정확도·검증 완료로 표현하지 않음.</td></tr><tr><td>resultExpired / failed</td><td>결과를 가져오지 못했습니다 / 전사 실패</td><td>서버 응답으로 판정. 재처리 시 새 Run·비용 확인. 원본이 실제 존재할 때만 보존 문구 표시.</td></tr><tr><td>paused / locallyCanceled</td><td>로컬 추적 일시 정지 / 로컬 추적 중단</td><td>서버 취소·환불로 표현하지 않음. 재개는 기존 jobId로 조회.</td></tr></tbody></table></div><h3>검수·수정·내보내기</h3><ol><li><b>선택:</b> 클릭으로 한 Word, Shift+클릭으로 같은 Run의 연속 ordinal 범위를 선택한다. 한국어 어절을 임의로 다시 토큰화하지 않는다. 발화 행 선택과 ‘구간 듣기’를 분리하여 단어 선택 중 갑작스러운 재생을 막는다. 이는 설계 01의 클릭 즉시 재생에 대한 <b>채택한 화면 변경</b>다.</li><li><b>화자 변경:</b> 선택 Word만 기존 Run의 화자 또는 ‘화자 미확정’으로 바꾼다. 모델 후보는 보존한다. 선택 없음·marker에서는 단어 귀속 명령을 비활성화한다.</li><li><b>이름 변경:</b> 선택 화자의 표시명만 현재 Run 안에서 바꾼다. 화자 병합이나 다른 Run의 실명 매핑이 아니다. 빈 이름은 저장하지 않는다.</li><li><b>직접 텍스트 수정:</b> P0는 한 Word를 선택해 명시적으로 대체한다. 여러 Word 선택 시 ‘한 단어를 선택해 주세요’. 모델 text는 유지하고 editedText를 기록한다. ‘시간 재정렬 안 됨’을 표시한다.</li><li><b>Turn 분리:</b> speech Turn 내부 Word 경계에서만 분리한다. 원래 단어 순서·텍스트·시간은 유지하고 새 Revision에 두 Turn을 보존한다. 단일 Word 내부를 자르지 않는다. 이후 귀속 재구성에서도 사용자가 지정한 분리 경계를 보존해야 한다.</li><li><b>누락 수동 입력:</b> 기존 marker를 인식 텍스트로 전환하지 않는다. 시간 선택과 수동 입력 provenance가 완성되기 전에는 ‘누락 발화 직접 입력 · 미지원’으로 비활성 표시한다.</li><li><b>확인함:</b> 현재 이슈만 acknowledged로 변경한다. 화자·텍스트·marker는 그대로다. ‘미확인으로 되돌리기’와 Undo를 제공한다. resolved는 원인이 해소됐음을 별도로 판정할 때만 사용한다.</li><li><b>저장:</b> 새 Revision을 영속 저장한 뒤에만 ‘저장됨’. 저장 중 내보내기는 비활성, 실패 시 ‘저장하지 못했습니다’와 재시도·변경 취소를 제공한다. 저장 실패 상태로 창을 닫으면 경고한다.</li><li><b>내보내기:</b> JSON/TXT 및 ‘현재 수정본 / 자동 결과 원본’을 명시 선택한다. 기본은 현재 표시 중인 판. 미확정·겹침·누락 marker는 유지하고 다른 AI에 자동 전송하지 않는다.</li></ol><sup class="fn" id="fnr-4"><a href="#fn-4" data-fn="4">4</a></sup><p>‘다음 확인 구간’은 현재 Run의 open 이슈만 대상으로 시작 시간, 종료 시간, ID 순서로 이동한다. 예: 00:00.850의 누락 의심이 00:02.100의 겹침보다 먼저다. 시간이 null인 항목은 유효 시간 항목 뒤에 놓고 재생을 비활성화한다. 마지막에서는 ‘마지막 확인 구간입니다’와 ‘첫 확인 구간으로’를 표시한다. 검색은 현재 표시 판의 텍스트·화자 표시명을 대상으로 하며 출력 원문을 변경하지 않는다.</p></section><section class="sec" id="s-screen"><div class="rule"><span class="no">03</span><h2>화면과 상태 예시</h2></div><div class="preview-note"><strong>합성 시각 목업.</strong> 상태 선택 버튼만 동작합니다. 녹음·음성 재생·API 호출·수정 저장·파일 내보내기는 하지 않습니다. 검수 예시는 normalized fixture의 P1 합성 사례이며, P0 managed 처리 결과나 품질 증거가 아닙니다.</div><h3>검수 창</h3><p>가운데 원문을 가장 넓게 두고, 선택 구간의 근거와 수정은 오른쪽에 둔다. ‘화자 A → 누락 의심 화자 B → 화자 A’의 세 행을 눈으로 확인할 수 있어야 한다.</p><div class="preview-toolbar" role="group" aria-label="검수 화면 예시 상태"><button type="button" data-review="missing" aria-pressed="true">누락 의심</button><button type="button" data-review="overlap" aria-pressed="false">겹침·미확정</button><button type="button" data-review="expired" aria-pressed="false">결과 만료</button><button type="button" data-review="empty" aria-pressed="false">기록 없음</button><button type="button" id="size-toggle" aria-pressed="false">최소 900×600 보기</button></div><div class="review-viewport"><div class="review-app native" id="review-app"><div class="titlebar"><span class="traffic" aria-hidden="true"><i></i><i></i><i></i></span><b>담아</b><span class="grow"></span><span class="chrome-action">검색</span><span class="chrome-action">근거 보기</span><span class="chrome-action primary">내보내기</span></div><div class="review-body"><aside class="recordings"><p class="small">모든 기록</p><div class="rec-card selected"><b>화자 전환 예시</b><div class="small">합성 데이터 · 00:03<br>전사 완료 · 검수 전</div><div style="margin-top:7px"><span class="badge warning">확인 필요 2곳</span></div></div><div style="margin:22px 10px" class="small">이 화면은 한 Run의 예시입니다.<br>실제 회의 정보가 없습니다.</div><span class="chrome-action" style="margin:8px">파일 가져오기</span></aside><main class="transcript" id="transcript-preview"></main><aside class="inspector" id="inspector-preview"></aside></div><div class="player" id="player-preview"><div class="transport"><span>−3초</span><span class="play-circle">▶</span><span>+3초</span></div><span>1.0×</span><div class="scrub"><div class="scrub-line"></div><div class="small">00:00.850 <span style="float:right">00:03.000</span></div></div><span class="chrome-action">구간 반복</span><span class="small">재생 배치 예시 · 음성 없음</span></div></div></div><p class="note">1180×760과 900×600은 외부 설계의 초기값을 이번 화면 규격으로 채택했다. 최소 폭에서는 Inspector를 접고 ‘근거 보기’로 오버레이를 여는 정책이며, 여기서는 접힌 배치만 표시한다. 작은 브라우저에서는 목업을 가로로 스크롤한다.<sup class="fn" id="fnr-5"><a href="#fn-5" data-fn="5">5</a></sup></p><h3>메뉴바와 녹음 패널</h3><div class="preview-toolbar" role="group" aria-label="녹음 패널 예시 상태"><button type="button" data-capture="idle" aria-pressed="true">대기·키 없음</button><button type="button" data-capture="recording" aria-pressed="false">녹음 중</button><button type="button" data-capture="finalizing" aria-pressed="false">저장 중</button><button type="button" data-capture="interrupted" aria-pressed="false">중단됨</button></div><div class="panel-wrap"><div class="panel-surround native"><div class="menu-strip"><span id="menu-state">● 담아</span><span>수 14:00</span></div><div class="record-panel" id="panel-preview"></div></div><div class="panel-details"><h4>한 번의 클릭으로 녹음</h4><p>메뉴바 좌클릭은 시작·종료. 우클릭 또는 Control-click은 패널만 연다. 최초 설정에서 이 차이를 설명하고 VoiceOver 이름·도움말에도 같은 동작을 제공한다.</p><h4>로컬 저장은 언제나 가능</h4><p>API 키 안내는 전사 영역에 놓고 녹음 시작을 가리지 않는다. 입력 장치는 현재 장치명만 표시한다. 일시정지·시스템 오디오·장치 선택 컨트롤은 P0에 노출하지 않는다.</p><h4>실제 상태만 표시</h4><p>시간은 수신한 오디오 프레임 기준이다. 중단·저장 중은 녹음 중과 다른 문구·아이콘으로 표시하고 무음과 callback 미수신을 구분한다. 아래 막대·타이머는 고정 시각 예시다.</p></div></div><h3>동의·수정·오류의 문구</h3><div class="dialog-grid">
+<div class="sheet"><h4>음성을 전송할까요?</h4><p>이 녹음의 음성을 pyannote.ai로 보내 화자별 스크립트를 만듭니다. 계정에 따라 비용이 발생할 수 있습니다. 원본은 이 Mac에 보관합니다.</p><div class="field">이번 녹음 · 매번 확인<br>계정의 처리 지역과 보관 정책을 확인해 주세요.</div><p class="small">서버 보관 기간은 공급자 정책을 따릅니다. 앱에서 지워도 서버에서 즉시 삭제되지는 않습니다.</p><div class="sheet-actions"><span class="chrome-action">로컬 저장만</span><span class="chrome-action primary">음성 전송</span></div></div>
+<div class="sheet"><h4>API 키 없이 시작할 수 있어요</h4><p>녹음과 원본 저장은 API 키 없이 가능합니다. 전사를 시작할 때 pyannote.ai API 키를 설정해 주세요.</p><div class="field">API 키 · 입력 전</div><p>입력한 키는 이 Mac의 키체인에 저장합니다. 저장과 유효성 검증을 구분하며, 키 저장만으로 ‘연결 확인됨’을 표시하지 않습니다.</p><div class="sheet-actions"><span class="chrome-action">나중에 설정</span><span class="chrome-action">키 저장</span></div></div>
+<div class="sheet"><h4>선택 단어의 화자 변경</h4><p>선택: ‘네’ · 현재: 화자 미확정</p><div class="field">화자 미확정 ✓<br>화자 A<br>화자 B<br>화자 C</div><p>선택한 단어만 변경합니다. 모델 후보와 원문은 보존합니다.</p><div class="sheet-actions"><span class="chrome-action">취소</span><span class="chrome-action primary">화자 변경</span></div></div>
+<div class="sheet"><h4>화자 이름 변경</h4><p>화자 A의 표시 이름을 바꿉니다. 이 실행 결과 안의 모든 ‘화자 A’ 표시에 적용됩니다.</p><div class="field">화자 A</div><p>다른 화자의 말과 합치거나 다른 실행 결과의 이름을 바꾸지 않습니다.</p><div class="sheet-actions"><span class="chrome-action">취소</span><span class="chrome-action primary">이름 저장</span></div></div>
+<div class="sheet"><h4>작업 접수 여부를 확인할 수 없습니다</h4><p>서버에서 이미 처리 중일 수 있어 자동으로 다시 제출하지 않습니다. 다시 제출하면 비용이 중복될 수 있습니다.</p><div class="sheet-actions"><span class="chrome-action">닫기</span><span class="chrome-action">재제출 검토</span></div><p>재제출 검토 뒤 별도 확인: ‘중복 과금 가능성을 확인하고 새 작업으로 제출’.</p></div>
+<div class="sheet"><h4>스크립트 내보내기</h4><div class="field">형식 · JSON / TXT<br>내용 · 현재 수정본 / 자동 결과 원본</div><p>화자 미확정과 누락 의심 표시는 그대로 포함됩니다. 다른 AI로 자동 전송하지 않습니다.</p><div class="sheet-actions"><span class="chrome-action">취소</span><span class="chrome-action primary">파일로 저장</span></div></div></div></section><section class="sec" id="s-spec"><div class="rule"><span class="no">04</span><h2>규격·문구</h2></div><h3>채택 규격</h3><p>다음 값은 2026-09-09 /plan 진행 지시에 따라 채택한 화면 규격이다. 에이전트의 시각 검수 미완료와 앱 실물 검증은 별도 잔여다.</p><div class="twrap"><table><thead><tr><th>항목</th><th>채택값</th><th>축소·예외</th></tr></thead><tbody><tr><td>검수 창</td><td>1180×760pt<sup class="fn" id="fnr-6"><a href="#fn-6" data-fn="6">6</a></sup></td><td>최소 900×600pt; 최소 폭에서는 Inspector 접힘.</td></tr><tr><td>열 너비</td><td>목록 220pt / Inspector 260pt<sup class="fn" id="fnr-7"><a href="#fn-7" data-fn="7">7</a></sup></td><td>가운데 남은 폭. 열 콘텐츠는 독립 스크롤.</td></tr><tr><td>녹음 패널</td><td>폭 360pt / 최대 높이 520pt<sup class="fn" id="fnr-8"><a href="#fn-8" data-fn="8">8</a></sup></td><td>내용 초과 시 스크롤. 시스템 화면 경계 안에 배치.</td></tr><tr><td>제품 서체·색</td><td>macOS 시스템 서체·의미 색상<sup class="fn" id="fnr-9"><a href="#fn-9" data-fn="9">9</a></sup></td><td>이 문서는 밝은 모드 배치만 검산. 다크 모드·고대비는 앱 실물에서 확인.</td></tr><tr><td>시간 표시</td><td>녹음 HH:MM:SS / 검수 HH:MM:SS.mmm</td><td>내부 Int64 µs는 반올림 표시와 분리; null은 ‘시간 미확인’.</td></tr><tr><td>재생</td><td>선택 구간 앞뒤 0.5초, ±3초<sup class="fn" id="fnr-10"><a href="#fn-10" data-fn="10">10</a></sup></td><td>파일 경계로 제한. 시간 null·원본 없음·녹음 중에는 재생 불가.</td></tr><tr><td>속도·반복</td><td>0.75× / 1.0× 기본 / 1.25× / 1.5×; 반복 기본 꺼짐<sup class="fn" id="fnr-11"><a href="#fn-11" data-fn="11">11</a></sup></td><td>반복은 선택 구간+문맥 길이. 재생 상태는 녹음과 별도.</td></tr><tr><td>접근성</td><td>텍스트+아이콘; 키보드 포커스 표시</td><td>VoiceOver는 화자·시간·이슈·선택을 읽음. 색만으로 상태를 전달하지 않음.</td></tr></tbody></table></div><h3>문구 인벤토리</h3><p>아래 문구는 계획 입력으로 채택했으며 ssot/tone/review-workspace.md에 편입했다. 동적 값은 중괄호로 표시하며, UI에서 변수 이름을 그대로 노출하지 않는다.</p><div class="twrap"><table><thead><tr><th>위치·상태</th><th>표시 문구</th><th>조건·동작</th></tr></thead><tbody><tr><td>ambiguous_speaker</td><td>화자 미확정 · 후보가 비슷합니다.</td><td>speakerId가 null인 사실과 모델 후보는 별도 표시.</td></tr><tr><td>overlapping_speech</td><td>동시에 여러 화자가 감지되었습니다. 두 사람의 발화가 모두 전사되었다는 뜻은 아닙니다.</td><td>일반 diarization의 실제 겹침 근거.</td></tr><tr><td>missing_speech</td><td>[음성 감지 / 전사 누락 의심]</td><td>markerText. 인식 단어로 추가하거나 ‘네’로 채우지 않음.</td></tr><tr><td>boundary_conflict</td><td>단어 시간이 화자 전환 경계를 걸칩니다.</td><td>시간 충돌을 정답 화자로 오인하지 않음.</td></tr><tr><td>capture_interrupted</td><td>녹음이 중단되었습니다. 이후 구간은 녹음되지 않았을 수 있습니다.</td><td>보존된 실제 구간과 중단 이유를 함께 표시.</td></tr><tr><td>result_expired</td><td>서버 결과를 가져오지 못했습니다. 원본은 보존되어 있습니다.</td><td>원본 존재 확인 시만 후반 문장. ProcessingState.resultExpired의 UI; IssueKind에 새 enum을 넣지 않음.</td></tr><tr><td>원본도 없음</td><td>서버 결과를 가져오지 못했고, 이 Mac에서 원본을 찾을 수 없습니다.</td><td>재전사·원음 재생 비활성화.</td></tr><tr><td>unrepresented_speaker</td><td>음성에서 감지된 화자가 스크립트에 나타나지 않습니다.</td><td>누락 확정이 아님.</td></tr><tr><td>invalid_timestamp</td><td>시간을 확인할 수 없습니다. 원문은 보존되어 있습니다.</td><td>시간 null. 근처 시간으로 자동 대체하지 않음.</td></tr><tr><td>low_confidence</td><td>공급자 화자 점수가 낮아 확인이 필요합니다.</td><td>점수 누락에는 적용하지 않음.</td></tr><tr><td>partial_result</td><td>일부 전사 결과를 받지 못했습니다.</td><td>words 없는 성공을 빈 정상 스크립트로 만들지 않음.</td></tr><tr><td>근거 패널</td><td>현재 화자 / 모델 후보 / 공급자 화자 점수 / 시간 겹침 / 사람 확인</td><td>confidence map은 interval별 원값. 누락은 ‘미제공’, alignmentScore는 확률이 아닌 비율.</td></tr><tr><td>이슈 확인</td><td>확인함 / 미확인으로 되돌리기</td><td>확인 후에도 미확정 화자·marker 유지.</td></tr><tr><td>저장</td><td>저장 중 / 저장됨 / 저장하지 못했습니다 / 다시 저장 / 변경 취소</td><td>저장 완료 전 저장됨 금지.</td></tr><tr><td>다음 구간</td><td>다음 확인 구간 / 마지막 확인 구간입니다 / 첫 확인 구간으로</td><td>open 이슈 없음: ‘미확인 이슈가 없습니다. 정확도를 보장하지는 않습니다.’</td></tr><tr><td>기록 없음</td><td>아직 녹음한 기록이 없습니다. / 메뉴바 아이콘으로 녹음을 시작하거나 파일을 가져오세요.</td><td>파일 가져오기만 활성. 내보내기·재생 불가.</td></tr><tr><td>검색 없음</td><td>검색 결과가 없습니다. / 검색어 지우기</td><td>녹음 목록 자체가 빈 상태와 구분.</td></tr><tr><td>녹음 중 재생</td><td>녹음 중에는 재생할 수 없습니다. 재생음이 다시 녹음될 수 있습니다.</td><td>재생·seek·반복 비활성화.</td></tr><tr><td>권한 거부</td><td>마이크 접근이 꺼져 있습니다. 시스템 설정에서 담아의 마이크 접근을 허용해 주세요.</td><td>시스템 설정 열기 / 닫기. 반복 자동 권한 요청 없음.</td></tr><tr><td>저장소 오류</td><td>원본을 저장할 수 없어 녹음을 시작하지 못했습니다.</td><td>저장 공간·권한 확인 안내. recording 표시 없음.</td></tr><tr><td>가져오기 오류</td><td>파일을 가져오지 못했습니다. 원본 파일과 저장 공간을 확인해 주세요.</td><td>원본 복사·포맷 검증 실패. 음성 전송 없음.</td></tr><tr><td>수정 메뉴</td><td>선택 단어의 화자 변경 / 화자 이름 변경 / 선택 단어 수정 / 여기서 발화 나누기 / 실행 취소 / 다시 실행</td><td>선택 형태에 맞게 활성화.</td></tr><tr><td>텍스트 수정</td><td>시간 재정렬 안 됨 / 모델 원문 보기</td><td>editedText를 원문 text와 구분.</td></tr><tr><td>로컬 추적 중단</td><td>로컬 추적 중단 / 서버 처리와 비용은 취소되지 않습니다.</td><td>자동 서버 취소로 표현 금지.</td></tr><tr><td>삭제 확인</td><td>이 Mac의 원본 삭제 / 결과 삭제 / 캐시 삭제</td><td>선택 항목 명시. 원본 삭제 시 ‘재전사와 원음 검수를 할 수 없습니다.’ 서버 즉시 삭제 아님.</td></tr><tr><td>온보딩</td><td>마이크로 대화를 녹음하고 원본을 이 Mac에 저장합니다. / 마이크 접근 허용 / 나중에 설정</td><td>API 키·전송 정책 설정과 별도 화면. 참석자 고지·조직 보안 정책 확인 안내.</td></tr></tbody></table></div></section><section class="sec" id="s-impact"><div class="rule"><span class="no">05</span><h2>시스템 영향</h2></div><h4>재사용</h4><ul><li>설계 02·03·04와 Swift·JSON 계약. Raw / Model normalized / Revision 분리, 명시적 null, Run별 화자 ID.</li><li>메뉴바 좌클릭 시작·종료, 우클릭 패널, 독립 CaptureState·ProcessingState.</li><li>기존 합성 fixture와 check.sh의 계약 검사. 정확도·실기기 증거로 확대하지 않는다.</li></ul><h4>채택한 화면 변경</h4><ul><li>설계 01의 클릭 즉시 재생을 ‘행 선택 + 구간 듣기’로 분리한다.</li><li>화자 미확정 안내의 줄표를 ‘·’로 바꾸고 공급자 점수를 정답 확률처럼 보이지 않게 명명한다.</li><li>최소 폭 Inspector는 접기·근거 보기 오버레이 정책으로 구체화한다.</li></ul><h4>새로 구현할 것</h4><ul><li>실제 메뉴바·패널·온보딩·동의·검수 창 및 상태 연결. 현재 .xcodeproj와 DamaCore는 없다.</li><li>Word 선택·귀속 변경·표시명 변경·수동 텍스트 수정·Turn 분리·Undo/Redo·이슈 확인의 Revision 저장.</li><li>원음 플레이어·검색·다음 이슈 이동·내보내기·오류 복구 UI.</li></ul><p>이 HTML은 /plan과 /build의 입력 문서다. 앱 코드·계약·fixture를 생성하거나 바꾸지 않는다. result_expired는 처리 상태 UI에 매핑하며 normalized IssueKind에 추가하지 않는다. 최소 OS·서명 identity·실계정 테스트는 해당 유닛 /plan의 전제이고 이 화면 컨펌으로 해결되지 않는다.</p></section><section class="sec" id="s-check"><div class="rule"><span class="no">06</span><h2>검산 범위와 남은 확인</h2></div><p>화면 컨펌과 앱 동작 검증을 분리한다. 이번 문서에서 확인한 축만 아래에 기록한다. 게이트 ① 컨펌 전 /plan 진입, status 생성·승격, tone 확정 편입을 하지 않는다.</p><div class="twrap"><table><thead><tr><th>AC</th><th>검산 대상·합격 조건</th><th>이번 단계</th></tr></thead><tbody><tr><td>AC-01</td><td>기본 창·최소 창과 패널 4개 상태에서 제목·주요 명령·오류 문구가 겹치거나 잘리지 않음. 긴 내용은 지정 영역 스크롤.</td><td>브라우저 시각 검수 대상</td></tr><tr><td>AC-02</td><td>A → 짧은 B marker → A가 세 개의 독립 행. marker는 실제 인식 문장이 아니며 색 없이도 구분.</td><td>합성 fixture와 목업 대조</td></tr><tr><td>AC-03</td><td>화자 미확정·모델 후보·interval별 confidence map·alignmentScore·사람 확인을 분리. confidence null은 미제공.</td><td>겹침·미확정 상태 대조</td></tr><tr><td>AC-04</td><td>권한/키 누락·녹음 중단·접수 불명·만료·빈 기록·저장 실패의 문구와 다음 동작이 정의됨.</td><td>상태표·문구 검토</td></tr><tr><td>AC-05</td><td>6종 필수 검수/오류 문구 포함. result_expired를 새 IssueKind로 추가하지 않음.</td><td>계약·문구 매핑 확인</td></tr><tr><td>AC-06</td><td>단어 화자 변경과 이름 변경의 범위·Undo·저장 완료 표시·내보낼 판이 구분됨.</td><td>정책·시각 목업 확인</td></tr><tr><td>AC-07</td><td>음성 듣기→수정→Undo→재실행→JSON/TXT와 원문·marker 보존.</td><td>안 잼: 실제 앱 /build의 G-06</td></tr><tr><td>AC-08</td><td>키 없이 녹음, 창 닫기, 권한·장치·저장 실패, 장시간 녹음.</td><td>안 잼: 실제 앱 /build의 G-01·02</td></tr><tr><td>AC-09</td><td>실계정·한국어 E1/E2/누락/unknown/검수시간.</td><td>안 잼: G-05·07</td></tr><tr><td>AC-10</td><td>다크 모드·VoiceOver·키보드·실제 폰트·900pt 오버레이 여정.</td><td>안 잼: macOS 앱 실물 필요</td></tr></tbody></table></div><div class="verification"><p id="verification-record">검증 기록 (2026-09-09): 공식 _build.py로 HTML 생성 통과(각주 11개, 외부 폰트 0개, 시스템 서체 사용). 정적 검산: 중복 HTML ID 0개, 외부 src/href 0개, 필수 이슈 문구 6종 존재. JavaScript 2블록 node --check 통과. 브라우저 보안 정책이 file:// 열기를 차단하여 시각 배치·상태 전환·각주 팝오버는 미검증. 게이트 상태 closed: 사용자의 /plan 진행 지시를 계획 입력 채택으로 반영. 사용자가 직접 시각 검수를 완료했다고 진술한 것은 아님. 실기기 녹음·API 호출 없음.</p></div></section><section class="sec" id="s-fn"><div class="rule"><span class="no">주</span><h2>각주 · 근거</h2></div><ol class="fnlist" id="fnlist">
+    <li id="fn-1"><span class="n">1</span><span class="t">CLAUDE.md 최상위 경계 1–6 · ssot/design/01_PRODUCT_AND_UX.md §1·3 · 04_DATA_AND_RECONCILIATION.md §3 INV-06·10.</span><a class="back" href="#fnr-1" title="본문으로">↩</a></li>
+    <li id="fn-2"><span class="n">2</span><span class="t">ssot/design/02_ARCHITECTURE_AND_STORAGE.md §4·6·8; 01_PRODUCT_AND_UX.md FR-01–05·§5.</span><a class="back" href="#fnr-2" title="본문으로">↩</a></li>
+    <li id="fn-3"><span class="n">3</span><span class="t">ssot/design/01_PRODUCT_AND_UX.md §4; 07_SECURITY_AND_DECISIONS.md §3; 03_ENGINE_AND_API_CONTRACT.md §4·5. 보관·지역 문구는 로컬 검증 기록의 정책 인용이며 이 턴에 외부 재조회하지 않음.</span><a class="back" href="#fnr-3" title="본문으로">↩</a></li>
+    <li id="fn-4"><span class="n">4</span><span class="t">기존 계약: ssot/design/04_DATA_AND_RECONCILIATION.md §2·3·8 및 ssot/contracts/DomainContracts.swift·transcript.v1.schema.json. 선택 제스처·저장 실패 UI는 이번 채택안. 결과 파일의 nullable 필드는 명시적 null 유지.</span><a class="back" href="#fnr-4" title="본문으로">↩</a></li>
+    <li id="fn-5"><span class="n">5</span><span class="t">ssot/design/01_PRODUCT_AND_UX.md §7. 화면 데이터는 fixtures/normalized-transcript.json의 t1·t-marker·t2·t3, i1·i2를 직독하여 사용. fixture P1 엔진과 현재 P0 기본 경로를 구분함.</span><a class="back" href="#fnr-5" title="본문으로">↩</a></li>
+    <li id="fn-6"><span class="n">6</span><span class="t">설계 01 §7 초기값에서 채택.</span><a class="back" href="#fnr-6" title="본문으로">↩</a></li>
+    <li id="fn-7"><span class="n">7</span><span class="t">설계 01 §7 초기값에서 채택.</span><a class="back" href="#fnr-7" title="본문으로">↩</a></li>
+    <li id="fn-8"><span class="n">8</span><span class="t">설계 01 §6 초기값에서 채택.</span><a class="back" href="#fnr-8" title="본문으로">↩</a></li>
+    <li id="fn-9"><span class="n">9</span><span class="t">이번 채택 화면. 문서 목업은 template 토큰과 시스템 폰트 사용; 착수 시 ssot/tone/은 비어 있었음.</span><a class="back" href="#fnr-9" title="본문으로">↩</a></li>
+    <li id="fn-10"><span class="n">10</span><span class="t">설계 01 §7 초기값에서 채택.</span><a class="back" href="#fnr-10" title="본문으로">↩</a></li>
+    <li id="fn-11"><span class="n">11</span><span class="t">속도 선택 값은 이번 채택안. 초기값의 성능 주장이 아님.</span><a class="back" href="#fnr-11" title="본문으로">↩</a></li>
+  </ol><details class="audit"><summary>참조 근거 · 읽은 파일과 부재</summary><div class="body"><div class="twrap"><table><thead><tr><th>읽은 경로</th><th>확인 범위</th></tr></thead><tbody><tr><td>/Users/gazitofu/.codex/AGENTS.md</td><td>착수·한정 수탁/독립 역할·도메인 경로</td></tr><tr><td>/Users/gazitofu/CLAUDE.md</td><td>공통 규칙</td></tr><tr><td>/Users/gazitofu/Vault/appdev/CLAUDE.md</td><td>도메인 절차</td></tr><tr><td>/Users/gazitofu/Vault/appdev/Dama/_index.md</td><td>현행 다음 단계</td></tr><tr><td>/Users/gazitofu/Developer/Dama/CLAUDE.md</td><td>경계·함정·하이브리드 채택</td></tr><tr><td>/Users/gazitofu/Developer/Dama/README.md</td><td>프로젝트 지도</td></tr><tr><td>/Users/gazitofu/Developer/Dama/.claude/commands/spec.md</td><td>필수 로드·산출·게이트</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/design/00_README.md</td><td>채택 범위</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/design/01_PRODUCT_AND_UX.md</td><td>요구사항·화면</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/design/02_ARCHITECTURE_AND_STORAGE.md</td><td>상태·저장</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/design/03_ENGINE_AND_API_CONTRACT.md</td><td>오류·중복 접수</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/design/04_DATA_AND_RECONCILIATION.md</td><td>불변식·수정</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/design/06_TEST_AND_RELEASE.md</td><td>검증 층위·게이트</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/design/07_SECURITY_AND_DECISIONS.md</td><td>동의·기밀</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/api/pyannote-verified.md</td><td>API 우선 정본, 세션 앞 턴에서 전체 열람</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/contracts/DomainContracts.swift</td><td>타입·직렬화, 세션 앞 턴에서 전체 열람</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/contracts/transcript.v1.schema.json</td><td>enum·null, 세션 앞 턴에서 전체 열람</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/dev.md</td><td>현재 도구 제약</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/doc-template/README.md</td><td>문서 규격</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/doc-template/template.src.html</td><td>원본 템플릿 복제</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/doc-template/_build.py</td><td>자립 HTML 빌드</td></tr><tr><td>/Users/gazitofu/Developer/Dama/ssot/doc-template/fonts/manifest.json</td><td>sets가 빈 객체: 시스템 폰트 fallback</td></tr><tr><td>/Users/gazitofu/Developer/Dama/fixtures/README.md</td><td>합성·P1 예시 한계</td></tr><tr><td>/Users/gazitofu/Developer/Dama/fixtures/normalized-transcript.json</td><td>목업 데이터 직독</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-purpose-first.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-ambiguous-instructions.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-scope-stop.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-gate-hygiene.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-measurement.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-negative-claims.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-carryover-remeasure.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-verify-at-consumption.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-delegation-artifacts.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-destructive-writes.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-shared-tree-commits.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-numeric-test-integrity.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-external-media-verify.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-longrun-watchdog.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr><tr><td>/Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-apple-toolchain-sandbox.md</td><td>세션 앞 턴에서 본문 전체 열람; 이번 작업에서 목록·설명 갱신 확인</td></tr></tbody></table></div><p>추가로 본문을 읽은 규율: /Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-inline-script-file-exec.md (인코딩 선언), /Users/gazitofu/.claude/projects/-Users-gazitofu/memory/rule-sort-direction-concrete-pair.md (이슈 순서의 구체 예).</p><p>착수 실측: main, git status clean. versions/·notes/ 없음. 기존 유닛 plan·스펙은 없어서 못 읽음. 이 요청으로 notes/review-workspace/의 첫 문서만 생성. ssot/tone/은 존재하지만 비어 있음. 앱 구현과 외부 API 응답은 확인하지 않음.</p></div></details><p class="note">r1 (2026-09-09) 작성 후 사용자의 “/plan 진행하자”로 계획 입력 채택. 최소 macOS 26.6.2·M5 MacBook Pro는 후속 사용자 명시 확정. 시각 검수 미완료는 유지.</p></section><div style="height:100px"></div></div><script>
+// 00 판정 블록: 고른 선택지·메모로 MD 회신을 만든다 (data-state="open" 일 때만)
+(function(){
+  const v = document.getElementById('s-verdict');
+  if (!v || v.dataset.state !== 'open') return;
+  const md = v.querySelector('pre.md'), ok = v.querySelector('.ok');
+  const items = [...v.querySelectorAll('.vitem')];
+  const d = new Date();
+  const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  function build(){
+    const L = ['## ' + v.dataset.unit + ' 스펙 ' + v.dataset.round + ' · 게이트 ' + v.dataset.gate + ' 회신 (' + date + ')', ''];
+    items.forEach(it => {
+      const k = it.dataset.k;
+      const sel = it.querySelector('input[type=radio]:checked');
+      const memoEl = it.querySelector('input[type=text]');
+      const memo = memoEl ? memoEl.value.trim() : '';
+      const title = it.querySelector('.vt').textContent.replace(k, '').trim();
+      L.push('- ' + k + ' ' + title + ': ' + (sel ? sel.value : '(미선택)') + (memo ? ' · ' + memo : ''));
+    });
+    md.textContent = L.join('\n');
+  }
+  v.addEventListener('input', build);
+  v.querySelector('[data-act=copy]').onclick = async () => {
+    build();
+    try { await navigator.clipboard.writeText(md.textContent); ok.textContent = '복사됨.'; }
+    catch { const r = document.createRange(); r.selectNodeContents(md); const s = getSelection(); s.removeAllRanges(); s.addRange(r); ok.textContent = '클립보드 권한 없음. 선택된 텍스트를 복사하면 된다.'; }
+  };
+  v.querySelector('[data-act=reset]').onclick = () => {
+    items.forEach(it => { const r = it.querySelector('input[type=radio]'); if (r) r.checked = true; const m = it.querySelector('input[type=text]'); if (m) m.value = ''; });
+    build(); ok.textContent = '초기화됨.';
+  };
+  build();
+})();
+
+// 각주 팝오버: 번호 클릭 → 마커 우상단에 상자. 바깥 클릭·ESC·재클릭·스크롤에 닫힌다
+(function(){
+  let pop = null, cur = null;
+  function close(){ if (pop) pop.remove(); pop = null; if (cur) cur.classList.remove('open'); cur = null; }
+  document.querySelectorAll('sup.fn a[data-fn]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    if (cur === a) { close(); return; }
+    close();
+    const src = document.getElementById('fn-' + a.dataset.fn);
+    if (!src) return;
+    const t = src.querySelector('.t');
+    pop = document.createElement('div'); pop.className = 'pop';
+    pop.innerHTML = '<span class="pn">' + a.dataset.fn + '</span>' + (t ? t.innerHTML : src.innerHTML);
+    document.body.appendChild(pop);
+    const r = a.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = r.left + scrollX - 8, top = r.top + scrollY - ph - 10, below = false;
+    if (left + pw > scrollX + innerWidth - 12) left = scrollX + innerWidth - 12 - pw;
+    if (left < scrollX + 12) left = scrollX + 12;
+    if (r.top - ph - 10 < 8) { top = r.bottom + scrollY + 10; below = true; }
+    pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.classList.toggle('below', below);
+    cur = a; a.classList.add('open');
+  }));
+  document.addEventListener('click', e => { if (pop && !pop.contains(e.target) && !e.target.closest('sup.fn')) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  addEventListener('scroll', () => { if (pop) close(); }, {passive:true});
+})();
+
+// 데스크탑 실척 스테이지: 컨테이너 폭 / 1440 비율로 가상 뷰포트를 축소한다
+(function(){
+  const fit = () => document.querySelectorAll('.deskstage').forEach(st => {
+    st.querySelectorAll(':scope > .deskvp').forEach(vp => vp.style.setProperty('--ds', st.clientWidth / 1440));
+  });
+  addEventListener('resize', fit);
+  addEventListener('DOMContentLoaded', fit);
+  fit();
+})();
+</script>
+
+<script>
+(function(){
+ const transcript=document.getElementById('transcript-preview'), inspector=document.getElementById('inspector-preview'), player=document.getElementById('player-preview');
+ const header='<h3 class="session-heading">화자 전환 예시</h3><div class="script-meta"><span>00:03</span><span>자동 결과</span><span>검수 전</span></div><div class="script-subbar"><b>원문 스크립트</b><span class="grow"></span><span class="chrome-action">다음 확인 구간 →</span></div>';
+ function row(speaker,time,text,extra='',cls=''){return '<div class="turn-row '+cls+'"><div class="turn-meta"><span class="speaker-tag">'+speaker+'</span>'+extra+'<time>'+time+'</time></div><p class="turn-text">'+text+'</p></div>';}
+ function review(state){
+  document.querySelectorAll('[data-review]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.review===state)));
+  document.querySelector('.recordings .rec-card').style.display=state==='empty'?'none':'';
+  document.querySelector('.rec-card .small').innerHTML=state==='expired'?'합성 데이터 · 00:03<br>결과 만료':'합성 데이터 · 00:03<br>전사 완료 · 검수 전';
+  document.querySelector('.rec-card .badge').textContent=state==='expired'?'결과 가져오기 실패':'확인 필요 2곳';
+  player.classList.toggle('disabled',state==='empty'||state==='expired');
+  const noData=state==='empty'||state==='expired';
+  document.querySelectorAll('.titlebar .chrome-action').forEach(a=>{const disabled=noData&&(a.textContent==='검색'||a.textContent==='내보내기');a.style.opacity=disabled?'0.4':'';a.setAttribute('aria-disabled',String(disabled));});
+  if(noData){
+    player.innerHTML='<span class="small">'+(state==='empty'?'재생할 녹음이 없습니다.':'원본 오디오가 보존된 상태의 예시입니다. 스크립트 구간 재생은 사용할 수 없습니다.')+'</span>';
+    transcript.innerHTML='<div class="empty-state"><span style="font-size:32px">'+(state==='empty'?'○':'!')+'</span><h4>'+(state==='empty'?'아직 녹음한 기록이 없습니다.':'서버 결과를 가져오지 못했습니다.')+'</h4><p>'+(state==='empty'?'메뉴바 아이콘으로 녹음을 시작하거나<br>파일을 가져오세요.':'원본은 보존되어 있습니다.<br>새 작업으로 전사하면 비용이 다시 발생할 수 있습니다.')+'</p><span class="chrome-action">'+(state==='empty'?'파일 가져오기':'재전사 검토')+'</span></div>';
+    inspector.innerHTML='<div class="eyebrow">'+(state==='empty'?'선택 없음':'처리 상태')+'</div><h4>'+(state==='empty'?'기록을 선택해 주세요':'결과 만료')+'</h4><p>'+(state==='empty'?'전사된 기록을 선택하면 화자와 근거를 확인할 수 있습니다.':'서버 응답으로 결과 만료를 확인한 상태의 예시입니다. 자동 재제출하지 않습니다.')+'</p>';
+    return;
+  }
+  player.innerHTML="<div class=\"transport\"><span>−3초</span><span class=\"play-circle\">▶</span><span>+3초</span></div><span>1.0×</span><div class=\"scrub\"><div class=\"scrub-line\"></div><div class=\"small\">00:00.850 <span style=\"float:right\">00:03.000</span></div></div><span class=\"chrome-action\">구간 반복</span><span class=\"small\">재생 배치 예시 · 음성 없음</span>";
+  transcript.innerHTML=header+row('화자 A','00:00.100–00:00.700','저희가 내년에')+row('화자 B','00:00.850–00:00.990','[음성 감지 / 전사 누락 의심]','<span class="badge">누락 의심</span>','marker '+(state==='missing'?'focus':''))+row('화자 A','00:01.100–00:01.900','양산을 시작합니다.')+row('화자 미확정','00:02.100–00:02.300',state==='overlap'?'<span class="selected-word">네</span>':'네','<span class="badge warning">겹침</span>',state==='overlap'?'focus':'');
+  inspector.innerHTML=state==='missing'?'<div class="eyebrow">선택 구간 · 00:00.850–00:00.990</div><h4>전사 누락 의심</h4><p>음성에서 화자 B가 감지됐지만 대응하는 전사 단어가 없습니다.</p><div class="detail"><b>전사된 문장</b>없음 · 내용을 추정하지 않음</div><div class="detail"><b>구간 화자</b>화자 B</div><div class="detail"><b>공급자 화자 점수 · d2</b>화자 A 10 · 화자 B 74<br><span class="small">정답 확률이 아닙니다.</span></div><div class="detail"><b>사람 확인</b>미확인</div><span class="chrome-action primary">구간 듣기</span><span class="chrome-action">확인함</span><p class="small" style="margin-top:12px!important">확인해도 marker와 앞뒤 발화의 분리는 유지됩니다.</p>':'<div class="eyebrow">선택 단어 · 네</div><h4>겹침 · 화자 미확정</h4><p>동시에 여러 화자가 감지되었습니다. 두 사람의 발화가 모두 전사되었다는 뜻은 아닙니다.</p><div class="detail"><b>현재 화자</b>화자 미확정</div><div class="detail"><b>모델 후보</b>화자 B</div><div class="detail"><b>공급자 화자 점수</b>d4: 화자 B 65 · 화자 C 60<br>d5: 미제공</div><div class="detail"><b>시간 겹침</b>0.50 · 정답 확률이 아님</div><div class="detail"><b>사람 확인</b>미확인</div><span class="chrome-action primary">구간 듣기</span><span class="chrome-action">선택 단어의 화자 변경</span><span class="chrome-action">확인함</span>';
+ }
+ document.querySelectorAll('[data-review]').forEach(b=>b.addEventListener('click',()=>review(b.dataset.review)));
+ document.getElementById('size-toggle').addEventListener('click',function(){const small=document.getElementById('review-app').classList.toggle('compact');this.setAttribute('aria-pressed',String(small));this.textContent=small?'기본 1180×760 보기':'최소 900×600 보기';});
+ function capture(state){
+  document.querySelectorAll('[data-capture]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.capture===state)));
+  const labels={idle:['녹음 대기','00:00:00','녹음 시작'],recording:['■ 녹음 중','00:24:13','녹음 종료'],finalizing:['녹음 저장 중','00:24:13','파일 확정 중'],interrupted:['! 녹음 중단됨','00:24:13','새 녹음 시작']},x=labels[state];
+  document.getElementById('menu-state').textContent=state==='recording'?'■ 00:24:13':state==='interrupted'?'! 담아':'● 담아';
+  document.getElementById('panel-preview').innerHTML='<div class="panel-head"><span>담아</span><span class="chrome-action">설정</span></div><div class="panel-status"><b>'+x[0]+'</b><span>'+x[1]+'</span></div><div class="small">입력: 시스템 기본 마이크 · 장치명 예시</div><div class="level" aria-label="고정 입력 레벨 예시">'+Array.from({length:25},(_,i)=>'<i class="'+(state==='recording'&&i<12?'on':'')+'"></i>').join('')+'</div>'+(state==='interrupted'?'<div class="notice">녹음이 중단되었습니다. 이후 구간은 녹음되지 않았을 수 있습니다.<br><b>예시 이유: 입력 장치 연결 끊김</b></div>':'')+'<div class="panel-row"><span>제목</span>2026-09-09 14:00 회의</div><div class="panel-row"><span>화자 수</span>자동 <span style="display:inline;float:right;margin:0">실제로 발화한 사람 수</span></div><div class="panel-row"><span>이번 녹음 전송</span>확인 후 전송</div><span class="panel-action">'+x[2]+'</span><div class="panel-row"><b>처리 대기열</b><p class="small" style="margin-top:8px!important">'+(state==='idle'?'API 키 필요 · 녹음은 가능합니다.':'이전 기록 · 서버 처리 중')+'</p></div><div style="display:flex;justify-content:space-between;margin-top:14px"><span class="chrome-action">파일 가져오기</span><span class="chrome-action">모든 기록</span></div>';
+ }
+ document.querySelectorAll('[data-capture]').forEach(b=>b.addEventListener('click',()=>capture(b.dataset.capture)));
+ review('missing');capture('idle');
+})();
+</script>
+</body>
+</html>
