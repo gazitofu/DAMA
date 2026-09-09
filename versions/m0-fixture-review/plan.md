@@ -3,7 +3,7 @@ unit: m0-fixture-review
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-01 완료; T-02 계약 로더·검증 구현"
+resume: "T-02 완료 (Core20·Debug PASS); T-03 immutable 저장소 구현"
 spec: notes/review-workspace/review-workspace.src.html
 spec_sections: "02 검수·수정·내보내기; 03 검수 창; 04 검수 관련 규격·문구; 05; 06"
 deployment_target: "26.6.2"
