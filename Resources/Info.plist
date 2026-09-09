@@ -26,5 +26,9 @@
 	<true/>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>마이크로 대화를 녹음하고 원본을 이 Mac에 저장합니다.</string>
 </dict>
 </plist>

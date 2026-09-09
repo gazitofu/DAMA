@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		100000000000000000000009 = {isa = PBXBuildFile; fileRef = 200000000000000000000010; };
+		100000000000000000000010 = {isa = PBXBuildFile; fileRef = 200000000000000000000011; };
+		100000000000000000000011 = {isa = PBXBuildFile; fileRef = 200000000000000000000012; };
+		100000000000000000000012 = {isa = PBXBuildFile; productRef = B00000000000000000000003; };
 		100000000000000000000004 = {isa = PBXBuildFile; fileRef = 200000000000000000000005; };
 		100000000000000000000005 = {isa = PBXBuildFile; fileRef = 200000000000000000000006; };
 		100000000000000000000006 = {isa = PBXBuildFile; fileRef = 200000000000000000000007; };
@@ -18,6 +22,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		200000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingWorkspace.swift; sourceTree = "<group>"; };
+		200000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
+		200000000000000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPanel.swift; sourceTree = "<group>"; };
 		200000000000000000000005 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewWorkspace.swift; sourceTree = "<group>"; };
 		200000000000000000000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLifecycle.swift; sourceTree = "<group>"; };
 		200000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvidencePanel.swift; sourceTree = "<group>"; };
@@ -35,6 +42,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000003 /* DamaCore in Frameworks */,
+				100000000000000000000012 /* DamaAudio */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -57,6 +65,8 @@
 				200000000000000000000001 /* DamaApp.swift */,
 				200000000000000000000005 /* ReviewWorkspace.swift */,
 				200000000000000000000006 /* AppLifecycle.swift */,
+				200000000000000000000010,
+				200000000000000000000011,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -67,6 +77,7 @@
 				200000000000000000000002 /* ReviewShell.swift */,
 				200000000000000000000007 /* EvidencePanel.swift */,
 				200000000000000000000008 /* EditDialog.swift */,
+				200000000000000000000012,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -107,6 +118,7 @@
 			name = Dama;
 			packageProductDependencies = (
 				B00000000000000000000002 /* DamaCore */,
+				B00000000000000000000003 /* DamaAudio */,
 			);
 			productName = Dama;
 			productReference = 200000000000000000000004 /* DAMA.app */;
@@ -191,6 +203,9 @@
 				100000000000000000000005 /* AppLifecycle.swift in Sources */,
 				100000000000000000000006 /* EvidencePanel.swift in Sources */,
 				100000000000000000000007 /* EditDialog.swift in Sources */,
+				100000000000000000000009,
+				100000000000000000000010,
+				100000000000000000000011,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -241,6 +256,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = Resources/Dama.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -261,6 +277,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = Resources/Dama.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -308,6 +325,11 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		B00000000000000000000003 = {
+			isa = XCSwiftPackageProductDependency;
+			package = B00000000000000000000001;
+			productName = DamaAudio;
+		};
 		B00000000000000000000002 /* DamaCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = B00000000000000000000001 /* XCLocalSwiftPackageReference "Packages/DamaCore" */;

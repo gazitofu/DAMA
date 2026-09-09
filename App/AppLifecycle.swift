@@ -3,12 +3,31 @@ import SwiftUI
 
 @MainActor
 final class DamaAppDelegate: NSObject, NSApplicationDelegate {
+    private var statusBar: StatusBarController?
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        statusBar = StatusBarController()
+    }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let workspace = ReviewWorkspace.shared
         guard workspace.canLeave else {
             workspace.preventLeaving()
             NSApp.activate(ignoringOtherApps: true)
             return .terminateCancel
+        }
+        let capture = RecordingWorkspace.shared.capture
+        if capture.phase.busy || capture.needsFinalization {
+            guard capture.phase == .recording || capture.phase == .starting else { return .terminateCancel }
+            let alert = NSAlert()
+            alert.messageText = "녹음 중입니다."
+            alert.informativeText = "녹음을 저장한 뒤 종료할 수 있습니다."
+            alert.addButton(withTitle: "계속 녹음")
+            alert.addButton(withTitle: "녹음을 저장하고 종료")
+            guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
+            Task {
+                let saved = await capture.stop()
+                sender.reply(toApplicationShouldTerminate: saved)
+            }
+            return .terminateLater
         }
         return .terminateNow
     }
