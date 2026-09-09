@@ -1,10 +1,12 @@
-# Dama (담아)
+# DAMA (다마)
 
-한국어 대화를 **누가·언제·무슨 말을 했는지 확인 가능한 원문 스크립트**로 만드는 macOS 메뉴바 녹음·검수 앱. 이름은 "담아 듣다"에서 왔다. Swift 6 · AppKit + SwiftUI · Apple Silicon.
+한국어 대화를 **누가·언제·무슨 말을 했는지 확인 가능한 원문 스크립트**로 만드는 macOS 메뉴바 녹음·검수 앱. Swift 6 · AppKit + SwiftUI · Apple Silicon.
 
 푸는 문제는 두 가지다. **E1** = A가 한 말을 B에게 귀속하는 오류. **E2** = A·B·C가 이어서 한 말을 한 사람의 문장으로 합치는 오류. 문장이 자연스럽다는 이유로 E1/E2를 숨기지 않는다.
 
 **요약·회의록 생성 앱이 아니다.** 사용자는 JSON/TXT를 뽑아 다른 AI에 직접 넘긴다.
+
+정식 명칭은 **DAMA**, 한국어 표기는 **다마**다 (사용자 확정 2026-09-09). 앱 번들은 `DAMA.app`. 기존 repo·Xcode 프로젝트 경로, scheme `Dama`, 모듈 `DamaCore`, bundle ID `com.gazitofu.Dama`는 기술 식별자로 유지한다.
 
 ## 최상위 경계
 

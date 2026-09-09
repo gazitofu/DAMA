@@ -5,7 +5,7 @@ struct DamaApp: App {
     @NSApplicationDelegateAdaptor(DamaAppDelegate.self) private var delegate
     @StateObject private var workspace = ReviewWorkspace.shared
     var body: some Scene {
-        Window("담아", id: "review") {
+        Window("다마", id: "review") {
             ReviewShell(workspace: workspace)
         }
         .defaultSize(width: 1_180, height: 760)
@@ -28,12 +28,12 @@ struct DamaApp: App {
                 #endif
             }
         }
-        MenuBarExtra("담아", systemImage: "text.bubble") {
+        MenuBarExtra("다마", systemImage: "text.bubble") {
             DamaMenu(workspace: workspace)
         }
         Settings {
             VStack(alignment: .leading, spacing: 16) {
-                Text("담아 설정").font(.title2)
+                Text("다마 설정").font(.title2)
                 Text("현재 단계: 합성 데이터 검수")
                 Text("수정본은 이 Mac에 저장됩니다. JSON과 TXT는 내보내기에서 저장 위치를 선택합니다.")
                 Text("녹음·원음 재생·클라우드 전사·API 키 설정은 아직 지원하지 않습니다.")
@@ -55,6 +55,6 @@ private struct DamaMenu: View {
         Text("녹음·전사는 아직 지원하지 않습니다.")
         Divider()
         SettingsLink { Text("설정…") }
-        Button("담아 종료") { NSApp.terminate(nil) }.keyboardShortcut("q")
+        Button("다마 종료") { NSApp.terminate(nil) }.keyboardShortcut("q")
     }
 }

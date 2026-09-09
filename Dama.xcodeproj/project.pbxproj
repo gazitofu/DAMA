@@ -26,7 +26,7 @@
 		200000000000000000000001 /* DamaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DamaApp.swift; sourceTree = "<group>"; };
 		200000000000000000000002 /* ReviewShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewShell.swift; sourceTree = "<group>"; };
 		200000000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		200000000000000000000004 /* Dama.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Dama.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000004 /* DAMA.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DAMA.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,7 +83,7 @@
 		400000000000000000000005 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				200000000000000000000004 /* Dama.app */,
+				200000000000000000000004 /* DAMA.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -109,7 +109,7 @@
 				B00000000000000000000002 /* DamaCore */,
 			);
 			productName = Dama;
-			productReference = 200000000000000000000004 /* Dama.app */;
+			productReference = 200000000000000000000004 /* DAMA.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -251,7 +251,7 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gazitofu.Dama;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = DAMA;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 			};
@@ -271,7 +271,7 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gazitofu.Dama;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = DAMA;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 			};

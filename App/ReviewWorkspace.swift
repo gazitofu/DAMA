@@ -209,7 +209,7 @@ final class ReviewWorkspace: ObservableObject {
         let label = version == .automatic ? "자동본" : "현재 수정본"
         let panel = NSSavePanel()
         panel.allowedContentTypes = [format == .json ? .json : .plainText]
-        panel.nameFieldStringValue = "담아-\(label).\(format == .json ? "json" : "txt")"
+        panel.nameFieldStringValue = "다마-\(label).\(format == .json ? "json" : "txt")"
         panel.title = "\(label) 내보내기"
         panel.message = "현재 표시한 \(label)을 저장합니다."
         activity = "내보내는 중"

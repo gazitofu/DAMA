@@ -146,7 +146,7 @@ public struct TranscriptExporter: Sendable {
         let versionLabel = selection.version == .automatic ? "자동본" : "현재 수정본"
         let syntheticLabel = document.provenance.isSynthetic ? "합성 테스트 데이터" : "사용자 데이터"
         var lines = [
-            "# Dama 원문 스크립트",
+            "# DAMA 원문 스크립트",
             "# 데이터: \(syntheticLabel)",
             "# 선택 버전: \(versionLabel)",
             "# 세션: \(selection.sessionId)",

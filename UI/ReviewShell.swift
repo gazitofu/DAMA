@@ -55,7 +55,7 @@ struct ReviewShell: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("담아").font(.system(size: 21, weight: .semibold))
+            Text("다마").font(.system(size: 21, weight: .semibold))
             Text("이 Mac의 기록").font(.subheadline).foregroundStyle(.secondary)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {

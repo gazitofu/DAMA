@@ -1,10 +1,11 @@
-# Dama (담아)
+# DAMA (다마)
 
 한국어 대화를 화자별 원문으로 검수하는 macOS 앱. 요약·회의록 생성은 하지 않는다.
 
 현재 M0에는 **합성 데이터 열기 → 원문 검수·수정 → 저장 → JSON/TXT 내보내기**가 구현되어 있다.
 실제 녹음·원음 재생·클라우드 전사는 후속 단계다. 상태 정본은
 [versions/m0-fixture-review/plan.md](versions/m0-fixture-review/plan.md)이며, 실제 앱 조작·접근성 확인이 남아 `building`이다.
+다음 세션의 구현 순서와 사용자 준비 사항도 같은 plan의 **다음 세션: 실사용까지의 재개 순서** 절에 있다.
 
 ## 빌드와 검사
 
@@ -19,7 +20,7 @@ bash scripts/check.sh
 2026-09-09 앱 통합 검사: 4단계 PASS, SKIP 없음. 마지막 UI 연결 보완은 앱 컴파일만 재검증했다.
 샌드박스 경로 거부와 재실행 결과는 [ssot/dev.md](ssot/dev.md)에 구분한다.
 
-빌드 산출물: `.build/xcode/Build/Products/Debug/Dama.app`.
+빌드 산출물: `.build/xcode/Build/Products/Debug/DAMA.app`.
 서명 없는 컴파일 성공을 실제 실행·배포 검증으로 취급하지 않는다.
 
 ## 실제 Mac에서 남은 확인
