@@ -1,0 +1,319 @@
+{
+  "schemaVersion": "1.0",
+  "sessionId": "session-fixture-001",
+  "runId": "run-fixture-001",
+  "durationUs": 3000000,
+  "language": "ko",
+  "provenance": {
+    "engine": "hybridPyannoteWhisperKit",
+    "diarizationModel": "precision-2",
+    "asrModel": "fixture-whisper-large-v3-turbo",
+    "createdAt": "2026-09-08T23:00:00Z",
+    "algorithmVersion": "max-overlap-v1",
+    "sourceAudioSHA256": null,
+    "sampleRateHz": 16000,
+    "isSynthetic": true
+  },
+  "speakers": [
+    {
+      "id": "speaker-a",
+      "providerId": "SPEAKER_00",
+      "displayName": "화자 A"
+    },
+    {
+      "id": "speaker-b",
+      "providerId": "SPEAKER_01",
+      "displayName": "화자 B"
+    },
+    {
+      "id": "speaker-c",
+      "providerId": "SPEAKER_02",
+      "displayName": "화자 C"
+    }
+  ],
+  "diarization": [
+    {
+      "id": "d1",
+      "startUs": 0,
+      "endUs": 800000,
+      "speakerId": "speaker-a",
+      "confidence": {
+        "SPEAKER_00": 94,
+        "SPEAKER_01": 13
+      }
+    },
+    {
+      "id": "d2",
+      "startUs": 850000,
+      "endUs": 990000,
+      "speakerId": "speaker-b",
+      "confidence": {
+        "SPEAKER_00": 10,
+        "SPEAKER_01": 74
+      }
+    },
+    {
+      "id": "d3",
+      "startUs": 1000000,
+      "endUs": 2000000,
+      "speakerId": "speaker-a",
+      "confidence": {
+        "SPEAKER_00": 91,
+        "SPEAKER_01": 22
+      }
+    },
+    {
+      "id": "d4",
+      "startUs": 2050000,
+      "endUs": 2400000,
+      "speakerId": "speaker-b",
+      "confidence": {
+        "SPEAKER_01": 65,
+        "SPEAKER_02": 60
+      }
+    },
+    {
+      "id": "d5",
+      "startUs": 2100000,
+      "endUs": 2400000,
+      "speakerId": "speaker-c",
+      "confidence": null
+    }
+  ],
+  "exclusiveDiarization": [
+    {
+      "id": "e1",
+      "startUs": 0,
+      "endUs": 800000,
+      "speakerId": "speaker-a",
+      "confidence": null
+    },
+    {
+      "id": "e2",
+      "startUs": 850000,
+      "endUs": 990000,
+      "speakerId": "speaker-b",
+      "confidence": null
+    },
+    {
+      "id": "e3",
+      "startUs": 1000000,
+      "endUs": 2000000,
+      "speakerId": "speaker-a",
+      "confidence": null
+    },
+    {
+      "id": "e4",
+      "startUs": 2050000,
+      "endUs": 2200000,
+      "speakerId": "speaker-b",
+      "confidence": null
+    },
+    {
+      "id": "e5",
+      "startUs": 2200000,
+      "endUs": 2400000,
+      "speakerId": "speaker-c",
+      "confidence": null
+    }
+  ],
+  "words": [
+    {
+      "id": "w1",
+      "ordinal": 0,
+      "text": "저희가",
+      "editedText": null,
+      "prefix": "",
+      "startUs": 100000,
+      "endUs": 300000,
+      "modelSpeakerId": "speaker-a",
+      "speakerId": "speaker-a",
+      "assignmentSource": "reconciled",
+      "alignmentScore": 1.0,
+      "overlap": false,
+      "reviewIssueIds": [],
+      "sourceIntervalIds": [
+        "d1"
+      ],
+      "timingOrigin": "model",
+      "tokenKind": "lexical"
+    },
+    {
+      "id": "w2",
+      "ordinal": 1,
+      "text": "내년에",
+      "editedText": null,
+      "prefix": " ",
+      "startUs": 400000,
+      "endUs": 700000,
+      "modelSpeakerId": "speaker-a",
+      "speakerId": "speaker-a",
+      "assignmentSource": "reconciled",
+      "alignmentScore": 1.0,
+      "overlap": false,
+      "reviewIssueIds": [],
+      "sourceIntervalIds": [
+        "d1"
+      ],
+      "timingOrigin": "model",
+      "tokenKind": "lexical"
+    },
+    {
+      "id": "w3",
+      "ordinal": 2,
+      "text": "양산을",
+      "editedText": null,
+      "prefix": "",
+      "startUs": 1100000,
+      "endUs": 1400000,
+      "modelSpeakerId": "speaker-a",
+      "speakerId": "speaker-a",
+      "assignmentSource": "reconciled",
+      "alignmentScore": 1.0,
+      "overlap": false,
+      "reviewIssueIds": [],
+      "sourceIntervalIds": [
+        "d3"
+      ],
+      "timingOrigin": "model",
+      "tokenKind": "lexical"
+    },
+    {
+      "id": "w4",
+      "ordinal": 3,
+      "text": "시작합니다.",
+      "editedText": null,
+      "prefix": " ",
+      "startUs": 1500000,
+      "endUs": 1900000,
+      "modelSpeakerId": "speaker-a",
+      "speakerId": "speaker-a",
+      "assignmentSource": "reconciled",
+      "alignmentScore": 1.0,
+      "overlap": false,
+      "reviewIssueIds": [],
+      "sourceIntervalIds": [
+        "d3"
+      ],
+      "timingOrigin": "model",
+      "tokenKind": "lexical"
+    },
+    {
+      "id": "w5",
+      "ordinal": 4,
+      "text": "네",
+      "editedText": null,
+      "prefix": "",
+      "startUs": 2100000,
+      "endUs": 2300000,
+      "modelSpeakerId": "speaker-b",
+      "speakerId": null,
+      "assignmentSource": "unknown",
+      "alignmentScore": 0.5,
+      "overlap": true,
+      "reviewIssueIds": [
+        "i2"
+      ],
+      "sourceIntervalIds": [
+        "d4",
+        "d5"
+      ],
+      "timingOrigin": "model",
+      "tokenKind": "lexical"
+    }
+  ],
+  "turns": [
+    {
+      "id": "t1",
+      "kind": "speech",
+      "startUs": 100000,
+      "endUs": 700000,
+      "speakerId": "speaker-a",
+      "wordIds": [
+        "w1",
+        "w2"
+      ],
+      "markerText": null,
+      "reviewed": false,
+      "reviewIssueIds": []
+    },
+    {
+      "id": "t-marker",
+      "kind": "missingSpeech",
+      "startUs": 850000,
+      "endUs": 990000,
+      "speakerId": "speaker-b",
+      "wordIds": [],
+      "markerText": "[음성 감지 / 전사 누락 의심]",
+      "reviewed": false,
+      "reviewIssueIds": [
+        "i1"
+      ]
+    },
+    {
+      "id": "t2",
+      "kind": "speech",
+      "startUs": 1100000,
+      "endUs": 1900000,
+      "speakerId": "speaker-a",
+      "wordIds": [
+        "w3",
+        "w4"
+      ],
+      "markerText": null,
+      "reviewed": false,
+      "reviewIssueIds": []
+    },
+    {
+      "id": "t3",
+      "kind": "speech",
+      "startUs": 2100000,
+      "endUs": 2300000,
+      "speakerId": null,
+      "wordIds": [
+        "w5"
+      ],
+      "markerText": null,
+      "reviewed": false,
+      "reviewIssueIds": [
+        "i2"
+      ]
+    }
+  ],
+  "reviewIssues": [
+    {
+      "id": "i1",
+      "kind": "missing_speech",
+      "startUs": 850000,
+      "endUs": 990000,
+      "severity": "info",
+      "status": "open",
+      "wordIds": [],
+      "sourceIntervalIds": [
+        "d2"
+      ]
+    },
+    {
+      "id": "i2",
+      "kind": "overlapping_speech",
+      "startUs": 2100000,
+      "endUs": 2300000,
+      "severity": "warning",
+      "status": "open",
+      "wordIds": [
+        "w5"
+      ],
+      "sourceIntervalIds": [
+        "d4",
+        "d5"
+      ]
+    }
+  ],
+  "revision": {
+    "id": "revision-fixture-001",
+    "baseRevisionId": null,
+    "sourceRunId": "run-fixture-001",
+    "humanEdited": false,
+    "savedAt": "2026-09-08T23:00:00Z"
+  }
+}

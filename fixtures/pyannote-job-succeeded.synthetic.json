@@ -1,0 +1,84 @@
+{
+  "jobId": "11111111-1111-4111-8111-111111111111",
+  "status": "succeeded",
+  "createdAt": "2026-09-08T23:00:00Z",
+  "updatedAt": "2026-09-08T23:00:10Z",
+  "output": {
+    "diarization": [
+      {
+        "start": 0.0,
+        "end": 0.8,
+        "speaker": "SPEAKER_00",
+        "confidence": {
+          "SPEAKER_00": 94,
+          "SPEAKER_01": 13
+        }
+      },
+      {
+        "start": 0.85,
+        "end": 0.99,
+        "speaker": "SPEAKER_01",
+        "confidence": {
+          "SPEAKER_00": 10,
+          "SPEAKER_01": 74
+        }
+      },
+      {
+        "start": 1.0,
+        "end": 2.0,
+        "speaker": "SPEAKER_00"
+      }
+    ],
+    "exclusiveDiarization": [
+      {
+        "start": 0.0,
+        "end": 0.8,
+        "speaker": "SPEAKER_00"
+      },
+      {
+        "start": 0.85,
+        "end": 0.99,
+        "speaker": "SPEAKER_01"
+      },
+      {
+        "start": 1.0,
+        "end": 2.0,
+        "speaker": "SPEAKER_00"
+      }
+    ],
+    "wordLevelTranscription": [
+      {
+        "start": 0.1,
+        "end": 0.3,
+        "text": "저희가",
+        "speaker": "SPEAKER_00"
+      },
+      {
+        "start": 0.4,
+        "end": 0.7,
+        "text": "내년에",
+        "speaker": "SPEAKER_00"
+      },
+      {
+        "start": 1.1,
+        "end": 1.4,
+        "text": "양산을",
+        "speaker": "SPEAKER_00"
+      },
+      {
+        "start": 1.5,
+        "end": 1.9,
+        "text": "시작합니다.",
+        "speaker": "SPEAKER_00"
+      }
+    ],
+    "turnLevelTranscription": [
+      {
+        "start": 0.1,
+        "end": 1.9,
+        "text": "저희가 내년에 양산을 시작합니다.",
+        "speaker": "SPEAKER_00"
+      }
+    ]
+  }
+}

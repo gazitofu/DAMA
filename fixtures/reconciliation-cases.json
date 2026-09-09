@@ -1,0 +1,396 @@
+[
+  {
+    "name": "clean_single_speaker",
+    "word": {
+      "startUs": 100000,
+      "endUs": 300000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "expected": {
+      "speaker": "A",
+      "topCandidate": "A",
+      "score": 1,
+      "overlap": false
+    }
+  },
+  {
+    "name": "majority_not_word_start",
+    "word": {
+      "startUs": 900000,
+      "endUs": 1300000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      },
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      },
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      }
+    ],
+    "expected": {
+      "speaker": "B",
+      "topCandidate": "B",
+      "score": 0.75,
+      "overlap": false
+    }
+  },
+  {
+    "name": "real_overlap_abstains",
+    "word": {
+      "startUs": 500000,
+      "endUs": 700000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 600000
+      },
+      {
+        "speaker": "B",
+        "startUs": 600000,
+        "endUs": 1000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      },
+      {
+        "speaker": "B",
+        "startUs": 400000,
+        "endUs": 800000
+      }
+    ],
+    "expected": {
+      "speaker": null,
+      "topCandidate": "A",
+      "score": 0.5,
+      "overlap": true
+    }
+  },
+  {
+    "name": "no_nearest_speaker_fallback",
+    "word": {
+      "startUs": 2000000,
+      "endUs": 3000000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "expected": {
+      "speaker": null,
+      "topCandidate": null,
+      "score": 0,
+      "overlap": false
+    }
+  },
+  {
+    "name": "equal_coverage_abstains",
+    "word": {
+      "startUs": 800000,
+      "endUs": 1200000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      },
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      },
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      }
+    ],
+    "expected": {
+      "speaker": null,
+      "topCandidate": "A",
+      "score": 0.5,
+      "overlap": false
+    }
+  },
+  {
+    "name": "low_coverage_abstains",
+    "word": {
+      "startUs": 800000,
+      "endUs": 1800000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "expected": {
+      "speaker": null,
+      "topCandidate": "A",
+      "score": 0.2,
+      "overlap": false
+    }
+  },
+  {
+    "name": "zero_duration_abstains",
+    "word": {
+      "startUs": 500000,
+      "endUs": 500000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "expected": {
+      "speaker": null,
+      "topCandidate": null,
+      "score": null,
+      "overlap": false
+    }
+  },
+  {
+    "name": "same_speaker_union_not_double_count",
+    "word": {
+      "startUs": 200000,
+      "endUs": 800000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 700000
+      },
+      {
+        "speaker": "A",
+        "startUs": 300000,
+        "endUs": 1000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 700000
+      },
+      {
+        "speaker": "A",
+        "startUs": 300000,
+        "endUs": 1000000
+      }
+    ],
+    "expected": {
+      "speaker": "A",
+      "topCandidate": "A",
+      "score": 1,
+      "overlap": false
+    }
+  },
+  {
+    "name": "touching_boundary_not_overlap",
+    "word": {
+      "startUs": 1000000,
+      "endUs": 1200000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      },
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      },
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      }
+    ],
+    "expected": {
+      "speaker": "B",
+      "topCandidate": "B",
+      "score": 1,
+      "overlap": false
+    }
+  },
+  {
+    "name": "unordered_intervals_same_answer",
+    "word": {
+      "startUs": 900000,
+      "endUs": 1300000
+    },
+    "exclusive": [
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      },
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      },
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "expected": {
+      "speaker": "B",
+      "topCandidate": "B",
+      "score": 0.75,
+      "overlap": false
+    }
+  },
+  {
+    "name": "threshold_boundary_is_inclusive",
+    "word": {
+      "startUs": 400000,
+      "endUs": 1400000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      },
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      },
+      {
+        "speaker": "B",
+        "startUs": 1000000,
+        "endUs": 2000000
+      }
+    ],
+    "expected": {
+      "speaker": "A",
+      "topCandidate": "A",
+      "score": 0.6,
+      "overlap": false
+    }
+  },
+  {
+    "name": "invalid_reversed_time_abstains",
+    "word": {
+      "startUs": 600000,
+      "endUs": 500000
+    },
+    "exclusive": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "regular": [
+      {
+        "speaker": "A",
+        "startUs": 0,
+        "endUs": 1000000
+      }
+    ],
+    "expected": {
+      "speaker": null,
+      "topCandidate": null,
+      "score": null,
+      "overlap": false
+    }
+  }
+]

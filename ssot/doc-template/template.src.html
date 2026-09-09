@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>유닛 이름 스펙</title>
+<style>
+/*__FONTS__*/
+
+/* ══════════ 토큰 (ssot 디자인 시스템 정본 값 그대로. 임의 수정 금지) ══════════ */
+:root{
+  /* 지면 */
+  --paper:#FFFFFF; --paper-2:#F7F7F7; --paper-3:#EDEDED;
+  /* 잉크 */
+  --ink:#1A1A1A; --ink-2:#4A4A4A; --ink-3:#6A6A6A;
+  /* 선 */
+  --hair:#DDDDDD;
+  /* 포인트 6색 (apricot 은 본문 #태그 밑줄 전용) */
+  --rose:#FF4D79; --lilac:#8A4BFF; --sky:#1E8AFF; --lemon:#FFF056; --sage:#29C06E; --apricot:#FFC24D;
+  /* 소프트 14% */
+  --rose-soft:#FFE6EC; --lilac-soft:#EFE6FF; --sky-soft:#DFEFFF; --lemon-soft:#FFFDE7; --sage-soft:#E1F6EB; --apricot-soft:#FFF6E6;
+  /* 틴트 8% */
+  --rose-tint:#FFF1F4; --lilac-tint:#F6F1FF; --sky-tint:#EDF6FF; --lemon-tint:#FFFEF1; --sage-tint:#EEFAF3; --apricot-tint:#FFFAF1;
+  /* 스크림 (이미지 위 텍스트 받침) */
+  --scrim:rgba(34,28,22,.62);
+  /* 내비 모션 공통 이징 */
+  --ease-nav:cubic-bezier(.22,1,.36,1);
+  /* 폰트 */
+  --serif:'KoPub Batang',serif;
+  --sans:'KoPub Dotum',-apple-system,'Apple SD Gothic Neo',sans-serif;
+  --num:'Fraunces',Georgia,serif;
+  --w-num:400; --w-num-strong:600;
+  /* 선 굵기 */
+  --lw:0.5px; --lw-strong:1px;
+  /* 라운딩 */
+  --r:3px;
+  /* 여백 자리 */
+  --sp-page:24px; --sp-block:24px; --sp-el:12px;
+  --sp-sec-above:48px; --sp-sec-head:24px; --sp-sec-body:32px;
+  --sp-grid:24px; --sp-grid-tight:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;font-weight:300;line-height:1.8;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+img{max-width:100%;display:block}
+
+/* ── 라인 아이콘 (Phosphor, 잉크색 단색 에셋) ── */
+.ic{display:inline-block;width:22px;height:22px;background:var(--m) center/contain no-repeat;flex:0 0 auto}
+.ic.inv{--m:url('assets/icons-a/add-inv.svg')}
+.ic-home{--m:url('assets/icons-a/home.svg')}
+.ic-chat{--m:url('assets/icons-a/chat.svg')}
+.ic-tools{--m:url('assets/icons-a/tools.svg')}
+.ic-world{--m:url('assets/icons-a/world.svg')}
+.ic-lounge{--m:url('assets/icons-a/lounge.svg')}
+.ic-add{--m:url('assets/icons-a/add.svg')}
+.ic-player{--m:url('assets/icons-a/player.svg')}
+.ic-turn{--m:url('assets/icons-a/turn.svg')}
+
+.col{max-width:920px;margin:0 auto;padding:0 24px}
+
+/* ── 문서 헤더 ── */
+header.doc{padding:64px 0 40px;border-bottom:var(--lw-strong) solid var(--ink)}
+.doc .date{font-family:var(--num);font-weight:var(--w-num-strong);font-size:64px;line-height:.95;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.doc .meta{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-top:10px;letter-spacing:.03em}
+.doc h1{font-family:var(--serif);font-weight:700;font-size:30px;line-height:1.35;margin-top:22px;letter-spacing:-.01em}
+.doc .sub{margin-top:12px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.hl{background:linear-gradient(transparent 60%, var(--lemon) 60%);font-weight:500;color:var(--ink)}
+code{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;background:var(--paper-2);padding:1px 5px}
+
+/* ── 00 판정 블록 (헤더 바로 아래 · 사용자가 답할 것만 · 열림/닫힘 2상태) ── */
+.verdict{margin-top:28px;border:var(--lw-strong) solid var(--ink);background:var(--paper)}
+.verdict .vh{display:flex;align-items:baseline;gap:12px;padding:14px 20px;border-bottom:var(--lw) solid var(--ink);background:var(--paper-2)}
+.verdict .vh h2{font-family:var(--serif);font-size:18px;font-weight:700}
+.verdict .vh .cnt{font-family:var(--num);font-size:13px;color:var(--ink-3)}
+.verdict .vh .stamp{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--lemon);padding:2px 8px}
+.verdict[data-state="open"] .stamp{display:none}
+.verdict .vb{padding:6px 20px 18px}
+.vitem{padding:14px 0;border-bottom:var(--lw) solid var(--hair)}
+.vitem:last-child{border-bottom:0}
+.vitem .vt{display:flex;gap:10px;align-items:baseline;font-weight:700;font-size:14.5px}
+.vitem .vt .id{font-family:var(--num);font-weight:400;color:var(--ink-3);font-size:13px;min-width:44px;flex:0 0 auto}
+.vitem .vq{margin:6px 0 0 54px;color:var(--ink-2);font-size:13.5px;max-width:66ch}
+.vitem .vq b{color:var(--ink)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 54px}
+.opts label{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer;user-select:none;line-height:1.4}
+.opts label:has(input:checked){background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.opts label code{color:inherit}
+.opts label:has(input:checked) code{background:rgba(255,255,255,.18)}
+.opts input{position:absolute;opacity:0;width:0;height:0}
+.memo{margin:8px 0 0 54px}
+.memo input{font-family:var(--sans);font-weight:300;font-size:13.5px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--hair);background:none;padding:6px 2px;width:100%;outline:none;border-radius:0}
+.memo input:focus{border-bottom-color:var(--ink)}
+.memo input::placeholder{color:var(--ink-3)}
+.vfoot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 20px;border-top:var(--lw-strong) solid var(--ink);background:var(--paper-2)}
+.vfoot .ok{font-size:12.5px;color:var(--ink-3)}
+.verdict pre.md{margin:0;padding:14px 20px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6;color:var(--ink-2);background:var(--paper);border-top:var(--lw) solid var(--hair);white-space:pre-wrap;user-select:all}
+.verdict[data-state="closed"] .opts,.verdict[data-state="closed"] .memo,.verdict[data-state="closed"] .vfoot,.verdict[data-state="closed"] pre.md{display:none}
+
+/* ── 문서 내비 ── */
+.tabs{position:sticky;top:0;z-index:40;background:var(--paper);border-bottom:var(--lw) solid var(--hair)}
+.tabs .row{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;padding:0 24px;max-width:920px;margin:0 auto}
+.tabs .row::-webkit-scrollbar{display:none}
+.tabs a{text-decoration:none;font-family:var(--sans);font-size:13.5px;font-weight:700;color:var(--ink-3);padding:14px 0 12px;white-space:nowrap}
+.tabs a:hover{color:var(--ink)}
+
+/* ── 섹션 문법 ── */
+section.sec{padding-top:88px}
+.sec>.rule{border-top:var(--lw-strong) solid var(--ink);padding-top:20px;display:flex;align-items:baseline;gap:14px}
+.sec>.rule .no{font-family:var(--num);font-weight:var(--w-num);font-size:15px;color:var(--ink-3)}
+.sec>.rule h2{font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.01em}
+.sec .intro{margin-top:14px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.sec p:not([class]){margin-top:14px;max-width:66ch}
+.sec h3{font-family:var(--sans);font-weight:700;font-size:15px;margin-top:46px;padding-top:12px;border-top:var(--lw) solid var(--ink)}
+.sec h4{font-family:var(--serif);font-weight:700;font-size:15.5px;margin-top:22px}
+.note{margin-top:12px;font-size:12.5px;color:var(--ink-3);max-width:66ch}
+
+/* ── 리스트 (병렬 항목은 본문·표 셀 어디서든 한 항목 한 줄 · 가운뎃점 연결 금지) ── */
+.sec ol,.sec ul{margin:10px 0 0;padding-left:1.6em;max-width:66ch}
+.sec li{margin-top:5px;padding-left:.2em}
+.sec li::marker{font-family:var(--num);color:var(--ink-3);font-size:13px}
+td ol,td ul{margin:0;padding-left:1.5em;max-width:none}
+td li{margin-top:3px}
+td li:first-child{margin-top:0}
+.sec td p:not([class]){margin-top:6px;max-width:none}
+.sec td p:not([class]):first-child{margin-top:0}
+.then{display:block;margin-top:6px}
+
+/* ── 표 (2차원 데이터만 · 셀 안 병렬 항목은 리스트) ── */
+.twrap{overflow-x:auto;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.65}
+th{text-align:left;font-weight:700;font-size:12px;color:var(--ink-3);background:var(--paper-2);padding:8px 12px;border-bottom:var(--lw) solid var(--ink);white-space:nowrap}
+td{padding:10px 12px;border-bottom:var(--lw) solid var(--hair);vertical-align:top;font-weight:300}
+td strong,td b{font-weight:700}
+td.num,.tnum{font-family:var(--num);font-weight:var(--w-num);font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap}
+
+/* ── 각주 (본문에는 번호만 · 정보는 최하단 · 클릭 팝오버. 저자는 span.fn 으로 근거를 쓰고 빌드가 번호를 단다) ── */
+sup.fn{font-family:var(--num);font-size:11px;line-height:0;vertical-align:super;margin-left:1px}
+sup.fn a{color:var(--sky);text-decoration:none;padding:0 2px;border-radius:2px;cursor:pointer}
+sup.fn a:hover,sup.fn a.open{background:var(--sky-soft)}
+.pop{position:absolute;z-index:50;max-width:400px;min-width:220px;padding:10px 12px 11px;background:var(--paper);border:var(--lw) solid var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.10);font-size:12.5px;line-height:1.65;color:var(--ink-2);font-weight:300}
+.pop .pn{font-family:var(--num);color:var(--ink-3);margin-right:6px}
+.pop::after{content:'';position:absolute;left:10px;bottom:-6px;width:10px;height:10px;background:var(--paper);border-right:var(--lw) solid var(--ink);border-bottom:var(--lw) solid var(--ink);transform:rotate(45deg)}
+.pop.below::after{bottom:auto;top:-6px;transform:rotate(225deg)}
+.fnlist{margin-top:14px;padding-left:0;list-style:none;font-size:12.5px;color:var(--ink-2);line-height:1.65;max-width:72ch}
+.fnlist li{display:flex;gap:10px;padding:5px 0;border-bottom:var(--lw) solid var(--hair)}
+.fnlist li:target{background:var(--sky-soft)}
+.fnlist .n{font-family:var(--num);color:var(--ink-3);min-width:22px;flex:0 0 auto}
+.fnlist .t{flex:1 1 auto}
+.fnlist .back{margin-left:6px;color:var(--sky);text-decoration:none;flex:0 0 auto}
+details.audit{margin-top:28px;border-top:var(--lw) solid var(--hair);padding-top:10px}
+details.audit summary{cursor:pointer;font-size:12.5px;color:var(--ink-3);font-weight:500}
+details.audit .body{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.65}
+details.audit table{font-size:12.5px}
+
+/* ── 데모 프레임과 스펙 ── */
+.stage{display:flex;flex-wrap:wrap;gap:24px;margin-top:20px;align-items:flex-start}
+.frame{width:400px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);flex:0 0 auto}
+.frame .fbody{padding:20px 18px 24px}
+.spec{flex:1 1 260px;min-width:240px;font-size:13px}
+.spec dt{font-weight:700;font-size:12.5px;margin-top:12px}
+.spec dd{color:var(--ink-2);margin-top:2px;line-height:1.65}
+
+/* ── 컴포넌트 (디자인 시스템 정본 발췌) ── */
+.btn{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:14px;line-height:1;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.fill{background:var(--ink);color:var(--paper);border:var(--lw) solid var(--ink);height:44px;padding:0 22px}
+.btn.line{background:var(--paper);color:var(--ink);border:var(--lw) solid var(--ink);height:40px;padding:0 18px}
+.btn.soft{background:var(--paper-2);color:var(--ink);border:0;height:40px;padding:0 18px}
+.btn.sm{height:34px;padding:0 14px;font-size:13px}
+.btn.text{background:none;border:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;height:auto;padding:4px 2px;font-weight:500}
+.btn:disabled{background:var(--paper-3);border-color:var(--paper-3);color:var(--ink-3);cursor:default}
+.btn:not(:disabled):active{transform:translateY(1px)}
+.btnrow{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.chip.sel{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.htag{display:inline-block;font-size:12px;font-weight:500;color:var(--ink-2);line-height:1.5;padding:0 2px;background:linear-gradient(transparent 62%, var(--lemon) 62%)}
+.in-line{font-family:var(--sans);font-weight:300;font-size:16px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--ink-3);background:none;padding:7px 2px;width:100%;outline:none;border-radius:0}
+.in-line:focus{border-bottom:var(--lw-strong) solid var(--ink)}
+.in-line::placeholder{color:var(--ink-3)}
+.in-area{font-family:var(--sans);font-weight:300;font-size:14.5px;color:var(--ink);background:var(--paper-2);border:var(--lw) solid transparent;border-radius:var(--r);padding:12px 14px;width:100%;outline:none;line-height:1.7;resize:vertical}
+.in-area:focus{border-color:var(--ink)}
+.in-area::placeholder{color:var(--ink-3)}
+.in-label{display:block;font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:6px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:var(--lw) solid var(--hair);font-size:13px}
+.kv .k{color:var(--ink-3);font-weight:500}
+.kv .v{font-weight:500;color:var(--ink)}
+.stat{display:inline-flex;align-items:center;gap:5px;font-family:var(--num);font-weight:var(--w-num);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.stat .ic{width:14px;height:14px;opacity:.72}
+.sechead h4{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.01em}
+.sechead .sub{font-size:13px;color:var(--ink-2);margin-top:4px}
+
+/* ── 폰 프레임 (모바일 프로토타입) ── */
+.phone{width:390px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;position:relative;overflow:hidden}
+.phone .pbody{padding:18px 20px 120px}
+.pdock{position:absolute;left:0;right:0;bottom:0;height:118px;pointer-events:none;background:linear-gradient(to top, var(--paper) 0%, var(--paper) 34%, rgba(255,255,255,0) 100%);display:flex;align-items:flex-end}
+.pdock .icons{width:100%;display:flex;justify-content:space-around;align-items:center;padding:0 10px 18px}
+.pdock .icons .ic{opacity:.38}
+.pdock .icons .ic.on{opacity:1}
+
+/* ── 데스크탑 조합 목업 ── */
+.mock{border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;overflow:hidden}
+.mock .mkhead{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:var(--lw) solid var(--hair)}
+.mock .mkhead .lg{height:16px;width:auto;display:block}
+.mock .mkhead nav{display:flex;gap:20px;font-size:14px;font-weight:700}
+.mock .mkhead nav span{color:var(--ink-3)}
+.mock .mkhead nav span.on{color:var(--ink)}
+.mock .mkhead .util{display:flex;gap:14px;align-items:center;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.mock .mkbody{padding:26px 24px 34px}
+
+/* ── 데스크탑 실척 스테이지 (맥북 뷰포트 1440x820 을 가로폭에 맞춰 비율 그대로 축소.
+     내부는 1440px 고정 가상 뷰포트라 실서비스 데스크탑 레이아웃이 그대로 재현된다.
+     문서 본문 col(920px)보다 넓게 브레이크아웃해 화면 가로폭을 최대로 쓴다) ── */
+.deskwrap{width:calc(100vw - 48px);max-width:1440px;margin:20px auto 0;margin-left:calc(50% - min(50vw - 24px, 720px))}
+.deskstage{position:relative;width:100%;aspect-ratio:1440/820;border:var(--lw) solid var(--ink);background:var(--paper);overflow:hidden}
+.deskvp{position:absolute;left:0;top:0;width:1440px;height:820px;transform-origin:0 0;transform:scale(var(--ds,1));overflow-y:auto;overscroll-behavior:contain}
+.deskcap{font-size:12.5px;color:var(--ink-3);margin-top:10px;font-weight:500}
+
+/* 상태 세그 (프로토타입 상태 전환 컨트롤) */
+.segrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.seg{height:32px;padding:0 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center}
+.seg.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+
+@media (max-width:760px){
+  .col{padding:0 18px}
+  header.doc{padding:44px 0 30px}
+  .doc .date{font-size:46px}
+  .doc h1{font-size:23px}
+  .sec>.rule h2{font-size:19px}
+  .vitem .vq,.opts,.memo{margin-left:0}
+  .pop{max-width:calc(100vw - 36px)}
+}
+</style>
+</head>
+<body>
+
+<div class="col">
+<header class="doc">
+  <div class="date">M.DD</div>
+  <div class="meta">FACE UNIT SPEC · 유닛 · r1</div>
+  <h1>유닛 이름 스펙</h1>
+  <p class="sub">이 유닛이 무엇을 왜 바꾸는지 두 문장으로 쓴다. 이 문서 하나가 /plan 과 /build 의 스펙 입력 전부다.</p>
+</header>
+
+<!-- 00 판정: 사용자가 답할 것만. 열린 D-NN 과 판정 축. 근거는 본문에 쓰지 않고 <span class="fn">…</span> 각주로.
+     data-state="open"  = 게이트 대기 (선택지 + 메모 + MD 복사)
+     data-state="closed" = 컨펌 뒤 (stamp 만 보이고 폼은 숨는다 · 각 항목 .vq 에 확정 결과 1문장) -->
+<section class="verdict" id="s-verdict" data-unit="유닛" data-round="r1" data-gate="①" data-state="open">
+  <div class="vh"><h2>판정</h2><span class="cnt">열린 결정 1 · 판정 축 1</span><span class="stamp">게이트 ① 컨펌 M.DD</span></div>
+  <div class="vb">
+    <div class="vitem" data-k="D-01">
+      <div class="vt"><span class="id">D-01</span>결정 축 이름</div>
+      <p class="vq">선택지가 무엇을 바꾸는지 한두 문장. 다른 절은 어느 쪽이든 불변임을 밝힌다.<span class="fn">실측 근거 · 파일:줄 · 선례.</span></p>
+      <div class="opts">
+        <label><input type="radio" name="D-01" value="ⓐ 안 (권고)" checked>ⓐ 안 (권고)</label>
+        <label><input type="radio" name="D-01" value="ⓑ 안">ⓑ 안</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+    </div>
+    <div class="vitem" data-k="①">
+      <div class="vt"><span class="id">①</span>판정 축 이름 (§NN)</div>
+      <p class="vq">무엇을 보면 되는지 한 문장.</p>
+      <div class="opts">
+        <label><input type="radio" name="①" value="확정" checked>확정</label>
+        <label><input type="radio" name="①" value="수정">수정</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+    </div>
+  </div>
+  <div class="vfoot">
+    <button class="btn fill sm" type="button" data-act="copy">MD 복사</button>
+    <button class="btn line sm" type="button" data-act="reset">초기화</button>
+    <span class="ok">고른 대로 아래 회신이 만들어진다. 복사해 채팅에 붙이면 된다.</span>
+  </div>
+  <pre class="md"></pre>
+</section>
+</div>
+
+<nav class="tabs" aria-label="문서 목차">
+  <div class="row">
+    <a href="#s-verdict">판정</a>
+    <a href="#s-dir">방향</a>
+    <a href="#s-policy">정책</a>
+    <a href="#s-screen">화면</a>
+    <a href="#s-spec">규격</a>
+    <a href="#s-impact">시스템 영향</a>
+    <a href="#s-fn">각주</a>
+  </div>
+</nav>
+
+<div class="col">
+
+<!-- 01 방향: 이 화면이 서는 자리와 원칙. 원칙은 h4 + 문단(또는 리스트). 출처·실측은 각주. -->
+<section class="sec" id="s-dir">
+  <div class="rule"><span class="no">01</span><h2>방향</h2></div>
+  <p class="intro">화면의 역할을 두세 문장으로. 근거는 문장 끝에 각주로.<span class="fn">출처 = 사용자 지시 M.DD · 브리프 결정 · 실측 3건.</span></p>
+  <h4>원칙 이름</h4>
+  <p>원칙 정의. 병렬 항목이 3개 이상이면 아래처럼 리스트로.</p>
+  <ol>
+    <li>항목 하나</li>
+    <li>항목 둘</li>
+    <li>항목 셋</li>
+  </ol>
+</section>
+
+<!-- 02 정책: 데이터 규칙, 상태 정의와 전이, 경계 케이스, 기본값. /build 가 추가 질문 없이 구현할 수 있는 수준까지.
+     표는 상태×화면×전이 같은 2차원 데이터만. 셀 안의 병렬 항목도 <ol>/<ul> 로 한 줄씩. -->
+<section class="sec" id="s-policy">
+  <div class="rule"><span class="no">02</span><h2>정책</h2></div>
+</section>
+
+<!-- 03 화면: 무대 목업 + 상태 세그. FACE 무대 = 1536 논리px · --u 비례. 색·서체·수치는 토큰 값 그대로. -->
+<section class="sec" id="s-screen">
+  <div class="rule"><span class="no">03</span><h2>화면</h2></div>
+</section>
+
+<!-- 04 규격: 조각별 수치 표 (조각 · 값). 근거(파일:줄 · 선례 · 산출 시점)는 값 뒤 각주로. -->
+<section class="sec" id="s-spec">
+  <div class="rule"><span class="no">04</span><h2>규격</h2></div>
+</section>
+
+<!-- 05 시스템 영향: 재사용 / 변경(이전과 이후) / 신규(이름·값·용도). 항목은 리스트. /plan 의 입력. -->
+<section class="sec" id="s-impact">
+  <div class="rule"><span class="no">05</span><h2>시스템 영향</h2></div>
+</section>
+
+<!-- 각주: 빌드가 <span class="fn"> 를 모아 아래 자리에 번호 목록으로 넣는다. 읽은 목록은 감사용이라 접는다. 부칙 = 라운드 이력 1줄씩. -->
+<section class="sec" id="s-fn">
+  <div class="rule"><span class="no">주</span><h2>각주 · 근거</h2></div>
+  <!--__FOOTNOTES__-->
+  <details class="audit">
+    <summary>참조 근거 (읽은 목록)</summary>
+    <div class="body">
+      <div class="twrap"><table>
+        <tr><th style="width:280px">문서·코드</th><th>확인한 것</th></tr>
+        <tr><td>…</td><td>…</td></tr>
+      </table></div>
+    </div>
+  </details>
+  <p class="note">r1 (M.DD) 초판.</p>
+</section>
+
+<div style="height:140px"></div>
+</div>
+
+<script>
+// 00 판정 블록: 고른 선택지·메모로 MD 회신을 만든다 (data-state="open" 일 때만)
+(function(){
+  const v = document.getElementById('s-verdict');
+  if (!v || v.dataset.state !== 'open') return;
+  const md = v.querySelector('pre.md'), ok = v.querySelector('.ok');
+  const items = [...v.querySelectorAll('.vitem')];
+  const d = new Date();
+  const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  function build(){
+    const L = ['## ' + v.dataset.unit + ' 스펙 ' + v.dataset.round + ' · 게이트 ' + v.dataset.gate + ' 회신 (' + date + ')', ''];
+    items.forEach(it => {
+      const k = it.dataset.k;
+      const sel = it.querySelector('input[type=radio]:checked');
+      const memoEl = it.querySelector('input[type=text]');
+      const memo = memoEl ? memoEl.value.trim() : '';
+      const title = it.querySelector('.vt').textContent.replace(k, '').trim();
+      L.push('- ' + k + ' ' + title + ': ' + (sel ? sel.value : '(미선택)') + (memo ? ' · ' + memo : ''));
+    });
+    md.textContent = L.join('\n');
+  }
+  v.addEventListener('input', build);
+  v.querySelector('[data-act=copy]').onclick = async () => {
+    build();
+    try { await navigator.clipboard.writeText(md.textContent); ok.textContent = '복사됨.'; }
+    catch { const r = document.createRange(); r.selectNodeContents(md); const s = getSelection(); s.removeAllRanges(); s.addRange(r); ok.textContent = '클립보드 권한 없음. 선택된 텍스트를 복사하면 된다.'; }
+  };
+  v.querySelector('[data-act=reset]').onclick = () => {
+    items.forEach(it => { const r = it.querySelector('input[type=radio]'); if (r) r.checked = true; const m = it.querySelector('input[type=text]'); if (m) m.value = ''; });
+    build(); ok.textContent = '초기화됨.';
+  };
+  build();
+})();
+
+// 각주 팝오버: 번호 클릭 → 마커 우상단에 상자. 바깥 클릭·ESC·재클릭·스크롤에 닫힌다
+(function(){
+  let pop = null, cur = null;
+  function close(){ if (pop) pop.remove(); pop = null; if (cur) cur.classList.remove('open'); cur = null; }
+  document.querySelectorAll('sup.fn a[data-fn]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    if (cur === a) { close(); return; }
+    close();
+    const src = document.getElementById('fn-' + a.dataset.fn);
+    if (!src) return;
+    const t = src.querySelector('.t');
+    pop = document.createElement('div'); pop.className = 'pop';
+    pop.innerHTML = '<span class="pn">' + a.dataset.fn + '</span>' + (t ? t.innerHTML : src.innerHTML);
+    document.body.appendChild(pop);
+    const r = a.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = r.left + scrollX - 8, top = r.top + scrollY - ph - 10, below = false;
+    if (left + pw > scrollX + innerWidth - 12) left = scrollX + innerWidth - 12 - pw;
+    if (left < scrollX + 12) left = scrollX + 12;
+    if (r.top - ph - 10 < 8) { top = r.bottom + scrollY + 10; below = true; }
+    pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.classList.toggle('below', below);
+    cur = a; a.classList.add('open');
+  }));
+  document.addEventListener('click', e => { if (pop && !pop.contains(e.target) && !e.target.closest('sup.fn')) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  addEventListener('scroll', () => { if (pop) close(); }, {passive:true});
+})();
+
+// 데스크탑 실척 스테이지: 컨테이너 폭 / 1440 비율로 가상 뷰포트를 축소한다
+(function(){
+  const fit = () => document.querySelectorAll('.deskstage').forEach(st => {
+    st.querySelectorAll(':scope > .deskvp').forEach(vp => vp.style.setProperty('--ds', st.clientWidth / 1440));
+  });
+  addEventListener('resize', fit);
+  addEventListener('DOMContentLoaded', fit);
+  fit();
+})();
+</script>
+
+</body>
+</html>

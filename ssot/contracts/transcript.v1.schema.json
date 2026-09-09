@@ -1,0 +1,513 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dama:transcript:1",
+  "title": "Dama normalized transcript v1",
+  "description": "Application export contract. Not a vendor API schema. Cross-field invariants are validated separately.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0"
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "durationUs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "language": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "speakers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/speaker"
+      }
+    },
+    "diarization": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/interval"
+      }
+    },
+    "exclusiveDiarization": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/interval"
+      }
+    },
+    "words": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/word"
+      }
+    },
+    "turns": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/turn"
+      }
+    },
+    "reviewIssues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/issue"
+      }
+    },
+    "revision": {
+      "$ref": "#/$defs/revision"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "sessionId",
+    "runId",
+    "durationUs",
+    "language",
+    "provenance",
+    "speakers",
+    "diarization",
+    "exclusiveDiarization",
+    "words",
+    "turns",
+    "reviewIssues",
+    "revision"
+  ],
+  "$defs": {
+    "speaker": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "providerId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "providerId",
+        "displayName"
+      ]
+    },
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "startUs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "endUs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "speakerId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      },
+      "required": [
+        "id",
+        "startUs",
+        "endUs",
+        "speakerId",
+        "confidence"
+      ]
+    },
+    "word": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "text": {
+          "type": "string"
+        },
+        "editedText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prefix": {
+          "type": "string"
+        },
+        "startUs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "endUs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "modelSpeakerId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "speakerId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "assignmentSource": {
+          "type": "string",
+          "enum": [
+            "provider",
+            "reconciled",
+            "user",
+            "unknown"
+          ]
+        },
+        "alignmentScore": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "overlap": {
+          "type": "boolean"
+        },
+        "reviewIssueIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "sourceIntervalIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "timingOrigin": {
+          "type": "string",
+          "enum": [
+            "model",
+            "userSelected",
+            "inheritedUnaligned",
+            "none"
+          ]
+        },
+        "tokenKind": {
+          "type": "string",
+          "enum": [
+            "lexical",
+            "punctuation"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "ordinal",
+        "text",
+        "editedText",
+        "prefix",
+        "startUs",
+        "endUs",
+        "modelSpeakerId",
+        "speakerId",
+        "assignmentSource",
+        "alignmentScore",
+        "overlap",
+        "reviewIssueIds",
+        "sourceIntervalIds",
+        "timingOrigin",
+        "tokenKind"
+      ]
+    },
+    "turn": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "speech",
+            "missingSpeech"
+          ]
+        },
+        "startUs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "endUs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "speakerId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "wordIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "markerText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reviewed": {
+          "type": "boolean"
+        },
+        "reviewIssueIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "startUs",
+        "endUs",
+        "speakerId",
+        "wordIds",
+        "markerText",
+        "reviewed",
+        "reviewIssueIds"
+      ]
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ambiguous_speaker",
+            "overlapping_speech",
+            "missing_speech",
+            "boundary_conflict",
+            "unrepresented_speaker",
+            "invalid_timestamp",
+            "low_confidence",
+            "capture_interrupted",
+            "partial_result"
+          ]
+        },
+        "startUs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "endUs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "open",
+            "resolved",
+            "acknowledged"
+          ]
+        },
+        "wordIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "sourceIntervalIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "startUs",
+        "endUs",
+        "severity",
+        "status",
+        "wordIds",
+        "sourceIntervalIds"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": [
+            "managedPyannoteWhisper",
+            "hybridPyannoteWhisperKit"
+          ]
+        },
+        "diarizationModel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "asrModel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "algorithmVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceAudioSHA256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sampleRateHz": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "isSynthetic": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "engine",
+        "diarizationModel",
+        "asrModel",
+        "createdAt",
+        "algorithmVersion",
+        "sourceAudioSHA256",
+        "sampleRateHz",
+        "isSynthetic"
+      ]
+    },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseRevisionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceRunId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "humanEdited": {
+          "type": "boolean"
+        },
+        "savedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "baseRevisionId",
+        "sourceRunId",
+        "humanEdited",
+        "savedAt"
+      ]
+    }
+  }
+}
