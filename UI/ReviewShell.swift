@@ -80,7 +80,7 @@ struct ReviewShell: View {
             Button("합성 테스트 데이터 열기", action: workspace.importFixture)
                 .disabled(!workspace.didLoad || !workspace.canLeave)
             #endif
-            Text("메뉴바 좌클릭으로 녹음을 시작하고,\n우클릭 패널에서 파일을 가져올 수 있습니다.\n실제 음성의 전사는 다음 단계에서 연결합니다.")
+            Text("메뉴바 좌클릭으로 녹음을 시작하고,\n우클릭 패널에서 파일 가져오기와 전송 검토를 할 수 있습니다.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.padding(16).background(Color(nsColor: .controlBackgroundColor))
     }

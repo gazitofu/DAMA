@@ -13,6 +13,7 @@ final class StatusBarController: NSObject {
     override init() {
         super.init()
         workspace.start()
+        ProcessingWorkspace.shared.start()
         if let button = item.button {
             button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "다마")
             button.target = self

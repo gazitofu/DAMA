@@ -33,8 +33,9 @@ struct DamaApp: App {
                 Text("다마 설정").font(.title2)
                 Text("마이크 녹음·파일 반입·원본 보존")
                 Text("수정본은 이 Mac에 저장됩니다. JSON과 TXT는 내보내기에서 저장 위치를 선택합니다.")
-                Text("메뉴바 좌클릭은 녹음 시작·종료, 우클릭은 패널 열기입니다. 클라우드 전사는 아직 지원하지 않습니다.")
+                Text("메뉴바 좌클릭은 녹음 시작·종료, 우클릭은 패널 열기입니다. 클라우드 전송은 녹음별로 확인합니다.")
                     .foregroundStyle(.secondary)
+                APIKeySettings()
                 Text("macOS 26.6.2 이상 · Apple Silicon").font(.caption)
             }.padding(24).frame(width: 400)
         }

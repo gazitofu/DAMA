@@ -5,6 +5,8 @@ import SwiftUI
 struct RecordingPanel: View {
     @ObservedObject var workspace: RecordingWorkspace
     @ObservedObject var capture: MicrophoneCapture
+    @ObservedObject private var processing = ProcessingWorkspace.shared
+    @State private var showingKey = false
     let openReview: () -> Void
     var body: some View {
         ScrollView {
@@ -31,8 +33,12 @@ struct RecordingPanel: View {
                 }
                 Text("좌클릭: 녹음 시작·종료 · 우클릭: 패널 열기").font(.caption2).foregroundStyle(.secondary)
                 Divider()
-                Text("클라우드 전사는 다음 단계에서 연결합니다. 녹음은 API 키 없이 가능합니다.")
-                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Text("전송은 녹음별로 확인합니다.").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("키 설정") { showingKey = true }
+                }
+                if let message = processing.message { Text(message).font(.callout) }
                 HStack {
                     Button("파일 가져오기", action: workspace.importFile)
                         .disabled(workspace.working || capture.phase.busy)
@@ -55,11 +61,34 @@ struct RecordingPanel: View {
                                     .disabled(workspace.working || capture.phase.busy)
                             }
                         }
+                        if let run = processing.run(for: record.id) {
+                            Text(processing.label(run)).font(.caption)
+                            if run.stage == "readyForReview" {
+                                Button("전사 검수") {
+                                    ReviewWorkspace.shared.openProcessed(record.id)
+                                    openReview()
+                                }.disabled(!ReviewWorkspace.shared.canLeave)
+                            } else if processing.canResume(run) {
+                                Button(run.jobID == nil ? "동의한 작업 계속" : "기존 작업 조회 재개") { processing.resume(run) }
+                            }
+                        } else if processing.localOnly.contains(record.id) {
+                            Text("로컬 저장만").font(.caption)
+                        } else {
+                            Button("전송 검토") { processing.reviewTransmission(record) }
+                                .disabled(record.analysis == nil || processing.busy)
+                        }
                     }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
                         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
                 }
+                if processing.busy {
+                    Button("로컬 추적 일시 정지", action: processing.pause)
+                    Text("서버 처리와 비용은 취소되지 않습니다.").font(.caption)
+                }
             }.padding(16)
         }.frame(width: 360, height: 520)
+            .sheet(isPresented: $showingKey) {
+                VStack { APIKeySettings(); Button("닫기") { showingKey = false }.padding(.bottom) }
+            }
     }
     private var status: String {
         switch capture.phase {

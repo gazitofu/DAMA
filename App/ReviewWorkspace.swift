@@ -84,6 +84,21 @@ final class ReviewWorkspace: ObservableObject {
         }
     }
 
+    func openProcessed(_ sessionID: String) {
+        guard canLeave else { preventLeaving(); return }
+        isWorking = true
+        activity = "불러오는 중"
+        Task {
+            defer { isWorking = false; didLoad = true }
+            do {
+                let repository = try self.repository ?? FileSessionRepository.applicationSupport()
+                self.repository = repository
+                sessions = try await repository.listSessions()
+                try await load(sessionID, repository: repository)
+            } catch { message = "전사 결과를 열지 못했습니다. 원본 응답과 저장 파일은 유지됩니다." }
+        }
+    }
+
     private func load(_ sessionID: String, repository: FileSessionRepository) async throws {
         let next = try await TranscriptEditingSession.open(repository: repository, sessionId: sessionID)
         let nextState = await next.state()

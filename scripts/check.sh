@@ -48,7 +48,7 @@ else
   skip "Swift 계약" "swiftc 없음"
 fi
 
-step "3/4 Core 유닛 테스트"
+step "3/4 Core·오디오·managed 테스트 (실음성·네트워크 없음)"
 if [ -d "Packages/DamaCore" ]; then
   if SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
      swift test \
@@ -67,7 +67,7 @@ if [ -d "Packages/DamaCore" ]; then
        -Xswiftc -module-cache-path \
        -Xswiftc "$MODULE_CACHE" \
        >"$LOG_DIR/swift-test.log" 2>&1; then
-    ok "swift test (DamaCore)"
+    ok "swift test (Core·오디오·managed)"
   else
     bad "swift test (DamaCore)"; tail -40 "$LOG_DIR/swift-test.log"
   fi

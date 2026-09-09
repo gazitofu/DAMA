@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		100000000000000000000013 = {isa = PBXBuildFile; fileRef = 200000000000000000000013; };
+		100000000000000000000014 = {isa = PBXBuildFile; productRef = B00000000000000000000004; };
 		100000000000000000000009 = {isa = PBXBuildFile; fileRef = 200000000000000000000010; };
 		100000000000000000000010 = {isa = PBXBuildFile; fileRef = 200000000000000000000011; };
 		100000000000000000000011 = {isa = PBXBuildFile; fileRef = 200000000000000000000012; };
@@ -22,6 +24,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		200000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingWorkspace.swift; sourceTree = "<group>"; };
 		200000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingWorkspace.swift; sourceTree = "<group>"; };
 		200000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
 		200000000000000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPanel.swift; sourceTree = "<group>"; };
@@ -43,6 +46,7 @@
 			files = (
 				100000000000000000000003 /* DamaCore in Frameworks */,
 				100000000000000000000012 /* DamaAudio */,
+				100000000000000000000014 /* DamaManaged */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -67,6 +71,7 @@
 				200000000000000000000006 /* AppLifecycle.swift */,
 				200000000000000000000010,
 				200000000000000000000011,
+				200000000000000000000013,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -119,6 +124,7 @@
 			packageProductDependencies = (
 				B00000000000000000000002 /* DamaCore */,
 				B00000000000000000000003 /* DamaAudio */,
+				B00000000000000000000004 /* DamaManaged */,
 			);
 			productName = Dama;
 			productReference = 200000000000000000000004 /* DAMA.app */;
@@ -206,6 +212,7 @@
 				100000000000000000000009,
 				100000000000000000000010,
 				100000000000000000000011,
+				100000000000000000000013,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -325,6 +332,11 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		B00000000000000000000004 = {
+			isa = XCSwiftPackageProductDependency;
+			package = B00000000000000000000001;
+			productName = DamaManaged;
+		};
 		B00000000000000000000003 = {
 			isa = XCSwiftPackageProductDependency;
 			package = B00000000000000000000001;
