@@ -2,6 +2,8 @@
 
 검증일 **2026-09-09** · 검증자 = Dama 메인 세션 · 방법 = 공식 문서 직접 조회 (계정 없음, 실호출 0건)
 
+요금 절 갱신 **2026-09-10** · Codex 직접 공식 Billing/Pricing 조회 및 사용자 제공 계정 요금 설명 대조. Dashboard·checkout 직접 확인 및 실호출은 하지 않았다. API 계약의 최초 검증일은 위와 같다.
+
 `ssot/design/03_ENGINE_AND_API_CONTRACT.md`는 외부 LLM이 공개 문서를 읽고 쓴 계약 초안이며, 그 패키지 자신이 "실계정 호출은 실행하지 않았다"고 밝힌다. 이 파일은 그 초안을 1차 출처와 대조한 결과다. **충돌하면 이 파일이 우선한다.**
 
 ## 1. 검증 결과 요약
@@ -58,22 +60,34 @@ POST /v1/live             GET  /v1/live/{id}
 | rate limit 구체 수치 | 미확인 | `Retry-After` 우선 정책 유지 |
 | `output.confidence` (sample-level) | `{score: array, resolution: number}` 형태 확인 | P0는 `confidence:true`를 켜지 않는다. 켤 때 이 형태로 decode |
 
-## 4. 요금 (2026-09-09 공개 가격표)
+## 4. 요금 (2026-09-10 갱신)
 
-| 항목 | 단가 |
-|---|---|
-| Developer 플랜 | €19.00/월 (€19 사용 크레딧 포함) |
-| Starter 플랜 | €99.00/월 (€99 사용 크레딧 포함) |
-| Diarization Precision-2 (batch) | €0.112/h |
-| Diarization Community-1 (batch) | €0.035/h |
-| STT Orchestration | €0.168/h |
-| Speaker Identification | €0.096/h |
-| Voice Print 생성 | €0.015/건 |
-| 무료 트라이얼 | 1개월, 신용카드 불필요 |
+### 공식 Billing 문서 확인
 
-읽기: Dama의 P0 경로(Precision-2 + 통합 전사)는 두 항목이 함께 계상된다면 **시간당 약 €0.28**이다. 2시간 회의 1건 ≈ €0.56 ≈ 900원 수준. **비용은 이 프로젝트의 제약이 아니다.** 다만 두 항목의 합산 여부는 실계정 청구서로 확인해야 하며 앱에 가격을 하드코딩하지 않는다(03 §5 유지).
+- `/diarize`에서 `transcription=true`이면 **STT Orchestration 단가만 적용**되며 diarization 결과는 추가 비용 없이 포함된다. 이전 기록의 ‘두 항목 합산 가능, €0.28/h’ 추정은 폐기한다.
+- batch 작업은 `succeeded`만 과금한다. 제출 거절·실패·취소 상태는 비과금이다. 취소 상태 설명이 취소 API의 존재나 로컬 추적 중단의 환불을 뜻하지는 않는다.
+- `/diarize`·`/identify`는 처리 음성의 초 단위, 최소 20초 과금이다. `/live`도 최소 20초이며 종료 방식과 무관하게 성공적으로 처리한 음성 길이에 과금한다. DAMA는 live를 사용하지 않는다.
+- Developer/Starter에는 월 포함 사용량이 있고 소진 후 같은 단가로 초과분을 청구한다. **계정의 정확한 단가·플랜 조건은 Dashboard Plans가 정본**이다. [공식 Billing](https://docs.pyannote.ai/administration/billing)
 
-무료 트라이얼의 "150시간"은 가격표에서 **identification** 기준으로 서술되어 있어 diarization에 그대로 적용되는지 불명이다. 트라이얼 한도를 P0 검증 예산으로 가정하지 않는다.
+### 사용자 계정 참고값과 미확인 사항
+
+| 항목 | 사용자 제공 설명의 USD 값 | 검증 수준 |
+|---|---|---|
+| Developer | US$19/월 | 사용자 전달값, 이번 세션에서 checkout 직접 열람 안 함 |
+| STT Orchestration Precision | US$0.000055/s = US$0.198/h | 사용자 전달 단가·시간당 산술 환산 |
+| 월 포함 크레딧 | 액수 미확인 | US$19라고 확정하지 않음 |
+
+US$19 크레딧이 실제 포함되고 전부 이 서비스에 쓰인다는 조건이면 약 95.96시간이다. 이는 사용량 환산이며 세금·환율 등을 포함한 실제 청구 보장이 아니다. 성공한 작업별 참고 계산은 `max(음성 초, 20) × 계정의 초당 단가`; 이를 월정액에 무조건 더하지 않는다. 포함 크레딧 차감 뒤 초과분만 별도다.
+
+공개 Pricing은 현재 Developer €19/월·€19 사용 크레딧, STT Orchestration €0.168/h를 표시하지만 이 EUR 값을 사용자 USD 계정에 대입하지 않는다. 지역별 통화 차이가 발생한 이유는 확인하지 않았다. [공개 Pricing](https://www.pyannote.ai/pricing)
+
+### DAMA 적용
+
+- 현재 managed `precision-2` + `transcription=true` + `faster-whisper-large-v3-turbo` 경로 유지. 중간 폴더·다른 서비스 모드·로컬 WhisperKit은 이번 참고자료 수령만으로 추가하지 않는다.
+- App/UI 및 Packages/DamaCore/Sources 검색에서 고정 과금 단가 없음. 가격·크레딧·계정 한도는 처리 로직에 하드코딩하지 않는다(03 §5 유지).
+- 추후 로컬 STT 경로는 비용 절약만으로 채택하지 않고 한국어 화자 경계·원문 보존 성능 비교와 별도 승인으로 판단한다.
+- 사용자 실사용 검증 중 앱 코드·실행 프로세스 변경 없음. 비용 수용은 실제 음성 업로드·유료 호출의 건별 승인을 대체하지 않는다.
+- 트라이얼 한도를 P0 검증 예산으로 가정하지 않는다.
 
 ## 5. 출처
 
@@ -84,6 +98,7 @@ POST /v1/live             GET  /v1/live/{id}
 | 업로드 흐름, `media://` 형식 | https://docs.pyannote.ai/tutorials/how-to-upload-files |
 | 보관 기간·학습 사용·처리 지역 | https://docs.pyannote.ai/data-retention |
 | 요금 | https://www.pyannote.ai/pricing |
+| 과금·포함 사용량·최소 과금·계정별 가격 정본 | https://docs.pyannote.ai/administration/billing |
 
 ## 6. 이 문서가 보장하지 않는 것
 
