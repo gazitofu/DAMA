@@ -11,6 +11,11 @@ import SwiftUI
     private let workspace = RecordingWorkspace.shared
     private var subscriptions = Set<AnyCancellable>()
     private var mainWindow: NSWindow?
+    private static var versionLabel: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "미확인"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "미확인"
+        return "DAMA \(version) · 빌드 \(build)"
+    }
 
     override init() {
         super.init()
@@ -25,7 +30,7 @@ import SwiftUI
         row.addSubview(label); row.addSubview(toggle)
         let recordingItem = NSMenuItem(); recordingItem.view = row
         menu.addItem(recordingItem); menu.addItem(.separator())
-        for (title, action) in [("Open DAMA", #selector(showWindow)), ("DAMA Version info", #selector(showVersion)), ("Quit DAMA", #selector(quit))] {
+        for (title, action) in [("Open DAMA", #selector(showWindow)), (Self.versionLabel, #selector(showVersion)), ("Quit DAMA", #selector(quit))] {
             let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
             entry.target = self; menu.addItem(entry)
         }
@@ -42,7 +47,7 @@ import SwiftUI
         image?.isTemplate = !recording
         item.button?.image = image
         item.button?.contentTintColor = recording ? .systemRed : nil
-        item.button?.toolTip = recording ? "DAMA · 녹음 중" : "DAMA"
+        item.button?.toolTip = Self.versionLabel + (recording ? " · 녹음 중" : "")
         toggle.state = recording ? .on : .off
         toggle.isEnabled = workspace.ready && (recording || !phase.busy) && !workspace.capture.needsFinalization
         switch phase {

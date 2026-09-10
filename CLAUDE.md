@@ -8,6 +8,8 @@
 
 정식 명칭은 **DAMA**, 한국어 표기는 **다마**다 (사용자 확정 2026-09-09). 앱 번들은 `DAMA.app`. 기존 repo·Xcode 프로젝트 경로, scheme `Dama`, 모듈 `DamaCore`, bundle ID `com.gazitofu.Dama`는 기술 식별자로 유지한다.
 
+사용자에게 수정 앱을 전달할 때마다 `Dama.xcodeproj/project.pbxproj`의 Debug/Release `MARKETING_VERSION`과 `CURRENT_PROJECT_VERSION`을 함께 올린다. 메뉴바 메뉴·툴팁의 버전은 실행 중인 Bundle 값으로 표시하고, 전달 시 그 버전이 실제 실행 중인지 확인한다 (사용자 2026-09-10 요청). 로컬 수정 빌드의 버전 증가는 `/ship`의 main 머지·배포 승인을 뜻하지 않는다.
+
 ## 최상위 경계
 
 1. **녹음 안전성이 AI 처리보다 우선한다.** API 키도 네트워크도 없어도 녹음하고 원본을 저장한다.

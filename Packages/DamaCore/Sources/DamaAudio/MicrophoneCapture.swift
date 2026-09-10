@@ -60,9 +60,7 @@ public final class MicrophoneCapture: ObservableObject {
                 self.pool = pool
                 self.writer = writer
                 inputDescription = "시스템 기본 마이크 · \(Int(format.sampleRate)) Hz · \(format.channelCount)채널"
-                input.installTap(onBus: 0, bufferSize: 8192, format: format) { buffer, time in
-                    pool.offer(buffer, sampleTime: time.isSampleTimeValid ? time.sampleTime : nil)
-                }
+                input.installTap(onBus: 0, bufferSize: 8192, format: format, block: Self.audioTap(for: pool))
                 try engine.start()
                 activity = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated], reason: "다마 마이크 원본 저장")
                 engineObserver = NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange,
@@ -107,6 +105,15 @@ public final class MicrophoneCapture: ObservableObject {
                     message = "원본을 저장할 수 없어 녹음을 시작하지 못했습니다. 저장 공간과 마이크 연결을 확인해 주세요."
                 }
             }
+        }
+    }
+
+    /// AVAudioNodeTapBlock has no Sendable annotation in the SDK and runs off-main.
+    /// Creating it inside start() inherited MainActor and trapped on the first real buffer.
+    /// Keep this factory nonisolated and the closure Sendable; only the bounded pool is captured.
+    nonisolated static func audioTap(for pool: CaptureBufferPool) -> @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void {
+        { buffer, time in
+            pool.offer(buffer, sampleTime: time.isSampleTimeValid ? time.sampleTime : nil)
         }
     }
 

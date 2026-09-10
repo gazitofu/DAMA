@@ -4,6 +4,34 @@ import XCTest
 @testable import DamaAudio
 
 final class AudioJourneyTests: XCTestCase {
+    @MainActor func testAudioTapCreatedOnMainActorReceivesOffMainAndSavesPCM() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+        let pool = try CaptureBufferPool(format: format)
+        let tap = MicrophoneCapture.audioTap(for: pool)
+        let writer = try CaptureWriter(root: root, pool: pool, title: "synthetic off-main tap")
+        await Task.detached {
+            XCTAssertFalse(Thread.isMainThread)
+            let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 8_000)!
+            buffer.frameLength = 8_000
+            for index in 0..<8_000 { buffer.floatChannelData![0][index] = 0.25 }
+            for index in 0..<6 {
+                tap(buffer, AVAudioTime(sampleTime: Int64(index * 8_000), atRate: 48_000))
+                await writer.drain()
+            }
+        }.value
+        let saved = try await writer.finish()
+        XCTAssertEqual(saved.state, "saved"); XCTAssertNil(saved.interruption)
+        XCTAssertEqual(saved.durationUs, 1_000_000); XCTAssertEqual(pool.receivedFrames, 48_000)
+        XCTAssertEqual(saved.sources.count, 1)
+        XCTAssertEqual(saved.sources[0].frames, 48_000); XCTAssertEqual(saved.sources[0].rms, 0.25, accuracy: 0.000001)
+        let reopened = try await AudioLibrary(root: root).list()
+        XCTAssertEqual(reopened.first?.sources[0].sha256, saved.sources[0].sha256)
+    }
+
     private func temporary() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)

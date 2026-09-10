@@ -3,7 +3,7 @@ unit: library-workspace
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-13 구현 완료: context-correction-3 수정별 quote/occurrence·부분반영·독립 unresolved·사용자 명시 용어 대응. 합성/디스크/가짜CLI 영향19개 distinct·계약30·Swift 계약·Debug compile PASS, 실제 행 밝음/어둠 정적 렌더 확인. 기존12응답285Turn 재생 판정=형식6/공백무이력187/보류92 유지·사용자 Script 불변. 자동 어휘교정은 사용자 참고 필드의 명시 대응+맥락/동일Turn 주제어 범위에 한정, 참고문서 자동 추출 미구현. 다음은 실제 표본의 새 형식 응답 생성/교정 효과 및 원음 구간 평가; 기존12요청 소진, 새 외부호출 별도 확인. 실제 앱 재시작/사용자 Script 적용 안 함, AC-06 미측정·building 및 혼합6문서 보존."
+resume: "T-14 완료: DAMA0.1.1(빌드2) 실제 재실행·메뉴/버전창 확인. 첫 마이크 callback MainActor 충돌 수정, 합성 background tap/청크/중단/시간4개 distinct·계약30·Debug PASS. 실앱 microphone13.312초 저장→CAF/WAV 재읽기·프레임/RMS/해시 일치 확인, 직접 청취/장기 녹음 미측정. T-13 수정별 교정 구현 및 기존285Turn 재생 보존 결과는 아래 유지. 다음은 새 교정 응답/실품질 평가·M1 장기 녹음 잔여, 새 외부호출 별도 확인. 사용자 Script·기존혼합6문서 보존, building 유지."
 spec: notes/library-workspace/library-workspace.src.html
 created: 2026-09-10
 updated: 2026-09-10
@@ -27,6 +27,8 @@ updated: 2026-09-10
 - 폴더 권한/파일 변경 감지·읽기 오류는 표시, 중간 실패를 빈 목록 성공으로 취급하지 않음. Script 저장 실패는 재전송하지 않고 같은 원 결과 로컬 저장 재시도.
 
 ## 태스크·여정
+- T-14 (2026-09-10 사용자 직접 요청): 메뉴바를 열면 실행 Bundle의 버전·빌드 번호 표시, 수정 전달마다 두 Xcode 구성 버전 동시 증가 규약. 0.1.1(2). 실제 녹음 불능 진단: 당일15:07 충돌2건이 RealtimeMessenger 큐의 `MicrophoneCapture.start` tap closure→Swift actor 격리 검사→SIGTRAP, 두 microphone manifest는 sources0/appInterrupted. SDK tap 콜백은 비메인 호출을 명시하고 Sendable 미표기. `nonisolated` factory의 `@Sendable` callback으로 bounded pool만 캡처해 MainActor 상속을 제거한다. 원본/서명·권한 정책/기존6문서 보존.
+- T-14 QA: 메인에서 만든 production tap을 background에서 합성48,000frame 공급→실제 CAF writer→1초/RMS/재로드 검증, 영향 오디오 및 계약·Debug 빌드. 앱 종료 보호를 거쳐 새 빌드 재실행→메뉴 버전 확인→짧은 실제 마이크 녹음/종료/파일·입력 신호 확인. 실녹음은 이번 사용자 고장 확인 요청 범위이며 외부 전송 없음. 10분/장기/TCC·장치변경 전수 검사는 M1 잔여로 유지.
 - T-13 (2026-09-10 plan 이어하기): 새 응답은 각 Turn의 원문 인용+0부터 세는 출현순서에 연결한 changes와 독립 unresolved를 반환한다. 인용 불일치·겹침·설명되지 않은 본문 차이는 거부. 수정마다 형식/용어 근거를 검사하고 허용된 수정만 원문 위에 합성한다. 다른 미해결 부분이 있어도 독립 허용 수정은 반영하며 경고는 남긴다. 기존 Turn 단위 저장 형식에 optional 상세/부분반영 본문을 추가하여 이전 파일의 적용 판정을 유지한다. 원 normalized·µs·화자·장벽 불변. 용어 근거 범위는 사용자 선택을 받아 구체화하되 모델 확신/후보 존재만으로 허용하지 않는다.
 - T-13 QA 경계: 합성 새 응답→인용/겹침/혼합변경 방어→부분반영+독립 경고→디스크 저장·재로드→원문전환/사람 수정/읽기/MD. 가짜 CLI로 새 schema 소비, 기존12응답 로컬 재생 호환 대조, 계약/Swift 및 최종 Debug compile. 실제 모델 품질·원음 청취는 미측정.
 - T-13 용어 범위: 선택 질문에 응답이 없어 고지한 좁은 기본안을 적용. 참고 정보 `용어 | 주제 | 원표기 | 표준표기`를 입력 snapshot에서 파싱하고 SHA256+행번호 termID를 검증한다. 맥락/동일 원Turn의 수정범위 밖 주제어 출현, 정확한 표기 대응·단어경계·중복 대응 충돌 검사를 통과해야 자동 반영. 외부 참고 발췌에서 자동 대응 추출·청취 정답 추정은 하지 않는다. 구체 제한은 `ssot/contracts/library-script.md` T-13. 사용자에게 추가 수작업 없는 광범위 어휘 복원을 달성했다고 판단하지 않는다.
@@ -41,6 +43,7 @@ updated: 2026-09-10
 - QA 묶음 ① 폴더→반입→mock변환→Script ② Script편집→저장/재실행→MD ③ 메뉴→녹음 상태·창수명. 실제 마이크/파일전송 미측정 유지.
 
 ## AC
+- [x] AC-17 T-14 메뉴/버전창의 실제 버전0.1.1(2) 표시 및 첫 audio tap MainActor 충돌 수정. 합성 background callback·저장 검사, 실앱13.312초 저장·신호/프레임/해시 확인. 직접 청취·10분/장기 녹음 등 기존 AC-06 전체는 미측정 유지.
 - [x] AC-16 T-13 수정별 원문 위치·명시 용어 근거 검증과 독립 unresolved, 부분반영·기존 파일 호환·사람 수정·UI/MD 보존. 합성/디스크/가짜CLI/컴파일·정적 행 렌더 층위, 실제 모델의 새 응답/자동 어휘교정 품질 평가는 별도.
 - [x] AC-15 T-12 자동허용 근거 분리·합성 위험변경 방어·제한 형식 오탐 해소·앞뒤공백 무이력·불확실성 유지·저장/읽기/MD/사람 수정/원 데이터 보존. 기존 응답 재생 수치는 정책 판정 변화이며 STT 정답률이나 수작업 감소 측정으로 간주하지 않음. 합성/디스크/컴파일 층위, 실앱은 AC-06.
 - [x] AC-14 읽기-v2에서 같은 연속 겹말 내부만 병합하며 원 단어/화자/시간·A→B→A·누락/미확정/legacy 분할 보존. 휴지/장문 경계·이벤트 시간 묶음·세부 원 이슈·문맥 재생 범위 구현. 합성/실파일 읽기·컴파일 층위이며 실조작/청취는 AC-06 미측정.
@@ -70,6 +73,10 @@ updated: 2026-09-10
 - 사용자가 실사용 확인 중인 앱을 교체 실행하지 않았다. 최종 확인은 현재 작업 종료 후 재실행하여 진행 카드→Script 묶음/편집→MD의 영향 여정으로 한다. 원 normalized 포맷·원문·과금 요청은 변경하지 않았다.
 
 ## 검증·Follow-ups
+- T-14 진단/검증(2026-09-10): `DAMA-2026-09-10-150702.ips`와 `150717.ips` triggered thread가 모두 `RealtimeMessenger.mServiceQueue`→`MicrophoneCapture.start` tap closure→`_swift_task_checkIsolatedSwift`→`_dispatch_assert_queue_fail`/SIGTRAP. 해당 microphone manifest2건은 sources0/appInterrupted·source 폴더 빈 상태. SDK `AVAudioNode.h`의 비메인 callback 계약과 [Swift 마이그레이션의 callback 격리 설명](https://www.swift.org/migration/documentation/swift-6-concurrency-migration-guide/incrementaladoption/) 대조. 권한을 완화하거나 오디오 callback을 main으로 보내지 않고 nonisolated factory+Sendable로 고쳤다.
+- T-14 합성 검사4개 distinct PASS: 새 production tap을 MainActor에서 만들고 detached에서48,000frames/48kHz 공급→CAF 저장/재로드=1,000,000µs·RMS0.25·해시일치, 기존 state/time·30초 청크/복구·overflow/discontinuity 여정. `.build/check-logs/recording-tap-{tests,storage}.log`. 최초 테스트 불필요 try 경고만 제거하고 영향검사 재확인. 계약30개·계약 사본 일치 PASS(`recording-tap-contracts.log`), Swift6 package 컴파일 및 Debug BUILD SUCCEEDED(`recording-tap-xcodebuild.log`), 서명/entitlement 설정 불변.
+- T-14 실앱: 기존 실행 PID74372가 최신 T-13 UI를 이미 표시하는 것을 실측했으며 앞 답변의 ‘실행앱 이전 버전’ 추정은 폐기한다. 새 빌드 후 CUA 첫 Cmd-Q는 자동 새로고침 중 종료 보호로 거부되어, 작업이 끝난 뒤 native Quit DAMA로 정상 종료·동일 Debug 번들 재실행. About의 `DAMA Version 0.1.1 (2)`와 실제 상태메뉴 `DAMA 0.1.1 · 빌드 2` 확인. 앱을 강제 종료하지 않았다. 녹음 토글 자동화는 도구의 상태 갱신 요청으로 실행 확인이 안 됐으며, 이후 사용자 조작 구간에서 새 microphone manifest의 capturing→saved와 UI ‘원본 저장됨’/13.312초 파일을 관측했다.
+- T-14 실파일 검산: 새 session2965EAD2의 CAF638,976frames/48kHz/mono/2,560,000bytes/RMS0.0045893912와 분석WAV212,992frames/16kHz/mono/RMS0.0045865840, 둘 다13,312,000µs. 현행 `AudioFiles.inspect`로 실제 파일 재읽기하여 manifest의 frames/rate/channels/RMS/SHA256 일치와 검사 전후 바이트 불변 확인. 근거 ignored `.build/check-logs/recording-tap-real.json`, 재현 `/private/tmp/dama-recording-fix-inspect.swift`. 원음 청취·발화 내용/명료도·장기 안정성은 미측정. 음성/전사 외부전송·API 호출 없음. 이번 수정은 아래 T-13 사용자 Script를 재교정하거나 원본을 변경하지 않았다.
 - T-13 결과(2026-09-10): Core 교정9·기존 표시6·디스크2·가짜CLI2, 총19개 distinct 영향 검사 PASS. 최초17개 통과 후 새 디스크/CLI계약2개를 추가 확인하고, export 근거표시 수정의 영향2개만 재확인. 원문 인용 위조/위치 초과·음수/겹침/미기술 차이/저장 본문 변조 거부, 반복 인용 두 번째 위치(emoji 포함), 부분반영+겹치지 않는 미해결 유지, 위조/변경입력/다른주제/단어내부/충돌용어 및 외부발췌 단독 근거 거부를 확인했다. 로그 `.build/check-logs/correction-spans-{tests,disk-cli,final-export}.log`. 합성 용어/숫자공백2개 반영+추정→확정1개 보류 사례는 모델 실제 품질 측정이 아니다.
 - T-13 기존 응답 호환: 저장12응답·285소유Turn을 현행 Core로 로컬 재생해 T-12의 형식6/공백무이력187/보류92 및 전체1,984표시블록 ID/이름/시간·normalized·표본밖 본문·원 Script SHA256 유지. 근거 ignored `.build/diagnostics/correction-spans-legacy-replay/{benchmark,decisions}.json`와 비교 MD(재사용 runner로 파일명은 partial-pilot-policy-v2.md). 이전 응답에 새 span/용어 근거를 발명해 채워넣지 않았다. 새 모델 응답 형식 성공/어휘 복원 효과·원음 정답은 미측정.
 - T-13 검증: 계약30개·Swift6 roundtrip/명시null·Core 계약 사본 바이트 일치 PASS(`correction-spans-{contracts,swift-contract}.log`). 최종 서명 없는 arm64 Debug BUILD SUCCEEDED(`correction-spans-xcodebuild.log`), 기존 SDK타깃/AppIntents 경고 유지. 실제 ScriptBlockRow를 추출하고 이력만 강제 펼친 합성 ImageRenderer 밝음/어둠 렌더 직접 확인(`.build/correction-spans-{light,dark}.png`): 부분반영 본문·노란경고·개별근거·미해결·전체선택 버튼 배치. 클릭/스크롤/팝오버/VoiceOver·청취 근거는 아니다. 새 AI/API 전송·실앱 재시작·사용자 Script 쓰기 없음. 기존 혼합6문서 보존, 이번 코드/테스트/계약/plan만 로컬 커밋.
