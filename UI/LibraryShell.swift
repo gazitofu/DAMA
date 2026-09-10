@@ -1,7 +1,123 @@
 import AppKit
 import DamaAudio
 import DamaCore
+import DamaManaged
 import SwiftUI
+
+struct ProcessingProgressCard: View {
+    let run: ManagedRun?
+    let tracking: Bool
+    let preparing: Bool
+    let startedAt: Date?
+    var scriptSaved = false
+    var body: some View {
+        let state = ProcessingPresentation(run: run, tracking: tracking, preparing: preparing, scriptSaved: scriptSaved)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                if state.spinning { ProgressView().controlSize(.regular).accessibilityLabel("변환 진행 중") }
+                else { Image(systemName: state.completed ? "checkmark.circle.fill" : "pause.circle").foregroundStyle(state.completed ? Color.green : Color.secondary).font(.title2) }
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(state.title).font(.headline)
+                    Text(state.detail).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            if let step = state.step {
+                HStack(spacing: 10) {
+                    ForEach(Array(ProcessingPresentation.steps.enumerated()), id: \.offset) { index, title in
+                        HStack(spacing: 5) {
+                            Image(systemName: index < step || state.completed ? "checkmark.circle.fill" : index == step ? "circle.inset.filled" : "circle")
+                            Text(title).lineLimit(1)
+                        }.font(.caption).foregroundStyle(index <= step ? Color.accentColor : Color.secondary)
+                        if index < 3 { Rectangle().fill(Color.secondary.opacity(0.2)).frame(maxWidth: 24).frame(height: 1) }
+                    }
+                }.accessibilityElement(children: .combine)
+            }
+            TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                HStack(spacing: 16) {
+                    if state.spinning, let startedAt {
+                        Text("이번 처리 경과 \(ProcessingPresentation.elapsed(since: startedAt, now: timeline.date))")
+                    }
+                    if let checked = run?.lastServerCheckAt {
+                        Text("마지막 서버 확인 \(checked.formatted(date: .omitted, time: .standard))")
+                    }
+                }.font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+            }
+        }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.accentColor.opacity(0.045), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.accentColor.opacity(0.15)))
+    }
+}
+
+struct ScriptBlockRow: View {
+    let block: ScriptBlock
+    let rename: () -> Void
+    let editText: () -> Void
+    @State private var events = false
+    // 10 stable slots by original speaker order. Text labels remain the identity cue.
+    private static let colors: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .indigo, .brown, .red, .yellow]
+    private var color: Color { block.colorIndex.map { Self.colors[$0] } ?? .secondary }
+    var body: some View {
+        HStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 3)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Button(action: rename) {
+                        HStack(spacing: 6) {
+                            Circle().fill(color).frame(width: 8, height: 8)
+                            Text(block.name).fontWeight(.semibold)
+                            Image(systemName: "chevron.down").font(.caption2)
+                        }.font(.callout)
+                    }.buttonStyle(.plain).accessibilityLabel("\(block.name) 화자 이름 변경")
+                    if !block.openIssues.isEmpty {
+                        Button { events.toggle() } label: {
+                            Image(systemName: "exclamationmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(Color.black, Color.yellow)
+                        }.buttonStyle(.plain).help("이 구간의 이벤트 보기")
+                            .accessibilityLabel("\(block.name) 구간에 확인할 이벤트 \(block.openIssues.count)개")
+                            .popover(isPresented: $events) {
+                                VStack(alignment: .leading, spacing: 14) {
+                                    Text("이 구간의 이벤트").font(.headline)
+                                    ForEach(block.openIssues, id: \.id) { issue in
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(issueLabel(issue.kind)).font(.callout)
+                                            if issue.startUs != nil || issue.endUs != nil {
+                                                Text("\(LibraryScript.timestamp(issue.startUs)) – \(LibraryScript.timestamp(issue.endUs))").font(.caption).foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
+                                    HStack { Spacer(); Button("닫기") { events = false } }
+                                }.padding(20).frame(width: 340).textSelection(.enabled)
+                            }
+                    }
+                    Spacer(minLength: 8)
+                    Text("\(LibraryScript.timestamp(block.startUs)) – \(LibraryScript.timestamp(block.endUs))")
+                        .font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+                }
+                if block.isSpeech {
+                    Button(action: editText) {
+                        Text(block.text.isEmpty ? "(빈 대사)" : block.text)
+                            .font(.system(size: 17)).lineSpacing(7).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                    }.buttonStyle(.plain).accessibilityLabel("대사 수정: \(block.text)")
+                } else { Text(block.text).foregroundStyle(.secondary) }
+                if block.edited { Text("사용자 수정 · 시간 재정렬 안 됨").font(.caption).foregroundStyle(.secondary) }
+            }.padding(18)
+        }.fixedSize(horizontal: false, vertical: true)
+            .background(color.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
+    }
+    private func issueLabel(_ kind: IssueKind) -> String {
+        switch kind {
+        case .ambiguous_speaker: "화자가 미확정이거나 후보가 비슷합니다."
+        case .overlapping_speech: "여러 화자가 겹쳐 말했습니다. 겹친 발화가 모두 전사되었다는 뜻은 아닙니다."
+        case .missing_speech: "음성은 감지되었지만 전사가 누락되었을 수 있습니다."
+        case .boundary_conflict: "단어 시간이 화자 전환 경계에 걸쳐 있습니다."
+        case .capture_interrupted: "녹음이 중단되어 이후 구간이 녹음되지 않았을 수 있습니다."
+        case .unrepresented_speaker: "음성에서 감지된 화자가 스크립트에 나타나지 않습니다."
+        case .invalid_timestamp: "이 구간의 시간을 확인할 수 없습니다."
+        case .low_confidence: "공급자의 화자 점수가 낮아 확인이 필요합니다."
+        case .partial_result: "일부 전사 결과를 받지 못했습니다."
+        }
+    }
+}
 
 struct LibraryShell: View {
     @ObservedObject var workspace: LibraryWorkspace
@@ -60,14 +176,16 @@ struct LibraryShell: View {
                                     }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
                                 }.buttonStyle(.plain)
                                 let complete = workspace.completedScript(for: speech)
-                                Button {
+                                if processing.activeSessionID == speech.id || workspace.preparingSpeechID == speech.id {
+                                    HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("변환 중").font(.caption).foregroundStyle(.secondary) }
+                                } else { Button {
                                     if let complete { workspace.selectScript(complete.id) } else { workspace.selectSpeech(speech.id) }
                                 } label: {
                                     Label(complete == nil ? "변환필요" : "변환완료", systemImage: complete == nil ? "circle.fill" : "checkmark.circle.fill")
                                         .font(.caption2).foregroundStyle(complete == nil ? Color.red : Color.green)
                                         .padding(.horizontal, 8).padding(.vertical, 4)
                                         .background((complete == nil ? Color.red : Color.green).opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
-                                }.buttonStyle(.plain)
+                                }.buttonStyle(.plain) }
                             }.padding(12).background(workspace.selectedSpeechID == speech.id ? Color(nsColor: .textBackgroundColor) : .clear, in: RoundedRectangle(cornerRadius: 8))
                         }
                     } else {
@@ -129,6 +247,14 @@ struct LibraryShell: View {
                 Text(speech.dateSource).font(.caption2).foregroundStyle(.secondary)
             }.padding(32)
             Divider()
+            if run != nil || processing.activeSessionID == speech.id || workspace.preparingSpeechID == speech.id {
+                ProcessingProgressCard(run: run, tracking: processing.activeSessionID == speech.id,
+                    preparing: workspace.preparingSpeechID == speech.id,
+                    startedAt: processing.activeSessionID == speech.id ? processing.attemptStartedAt : nil,
+                    scriptSaved: workspace.completedScript(for: speech) != nil)
+                    .padding(.horizontal, 32).padding(.vertical, 16)
+                Divider()
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 8) {
@@ -140,7 +266,6 @@ struct LibraryShell: View {
                     noteField("맥락", text: $workspace.context, height: 90)
                     noteField("참고 정보", text: $workspace.reference, height: 80)
                     Text("맥락·참고 정보는 로컬 참고 메모이며 Markdown 내보내기에 포함됩니다.").font(.caption).foregroundStyle(.secondary)
-                    if let run { Text(processing.label(run)).font(.callout) }
                     if processing.localOnly.contains(speech.id) { Text("이 녹음은 로컬 저장만 하도록 설정되어 있습니다.").font(.callout) }
                 }.padding(32)
             }
@@ -149,7 +274,7 @@ struct LibraryShell: View {
                 Button(workspace.notesDirty ? "정보 저장" : "정보 저장됨", action: workspace.saveNotes).disabled(!workspace.notesDirty || !workspace.notesValid || !workspace.canLeave)
                 Spacer()
                 if workspace.folders[.scripts] == nil { Button("Scripts 폴더 선택…") { workspace.chooseFolder(.scripts) } }
-                Button(workspace.completedScript(for: speech) != nil ? "스크립트 열기" : run?.stage == "readyForReview" ? "스크립트 저장" : run != nil ? "변환 재개" : "변환", action: workspace.convert)
+                Button(processing.activeSessionID == speech.id ? "변환 중…" : workspace.preparingSpeechID == speech.id ? "오디오 준비 중…" : workspace.completedScript(for: speech) != nil ? "스크립트 열기" : run?.stage == "readyForReview" ? "스크립트 저장" : run != nil ? "변환 재개" : "변환", action: workspace.convert)
                     .buttonStyle(.borderedProminent)
                     .disabled(!workspace.canLeave || !workspace.notesValid || processing.busy || workspace.folders[.scripts] == nil || processing.localOnly.contains(speech.id))
             }.padding(24)
@@ -189,48 +314,17 @@ struct LibraryShell: View {
                             Text("참고 정보: \(file.script.input.reference.isEmpty ? "미입력" : file.script.input.reference)")
                         }.font(.callout).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
                     }.padding(.bottom, 18)
-                    ForEach(file.script.transcript.turns, id: \.id) { turn in
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack(alignment: .firstTextBaseline) {
-                                Button { beginEdit(LibraryEdit(file: file, kind: .speaker(turn.id), value: file.script.name(for: turn))) } label: {
-                                    Label(file.script.name(for: turn), systemImage: "chevron.down").font(.callout.weight(.semibold))
-                                }.buttonStyle(.plain)
-                                Spacer()
-                                Text("\(LibraryScript.timestamp(turn.startUs)) – \(LibraryScript.timestamp(turn.endUs))")
-                                    .font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
-                            }
-                            if turn.kind == .speech {
-                                Button { beginEdit(LibraryEdit(file: file, kind: .text(turn.id), value: file.script.text(for: turn))) } label: {
-                                    Text(file.script.text(for: turn).isEmpty ? "(빈 대사)" : file.script.text(for: turn))
-                                        .font(.system(size: 17)).lineSpacing(7).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-                                }.buttonStyle(.plain).accessibilityLabel("대사 수정: \(file.script.text(for: turn))")
-                            } else { Text(file.script.text(for: turn)).foregroundStyle(.secondary) }
-                            if file.script.turnTexts[turn.id] != nil { Text("사용자 수정 · 시간 재정렬 안 됨").font(.caption).foregroundStyle(.secondary) }
-                            if !turn.reviewIssueIds.isEmpty {
-                                DisclosureGroup("확인할 내용") {
-                                    ForEach(file.script.transcript.reviewIssues.filter { turn.reviewIssueIds.contains($0.id) }, id: \.id) { issue in
-                                        Text(issueLabel(issue.kind)).font(.callout).frame(maxWidth: .infinity, alignment: .leading)
-                                    }
-                                }.font(.caption).foregroundStyle(.secondary)
-                            }
-                        }.padding(.vertical, 22)
-                        Divider()
+                    ForEach(file.script.blocks()) { block in
+                        ScriptBlockRow(block: block,
+                            rename: { beginEdit(LibraryEdit(file: file, kind: .speaker(block), value: block.name)) },
+                            editText: { beginEdit(LibraryEdit(file: file, kind: .text(block), value: block.text)) })
+                            .padding(.vertical, 9)
                     }
                 }.padding(.horizontal, 32).padding(.vertical, 20)
             }
         }
     }
     private func date(_ date: Date?) -> String { date?.formatted(date: .numeric, time: .shortened) ?? "녹음 날짜 미확인" }
-    private func issueLabel(_ kind: IssueKind) -> String {
-        switch kind {
-        case .ambiguous_speaker: "화자 미확정 · 후보가 비슷합니다."
-        case .overlapping_speech: "동시에 여러 화자가 감지되었습니다. 두 사람의 발화가 모두 전사되었다는 뜻은 아닙니다."
-        case .missing_speech: "[음성 감지 / 전사 누락 의심]"
-        case .boundary_conflict: "단어 시간이 화자 전환 경계를 걸칩니다."
-        case .capture_interrupted: "녹음이 중단되었습니다. 이후 구간은 녹음되지 않았을 수 있습니다."
-        default: kind.rawValue
-        }
-    }
 }
 
 struct LibrarySettings: View {
@@ -262,7 +356,7 @@ struct LibrarySettings: View {
 }
 
 struct LibraryEdit: Identifiable {
-    enum Kind { case title, speaker(String), text(String) }
+    enum Kind { case title, speaker(ScriptBlock), text(ScriptBlock) }
     let id = UUID()
     let file: LibraryScriptFile
     let kind: Kind
@@ -273,27 +367,44 @@ struct LibraryEditSheet: View {
     @ObservedObject var workspace: LibraryWorkspace
     @Environment(\.dismiss) private var dismiss
     @State private var value: String
+    @State private var texts: [String: String]
     @State private var scope: SpeakerNameScope = .all
     @State private var error: String?
     init(edit: LibraryEdit, workspace: LibraryWorkspace) {
         self.edit = edit; self.workspace = workspace; _value = State(initialValue: edit.value)
+        if case let .text(block) = edit.kind {
+            _texts = State(initialValue: Dictionary(uniqueKeysWithValues: block.turns.map { ($0.id, edit.file.script.text(for: $0)) }))
+        } else { _texts = State(initialValue: [:]) }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title).font(.title2)
-            ExactTextEditor(text: $value, label: title).frame(height: 120)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
-            if case let .speaker(id) = edit.kind {
+            if case let .text(block) = edit.kind {
+                if block.turns.count > 1 { Text("한 문단으로 표시되는 대화입니다. 원래 시간 구간별로 수정할 수 있습니다.").font(.caption).foregroundStyle(.secondary) }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(block.turns, id: \.id) { turn in
+                            Text("\(LibraryScript.timestamp(turn.startUs)) – \(LibraryScript.timestamp(turn.endUs))").font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+                            ExactTextEditor(text: Binding(get: { texts[turn.id] ?? "" }, set: { texts[turn.id] = $0 }), label: "대사 수정")
+                                .frame(height: 100).overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
+                        }
+                    }
+                }.frame(maxHeight: 320)
+                DisclosureGroup("모델 원문 보기") {
+                    ScrollView { Text(block.turns.map { edit.file.script.modelText(for: $0) }.joined(separator: "\n")).textSelection(.enabled) }.frame(maxHeight: 120)
+                }
+                Text("모델 원문은 보존됩니다. 시간은 재정렬하지 않습니다.").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ExactTextEditor(text: $value, label: title).frame(height: 120)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
+            }
+            if case let .speaker(block) = edit.kind {
                 Picker("적용 범위", selection: $scope) {
                     Text("이 부분만 바꾸기").tag(SpeakerNameScope.one)
                     Text("이 부분부터 바꾸기").tag(SpeakerNameScope.from)
                     Text("전체 바꾸기").tag(SpeakerNameScope.all)
                 }.pickerStyle(.radioGroup)
-                Text("\(edit.file.script.affectedTurns(id, scope: scope).count)개 발화에 적용됩니다.").font(.caption).foregroundStyle(.secondary)
-            }
-            if case let .text(id) = edit.kind, let turn = edit.file.script.transcript.turns.first(where: { $0.id == id }) {
-                DisclosureGroup("모델 원문 보기") { Text(edit.file.script.modelText(for: turn)).textSelection(.enabled) }
-                Text("모델 원문은 보존됩니다. 시간은 재정렬하지 않습니다.").font(.caption).foregroundStyle(.secondary)
+                Text("\(edit.file.script.affectedTurns(in: block, scope: scope).count)개 원 발화에 적용됩니다.").font(.caption).foregroundStyle(.secondary)
             }
             if let error { Text(error).foregroundStyle(.red).font(.callout) }
             HStack {
@@ -311,8 +422,11 @@ struct LibraryEditSheet: View {
                 var candidate = edit.file.script
                 switch edit.kind {
                 case .title: try candidate.renameTitle(value)
-                case let .speaker(id): try candidate.rename(id, name: value, scope: scope)
-                case let .text(id): try candidate.editText(id, text: value)
+                case let .speaker(block): try candidate.rename(block, name: value, scope: scope)
+                case let .text(block):
+                    for turn in block.turns where texts[turn.id] != edit.file.script.text(for: turn) {
+                        try candidate.editText(turn.id, text: texts[turn.id] ?? "")
+                    }
                 }
                 try await workspace.saveScript(candidate, original: edit.file)
                 dismiss()

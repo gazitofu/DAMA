@@ -60,6 +60,8 @@ POST /v1/live             GET  /v1/live/{id}
 | rate limit 구체 수치 | 미확인 | `Retry-After` 우선 정책 유지 |
 | `output.confidence` (sample-level) | `{score: array, resolution: number}` 형태 확인 | P0는 `confidence:true`를 켜지 않는다. 켤 때 이 형태로 decode |
 
+2026-09-10 진행 UI 보완 조회: 공식 OpenAPI의 `DiarizationJob`은 `jobId/status/createdAt/updatedAt/output`을 정의하며 숫자 진행률·ETA 필드는 없다. DAMA는 실제 상태·클라이언트에서 정상 응답을 받은 시각(`ManagedRun.lastServerCheckAt`, optional)·이번 추적 경과만 표시한다. 오디오 길이 대비 처리시간 실측이 없어 예상 완료율은 산출하지 않는다. 기존 Run 파일은 새 optional 필드가 없어도 읽는다. 공급자의 `updatedAt`과 클라이언트 확인 시각을 혼동하지 않는다. 실서버 조회 없이 [공식 OpenAPI](https://docs.pyannote.ai/openapi.json)만 확인했다.
+
 ## 4. 요금 (2026-09-10 갱신)
 
 ### 공식 Billing 문서 확인

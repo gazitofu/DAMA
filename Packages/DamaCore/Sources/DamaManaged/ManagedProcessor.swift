@@ -16,6 +16,7 @@ public struct ManagedRun: Codable, Sendable, Identifiable {
     public var retryAt: Date?
     public var failure: String?
     public var input: ConversionNotes?
+    public var lastServerCheckAt: Date?
 }
 
 public actor ManagedProcessor {
@@ -188,6 +189,7 @@ public actor ManagedProcessor {
                 let remote = try JSONDecoder().decode(Status.self, from: reply.data)
                 guard remote.jobId == jobID else { throw ManagedFailure.invalidResponse }
                 run.remoteStatus = remote.status
+                run.lastServerCheckAt = Date()
                 failures = 0
                 if remote.status == "succeeded" {
                     try immutable(reply.data, to: rawURL)

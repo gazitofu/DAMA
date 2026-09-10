@@ -25,3 +25,14 @@
 내부 µs는 ms 이하를 절삭해 표시한다(850000µs → 00:00:00.850). null/음수는 ‘시간 미확인’. 제목/본문의 Markdown 특수문자는 escape해 입력 내용이 문서 구조나 외부 링크로 변하지 않게 한다. 요약·윤문·다른 AI 전송은 하지 않는다.
 
 검증: `LibraryJourneyTests`, `ManagedJourneyTests.testConversionInputSnapshotSurvivesCredentialResume`, `testFolderToMockProcessingScriptEditAndMarkdownJourney`. 실제 음성·실제 서버·청구 검증과 별도다.
+
+## 연속 발화 표시 (2026-09-10 실사용 수정)
+
+- `LibraryPresentation.swift`의 `ScriptBlock`은 화면·Markdown 공통 읽기 모델이다. 저장된 Turn이나 schema를 병합하지 않는다.
+- 인접한 speech Turn의 원 화자 ID·현재 이름이 같고 시간 순서가 확인되면 한 문단으로 연결한다. 첫 시작과 마지막 종료를 표시하고, 두 문자열 사이 공백이 없을 때만 한 칸을 추가한다. 원 문장은 윤문하지 않는다.
+- 다른 화자, missingSpeech, null 화자, 불명/겹친 시간은 경계다. 텍스트가 없는 다른 diarization 화자도 경계다. legacy normalized revision에 humanEdited가 있으면 사람이 만든 분할을 보존하기 위해 묶지 않는다.
+- 묶음의 이름 ‘이 부분만’은 포함된 원 Turn 전부, ‘이 부분부터’는 첫 Turn부터 동일 원 화자, ‘전체’는 같은 스크립트의 동일 원 화자다. 서로 다른 이름으로 수정된 인접 Turn은 합치지 않는다.
+- 묶음 대사 편집창은 원 시간 구간별 입력을 제공한다. 각 변경은 기존 turnTexts로 저장하므로 포맷 마이그레이션이 없다.
+- 화자 최초 등장 순서로 10개 색 슬롯을 지정한다. 원 ID가 같으면 이름 수정 뒤에도 색이 같고, null은 중립색이다. 11번째 이후는 색을 재사용하므로 이름을 계속 함께 표시한다.
+- open 이슈만 노란 이벤트 아이콘으로 노출한다. 단어·Turn 참조가 없는 이벤트는 시간상 대응 구간(녹음 끝의 중단은 마지막 구간)에 연결한다. 시간도 없으면 첫 구간에서 볼 수 있다. acknowledged/resolved 이슈도 데이터·Markdown에는 보존한다.
+- 검증: `LibraryPresentationTests`의 묶음 편집/왕복/MD, 경계, 10색·이벤트 여정.

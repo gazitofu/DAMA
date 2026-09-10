@@ -10,6 +10,8 @@ final class ProcessingWorkspace: ObservableObject {
     @Published private(set) var runs: [ManagedRun] = []
     @Published private(set) var localOnly: Set<String> = []
     @Published private(set) var busy = false
+    @Published private(set) var activeSessionID: String?
+    @Published private(set) var attemptStartedAt: Date?
     @Published var message: String?
     private var processor: ManagedProcessor?
     private var task: Task<Void, Never>?
@@ -48,21 +50,22 @@ final class ProcessingWorkspace: ObservableObject {
             return
         }
         guard response == .alertSecondButtonReturn else { return }
-        launch { key in try await processor.begin(sessionID: record.id, confirmed: true, key: key, input: input) }
+        launch(sessionID: record.id) { key in try await processor.begin(sessionID: record.id, confirmed: true, key: key, input: input) }
     }
 
     func resume(_ run: ManagedRun) {
         guard !busy, let processor else { return }
-        launch { key in try await processor.resume(run.id, key: key) }
+        launch(sessionID: run.sessionID) { key in try await processor.resume(run.id, key: key) }
     }
 
-    private func launch(_ action: @escaping @Sendable (String) async throws -> ManagedRun) {
+    private func launch(sessionID: String, _ action: @escaping @Sendable (String) async throws -> ManagedRun) {
         guard let processor else { return }
         let key: String
         do {
             key = try KeychainStore.read() ?? ""
         } catch { message = "키체인에서 API 키를 읽지 못했습니다. 녹음은 계속 사용할 수 있습니다."; return }
         busy = true
+        activeSessionID = sessionID; attemptStartedAt = Date()
         message = key.isEmpty ? "API 키가 필요합니다. 동의한 작업은 키 설정 후 계속할 수 있습니다." : nil
         task = Task {
             let monitor = Task {
@@ -71,7 +74,7 @@ final class ProcessingWorkspace: ObservableObject {
                     try? await Task.sleep(for: .milliseconds(500))
                 }
             }
-            defer { monitor.cancel(); busy = false; task = nil }
+            defer { monitor.cancel(); busy = false; activeSessionID = nil; attemptStartedAt = nil; task = nil }
             do {
                 let result = try await action(key)
                 runs = (try? await processor.runs()) ?? runs

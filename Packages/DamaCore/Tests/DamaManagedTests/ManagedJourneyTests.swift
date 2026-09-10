@@ -16,6 +16,7 @@ final class ManagedJourneyTests: XCTestCase {
         XCTAssertEqual(waiting.input, notes)
         let resumed = try await ManagedProcessor(root: root, transport: fake, sleep: { _ in }).resume(waiting.id, key: "test-only")
         XCTAssertEqual(resumed.input, notes)
+        XCTAssertNotNil(resumed.lastServerCheckAt)
         let body = await fake.lastSubmission
         let payload = try JSONSerialization.jsonObject(with: XCTUnwrap(body)) as! [String: Any]
         XCTAssertEqual(payload["numSpeakers"] as? Int, 3)

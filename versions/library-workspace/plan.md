@@ -3,7 +3,7 @@ unit: library-workspace
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-01~04 구현 및 변경 여정 13건·Debug build 통과. 기존 실행 중 DAMA를 종료하고 새 Debug 앱을 열어 네이티브 폴더/편집/메뉴 여정 확인. 실제 음성 전송은 별도 승인 전 보류."
+resume: "T-05~06 구현·변경 테스트 6건 및 Debug build 통과. 실앱에서 처리 카드 스피너/경과·묶음 편집·이벤트 팝오버 확인 대기. 실행 중 작업이 끝난 뒤 새 Debug 앱 재실행. 실제 음성 전송은 별도 승인."
 spec: notes/library-workspace/library-workspace.src.html
 created: 2026-09-10
 updated: 2026-09-10
@@ -41,6 +41,19 @@ updated: 2026-09-10
 - [x] AC-04 Markdown에 녹음 날짜시간·zone·입력count/맥락/참고·화자·대사·timestamp·누락/미확정 포함. 850000µs=00:00:00.850, null=시간 미확인.
 - [x] AC-05 DAMA 네이밍·두 상태 메뉴아이콘·네 항목·키 설정·모든 제품내보내기 MD·Swift6/Debug compile.
 - [ ] AC-06 실앱 폴더 picker/Keychain/TCC·녹음·VoiceOver·실한국어 평가. 미측정은 building 유지.
+- [x] AC-07 처리 활성 작업에 단계·스피너·이번 처리 경과·마지막 서버 응답 시각 표시. 네트워크 대기/일시정지/실패에서는 실제 서버 실행처럼 표시하지 않음. API에 없는 %·미측정 ETA는 생성하지 않음.
+- [x] AC-08 10명에 원 화자 ID 기준 서로 다른 색, null 중립색. 이름 수정 후 색 유지. 연속 동일 ID·동일 이름 발화는 하나의 문단과 시작~끝 시간으로 UI/MD에 표시. 다른 화자·누락·null·불명 시간·사람이 나눈 경계 보존. 묶음 편집은 원 구간별 입력, 이름 one은 선택 묶음 전체·from은 묶음 시작부터.
+- [x] AC-09 기존 ‘확인할 내용’ 상시 행 제거. open 이벤트만 화자 옆 노란 느낌표+클릭 팝오버. 원 이슈·원문·시간 정보는 저장/MD에서 보존.
+
+## 실사용 추가 요청 (2026-09-10)
+- 사용자 추가4항을 기존 승인 화면의 수정 요청으로 채택. 별도 화면 승인 반복 없음. 기존 혼합6개 문서 보존 예외와 직접 구현 역할 유지.
+- T-05: 공식 OpenAPI DiarizationJob은 jobId/status/createdAt/updatedAt/output이며 progress/ETA 없음. 단순 경과시간을 실제 완료율로 표시하지 않는다. 현재 작업 ID·시작 시각은 UI 세션에서, 마지막 정상 응답 시각은 optional Run 필드로 보존한다. 기존 파일 decode 호환. 마지막 응답과 현재 추적 상태를 분리한다.
+- T-06: normalized 계약 불변. LibraryScript 표시 묶음이 UI/Markdown 공통 입력. 인접 동일 화자라도 중간 다른 diarization 구간·누락 marker·미확정·시간 불명·사용자 원본 분할은 넘지 않는다. 기존 이름 범위 API는 유지하고 묶음용 연산을 추가한다. 10색 자동 지정, 11번째부터 재사용하며 이름으로도 식별한다.
+- QA 경계: ① mock 서버 pending→running→완료/중단 상태 표시 ② A-A-A-B-A와 누락 장벽→묶음 편집/이름 변경→재로드→MD. 기존 완료된 기본 여정 전수 재실행 없음. 변경 package tests 후 앱 Debug build 1회, 실패 시 영향만 확인.
+- 검증 층위: 신규 LibraryPresentation 3건, ProcessingPresentation 2건, 영향 Managed 입력 snapshot/정상 서버 확인시각 1건, 총 6개 distinct test 통과. 최초 1건은 null Turn에 시간이 있는 Word를 넣은 테스트 구성 오류였으며 Word 시간도 null로 고친 해당 검사 통과. 이후 표시 묶음 캐시·녹음 끝 이벤트 위치 변경의 영향 LibraryPresentation 3건, 외부 Script 저장 전 완료 표시 방지의 영향 ProcessingPresentation 1건만 재확인했다. 로그 `.build/check-logs/library-polish-{tests,affected,grouping,saved-state}.log`.
+- Debug arm64 앱 빌드 통과(`library-polish-xcodebuild.log`), 이후 변경된 표시 모델/색만 다시 빌드해 최종 산출물에 반영. 기존 SDK 타깃·AppIntents 경고만 유지. 실제 전송·앱 강제 종료·재시작 없음.
+- 실제 SwiftUI leaf 컴포넌트를 추출해 합성 데이터로 ImageRenderer 정적 렌더(`.build/library-polish-light.png`, `library-polish-dark.png`). 문단·시작/끝·10색·노란 이벤트 아이콘 배치 확인. 초기 청록3색 유사성을 빨강/노랑으로 조정. 네이티브 ProgressView는 ImageRenderer가 금지 모양 placeholder로 출력하므로 이 이미지는 실제 스피너 동작 증거가 아니다. 애니메이션·팝오버 클릭·전체 창·접근성·실서버는 AC-06에 남긴다.
+- 사용자가 실사용 확인 중인 앱을 교체 실행하지 않았다. 최종 확인은 현재 작업 종료 후 재실행하여 진행 카드→Script 묶음/편집→MD의 영향 여정으로 한다. 원 normalized 포맷·원문·과금 요청은 변경하지 않았다.
 
 ## 검증·Follow-ups
 - 기존 M0/M1/M2 미측정은 각 plan에 유지. 신규 자동전송·새 provider·삭제·배포 없음.

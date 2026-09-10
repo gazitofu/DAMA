@@ -21,6 +21,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published var message: String?
     @Published private(set) var busy = false
     @Published var editing = false
+    @Published private(set) var preparingSpeechID: String?
     private var store: FolderLibraryStore?
     private var root: URL?
     private var started = false
@@ -138,8 +139,9 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         }
         let input = notes
         busy = true
+        preparingSpeechID = speech.id
         Task {
-            defer { busy = false }
+            defer { busy = false; preparingSpeechID = nil }
             do {
                 try await persistNotes()
                 let manifest = try await AudioLibrary(root: root).prepareAnalysis(speech.id)

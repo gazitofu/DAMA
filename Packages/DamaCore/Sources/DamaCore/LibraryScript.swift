@@ -136,11 +136,11 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
                      "", "### 맥락", "", Self.escape(input.context.isEmpty ? "미입력" : input.context),
                      "", "### 참고 정보", "", Self.escape(input.reference.isEmpty ? "미입력" : input.reference),
                      "", "맥락·참고 정보는 사용자가 입력한 로컬 참고 메모입니다.", "", "## 스크립트", ""]
-        for turn in transcript.turns {
-            lines += ["### [\(Self.timestamp(turn.startUs)) – \(Self.timestamp(turn.endUs))] \(Self.escape(name(for: turn)))", "",
-                      Self.escape(text(for: turn)), ""]
-            if turnTexts[turn.id] != nil { lines += ["*사용자 수정 발화 · 시간은 원 모델 구간이며 재정렬하지 않았습니다.*", ""] }
-            for issue in transcript.reviewIssues where turn.reviewIssueIds.contains(issue.id) {
+        for block in blocks() {
+            lines += ["### [\(Self.timestamp(block.startUs)) – \(Self.timestamp(block.endUs))] \(Self.escape(block.name))", "",
+                      Self.escape(block.text), ""]
+            if block.edited { lines += ["*사용자 수정 발화 · 시간은 원 모델 구간이며 재정렬하지 않았습니다.*", ""] }
+            for issue in block.issues {
                 lines += ["> 검수: \(Self.escape(issue.kind.rawValue))", ""]
             }
         }
