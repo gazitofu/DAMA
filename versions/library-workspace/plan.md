@@ -3,7 +3,7 @@ unit: library-workspace
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-12 완료: context-correction-2 제한 형식 자동허용, 의미변경 후보보존, reading-v3 문단 바깥공백/이력 분리. 합성 영향13개 distinct·계약30개(수정 전28+링크 영향2)·Swift 계약·Debug compile PASS. 기존12응답285Turn 재생=공백무이력187/자동형식6/보류92(기존자동38→보류, 기존보류3→자동). 사용자 Script hash/normalized/시간/화자/표본밖 본문 불변. 실자료 .build/diagnostics/correction-policy-v2/benchmark.json·decisions.json·partial-pilot-policy-v2.md. 원음 정확도/실앱청취 미측정. 다음은 수정별 근거 계약·주제별 용어로 유효한 자동 어휘교정을 복원하고 이후 원음 구간 재전사 평가; 현재 새 어휘/구두점 자동허용은 축소된 중간 단계. 이전12요청 소진, 새 외부호출 별도 확인. 실행중 앱 재시작/사용자 Script 적용 안 함, 혼합6문서 보존."
+resume: "T-13 구현 완료: context-correction-3 수정별 quote/occurrence·부분반영·독립 unresolved·사용자 명시 용어 대응. 합성/디스크/가짜CLI 영향19개 distinct·계약30·Swift 계약·Debug compile PASS, 실제 행 밝음/어둠 정적 렌더 확인. 기존12응답285Turn 재생 판정=형식6/공백무이력187/보류92 유지·사용자 Script 불변. 자동 어휘교정은 사용자 참고 필드의 명시 대응+맥락/동일Turn 주제어 범위에 한정, 참고문서 자동 추출 미구현. 다음은 실제 표본의 새 형식 응답 생성/교정 효과 및 원음 구간 평가; 기존12요청 소진, 새 외부호출 별도 확인. 실제 앱 재시작/사용자 Script 적용 안 함, AC-06 미측정·building 및 혼합6문서 보존."
 spec: notes/library-workspace/library-workspace.src.html
 created: 2026-09-10
 updated: 2026-09-10
@@ -27,6 +27,9 @@ updated: 2026-09-10
 - 폴더 권한/파일 변경 감지·읽기 오류는 표시, 중간 실패를 빈 목록 성공으로 취급하지 않음. Script 저장 실패는 재전송하지 않고 같은 원 결과 로컬 저장 재시도.
 
 ## 태스크·여정
+- T-13 (2026-09-10 plan 이어하기): 새 응답은 각 Turn의 원문 인용+0부터 세는 출현순서에 연결한 changes와 독립 unresolved를 반환한다. 인용 불일치·겹침·설명되지 않은 본문 차이는 거부. 수정마다 형식/용어 근거를 검사하고 허용된 수정만 원문 위에 합성한다. 다른 미해결 부분이 있어도 독립 허용 수정은 반영하며 경고는 남긴다. 기존 Turn 단위 저장 형식에 optional 상세/부분반영 본문을 추가하여 이전 파일의 적용 판정을 유지한다. 원 normalized·µs·화자·장벽 불변. 용어 근거 범위는 사용자 선택을 받아 구체화하되 모델 확신/후보 존재만으로 허용하지 않는다.
+- T-13 QA 경계: 합성 새 응답→인용/겹침/혼합변경 방어→부분반영+독립 경고→디스크 저장·재로드→원문전환/사람 수정/읽기/MD. 가짜 CLI로 새 schema 소비, 기존12응답 로컬 재생 호환 대조, 계약/Swift 및 최종 Debug compile. 실제 모델 품질·원음 청취는 미측정.
+- T-13 용어 범위: 선택 질문에 응답이 없어 고지한 좁은 기본안을 적용. 참고 정보 `용어 | 주제 | 원표기 | 표준표기`를 입력 snapshot에서 파싱하고 SHA256+행번호 termID를 검증한다. 맥락/동일 원Turn의 수정범위 밖 주제어 출현, 정확한 표기 대응·단어경계·중복 대응 충돌 검사를 통과해야 자동 반영. 외부 참고 발췌에서 자동 대응 추출·청취 정답 추정은 하지 않는다. 구체 제한은 `ssot/contracts/library-script.md` T-13. 사용자에게 추가 수작업 없는 광범위 어휘 복원을 달성했다고 판단하지 않는다.
 - T-12 (2026-09-10 진행 승인): context-correction-2의 임시 자동허용 정책. 확신+정규식 동등만으로 의미 변경을 허용하지 않고 코드가 확인한 제한 형식(유효한3자리 천단위 comma 인접 공백, 안되니까/안되는데/안해도 부정 분리, 숫자 뒤 억/만/천/백/조와 원 사이 공백)에만 허용. 새 어휘/약어/구두점 및 그 밖의 내부공백 변경은 이유와 후보 보존; 증거 기반 어휘 허용은 후속 수정별 계약에서 확장. certain=false는 형식 동등이어도 경고 유지. 앞뒤공백뿐인 certain=true는 새 edit 생성 안 함, 기존 applied 공백 edit는 저장 그대로 UI/MD 이력에서 제외. 읽기 문단 바깥 공백만 표시에서 제거하며 사람 수정과 원 token/prefix/시간/화자/이슈는 보존. 모델 요청에는 변경 이유를 요구하되 이유 자체를 허용 증거로 쓰지 않음. 기존 교정본의 적용 판정/사람 수정은 마이그레이션하지 않음.
 - T-12 QA: ① 합성 응답→형식 자동/의미 보류/공백 무이력→저장·재로드→읽기/MD/사람 수정 우선 ② 기존12응답·285Turn을 새 정책으로 로컬 재생, 입력·원본 hash/이슈·화자·시간 보존 및 판정 분포 기록. 기존8위험 합성반례 차단,2형식 오탐 해소,2진성 차단 유지와 혼합변경/잘못된 숫자 grouping 반례 확인. 영향 pure/Core·디스크/가짜CLI 검사와 계약 체크, 마지막 앱 Debug compile1회. 앱 실행/원음 청취/새 모델 호출 없음. 단위/값 변환 없이 원 문자열의 허용 공백만 비교하므로 숫자 부호·값·단위 및 내부µs 불변.
 - T-11 (2026-09-10 후속 승인): 진단으로 확인된 표시/검수 부담 개선. reading-v2: 같은 화자/이름 + 다른 화자 구간이 두 이웃 전체를 연속 덮는 동일 겹말 내부만 추가 병합. 다른 화자 onset/offset·A→B→A·누락/미확정/legacy 사람 분할은 장벽 유지. 읽기 휴지 최대1.5초/문단 최대30초는 초기 비교값, 단일 원 Turn은 쪼개지 않아 상한 초과 가능. 이슈는 시간상 겹치거나 닿는 구간별로 묶어 종류 요약+세부 원 이슈/시간/문맥 재생 제공. 원 이슈·MD 보존. 길이0 자체재생은 앞뒤2초 문맥으로 대체하고 안내, nil/역전은 거부. 단위는 입력/저장 µs→재생 초, ±2초는 재생 범위에만 적용하며 원음 길이에 clamp. `algorithmVersion`은 표시 정책에 별도 두고 모델 provenance는 바꾸지 않는다.
@@ -38,6 +41,7 @@ updated: 2026-09-10
 - QA 묶음 ① 폴더→반입→mock변환→Script ② Script편집→저장/재실행→MD ③ 메뉴→녹음 상태·창수명. 실제 마이크/파일전송 미측정 유지.
 
 ## AC
+- [x] AC-16 T-13 수정별 원문 위치·명시 용어 근거 검증과 독립 unresolved, 부분반영·기존 파일 호환·사람 수정·UI/MD 보존. 합성/디스크/가짜CLI/컴파일·정적 행 렌더 층위, 실제 모델의 새 응답/자동 어휘교정 품질 평가는 별도.
 - [x] AC-15 T-12 자동허용 근거 분리·합성 위험변경 방어·제한 형식 오탐 해소·앞뒤공백 무이력·불확실성 유지·저장/읽기/MD/사람 수정/원 데이터 보존. 기존 응답 재생 수치는 정책 판정 변화이며 STT 정답률이나 수작업 감소 측정으로 간주하지 않음. 합성/디스크/컴파일 층위, 실앱은 AC-06.
 - [x] AC-14 읽기-v2에서 같은 연속 겹말 내부만 병합하며 원 단어/화자/시간·A→B→A·누락/미확정/legacy 분할 보존. 휴지/장문 경계·이벤트 시간 묶음·세부 원 이슈·문맥 재생 범위 구현. 합성/실파일 읽기·컴파일 층위이며 실조작/청취는 AC-06 미측정.
 - [x] AC-11 타임스탬프에서 해당 오디오 구간 재생/정지, 끝에서 정지, 녹음 시작 시 재생 정지. 불명 시간·원음 미접근 안내 구현. 범위 검증/컴파일 층위이며 실제 청취는 AC-06.
@@ -66,6 +70,9 @@ updated: 2026-09-10
 - 사용자가 실사용 확인 중인 앱을 교체 실행하지 않았다. 최종 확인은 현재 작업 종료 후 재실행하여 진행 카드→Script 묶음/편집→MD의 영향 여정으로 한다. 원 normalized 포맷·원문·과금 요청은 변경하지 않았다.
 
 ## 검증·Follow-ups
+- T-13 결과(2026-09-10): Core 교정9·기존 표시6·디스크2·가짜CLI2, 총19개 distinct 영향 검사 PASS. 최초17개 통과 후 새 디스크/CLI계약2개를 추가 확인하고, export 근거표시 수정의 영향2개만 재확인. 원문 인용 위조/위치 초과·음수/겹침/미기술 차이/저장 본문 변조 거부, 반복 인용 두 번째 위치(emoji 포함), 부분반영+겹치지 않는 미해결 유지, 위조/변경입력/다른주제/단어내부/충돌용어 및 외부발췌 단독 근거 거부를 확인했다. 로그 `.build/check-logs/correction-spans-{tests,disk-cli,final-export}.log`. 합성 용어/숫자공백2개 반영+추정→확정1개 보류 사례는 모델 실제 품질 측정이 아니다.
+- T-13 기존 응답 호환: 저장12응답·285소유Turn을 현행 Core로 로컬 재생해 T-12의 형식6/공백무이력187/보류92 및 전체1,984표시블록 ID/이름/시간·normalized·표본밖 본문·원 Script SHA256 유지. 근거 ignored `.build/diagnostics/correction-spans-legacy-replay/{benchmark,decisions}.json`와 비교 MD(재사용 runner로 파일명은 partial-pilot-policy-v2.md). 이전 응답에 새 span/용어 근거를 발명해 채워넣지 않았다. 새 모델 응답 형식 성공/어휘 복원 효과·원음 정답은 미측정.
+- T-13 검증: 계약30개·Swift6 roundtrip/명시null·Core 계약 사본 바이트 일치 PASS(`correction-spans-{contracts,swift-contract}.log`). 최종 서명 없는 arm64 Debug BUILD SUCCEEDED(`correction-spans-xcodebuild.log`), 기존 SDK타깃/AppIntents 경고 유지. 실제 ScriptBlockRow를 추출하고 이력만 강제 펼친 합성 ImageRenderer 밝음/어둠 렌더 직접 확인(`.build/correction-spans-{light,dark}.png`): 부분반영 본문·노란경고·개별근거·미해결·전체선택 버튼 배치. 클릭/스크롤/팝오버/VoiceOver·청취 근거는 아니다. 새 AI/API 전송·실앱 재시작·사용자 Script 쓰기 없음. 기존 혼합6문서 보존, 이번 코드/테스트/계약/plan만 로컬 커밋.
 - T-12 결과(2026-09-10): Core 교정5·표시6·디스크 교정저장1·가짜CLI 응답1, 총13개 distinct 영향 검사 통과. 숫자/부정/조건/단위/반복/어휘/문장부호/혼합/불명 숫자형식22개 차단 및 제한 형식6개 허용을 production validated로 확인. 이전 동일8위험 합성 입력의 old guard 통과 기록과 대조해 회귀 변별력 확인. 기존1번 여정의 회사표기+구두점 기대는 후보보류로 옮기고 숫자단위 형식 자동반영 단정을 추가했다. legacy 저장된 공백 edit는 보존/표시제외, 불확실성·원 이슈 및 사람 turnTexts/editedText 공백 보존 확인. 최초 테스트의 let transcript 변경·legacy editedText 시간출처 누락은 합성구성 오류로 수정, 해당 검사만 재확인. 로그 `correction-policy-v2-{tests,human-spacing,human-spacing-fixed}.log`.
 - T-12 실제 응답 재생: 승인된12응답의285개 소유Turn을 새 정책으로 검증, 원문/시간/화자/원 이슈·원본 Script SHA256 불변, 표본 밖 본문 불변. 자동형식6(기존보류3 포함)·공백무이력187·보류92(기존자동38 포함). 기존 불확실57 중 형식오탐3을 제외한54 유지, 혼합구두점이 있는 나머지1은 전체 후보보류. 읽기 문단1,984개 ID/이름/시작끝 불변, 이 원본에서 문단 바깥공백 표시0. raw reason과 candidate 원응답은 기존 pilot 파일에 유지; 새 정책 비교 MD는 진단 산출물이며 사용자 Script에 저장하지 않음. 근거 ignored `replay-correction-policy-v2.swift`, `correction-policy-v2/{benchmark,decisions}.json`, `partial-pilot-policy-v2.md`. 이 결과는 안전 정책의 후보 분류 변화이며 인식 품질/수동작업 감소 완료를 뜻하지 않음.
 - 필수 검사에서 문서 링크 checker가 `.build`의 외부 리뷰 예시를 저장소 링크로 오인해 실패했다. 생성/진단 디렉터리 `.build`·DerivedData·.git만 문서 모집단에서 제외하고 일반 README/ssot의 잘못된 링크는 계속 검출하는 양성/음성 회귀 추가. 외부 리뷰 원문 수정 없음. 기존28계약 PASS+수정된링크/신규범위2 PASS=30 distinct, Swift6 왕복·명시적null·계약사본 byte 일치 PASS. `correction-policy-v2-{contracts,contract-links}.log`. 최종 서명 없는 arm64 Debug `BUILD SUCCEEDED`(`correction-policy-v2-xcodebuild.log`); 기존 SDK타깃/AppIntents 경고. 기존 샌드박스 package 해석 제한 근거로 승인된 외부 빌드1회. 실제 앱 실행/원음 청취/추가 API·AI 전송 없음.

@@ -4,6 +4,44 @@ import DamaCore
 @testable import DamaAudio
 
 final class ContextAudioTests: XCTestCase {
+    func testPartialCorrectionDiskReopenExportAndHumanChoice() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var fixture = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { fixture.deleteLastPathComponent() }
+        var model = try JSONDecoder().decode(TranscriptDocument.self, from: Data(contentsOf: fixture.appendingPathComponent("fixtures/normalized-transcript.json")))
+        model.words[0].text = "30억원 추정"
+        let script = try LibraryScript(transcript: model, title: "합성 부분 교정", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        let store = FolderLibraryStore(root: directory.appendingPathComponent("internal"))
+        let file = try await store.saveScript(script, to: directory.appendingPathComponent("script.dama.json"), expectedHash: nil)
+        let chunk = try XCTUnwrap(ContextCorrection.chunks(script).first)
+        let target = try XCTUnwrap(chunk.turns.first(where: { $0.text.contains("30억원 추정") }))
+        let turns: [[String: Any]] = chunk.turns.map { turn in
+            ["id": turn.id, "text": turn.id == target.id ? turn.text.replacingOccurrences(of: "30억원", with: "30억 원") : turn.text,
+             "certain": turn.id != target.id, "reason": "", "changes": turn.id == target.id ?
+                [["quote": "30억원", "occurrence": 0, "replacement": "30억 원", "certain": true, "reason": "단위 공백", "termID": NSNull()]] : [],
+             "unresolved": turn.id == target.id ? [["quote": "추정", "occurrence": 0, "reason": "원음 확인"]] : []]
+        }
+        let reply = try JSONDecoder().decode(CorrectionReply.self, from: JSONSerialization.data(withJSONObject: ["turns": turns, "names": []]))
+        var correction = ScriptCorrection(input: script.input, engine: ContextCorrection.version, state: .completed)
+        correction.edits = try ContextCorrection.validated(reply, chunk: chunk, input: script.input).edits
+        let merged = try await store.saveCorrection(correction, for: file)
+        let reopened = try await FolderLibraryStore(root: directory.appendingPathComponent("internal")).scripts(in: directory)
+        let stored = try XCTUnwrap(reopened.first)
+        XCTAssertEqual(stored.script.correction?.edits, correction.edits)
+        XCTAssertTrue(stored.script.blocks().map(\.text).joined().contains("30억 원 추정"))
+        let exported = directory.appendingPathComponent("partial.md")
+        try await store.exportMarkdown(stored, to: exported)
+        let md = try String(contentsOf: exported, encoding: .utf8)
+        XCTAssertTrue(md.contains("일부 반영")); XCTAssertTrue(md.contains("미해결: 추정"))
+        var human = merged.script
+        try human.editText(target.id, text: target.text)
+        let selected = try await store.saveScript(human, to: file.url, expectedHash: merged.hash)
+        XCTAssertEqual(selected.script.text(for: model.turns.first { $0.id == target.id }!), target.text)
+        XCTAssertEqual(selected.script.correction?.edits, correction.edits)
+    }
+
     @MainActor func testZeroLengthAndEventContextListeningKeepsOriginalRangeContract() throws {
         XCTAssertEqual(try SegmentPlayback.listeningRange(startUs: 850_000, endUs: 3_000_000, duration: 10), 0.85...3)
         XCTAssertEqual(try SegmentPlayback.listeningRange(startUs: 5_000_000, endUs: 5_000_000, duration: 10), 3...7)

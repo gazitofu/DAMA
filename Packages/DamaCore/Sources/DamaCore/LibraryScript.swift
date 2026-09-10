@@ -88,7 +88,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     }
     public func text(for turn: TranscriptTurn) -> String {
         if let text = turnTexts[turn.id] { return text }
-        if showsOriginal != true, let edit = correction?.edits.first(where: { $0.turnID == turn.id && $0.applied }) { return edit.text }
+        if showsOriginal != true, let text = correction?.edits.first(where: { $0.turnID == turn.id })?.effectiveText { return text }
         return originalText(for: turn)
     }
     public func originalText(for turn: TranscriptTurn) -> String {
@@ -168,8 +168,18 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
                 lines += ["> 검수: \(Self.escape(issue.kind.rawValue))", ""]
             }
             for edit in correction?.visibleEdits.filter({ block.turnIDs.contains($0.turnID) }) ?? [] {
-                lines += ["> AI \(edit.applied ? "교정" : "미적용 · 확인 필요"): \(Self.escape(edit.reason))", "",
+                let label = edit.appliedText == nil ? (edit.applied ? "교정" : "미적용 · 확인 필요") : edit.decisionLabel
+                lines += ["> AI \(label): \(Self.escape(edit.reason))", "",
                           "> 교정 전: \(Self.escape(edit.original))", "", "> 교정안: \(Self.escape(edit.text))", ""]
+                if let text = edit.appliedText { lines += ["> \(edit.decisionLabel): \(Self.escape(text))", ""] }
+                for decision in edit.changes ?? [] {
+                    lines += ["> 수정 \(decision.applied ? "반영" : "보류"): \(Self.escape(decision.change.quote)) → \(Self.escape(decision.change.replacement)) · 출현 \(decision.change.occurrence + 1)", "",
+                              "> 근거: \(Self.escape(decision.basis)) \(Self.escape(decision.change.reason))", ""]
+                    if let termID = decision.change.termID { lines += ["> 용어 근거 ID: \(Self.escape(termID))", ""] }
+                }
+                for item in edit.unresolved ?? [] {
+                    lines += ["> 미해결: \(Self.escape(item.quote)) · 출현 \(item.occurrence + 1) · \(Self.escape(item.reason))", ""]
+                }
             }
         }
         return Data(lines.joined(separator: "\n").utf8)

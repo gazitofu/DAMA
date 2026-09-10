@@ -70,7 +70,7 @@ extension LibraryScript {
         }
         func currentText(_ turn: TranscriptTurn) -> String {
             if let edit = turnTexts[turn.id] { return edit }
-            if showsOriginal != true, let edit = correction?.edits.first(where: { $0.turnID == turn.id && $0.applied }) { return edit.text }
+            if showsOriginal != true, let text = correction?.edits.first(where: { $0.turnID == turn.id })?.effectiveText { return text }
             if turn.kind == .missingSpeech { return turn.markerText ?? "[음성 감지 / 전사 누락 의심]" }
             return turn.wordIds.compactMap { words[$0] }.sorted { $0.ordinal < $1.ordinal }
                 .map { $0.prefix + ($0.editedText ?? $0.text) }.joined()

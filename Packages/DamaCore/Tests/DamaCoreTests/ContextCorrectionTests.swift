@@ -3,6 +3,101 @@ import XCTest
 @testable import DamaCore
 
 final class ContextCorrectionTests: XCTestCase {
+    func testIndependentSpanCorrectionAndUnresolvedRoundTripJourney() throws {
+        var script = try makeScript(["원자로 에스엠알 30억원 추정", "다음 발화"])
+        let input = ConversionNotes(context: "원자로 검토", reference: "용어 | 원자로 | 에스엠알 | SMR")
+        let term = try XCTUnwrap(CorrectionTerms.entries(input: input).first)
+        let chunk = try XCTUnwrap(ContextCorrection.chunks(script).first), source = chunk.turns[0]
+        let changes: [CorrectionChange] = [
+            .init(quote: "에스엠알", occurrence: 0, replacement: "SMR", certain: true, reason: "명시적 대응", termID: term.id),
+            .init(quote: "30억원", occurrence: 0, replacement: "30억 원", certain: true, reason: "단위 공백", termID: nil),
+            .init(quote: "추정", occurrence: 0, replacement: "확정", certain: true, reason: "모델 주장", termID: nil)]
+        let unresolved = [CorrectionUnresolved(quote: "추정", occurrence: 0, reason: "원음 확인")]
+        let reply = CorrectionReply(turns: [
+            .init(id: source.id, text: "원자로 SMR 30억 원 확정", certain: false, reason: "주장 확인",
+                  changes: changes, unresolved: unresolved),
+            .init(id: chunk.turns[1].id, text: chunk.turns[1].text, certain: true, reason: "", changes: [], unresolved: [])], names: [])
+        let result = try ContextCorrection.validated(reply, chunk: chunk, input: input)
+        let edit = try XCTUnwrap(result.edits.first)
+        XCTAssertEqual(edit.changes?.map(\.applied), [true, true, false]); XCTAssertFalse(edit.applied)
+        XCTAssertEqual(edit.appliedText, "원자로 SMR 30억 원 추정")
+        XCTAssertEqual(edit.unresolved, unresolved)
+        var correction = ScriptCorrection(input: input, engine: ContextCorrection.version, state: .completed)
+        correction.edits = result.edits; script.correction = correction
+        let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
+        let normalized = try encoder.encode(script.transcript)
+        var loaded = try JSONDecoder().decode(LibraryScript.self, from: encoder.encode(script)); try loaded.validate()
+        XCTAssertEqual(loaded.text(for: loaded.transcript.turns[0]), edit.appliedText)
+        XCTAssertTrue(loaded.blocks()[0].text.contains("원자로 SMR 30억 원 추정"))
+        let md = String(decoding: try loaded.markdown(), as: UTF8.self)
+        XCTAssertTrue(md.contains("수정 반영: 에스엠알 → SMR")); XCTAssertTrue(md.contains("미해결: 추정"))
+        XCTAssertTrue(md.contains(term.id)); XCTAssertTrue(md.contains("일부 반영"))
+        loaded.showsOriginal = true
+        XCTAssertEqual(loaded.text(for: loaded.transcript.turns[0]), source.text)
+        loaded.showsOriginal = false
+        try loaded.editText(source.id, text: "  사람이 수정한 원자로  ")
+        XCTAssertEqual(loaded.text(for: loaded.transcript.turns[0]), "  사람이 수정한 원자로  ")
+        XCTAssertEqual(try encoder.encode(loaded.transcript), normalized)
+    }
+
+    func testSpanAnchorsRejectFabricationOverlapAndUnexplainedChanges() throws {
+        let source = CorrectionTurn(id: "t", speakerID: nil, startUs: 850_000, endUs: 850_000, text: "🙂 30억원 30억원")
+        let chunk = CorrectionChunk(turns: [source], contextBefore: [], contextAfter: [])
+        func change(_ quote: String = "30억원", _ occurrence: Int = 1) -> CorrectionChange {
+            .init(quote: quote, occurrence: occurrence, replacement: "30억 원", certain: true, reason: "공백", termID: nil)
+        }
+        func check(_ changes: [CorrectionChange], _ text: String) throws -> CorrectionEdit? {
+            try ContextCorrection.validated(.init(turns: [.init(id: "t", text: text, certain: true, reason: "", changes: changes, unresolved: [])], names: []), chunk: chunk, input: ConversionNotes()).edits.first
+        }
+        XCTAssertEqual(try check([change()], "🙂 30억원 30억 원")?.effectiveText, "🙂 30억원 30억 원")
+        for changes in [[change("없음")], [change("30억원", -1)], [change("30억원", 2)],
+                        [change(), change()], [change("30억원 30억원", 0), change()]] {
+            XCTAssertThrowsError(try check(changes, "🙂 30억원 30억 원"))
+        }
+        XCTAssertThrowsError(try check([change()], "🙂 30억원 30억 원."))
+        var edit = try XCTUnwrap(check([change()], "🙂 30억원 30억 원"))
+        edit.appliedText = "🙂 50억원"
+        XCTAssertThrowsError(try CorrectionSpans.validateStored(edit))
+        XCTAssertEqual(source.startUs, 850_000); XCTAssertEqual(source.endUs, 850_000)
+    }
+
+    func testTermEvidenceRequiresExplicitMappingScopeAndExactSource() throws {
+        let input = ConversionNotes(context: "원자로 검토", reference: "용어 | 원자로 | 에스엠알 | SMR")
+        let term = try XCTUnwrap(CorrectionTerms.entries(input: input).first)
+        func apply(_ before: String, _ after: String, _ id: String?, _ notes: ConversionNotes = input,
+                   unresolved: [CorrectionUnresolved] = []) throws -> Bool {
+            let chunk = CorrectionChunk(turns: [.init(id: "t", speakerID: nil, startUs: 0, endUs: 1, text: before)], contextBefore: [], contextAfter: [])
+            let changes = [CorrectionChange(quote: "에스엠알", occurrence: 0, replacement: "SMR", certain: true, reason: "확실함", termID: id)]
+            return try ContextCorrection.validated(.init(turns: [.init(id: "t", text: after, certain: true, reason: "", changes: changes, unresolved: unresolved)], names: []), chunk: chunk, input: notes).edits.first?.changes?.first?.applied == true
+        }
+        XCTAssertTrue(try apply("원자로 에스엠알", "원자로 SMR", term.id))
+        XCTAssertFalse(try apply("원자로 에스엠알", "원자로 SMR", nil))
+        XCTAssertFalse(try apply("원자로 에스엠알", "원자로 SMR", "invented"))
+        XCTAssertFalse(try apply("다른주제 에스엠알", "다른주제 SMR", term.id))
+        XCTAssertFalse(try apply("원자로 에스엠알파", "원자로 SMR파", term.id))
+        XCTAssertFalse(try apply("원자로 에스엠알", "원자로 SMR", term.id, unresolved: [.init(quote: "에스엠알", occurrence: 0, reason: "용어 불확실")]))
+        XCTAssertFalse(try apply("원자로 에스엠알", "원자로 SMR", term.id, ConversionNotes(context: input.context, reference: input.reference + "\n변경된 입력")))
+        XCTAssertTrue(CorrectionTerms.entries(input: ConversionNotes(context: "다른 주제", reference: input.reference)).isEmpty)
+        XCTAssertTrue(CorrectionTerms.entries(input: ConversionNotes(context: input.context, reference: input.reference + "\n용어 | 원자로 | 에스엠알 | SMX")).isEmpty)
+        XCTAssertTrue(CorrectionTerms.entries(input: ConversionNotes(context: input.context, referenceExcerpts: [.init(name: "terms.md", sha256: "hash", text: input.reference)])).isEmpty)
+        for (from, to) in [("30억", "50억"), ("kW", "kWh"), ("있다", "없다")] {
+            XCTAssertTrue(CorrectionTerms.entries(input: ConversionNotes(context: "원자로", reference: "용어 | 원자로 | \(from) | \(to)")).isEmpty)
+        }
+    }
+
+    func testIndependentUncertaintyCannotDisappearThroughNoOpOrEmptyDetails() throws {
+        let chunk = CorrectionChunk(turns: [.init(id: "t", speakerID: nil, startUs: nil, endUs: nil, text: "30억원 추정")], contextBefore: [], contextAfter: [])
+        let reply = CorrectionReply(turns: [.init(id: "t", text: "30억원 추정", certain: false, reason: "전체 불확실", changes: [], unresolved: [])], names: [])
+        let edit = try XCTUnwrap(ContextCorrection.validated(reply, chunk: chunk, input: ConversionNotes()).edits.first)
+        XCTAssertFalse(edit.applied); XCTAssertEqual(edit.unresolved?.first?.quote, chunk.turns[0].text)
+        let partial = CorrectionReply(turns: [.init(id: "t", text: "30억원 추정", certain: false, reason: "", changes: [], unresolved: nil)], names: [])
+        XCTAssertThrowsError(try ContextCorrection.validated(partial, chunk: chunk, input: ConversionNotes()))
+        let schema = try JSONSerialization.jsonObject(with: ContextCorrection.outputSchema) as! [String: Any]
+        let properties = schema["properties"] as! [String: Any]
+        let turns = properties["turns"] as! [String: Any], items = turns["items"] as! [String: Any]
+        XCTAssertTrue((items["required"] as! [String]).contains("changes")); XCTAssertTrue((items["required"] as! [String]).contains("unresolved"))
+    }
+
     func makeScript(_ texts: [String]) throws -> LibraryScript {
         let intervals: [[String: Any]] = texts.enumerated().map { ["start": $0.offset * 3, "end": $0.offset * 3 + 2, "speaker": "A"] }
         let words: [[String: Any]] = texts.enumerated().map { ["start": $0.offset * 3, "end": $0.offset * 3 + 1, "speaker": "A", "text": $0.element] }

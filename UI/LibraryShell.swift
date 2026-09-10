@@ -91,6 +91,9 @@ struct ScriptBlockRow: View {
                                     ForEach(pendingCorrections, id: \.turnID) { edit in
                                         Text("AI 확인 필요: \(edit.reason)").font(.callout)
                                         Text("교정안: \(edit.text)").font(.caption).foregroundStyle(.secondary)
+                                        ForEach(Array((edit.unresolved ?? []).enumerated()), id: \.offset) { _, item in
+                                            Text("미해결: \(item.quote) · \(item.reason)").font(.caption)
+                                        }
                                     }
                                     ForEach(reviewEvents) { event in
                                         VStack(alignment: .leading, spacing: 8) {
@@ -141,11 +144,18 @@ struct ScriptBlockRow: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("원문: \(edit.original)")
                                 Text("교정안: \(edit.text)")
-                                Text("\(edit.applied ? "자동 반영" : "원문 유지") · \(edit.reason)").foregroundStyle(.secondary)
+                                Text("\(edit.decisionLabel) · \(edit.reason)").foregroundStyle(.secondary)
+                                if let text = edit.appliedText, !edit.applied { Text("현재 반영: \(text)") }
+                                ForEach(Array((edit.changes ?? []).enumerated()), id: \.offset) { _, decision in
+                                    Text("\(decision.applied ? "반영" : "보류"): \(decision.change.quote) → \(decision.change.replacement) · \(decision.basis) \(decision.change.reason)")
+                                }
+                                ForEach(Array((edit.unresolved ?? []).enumerated()), id: \.offset) { _, item in
+                                    Text("미해결: \(item.quote) · \(item.reason)")
+                                }
                                 if !edit.applied, !resolvedTurnIDs.contains(edit.turnID), let resolveCorrection {
                                     HStack {
-                                        Button("교정안 적용") { resolveCorrection(edit, true) }.disabled(edit.text == edit.original || edit.text.isEmpty)
-                                        Button("원문 유지") { resolveCorrection(edit, false) }
+                                        Button(edit.changes == nil ? "교정안 적용" : "전체 교정안 적용") { resolveCorrection(edit, true) }.disabled(edit.text == edit.original || edit.text.isEmpty)
+                                        Button(edit.changes == nil ? "원문 유지" : "전체 원문 유지") { resolveCorrection(edit, false) }
                                     }
                                 } else if resolvedTurnIDs.contains(edit.turnID) {
                                     Text("사용자 선택·수정 우선").foregroundStyle(.secondary)
@@ -335,6 +345,8 @@ struct LibraryShell: View {
                     noteField("맥락", text: $workspace.context, height: 90)
                     noteField("참석자 · 한 줄에 이름과 소속/역할", text: $workspace.participants, height: 70)
                     noteField("참고 정보", text: $workspace.reference, height: 80)
+                    Text("용어 표기를 지정하려면 ‘용어 | 주제 | 원표기 | 표준표기’를 한 줄씩 입력하세요. 맥락과 해당 발화에서 주제가 확인되는 경우에 적용합니다.")
+                        .font(.caption).foregroundStyle(.secondary)
                     Toggle("변환 후 문맥 자동 교정", isOn: $correction.automatic)
                     HStack {
                         Text(correction.referenceURL?.lastPathComponent ?? "참고 폴더 없음").font(.caption).foregroundStyle(.secondary)

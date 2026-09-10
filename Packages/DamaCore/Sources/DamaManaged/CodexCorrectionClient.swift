@@ -63,7 +63,8 @@ public actor CodexCorrectionClient {
         guard let handle = try? FileHandle(forReadingFrom: output) else { throw CodexCorrectionFailure.invalidResponse }
         defer { try? handle.close() }
         guard let bytes = try handle.read(upToCount: 2_000_001), bytes.count <= 2_000_000,
-              let reply = try? JSONDecoder().decode(CorrectionReply.self, from: bytes) else { throw CodexCorrectionFailure.invalidResponse }
+              let reply = try? JSONDecoder().decode(CorrectionReply.self, from: bytes),
+              reply.turns.allSatisfy({ $0.changes != nil && $0.unresolved != nil }) else { throw CodexCorrectionFailure.invalidResponse }
         return reply
     }
 }

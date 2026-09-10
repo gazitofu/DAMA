@@ -26,14 +26,29 @@ final class CodexCorrectionTests: XCTestCase {
           shift
         done
         cat >/dev/null
-        printf '%s' '{"turns":[{"id":"t1","text":"합성 대사.","certain":true,"reason":"구두점"}],"names":[]}' > "$result"
+        printf '%s' '{"turns":[{"id":"t1","text":"합성 대사.","certain":true,"reason":"구두점","changes":[{"quote":"대사","occurrence":0,"replacement":"대사.","certain":true,"reason":"구두점","termID":null}],"unresolved":[]}],"names":[]}' > "$result"
         """, at: directory)
         let chunk = try chunk()
         let reply = try await CodexCorrectionClient().correct(chunk: chunk, input: ConversionNotes(), executable: executable)
         XCTAssertEqual(try ContextCorrection.validated(reply, chunk: chunk, input: ConversionNotes()).edits.first?.text, "합성 대사.")
+        XCTAssertEqual(reply.turns[0].changes?.count, 1)
+        XCTAssertFalse(try XCTUnwrap(ContextCorrection.validated(reply, chunk: chunk, input: ConversionNotes()).edits.first).applied)
         let args = CodexCorrectionClient.arguments(directory: directory, schema: directory, output: directory)
         XCTAssertTrue(args.contains("--ignore-user-config")); XCTAssertTrue(args.contains("features.shell_tool=false"))
         XCTAssertTrue(args.contains("web_search=\"disabled\"")); XCTAssertFalse(args.contains("--dangerously-bypass-approvals-and-sandbox"))
+    }
+    func testNewProcessReplyCannotOmitSpanContract() async throws {
+        let directory = try directory(); defer { try? FileManager.default.removeItem(at: directory) }
+        let executable = try fake("""
+        while [ "$#" -gt 0 ]; do
+          if [ "$1" = "--output-last-message" ]; then shift; result="$1"; fi
+          shift
+        done
+        cat >/dev/null
+        printf '%s' '{"turns":[{"id":"t1","text":"합성 대사","certain":true,"reason":""}],"names":[]}' > "$result"
+        """, at: directory)
+        do { _ = try await CodexCorrectionClient().correct(chunk: chunk(), input: ConversionNotes(), executable: executable); XCTFail("new process must return span contract") }
+        catch { XCTAssertTrue(error is CodexCorrectionFailure) }
     }
     func testProcessFailureAndTimeoutDoNotRetry() async throws {
         let directory = try directory(); defer { try? FileManager.default.removeItem(at: directory) }
