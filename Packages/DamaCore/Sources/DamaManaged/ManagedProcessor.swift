@@ -15,6 +15,7 @@ public struct ManagedRun: Codable, Sendable, Identifiable {
     public var remoteStatus: String?
     public var retryAt: Date?
     public var failure: String?
+    public var input: ConversionNotes?
 }
 
 public actor ManagedProcessor {
@@ -86,12 +87,13 @@ public actor ManagedProcessor {
         try immutable(Data("{\"neverUpload\":true}".utf8), to: file)
     }
 
-    public func begin(sessionID: String, confirmed: Bool, key: String) async throws -> ManagedRun {
+    public func begin(sessionID: String, confirmed: Bool, key: String, input: ConversionNotes = ConversionNotes()) async throws -> ManagedRun {
+        try input.validate()
         guard confirmed, try !isLocalOnly(sessionID) else { throw ManagedFailure.consentRequired }
         guard !active else { throw ManagedFailure.busy }
         guard try !runs().contains(where: { $0.sessionID == sessionID }) else { throw ManagedFailure.existingRun }
         let run = ManagedRun(id: UUID().uuidString, sessionID: sessionID,
-                             createdAt: ISO8601DateFormatter().string(from: Date()), consent: true, stage: "queued")
+                             createdAt: ISO8601DateFormatter().string(from: Date()), consent: true, stage: "queued", input: input)
         try persist(run)
         return try await execute(run, key: key)
     }
@@ -140,10 +142,12 @@ public actor ManagedProcessor {
                 _ = try PyannoteTransport.uploadRequest(signedURL)
                 let uploaded = try await transport.upload(file: file, to: signedURL)
                 guard (200..<300).contains(uploaded.status) else { return try httpFailure(uploaded, run: run, submitting: false) }
-                let request = try JSONSerialization.data(withJSONObject: [
+                var payload: [String: Any] = [
                     "url": media, "model": "precision-2", "exclusive": true, "turnLevelConfidence": true,
                     "transcription": true, "transcriptionConfig": ["model": "faster-whisper-large-v3-turbo"]
-                ], options: [.sortedKeys])
+                ]
+                if let count = run.input?.speakerCount { payload["numSpeakers"] = count }
+                let request = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
                 try immutable(request, to: dir.appendingPathComponent("request.json"))
                 run.attemptID = UUID().uuidString
                 run.requestHash = SHA256.hash(data: request).map { String(format: "%02x", $0) }.joined()

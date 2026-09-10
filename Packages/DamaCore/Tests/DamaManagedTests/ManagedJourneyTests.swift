@@ -7,6 +7,52 @@ import XCTest
 @testable import DamaManaged
 
 final class ManagedJourneyTests: XCTestCase {
+    func testConversionInputSnapshotSurvivesCredentialResume() async throws {
+        let root = try root(), record = try await recording(root)
+        let fake = FakeTransport(final: try fixture())
+        let processor = ManagedProcessor(root: root, transport: fake, sleep: { _ in })
+        let notes = ConversionNotes(speakerCount: 3, context: "local context", reference: "local reference")
+        let waiting = try await processor.begin(sessionID: record.id, confirmed: true, key: "", input: notes)
+        XCTAssertEqual(waiting.input, notes)
+        let resumed = try await ManagedProcessor(root: root, transport: fake, sleep: { _ in }).resume(waiting.id, key: "test-only")
+        XCTAssertEqual(resumed.input, notes)
+        let body = await fake.lastSubmission
+        let payload = try JSONSerialization.jsonObject(with: XCTUnwrap(body)) as! [String: Any]
+        XCTAssertEqual(payload["numSpeakers"] as? Int, 3)
+        XCTAssertNil(payload["context"]); XCTAssertNil(payload["reference"])
+        XCTAssertFalse(String(decoding: try XCTUnwrap(body), as: UTF8.self).contains("local context"))
+    }
+    func testFolderToMockProcessingScriptEditAndMarkdownJourney() async throws {
+        let base = try root(), root = base.appendingPathComponent("internal")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let speeches = base.appendingPathComponent("Speeches"), scripts = base.appendingPathComponent("Scripts")
+        try FileManager.default.createDirectory(at: speeches, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: scripts, withIntermediateDirectories: true)
+        _ = try await recording(root)
+        try FileManager.default.copyItem(at: root.appendingPathComponent("synthetic.wav"), to: speeches.appendingPathComponent("example.wav"))
+        let storage = FolderLibraryStore(root: root)
+        let entries = try await storage.speeches(in: speeches)
+        let speech = try XCTUnwrap(entries.first)
+        let input = ConversionNotes(context: "before conversion", reference: "special term")
+        let fake = FakeTransport(final: try fixture())
+        let run = try await ManagedProcessor(root: root, transport: fake, sleep: { _ in }).begin(sessionID: speech.id, confirmed: true, key: "test-only", input: input)
+        let document = try await FileSessionRepository(rootURL: root).load(sessionId: speech.id, revisionId: nil)
+        let file = try await storage.createScript(document, speech: speech, input: try XCTUnwrap(run.input), in: scripts)
+        var edited = file.script
+        try edited.renameTitle("edited title")
+        try edited.rename(document.turns[0].id, name: "민수", scope: .all)
+        let saved = try await storage.saveScript(edited, to: file.url, expectedHash: file.hash)
+        // A completed-run recovery must not replace existing user edits or metadata.
+        let again = try await storage.createScript(document, speech: speech, input: ConversionNotes(context: "later note"), in: scripts)
+        XCTAssertEqual(again.hash, saved.hash)
+        XCTAssertEqual(again.script.input, input)
+        try await storage.exportMarkdown(again, to: scripts.appendingPathComponent("export.md"))
+        let markdown = try String(contentsOf: scripts.appendingPathComponent("export.md"), encoding: .utf8)
+        XCTAssertTrue(markdown.contains("edited title")); XCTAssertTrue(markdown.contains("before conversion"))
+        let submitted = await fake.lastSubmission
+        let payload = try JSONSerialization.jsonObject(with: XCTUnwrap(submitted)) as! [String: Any]
+        XCTAssertNil(payload["numSpeakers"])
+    }
     private func root() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -232,6 +278,7 @@ private actor FakeTransport: ManagedTransport {
     let submitStatus: Int
     var getFailureCount: Int
     var calls: [String] = []
+    var lastSubmission: Data?
     init(final: Data, submitStatus: Int = 200, getFailureCount: Int = 0) {
         self.final = final; self.submitStatus = submitStatus; self.getFailureCount = getFailureCount
     }
@@ -239,6 +286,7 @@ private actor FakeTransport: ManagedTransport {
         calls.append(method + " " + path)
         if path == "/v1/media/input" { return HTTPReply(data: Data("{\"url\":\"https://storage.example/signed\"}".utf8), status: 201) }
         if path == "/v1/diarize" {
+            lastSubmission = body
             if submitStatus == -1 { throw URLError(.timedOut) }
             let json = try JSONSerialization.jsonObject(with: body!) as! [String: Any]
             XCTAssertEqual(json["model"] as? String, "precision-2")
