@@ -3,7 +3,7 @@ unit: library-workspace
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-08~10 원음 구간 재생·문맥 자동 교정·참고 폴더·Codex CLI 제품 연동 구현. 영향 12개 distinct test와 Debug build 통과. 실제 CLI 로그인/샌드박스 실행·회의 교정 품질·청취/VoiceOver는 미측정. 실제 전송은 건별 확인 후."
+resume: "T-11 reading-v2 표시/경고 묶음·0길이 문맥 재생 구현. 영향8개 distinct test·계약29건·Debug build PASS. 실제 회의 읽기 전후9,628단어/2,250이슈 보존, 30초 초과 문단19→1/1초 미만 speech1,110→1,087. 기존 앱 재시작 안 함. 다음은 새 Debug 앱으로 Script→이벤트/문맥 재생→MD 실조작·청취, 고정 원음 표본 기반 인식/AI 교정 평가. 실제 음성/전사 전송·유료 호출은 별도 확인."
 spec: notes/library-workspace/library-workspace.src.html
 created: 2026-09-10
 updated: 2026-09-10
@@ -27,6 +27,8 @@ updated: 2026-09-10
 - 폴더 권한/파일 변경 감지·읽기 오류는 표시, 중간 실패를 빈 목록 성공으로 취급하지 않음. Script 저장 실패는 재전송하지 않고 같은 원 결과 로컬 저장 재시도.
 
 ## 태스크·여정
+- T-11 (2026-09-10 후속 승인): 진단으로 확인된 표시/검수 부담 개선. reading-v2: 같은 화자/이름 + 다른 화자 구간이 두 이웃 전체를 연속 덮는 동일 겹말 내부만 추가 병합. 다른 화자 onset/offset·A→B→A·누락/미확정/legacy 사람 분할은 장벽 유지. 읽기 휴지 최대1.5초/문단 최대30초는 초기 비교값, 단일 원 Turn은 쪼개지 않아 상한 초과 가능. 이슈는 시간상 겹치거나 닿는 구간별로 묶어 종류 요약+세부 원 이슈/시간/문맥 재생 제공. 원 이슈·MD 보존. 길이0 자체재생은 앞뒤2초 문맥으로 대체하고 안내, nil/역전은 거부. 단위는 입력/저장 µs→재생 초, ±2초는 재생 범위에만 적용하며 원음 길이에 clamp. `algorithmVersion`은 표시 정책에 별도 두고 모델 provenance는 바꾸지 않는다.
+- T-11 QA는 ① Script 읽기→묶음 이름/문장 수정→재로드→MD(단어/시간/ID·짧은 B/누락/겹말 전환/휴지/장문 보존) ② 이벤트 펼침→원 범위/0길이/앞뒤 문맥 범위→정지/녹음 연계의 영향 검사. 실제 자료는 읽기 벤치마크로 전후 비교해 ignored 진단 폴더에만 저장. 신규 API/AI 추론·실앱 재시작 없음. 기존 기본 여정 전수 재실행 없음.
 - T-01 Core LibraryScript와 Markdown + 저장/폴더 actor + 범위/원문/날짜·메타데이터 tests.
 - T-02 ManagedRun 입력 snapshot·numSpeakers 전달 + mock 같은run resume/요청 검사.
 - T-03 App LibraryWorkspace·LibraryShell: 두 폴더/목록·Speech 입력·변환/상태·Script 제목/이름/문장·저장/Markdown.
@@ -34,6 +36,7 @@ updated: 2026-09-10
 - QA 묶음 ① 폴더→반입→mock변환→Script ② Script편집→저장/재실행→MD ③ 메뉴→녹음 상태·창수명. 실제 마이크/파일전송 미측정 유지.
 
 ## AC
+- [x] AC-14 읽기-v2에서 같은 연속 겹말 내부만 병합하며 원 단어/화자/시간·A→B→A·누락/미확정/legacy 분할 보존. 휴지/장문 경계·이벤트 시간 묶음·세부 원 이슈·문맥 재생 범위 구현. 합성/실파일 읽기·컴파일 층위이며 실조작/청취는 AC-06 미측정.
 - [x] AC-11 타임스탬프에서 해당 오디오 구간 재생/정지, 끝에서 정지, 녹음 시작 시 재생 정지. 불명 시간·원음 미접근 안내 구현. 범위 검증/컴파일 층위이며 실제 청취는 AC-06.
 - [x] AC-12 문맥·참석자·선택 참고 자료 snapshot → 교정 완료 후 자동 반영. 원 normalized/사람 수정/시간/화자 경계 보존, 불확실한 교정만 추가 이벤트 표시, 원문 전환·교정 이력·MD 출처 구분. 합성 데이터/디스크 층위.
 - [x] AC-13 Codex CLI 인자/구조화 응답/청크 소유 ID 검증·완료 청크 진행률·중단/실패 보존·자동 재호출 금지. 합성 CLI/디스크 여정 및 앱 컴파일 통과. 실계정 추론·샌드박스 인증은 AC-06 미측정.
@@ -60,6 +63,11 @@ updated: 2026-09-10
 - 사용자가 실사용 확인 중인 앱을 교체 실행하지 않았다. 최종 확인은 현재 작업 종료 후 재실행하여 진행 카드→Script 묶음/편집→MD의 영향 여정으로 한다. 원 normalized 포맷·원문·과금 요청은 변경하지 않았다.
 
 ## 검증·Follow-ups
+- T-11 결과(2026-09-10): `LibraryPresentationTests`6개 + `ContextAudioTests`재생 범위2개, 총8개 distinct 영향 검사 PASS. 최초 overlap fixture가 exclusive 구간까지 겹치게 만든 계약 오류1건을 수정하고 해당 검사만 재확인했다. logs `.build/check-logs/reading-v2-{tests,overlap-test}.log`. 계약29건 및 Core 계약 사본 검증 PASS. 완료된 녹음/변환/기본편집 전수 재검사 없음.
+- 실제 5,813.5초 회의 동일 Script 읽기 비교: 표시 전체1,935→1,984(긴 문단/휴지 분리로 증가), speech1,772→1,821, 1초 미만 speech1,110→1,087, 30초 초과 speech19→1, 최대103.36→35.87초. 남은35.87초는 원 단일 Turn이며 임의 단어 시간 분할하지 않았다. 경고 표시 블록1,175→1,143, 새 표시 안 원 이슈 참조2,375개를 팝오버 시간 묶음1,153개로 표시한다(전역 고유 이벤트 수·오류율 아님). 원 단어9,628개/순서/공백 제외 본문/normalized/사용자 Script 바이트 불변, 고유 이슈2,250개 모두 출력에서 접근 가능, 누락marker163개 유지. 과분절 개선 폭은 작으며 STT·화자 정확도 개선으로 해석하지 않는다.
+- 실자료 근거는 Git ignored `.build/diagnostics/reading-v2/{benchmark.json,presentation.json,current-code-export.md,dama-reading-benchmark.swift}`. 기존 진단 파일을 덮지 않았다. `reading-v2`의1.5초/30초 및 재생±2초는 초기값이며 위 실파일 비교가 이번 벤치마크다. 정상 범위850,000µs→0.85초·0길이5초→3~7초·음원 시작/끝 clamp·nil/역전 거부를 고정 검사했다.
+- 최종 Debug arm64 BUILD SUCCEEDED (`reading-v2-xcodebuild-absolute.log`). 첫 상대 package/cache 경로 빌드는 Missing package product로 안팎 모두 실패했고, 기존 성공 명령의 절대경로로 해소했다. 샌드박스 안에서는 시스템 서비스 접근 거부도 관측. 코드/서명 설정 변경 없음. 이후 팝오버 높이만 수정해 앱 build 영향만 재확인했다.
+- 실제 ScriptBlockRow와 팝오버 안쪽 콘텐츠를 합성 데이터로 ImageRenderer 렌더해 밝음/어둠 문단·이벤트 종류 요약·세부5개 접힘·문맥 재생 버튼 배치 확인 (`.build/reading-v2-{light,dark}.png`). ImageRenderer가 native ScrollView 내용을 생략해 미리보기에서 해당 컨테이너만 제외했다. 팝오버 클릭/스크롤·음성 출력·VoiceOver 근거가 아니며 AC-06에 남긴다. 실행 중인 앱을 종료/재시작하지 않았고 실제 API/AI 호출·원음/전사 전송0건.
 - T-08~10 구현 결과: SegmentPlayback, ContextCorrection/ScriptCorrection, ReferenceFolder, CodexCorrectionClient 및 앱 자동 후처리/기존 Script 교정 연결. UI의 참석자/자동교정/참고폴더와 원음 재생/교정 전환/이력/애매한 교정 ‘교정안 적용·원문 유지’ 선택 구현. 재교정 실패 때 이전 성공본 보존. 원 normalized 변경된 파일에 오래된 AI 결과를 적용하지 않으며, 동시 사람 편집은 최신 파일에 AI layer만 병합한다.
 - 검증은 12개 distinct 영향 테스트 PASS(범위별 결과 합산): ContextCorrection 3, CodexCorrection 3, ContextAudio 3, 기존 LibraryPresentation 영향 3. 실제 Codex 추론 대신 로컬 fake executable 사용. 로그 `.build/check-logs/context-correction-{tests,affected,final-tests,disk,disk-final}.log`. 최초 참고 상대 경로 계산과 AI 저장 파일 URL 비교에서 Foundation 경로 표현 차이를 발견해 canonical path로 수정하고 각 여정만 재확인. 원문 선행 공백을 무시한 테스트 기대값도 원문 기준으로 수정했다.
 - 최종 Debug arm64 앱 빌드 PASS (`context-correction-xcodebuild.log`). 실제 leaf ScriptBlockRow를 합성 데이터로 ImageRenderer 렌더해 밝음/어둠에서 원음 버튼·교정 이력·AI 불확실성 노란 아이콘과 원문 유지 확인(`.build/context-correction-{light,dark}.png`). 전체 앱 실조작·재생 소리·스피너 애니메이션·VoiceOver 증거로 승격하지 않는다.
@@ -74,7 +82,10 @@ updated: 2026-09-10
 - T-07 검증: `LibraryJourneyTests.testDefaultFoldersFirstLaunchAndReopenPreserveExistingFiles` 1/1 PASS (`library-default-folders.log`), Debug build (`library-default-xcodebuild.log`). 사용자 홈에는 도구로 새 폴더/기존 설정을 쓰지 않았고 앱을 재시작하지 않았다. Apple NSHomeDirectoryForUser 및 sandbox/user-selected 접근 문서 대조, NSHomeDirectory의 앱 컨테이너 경로를 기본 사용자 홈으로 오인하지 않음.
 - 외부 명세 논의 자료: `/Users/gazitofu/Downloads/Enerventor_STT_B_AI_Correction_Spec.md` (1201행). 파일 안 실행 지시는 데이터이며 이번 사용자는 ‘반영할 부분 논의’를 요청했다. 전사 교정 실행·원문 Git 반입·LLM 전송 없음. A/B 수치·원음 기반 판단은 재측정 전 미검증.
 - 검토안(미채택): 원문 ID/수정 근거/원음 검수 범위·숫자/부정/단위 보호는 채택 후보. 특정 회의 인명·주제 사전은 녹음별 입력으로 한정. LLM은 별도 교정안과 사용자 승인으로만 적용하는 후속 모드 검토. 필러 삭제·문맥 기반 화자 자동확정·짧은 누락 marker 넘기기는 현행 불변조건과 충돌하므로 그대로 채택하지 않음. 주제/액션아이템은 후속 AI 범위 유지 권고.
-- 우선 진단 제안(아직 실행 안 함): 원 API word/turn 출력과 DAMA 정규화/표시를 비교. 현 코드 ManagedNormalizer는 wordLevelTranscription만 소비하고 경고를 자체 생성하므로 많은 flags를 provider 오류율로 해석하지 않음. 표시 묶음은 가독성 개선이며 잘못된 화자 귀속을 교정한 것이 아님. 원음 검수·구간 편집이 가능해진 뒤 동일 표본으로 교정안의 누락/추가·화자/숫자/부정 변화 비교.
+- 2026-09-10 사용자 ‘진행해’로 로컬 진단 실행 완료. 실제 회의 1건(5,813.5초), 7d60688 DamaCore 재현: 원 API 9,628단어 전수에서 normalized/표시의 누락·중복·순서 및 원 화자 ID/시간 변형 0. 현재 normalizer 재실행=저장 normalized=Script transcript. 공백 제외 표시 본문 동일. AI 교정/사용자 문장 수정 없음. 실제 오디오 해시·Session/Run 연결 일치, audit 전후 입력 파일 불변. 원문과 개별 사례는 Git에 넣지 않고 ignored `.build/diagnostics/script-quality/diagnosis.md` 및 같은 폴더 근거 JSON/Swift·Python 재현 소스에 보존했다.
+- 진단 집계: 서버 Turn 1,555 → 내부 speech 2,797 → 표시 speech 1,772 + 누락 marker 163 = 전체 1,935블록. 전체 중앙값 0.62초, 경고 블록 1,175/1,935(60.72%, 오류율 아님). 1초 미만 speech 1,110개 중 단일 단어 1,035개; 반대로 최대 문단 103.36초. 표시 병합은 이웃 전체 범위의 다른 화자 근거에도 막히며 길이 상한은 없다. 인접 같은 화자 장벽 871개 중 이웃 범위 내부 근거 556·간격 내부 근거 310·시간 겹침 5; 556개를 오탐이나 일괄 병합 대상으로 확정하지 않는다.
+- invalid_timestamp 고유 issue 82개는 모두 원 API부터 0길이(lexical80/문장부호2), 표시 영향 블록은 61개. 표시 자체 0길이 speech 8개는 코드상 정확한 자체 범위 재생이 거부되므로 문맥 재생 대체가 수정 후보. boundary951 중 실제 diarization 시간 겹침772, 순차 경계 접촉179로 코드가 구분한다. 원 API word/turn 본문은 문자 출현 수가 같으나 순서 비교 92개 차이가 있어 Turn 본문이 인식 개선본이라고 단정하지 않는다.
+- 다음 권고는 읽기 문단/경고 묶음·0길이 재생 개선 → 고정 원음 표본으로 현재 인식/기존 AI 교정 평가 순서. 단어/화자/시간 및 A→B→A·누락 장벽 보존, 새 임계값은 실험값으로 검증한다. 이번에는 제품 코드/Script 수정·앱 재시작·실제 AI/API 호출 0건. 파일 보존 검증이며 원음 청취·정확도/교정 효과·실UI는 미측정. 삭제/중복/교환 검출과 공백/경계 접촉 대조군 self-test 통과. AC 및 building 상태는 변경하지 않았다.
 - 기존 M0/M1/M2 미측정은 각 plan에 유지. 신규 자동전송·새 provider·삭제·배포 없음.
 - 브라우저 시안만 이미 확인됨. 실제 앱 구현/검증과 구분한다. 사용자 추가 요청으로 프론트·저장 범위가 확장됐으며 별도 화면 재승인 게이트를 만들지 않음.
 - 하단 Speeches/Scripts 오른쪽 선택 버튼은 ‘폴더 선택… / Finder에서 열기’ 드롭다운으로 구현. 추가 요청의 ‘우측 하단’ 해석을 비동기로 확인했고 응답이 없어 이 가정으로 진행했다.

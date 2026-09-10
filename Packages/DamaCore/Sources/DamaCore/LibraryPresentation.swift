@@ -1,5 +1,34 @@
 import Foundation
 
+/// Reading-only initial parameters, separately versioned from model normalization.
+public enum ScriptReadingPolicy {
+    public static let algorithmVersion = "reading-v2"
+    public static let maximumGapUs: Int64 = 1_500_000
+    public static let maximumParagraphUs: Int64 = 30_000_000
+}
+
+/// Related warnings share a listening range; their original IDs and kinds remain available.
+public struct ScriptReviewEvent: Identifiable, Sendable {
+    public var id: String { issues[0].id }
+    public let issues: [ReviewIssue]
+    public var startUs: Int64? { issues.compactMap(\.startUs).min() }
+    public var endUs: Int64? { issues.compactMap(\.endUs).max() }
+    public var kinds: [IssueKind] {
+        Array(Set(issues.map(\.kind))).sorted { $0.rawValue < $1.rawValue }
+    }
+    public static func grouped(_ issues: [ReviewIssue]) -> [Self] {
+        let sorted = issues.sorted { ($0.startUs ?? Int64.max, $0.id) < ($1.startUs ?? Int64.max, $1.id) }
+        var groups: [Self] = []
+        for issue in sorted {
+            if let start = issue.startUs, let end = issue.endUs, start <= end,
+               let last = groups.last, let lastEnd = last.endUs, start <= lastEnd {
+                groups[groups.count - 1] = Self(issues: last.issues + [issue])
+            } else { groups.append(Self(issues: [issue])) }
+        }
+        return groups
+    }
+}
+
 /// A reversible reading layout. It never changes normalized turns or word timing.
 public struct ScriptBlock: Identifiable, Sendable {
     public var id: String { turns[0].id }
@@ -14,6 +43,7 @@ public struct ScriptBlock: Identifiable, Sendable {
     public var turnIDs: [String] { turns.map(\.id) }
     public var isSpeech: Bool { turns.allSatisfy { $0.kind == .speech } }
     public var openIssues: [ReviewIssue] { issues.filter { $0.status == .open } }
+    public var reviewEvents: [ScriptReviewEvent] { ScriptReviewEvent.grouped(openIssues) }
 }
 
 extension LibraryScript {
@@ -45,22 +75,28 @@ extension LibraryScript {
             return turn.wordIds.compactMap { words[$0] }.sorted { $0.ordinal < $1.ordinal }
                 .map { $0.prefix + ($0.editedText ?? $0.text) }.joined()
         }
-        func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn) -> Bool {
+        let evidence = transcript.diarization + transcript.exclusiveDiarization
+        func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn, groupStart: Int64?) -> Bool {
             guard !transcript.revision.humanEdited,
                   previous.kind == .speech, next.kind == .speech,
                   let speaker = previous.speakerId, speaker == next.speakerId,
                   displayName(previous) == displayName(next),
                   let start = previous.startUs, let end = previous.endUs,
                   let nextStart = next.startUs, let nextEnd = next.endUs,
-                  start <= end, end <= nextStart, nextStart <= nextEnd else { return false }
-            // A missing short B in A→B→A is still a barrier, even without a marker turn.
-            return !(transcript.diarization + transcript.exclusiveDiarization).contains {
-                $0.speakerId != speaker && $0.startUs < nextEnd && $0.endUs > start
+                  let groupStart,
+                  start <= end, end <= nextStart, nextStart <= nextEnd,
+                  nextStart - end <= ScriptReadingPolicy.maximumGapUs,
+                  nextEnd - groupStart <= ScriptReadingPolicy.maximumParagraphUs else { return false }
+            // A new/ending B remains a boundary, even without B text. Within one
+            // continuous overlap, A's adjacent words can share a paragraph and warning.
+            return !evidence.contains {
+                $0.speakerId != speaker && $0.startUs < nextEnd && $0.endUs > start &&
+                !($0.startUs <= start && $0.endUs >= nextEnd)
             }
         }
         var groups: [[TranscriptTurn]] = []
         for turn in transcript.turns {
-            if let previous = groups.last?.last, mayJoin(previous, turn) {
+            if let previous = groups.last?.last, mayJoin(previous, turn, groupStart: groups.last?.first?.startUs) {
                 groups[groups.count - 1].append(turn)
             } else { groups.append([turn]) }
         }

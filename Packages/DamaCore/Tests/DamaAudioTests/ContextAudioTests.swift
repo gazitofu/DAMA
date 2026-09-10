@@ -4,6 +4,18 @@ import DamaCore
 @testable import DamaAudio
 
 final class ContextAudioTests: XCTestCase {
+    @MainActor func testZeroLengthAndEventContextListeningKeepsOriginalRangeContract() throws {
+        XCTAssertEqual(try SegmentPlayback.listeningRange(startUs: 850_000, endUs: 3_000_000, duration: 10), 0.85...3)
+        XCTAssertEqual(try SegmentPlayback.listeningRange(startUs: 5_000_000, endUs: 5_000_000, duration: 10), 3...7)
+        XCTAssertEqual(try SegmentPlayback.listeningRange(startUs: 0, endUs: 0, duration: 10), 0...2)
+        XCTAssertEqual(try SegmentPlayback.listeningRange(startUs: 10_000_000, endUs: 10_000_000, duration: 10), 8...10)
+        XCTAssertEqual(try SegmentPlayback.listeningRange(startUs: 850_000, endUs: 3_000_000, duration: 4, context: true), 0...4)
+        XCTAssertThrowsError(try SegmentPlayback.listeningRange(startUs: nil, endUs: 0, duration: 10))
+        XCTAssertThrowsError(try SegmentPlayback.listeningRange(startUs: 2, endUs: 1, duration: 10))
+        XCTAssertThrowsError(try SegmentPlayback.listeningRange(startUs: 11_000_000, endUs: 11_000_000, duration: 10))
+        XCTAssertThrowsError(try SegmentPlayback.listeningRange(startUs: 0, endUs: 0, duration: 0))
+        XCTAssertThrowsError(try SegmentPlayback.range(startUs: 5_000_000, endUs: 5_000_000, duration: 10))
+    }
     func testCorrectionDiskSaveMergesHumanChangesAndDetectsChangedSource() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

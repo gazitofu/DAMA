@@ -15,15 +15,30 @@ import DamaCore
               Double(startUs) / 1_000_000 < duration else { throw LibraryFailure.invalidInput }
         return (Double(startUs) / 1_000_000)...min(Double(endUs) / 1_000_000, duration)
     }
-    public func play(url: URL, id: String, startUs: Int64?, endUs: Int64?) {
+    /// Playback context never changes the transcript timestamp. Initial context: ±2 s.
+    public static func listeningRange(startUs: Int64?, endUs: Int64?, duration: Double,
+                                      context: Bool = false) throws -> ClosedRange<Double> {
+        guard let startUs, let endUs, startUs >= 0, endUs >= startUs,
+              duration.isFinite, duration > 0 else { throw LibraryFailure.invalidInput }
+        let start = Double(startUs) / 1_000_000, end = Double(endUs) / 1_000_000
+        guard start <= duration else { throw LibraryFailure.invalidInput }
+        if context || startUs == endUs {
+            let lower = max(0, start - 2), upper = min(duration, end + 2)
+            guard lower < upper else { throw LibraryFailure.invalidInput }
+            return lower...upper
+        }
+        return try range(startUs: startUs, endUs: endUs, duration: duration)
+    }
+    public func play(url: URL, id: String, startUs: Int64?, endUs: Int64?, context: Bool = false) {
         if playingID == id { stop(); return }
         stop()
         do {
             let player = try AVAudioPlayer(contentsOf: url)
-            let range = try Self.range(startUs: startUs, endUs: endUs, duration: player.duration)
+            let range = try Self.listeningRange(startUs: startUs, endUs: endUs, duration: player.duration, context: context)
             player.currentTime = range.lowerBound
             guard player.prepareToPlay(), player.play() else { throw LibraryFailure.missingFile }
-            self.player = player; playingID = id; message = nil
+            self.player = player; playingID = id
+            message = startUs == endUs ? "발화 길이가 없어 앞뒤 원음을 재생합니다. 원래 타임스탬프는 유지됩니다." : nil
             ticker = Task { [weak self] in
                 while !Task.isCancelled {
                     guard let self, let player = self.player else { return }

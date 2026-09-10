@@ -56,6 +56,8 @@ struct ScriptBlockRow: View {
     var play: () -> Void = {}
     var playing = false
     var canPlay = false
+    var playEvent: ((ScriptReviewEvent) -> Void)?
+    var playingEventID: String?
     var corrections: [CorrectionEdit] = []
     var resolvedTurnIDs: Set<String> = []
     var resolveCorrection: ((CorrectionEdit, Bool) -> Void)?
@@ -64,6 +66,8 @@ struct ScriptBlockRow: View {
     private static let colors: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .indigo, .brown, .red, .yellow]
     private var color: Color { block.colorIndex.map { Self.colors[$0] } ?? .secondary }
     var body: some View {
+        let reviewEvents = block.reviewEvents
+        let pendingCorrections = corrections.filter { !$0.applied && !resolvedTurnIDs.contains($0.turnID) }
         HStack(spacing: 0) {
             RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 3)
             VStack(alignment: .leading, spacing: 14) {
@@ -75,35 +79,54 @@ struct ScriptBlockRow: View {
                             Image(systemName: "chevron.down").font(.caption2)
                         }.font(.callout)
                     }.buttonStyle(.plain).accessibilityLabel("\(block.name) 화자 이름 변경")
-                    if !block.openIssues.isEmpty || corrections.contains(where: { !$0.applied && !resolvedTurnIDs.contains($0.turnID) }) {
+                    if !reviewEvents.isEmpty || !pendingCorrections.isEmpty {
                         Button { events.toggle() } label: {
                             Image(systemName: "exclamationmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(Color.black, Color.yellow)
                         }.buttonStyle(.plain).help("이 구간의 이벤트 보기")
-                            .accessibilityLabel("\(block.name) 구간에 확인할 이벤트 \(block.openIssues.count)개")
+                            .accessibilityLabel("\(block.name) 확인 구간 \(reviewEvents.count)개, AI 확인 \(pendingCorrections.count)개")
                             .popover(isPresented: $events) {
+                                ScrollView {
                                 VStack(alignment: .leading, spacing: 14) {
                                     Text("이 구간의 이벤트").font(.headline)
-                                    ForEach(corrections.filter { !$0.applied && !resolvedTurnIDs.contains($0.turnID) }, id: \.turnID) { edit in
+                                    ForEach(pendingCorrections, id: \.turnID) { edit in
                                         Text("AI 확인 필요: \(edit.reason)").font(.callout)
                                         Text("교정안: \(edit.text)").font(.caption).foregroundStyle(.secondary)
                                     }
-                                    ForEach(block.openIssues, id: \.id) { issue in
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(issueLabel(issue.kind)).font(.callout)
-                                            if issue.startUs != nil || issue.endUs != nil {
-                                                Text("\(LibraryScript.timestamp(issue.startUs)) – \(LibraryScript.timestamp(issue.endUs))").font(.caption).foregroundStyle(.secondary)
+                                    ForEach(reviewEvents) { event in
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            ForEach(event.kinds, id: \.rawValue) { kind in
+                                                Text(issueLabel(kind)).font(.callout)
+                                            }
+                                            Text("\(LibraryScript.timestamp(event.startUs)) – \(LibraryScript.timestamp(event.endUs))")
+                                                .font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+                                            if let playEvent, event.startUs != nil, event.endUs != nil {
+                                                Button(playingEventID == event.id ? "재생 정지" : "앞뒤 원음 듣기",
+                                                       systemImage: playingEventID == event.id ? "stop.fill" : "play.fill") { playEvent(event) }
+                                                    .disabled(!canPlay)
+                                            }
+                                            DisclosureGroup("세부 표시 \(event.issues.count)개") {
+                                                ForEach(event.issues, id: \.id) { issue in
+                                                    VStack(alignment: .leading, spacing: 3) {
+                                                        Text(issueLabel(issue.kind))
+                                                        Text("\(LibraryScript.timestamp(issue.startUs)) – \(LibraryScript.timestamp(issue.endUs))")
+                                                            .foregroundStyle(.secondary)
+                                                    }.font(.caption).padding(.vertical, 3)
+                                                }
                                             }
                                         }
+                                        Divider()
                                     }
                                     HStack { Spacer(); Button("닫기") { events = false } }
-                                }.padding(20).frame(width: 340).textSelection(.enabled)
+                                }.padding(20).frame(width: 360).textSelection(.enabled)
+                                }.frame(width: 360, height: 420)
                             }
                     }
                     Spacer(minLength: 8)
                     Button(action: play) {
                         Label("\(LibraryScript.timestamp(block.startUs)) – \(LibraryScript.timestamp(block.endUs))", systemImage: playing ? "stop.fill" : "play.fill")
                             .font(.system(.caption, design: .monospaced))
-                    }.buttonStyle(.plain).disabled(!canPlay).help("이 구간 원음 재생·정지")
+                    }.buttonStyle(.plain).disabled(!canPlay)
+                        .help(block.startUs == block.endUs ? "발화 길이가 없어 앞뒤 원음을 재생합니다" : "이 구간 원음 재생·정지")
                 }
                 if block.isSpeech {
                     Button(action: editText) {
@@ -138,12 +161,12 @@ struct ScriptBlockRow: View {
     private func issueLabel(_ kind: IssueKind) -> String {
         switch kind {
         case .ambiguous_speaker: "화자가 미확정이거나 후보가 비슷합니다."
-        case .overlapping_speech: "여러 화자가 겹쳐 말했습니다. 겹친 발화가 모두 전사되었다는 뜻은 아닙니다."
+        case .overlapping_speech: "여러 화자의 음성 구간이 겹칩니다. 원음으로 확인해 주세요."
         case .missing_speech: "음성은 감지되었지만 전사가 누락되었을 수 있습니다."
         case .boundary_conflict: "단어 시간이 화자 전환 경계에 걸쳐 있습니다."
         case .capture_interrupted: "녹음이 중단되어 이후 구간이 녹음되지 않았을 수 있습니다."
         case .unrepresented_speaker: "음성에서 감지된 화자가 스크립트에 나타나지 않습니다."
-        case .invalid_timestamp: "이 구간의 시간을 확인할 수 없습니다."
+        case .invalid_timestamp: "발화 길이가 없거나 시간이 불확실합니다. 앞뒤 원음으로 확인해 주세요."
         case .low_confidence: "공급자의 화자 점수가 낮아 확인이 필요합니다."
         case .partial_result: "일부 전사 결과를 받지 못했습니다."
         }
@@ -376,6 +399,8 @@ struct LibraryShell: View {
                             play: { workspace.play(block, file: file) },
                             playing: playback.playingID == file.id + ":" + block.id,
                             canPlay: !capture.phase.busy && block.startUs != nil && block.endUs != nil,
+                            playEvent: { workspace.play($0, file: file) },
+                            playingEventID: block.reviewEvents.first { playback.playingID == file.id + ":event:" + $0.id }?.id,
                             corrections: file.script.correction?.edits.filter { block.turnIDs.contains($0.turnID) } ?? [],
                             resolvedTurnIDs: Set(file.script.turnTexts.keys),
                             resolveCorrection: { edit, apply in workspace.resolveCorrection(edit, apply: apply, file: file) })

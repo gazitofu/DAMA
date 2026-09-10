@@ -3,6 +3,71 @@ import XCTest
 @testable import DamaCore
 
 final class LibraryPresentationTests: XCTestCase {
+    func testContinuousOverlapReadEditAndExportPreservesSpeakerTransitions() throws {
+        let intervals: [[String: Any]] = [
+            ["start": 0.0, "end": 1.5, "speaker": "A"],
+            ["start": 0.0, "end": 0.95, "speaker": "B"],
+            ["start": 1.0, "end": 1.1, "speaker": "B"]]
+        let words: [[String: Any]] = [
+            ["start": 0.2, "end": 0.4, "speaker": "A", "text": "첫"],
+            ["start": 0.45, "end": 0.7, "speaker": "A", "text": "겹말"],
+            ["start": 0.8, "end": 0.9, "speaker": "A", "text": "계속"],
+            ["start": 1.0, "end": 1.1, "speaker": "B", "text": "네"],
+            ["start": 1.2, "end": 1.4, "speaker": "A", "text": "다음"]]
+        let exclusive: [[String: Any]] = [["start": 0.0, "end": 1.0, "speaker": "A"],
+            ["start": 1.0, "end": 1.1, "speaker": "B"], ["start": 1.1, "end": 1.5, "speaker": "A"]]
+        let bytes = try JSONSerialization.data(withJSONObject: ["jobId": "synthetic", "status": "succeeded", "output":
+            ["diarization": intervals, "exclusiveDiarization": exclusive, "wordLevelTranscription": words]])
+        let model = try ManagedNormalizer.normalize(bytes, sessionID: "synthetic", runID: "synthetic", durationUs: 2_000_000,
+            audioSHA256: String(repeating: "a", count: 64), synthetic: true, createdAt: "2026-09-10T00:00:00Z")
+        var script = try LibraryScript(transcript: model, title: "합성 겹말", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        let baseline = try JSONEncoder().encode(model)
+        let blocks = script.blocks()
+        XCTAssertEqual(blocks.map { $0.turns.count }, [3, 1, 1])
+        XCTAssertEqual(blocks[0].text, "첫 겹말 계속")
+        XCTAssertFalse(blocks[0].reviewEvents.isEmpty)
+        XCTAssertEqual(blocks.flatMap { $0.turns.flatMap(\.wordIds) }, model.words.map(\.id))
+        try script.rename(blocks[0], name: "합성 이름", scope: .one)
+        try script.editText(blocks[0].turnIDs[1], text: "겹말 수정")
+        let loaded = try JSONDecoder().decode(LibraryScript.self, from: JSONEncoder().encode(script))
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: JSONEncoder().encode(loaded.transcript)) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: baseline) as? NSDictionary)
+        let md = String(decoding: try loaded.markdown(), as: UTF8.self)
+        XCTAssertTrue(md.contains("첫 겹말 수정 계속"))
+        XCTAssertTrue(md.contains("overlapping\\_speech"))
+        // Ending B inside a neighboring A turn must restore the boundary.
+        var ended = model
+        ended.diarization[1].endUs = 600_000
+        let changed = try LibraryScript(transcript: ended, title: "종료 경계", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        XCTAssertEqual(changed.blocks()[0].turns.count, 1)
+    }
+    func testReadingParagraphLimitsAndLongPausePreserveAllWords() throws {
+        let long = try script(Array(repeating: "A", count: 40))
+        let blocks = long.blocks()
+        XCTAssertEqual(blocks.map { $0.turns.count }, [15, 15, 10])
+        XCTAssertTrue(blocks.allSatisfy { $0.endUs! - $0.startUs! <= 30_000_000 })
+        XCTAssertEqual(blocks.flatMap { $0.turns.flatMap(\.wordIds) }, long.transcript.words.map(\.id))
+        var paused = try script(["A", "A"]).transcript
+        paused.durationUs = 10_000_000
+        paused.turns[1].startUs = 4_800_000; paused.turns[1].endUs = 5_600_000
+        paused.words[1].startUs = 4_800_000; paused.words[1].endUs = 5_600_000
+        let result = try LibraryScript(transcript: paused, title: "휴지", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        XCTAssertEqual(result.blocks().count, 2)
+    }
+    func testReviewEventsCoalesceSharedRangesWithoutDroppingKindsOrUnknownTimes() {
+        func issue(_ id: String, _ kind: IssueKind, _ start: Int64?, _ end: Int64?) -> ReviewIssue {
+            ReviewIssue(id: id, kind: kind, startUs: start, endUs: end, severity: .warning, status: .open, wordIds: [], sourceIntervalIds: [])
+        }
+        let issues = [issue("a", .boundary_conflict, 0, 100), issue("b", .overlapping_speech, 0, 100),
+                      issue("c", .invalid_timestamp, 100, 100), issue("d", .missing_speech, 200, 300),
+                      issue("e", .partial_result, nil, nil)]
+        let events = ScriptReviewEvent.grouped(issues.reversed())
+        XCTAssertEqual(events.map { $0.issues.count }, [3, 1, 1])
+        XCTAssertEqual(events[0].kinds.count, 3)
+        XCTAssertEqual(events.flatMap(\.issues).map(\.id), issues.map(\.id))
+        XCTAssertEqual(events[0].startUs, 0); XCTAssertEqual(events[0].endUs, 100)
+        XCTAssertNil(events.last!.startUs)
+    }
     private func script(_ labels: [String] = ["A", "A", "A", "B", "A"]) throws -> LibraryScript {
         let intervals: [[String: Any]] = labels.enumerated().map {
             ["start": Double($0.offset * 2), "end": Double($0.offset * 2 + 1), "speaker": $0.element]

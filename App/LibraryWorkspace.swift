@@ -246,10 +246,17 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         }
     }
     func play(_ block: ScriptBlock, file: LibraryScriptFile) {
+        play(id: block.id, startUs: block.startUs, endUs: block.endUs, file: file)
+    }
+    func play(_ event: ScriptReviewEvent, file: LibraryScriptFile) {
+        play(id: "event:" + event.id, startUs: event.startUs, endUs: event.endUs, file: file, context: true)
+    }
+    private func play(id: String, startUs: Int64?, endUs: Int64?, file: LibraryScriptFile, context: Bool = false) {
         guard !RecordingWorkspace.shared.capture.phase.busy, let root else { return }
         do {
             let session = try AudioFiles.session(file.script.transcript.sessionId, root: root)
-            playback.play(url: session.appendingPathComponent("audio/analysis.wav"), id: file.id + ":" + block.id, startUs: block.startUs, endUs: block.endUs)
+            playback.play(url: session.appendingPathComponent("audio/analysis.wav"), id: file.id + ":" + id,
+                          startUs: startUs, endUs: endUs, context: context)
         } catch { playback.message = "원음 위치를 찾을 수 없습니다. 이 Mac에 해당 녹음이 보존되어 있는지 확인해 주세요." }
     }
     func exportMarkdown() {
