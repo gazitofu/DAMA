@@ -167,7 +167,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
             for issue in block.issues {
                 lines += ["> 검수: \(Self.escape(issue.kind.rawValue))", ""]
             }
-            for edit in correction?.edits.filter({ block.turnIDs.contains($0.turnID) }) ?? [] {
+            for edit in correction?.visibleEdits.filter({ block.turnIDs.contains($0.turnID) }) ?? [] {
                 lines += ["> AI \(edit.applied ? "교정" : "미적용 · 확인 필요"): \(Self.escape(edit.reason))", "",
                           "> 교정 전: \(Self.escape(edit.original))", "", "> 교정안: \(Self.escape(edit.text))", ""]
             }

@@ -2,7 +2,7 @@ import Foundation
 
 /// Reading-only initial parameters, separately versioned from model normalization.
 public enum ScriptReadingPolicy {
-    public static let algorithmVersion = "reading-v2"
+    public static let algorithmVersion = "reading-v3"
     public static let maximumGapUs: Int64 = 1_500_000
     public static let maximumParagraphUs: Int64 = 30_000_000
 }
@@ -110,7 +110,12 @@ extension LibraryScript {
                 let needsSpace = !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
                 return current + (needsSpace ? " " : "") + next
             }
-            result.append(ScriptBlock(turns: group, name: displayName(group[0]), text: text,
+            // Trim only the reading paragraph. Keep source tokens and user-authored spacing intact.
+            let hasHumanText = transcript.revision.humanEdited || group.contains {
+                turnTexts[$0.id] != nil || $0.wordIds.contains { words[$0]?.editedText != nil }
+            }
+            let displayText = hasHumanText ? text : text.trimmingCharacters(in: .whitespacesAndNewlines)
+            result.append(ScriptBlock(turns: group, name: displayName(group[0]), text: displayText,
                 colorIndex: group[0].speakerId.flatMap { colors[$0] }, issues: issues,
                 edited: group.contains { turnTexts[$0.id] != nil }))
         }

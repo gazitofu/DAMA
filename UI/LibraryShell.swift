@@ -401,7 +401,7 @@ struct LibraryShell: View {
                             canPlay: !capture.phase.busy && block.startUs != nil && block.endUs != nil,
                             playEvent: { workspace.play($0, file: file) },
                             playingEventID: block.reviewEvents.first { playback.playingID == file.id + ":event:" + $0.id }?.id,
-                            corrections: file.script.correction?.edits.filter { block.turnIDs.contains($0.turnID) } ?? [],
+                            corrections: file.script.correction?.visibleEdits.filter { block.turnIDs.contains($0.turnID) } ?? [],
                             resolvedTurnIDs: Set(file.script.turnTexts.keys),
                             resolveCorrection: { edit, apply in workspace.resolveCorrection(edit, apply: apply, file: file) })
                             .padding(.vertical, 9)

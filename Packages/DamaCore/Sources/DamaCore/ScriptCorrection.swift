@@ -13,6 +13,11 @@ public struct CorrectionEdit: Codable, Sendable, Equatable {
     public let text: String
     public let reason: String
     public let applied: Bool
+
+    /// Old saved corrections remain intact; insignificant applied edits need no review history.
+    public var isDisplayOnly: Bool {
+        applied && original.trimmingCharacters(in: .whitespacesAndNewlines) == text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
 
 public struct ScriptCorrection: Codable, Sendable {
@@ -27,6 +32,7 @@ public struct ScriptCorrection: Codable, Sendable {
     public var nameEvidence: [String: String] = [:]
     public var completedChunks = 0
     public var totalChunks = 0
+    public var visibleEdits: [CorrectionEdit] { edits.filter { !$0.isDisplayOnly } }
     public init(input: ConversionNotes, engine: String, state: State = .running) {
         self.input = input; self.engine = engine; self.state = state; startedAt = Date()
     }
@@ -69,7 +75,7 @@ public struct CorrectionReply: Codable, Sendable {
 }
 
 public enum ContextCorrection {
-    public static let version = "context-correction-1"
+    public static let version = "context-correction-2"
     /// Limits bound resources; they are not measured accuracy thresholds.
     public static func chunks(_ script: LibraryScript) throws -> [CorrectionChunk] {
         let turns = script.transcript.turns.filter { $0.kind == .speech }.map {
@@ -109,6 +115,8 @@ public enum ContextCorrection {
         chunk.turns의 모든 id를 입력 순서 그대로 정확히 한 번씩 반환한다. contextBefore/After는 읽기 전용이고 반환하지 않는다.
         경계를 넘어 텍스트를 이동하지 않는다. certain=true는 뜻을 바꾸지 않는 확실한 교정에만 사용한다.
         불확실하면 원문을 유지하고 certain=false, reason에 짧은 한국어 확인 이유를 쓴다. 문제 없는 원문은 true와 빈 reason.
+        앞뒤 공백만 다른 것은 교정하지 않는다. 내용을 바꾸는 후보에는 reason에 변경 내용과 입력에서 확인한 근거를 쓴다.
+        certain과 reason은 자동 적용 허가가 아니다. 앱이 허용한 형식 변경 외에는 검토 후보로 보존한다.
         names는 명시적 자기소개(예: '저는 김민수입니다')가 있고 참석자 목록에 같은 이름이 있을 때만 반환한다.
         직무/주제/대답 내용이나 누군가 부른 이름만으로 화자 이름을 추정하지 않는다. 추측이면 names는 빈 배열.
         quote에는 evidenceTurnID 원문에 실제 있는 자기소개를 그대로 넣는다. speakerID는 원 ID 그대로이며 null 화자는 매핑하지 않는다.
@@ -124,12 +132,26 @@ public enum ContextCorrection {
         var edits: [CorrectionEdit] = []
         for (source, candidate) in zip(chunk.turns, reply.turns) {
             guard candidate.text.count <= max(256, source.text.count * 3), candidate.reason.count <= 600 else { throw LibraryFailure.invalidScript }
-            let protected = protectedTokens(source.text) == protectedTokens(candidate.text)
-            let acceptable = candidate.certain && protected && !candidate.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            if candidate.text != source.text || !candidate.certain {
-                let reason = !protected ? "숫자·단위·부정 표현 변화가 있어 원문을 유지했습니다." : candidate.reason.isEmpty ? "문맥을 참고한 표기 교정" : candidate.reason
-                edits.append(CorrectionEdit(turnID: source.id, original: source.text, text: candidate.text, reason: reason, applied: acceptable))
+            let sourceTrimmed = source.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let candidateTrimmed = candidate.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayOnly = sourceTrimmed == candidateTrimmed
+            // No-op formatting is not a correction. Model uncertainty is independent and survives.
+            if displayOnly && candidate.certain { continue }
+            let formatOnly = !candidateTrimmed.isEmpty &&
+                canonicalFormat(sourceTrimmed) == canonicalFormat(candidateTrimmed)
+            let acceptable = candidate.certain && formatOnly
+            let modelReason = candidate.reason.trimmingCharacters(in: .whitespacesAndNewlines)
+            let decisionReason: String
+            if !candidate.certain {
+                decisionReason = "발화가 불확실해 원문을 유지했습니다."
+            } else if acceptable {
+                decisionReason = "문자·숫자·부정 표현을 유지한 형식 정리입니다."
+            } else {
+                decisionReason = "의미 보존 근거가 필요한 변경이어서 원문을 유지했습니다."
             }
+            edits.append(CorrectionEdit(turnID: source.id, original: source.text,
+                text: displayOnly ? source.text : candidate.text,
+                reason: decisionReason + (modelReason.isEmpty ? "" : " " + modelReason), applied: acceptable))
         }
         let roster = Set((input.participants ?? "").split(whereSeparator: \.isNewline).compactMap { $0.split(whereSeparator: { $0.isWhitespace || $0 == "·" || $0 == "|" || $0 == "," }).first.map(String.init) })
         var names: [String: String] = [:], evidence: [String: String] = [:], conflicts = Set<String>()
@@ -146,13 +168,25 @@ public enum ContextCorrection {
         for id in conflicts { names.removeValue(forKey: id); evidence.removeValue(forKey: id) }
         return (edits, names, evidence)
     }
-    private static func protectedTokens(_ text: String) -> [String] {
-        // A guard against common consequential substitutions, not a semantic correctness proof.
-        let pattern = #"\d+(?:[.,:/~-]\d+)*(?:\s*(?:억|만|천|백|원|달러|퍼센트|%|개월|년|월|일|명|개|톤|kg|MW|kW|GW))*|[영공일이삼사오육칠팔구십백천만억조]+(?:원|달러|퍼센트|개월|년|월|일|명|개|톤)|(?:안|못)(?=\s)|않[가-힣]*|없[가-힣]*|아니[가-힣]*|불가능|미정|예정|추정|확정"#
-        let regex = try! NSRegularExpression(pattern: pattern)
-        return regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap {
-            Range($0.range, in: text).map { String(text[$0]).filter { !$0.isWhitespace } }
+    /// An explicit formatting allowlist, NOT a general Korean/semantic normalizer.
+    /// Retains every non-space character, number sign, unit, relation and punctuation.
+    /// Unrecognized edits fail closed until independently grounded span proposals exist.
+    private static func canonicalFormat(_ text: String) -> String {
+        var value = text
+        let thousands = try! NSRegularExpression(pattern: #"(?<![0-9.,])([0-9]{1,3})(?: *, *[0-9]{3})+(?![0-9.,]| +[0-9,])"#)
+        for match in thousands.matches(in: value, range: NSRange(value.startIndex..., in: value)).reversed() {
+            if let range = Range(match.range, in: value) {
+                value.replaceSubrange(range, with: value[range].filter { $0 != " " })
+            }
         }
+        for (pattern, replacement) in [
+            (#"(?<![\p{L}\p{N}])안 *(되니까|되는데|해도)(?![\p{L}\p{N}])"#, "안$1"),
+            (#"(?<=[0-9])([조억만천백]) +원"#, "$1원")
+        ] {
+            let regex = try! NSRegularExpression(pattern: pattern)
+            value = regex.stringByReplacingMatches(in: value, range: NSRange(value.startIndex..., in: value), withTemplate: replacement)
+        }
+        return value
     }
     public static var outputSchema: Data {
         Data(#"{"type":"object","properties":{"turns":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"text":{"type":"string"},"certain":{"type":"boolean"},"reason":{"type":"string"}},"required":["id","text","certain","reason"],"additionalProperties":false}},"names":{"type":"array","items":{"type":"object","properties":{"speakerID":{"type":"string"},"name":{"type":"string"},"evidenceTurnID":{"type":"string"},"quote":{"type":"string"}},"required":["speakerID","name","evidenceTurnID","quote"],"additionalProperties":false}}},"required":["turns","names"],"additionalProperties":false}"#.utf8)
