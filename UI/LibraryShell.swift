@@ -53,6 +53,12 @@ struct ScriptBlockRow: View {
     let block: ScriptBlock
     let rename: () -> Void
     let editText: () -> Void
+    var play: () -> Void = {}
+    var playing = false
+    var canPlay = false
+    var corrections: [CorrectionEdit] = []
+    var resolvedTurnIDs: Set<String> = []
+    var resolveCorrection: ((CorrectionEdit, Bool) -> Void)?
     @State private var events = false
     // 10 stable slots by original speaker order. Text labels remain the identity cue.
     private static let colors: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .indigo, .brown, .red, .yellow]
@@ -69,7 +75,7 @@ struct ScriptBlockRow: View {
                             Image(systemName: "chevron.down").font(.caption2)
                         }.font(.callout)
                     }.buttonStyle(.plain).accessibilityLabel("\(block.name) 화자 이름 변경")
-                    if !block.openIssues.isEmpty {
+                    if !block.openIssues.isEmpty || corrections.contains(where: { !$0.applied && !resolvedTurnIDs.contains($0.turnID) }) {
                         Button { events.toggle() } label: {
                             Image(systemName: "exclamationmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(Color.black, Color.yellow)
                         }.buttonStyle(.plain).help("이 구간의 이벤트 보기")
@@ -77,6 +83,10 @@ struct ScriptBlockRow: View {
                             .popover(isPresented: $events) {
                                 VStack(alignment: .leading, spacing: 14) {
                                     Text("이 구간의 이벤트").font(.headline)
+                                    ForEach(corrections.filter { !$0.applied && !resolvedTurnIDs.contains($0.turnID) }, id: \.turnID) { edit in
+                                        Text("AI 확인 필요: \(edit.reason)").font(.callout)
+                                        Text("교정안: \(edit.text)").font(.caption).foregroundStyle(.secondary)
+                                    }
                                     ForEach(block.openIssues, id: \.id) { issue in
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(issueLabel(issue.kind)).font(.callout)
@@ -90,8 +100,10 @@ struct ScriptBlockRow: View {
                             }
                     }
                     Spacer(minLength: 8)
-                    Text("\(LibraryScript.timestamp(block.startUs)) – \(LibraryScript.timestamp(block.endUs))")
-                        .font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+                    Button(action: play) {
+                        Label("\(LibraryScript.timestamp(block.startUs)) – \(LibraryScript.timestamp(block.endUs))", systemImage: playing ? "stop.fill" : "play.fill")
+                            .font(.system(.caption, design: .monospaced))
+                    }.buttonStyle(.plain).disabled(!canPlay).help("이 구간 원음 재생·정지")
                 }
                 if block.isSpeech {
                     Button(action: editText) {
@@ -100,6 +112,25 @@ struct ScriptBlockRow: View {
                     }.buttonStyle(.plain).accessibilityLabel("대사 수정: \(block.text)")
                 } else { Text(block.text).foregroundStyle(.secondary) }
                 if block.edited { Text("사용자 수정 · 시간 재정렬 안 됨").font(.caption).foregroundStyle(.secondary) }
+                if !corrections.isEmpty {
+                    DisclosureGroup("AI 교정 이력 \(corrections.count)개") {
+                        ForEach(corrections, id: \.turnID) { edit in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("원문: \(edit.original)")
+                                Text("교정안: \(edit.text)")
+                                Text("\(edit.applied ? "자동 반영" : "원문 유지") · \(edit.reason)").foregroundStyle(.secondary)
+                                if !edit.applied, !resolvedTurnIDs.contains(edit.turnID), let resolveCorrection {
+                                    HStack {
+                                        Button("교정안 적용") { resolveCorrection(edit, true) }.disabled(edit.text == edit.original || edit.text.isEmpty)
+                                        Button("원문 유지") { resolveCorrection(edit, false) }
+                                    }
+                                } else if resolvedTurnIDs.contains(edit.turnID) {
+                                    Text("사용자 선택·수정 우선").foregroundStyle(.secondary)
+                                }
+                            }.padding(.vertical, 4).textSelection(.enabled)
+                        }
+                    }.font(.caption)
+                }
             }.padding(18)
         }.fixedSize(horizontal: false, vertical: true)
             .background(color.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
@@ -124,6 +155,8 @@ struct LibraryShell: View {
     @ObservedObject private var processing = ProcessingWorkspace.shared
     @ObservedObject private var recording = RecordingWorkspace.shared
     @ObservedObject private var capture = RecordingWorkspace.shared.capture
+    @ObservedObject private var correction = CorrectionWorkspace.shared
+    @ObservedObject private var playback = LibraryWorkspace.shared.playback
     @State private var edit: LibraryEdit?
     @State private var settings = false
     var body: some View {
@@ -131,6 +164,10 @@ struct LibraryShell: View {
             HStack {
                 Text("DAMA").font(.headline)
                 Spacer()
+                if correction.busy {
+                    Text("AI 교정 중").font(.caption).foregroundStyle(.secondary)
+                    Button("교정 중단", action: correction.cancel)
+                }
                 if capture.phase == .recording { Label("녹음 중 · \(LibraryScript.timestamp(capture.elapsedUs))", systemImage: "record.circle.fill").foregroundStyle(.red) }
                 if workspace.busy { ProgressView().controlSize(.small); Text("불러오거나 저장하는 중").font(.caption) }
                 Button("설정", systemImage: "gearshape") { settings = true }
@@ -141,12 +178,12 @@ struct LibraryShell: View {
                 Divider()
                 detail.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            if let message = workspace.message ?? processing.message ?? capture.message ?? recording.message {
+            if let message = workspace.message ?? correction.message ?? playback.message ?? processing.message ?? capture.message ?? recording.message {
                 Divider()
                 HStack(alignment: .top) {
                     Text(message).font(.callout).textSelection(.enabled)
                     Spacer()
-                    Button("닫기") { workspace.message = nil; processing.message = nil; recording.message = nil }
+                    Button("닫기") { workspace.message = nil; correction.message = nil; playback.message = nil; processing.message = nil; recording.message = nil }
                 }.padding(12).background(Color(nsColor: .controlBackgroundColor))
             }
         }
@@ -273,8 +310,15 @@ struct LibraryShell: View {
                             .font(.caption).foregroundStyle(workspace.notesValid ? Color.secondary : Color.red)
                     }
                     noteField("맥락", text: $workspace.context, height: 90)
+                    noteField("참석자 · 한 줄에 이름과 소속/역할", text: $workspace.participants, height: 70)
                     noteField("참고 정보", text: $workspace.reference, height: 80)
-                    Text("맥락·참고 정보는 로컬 참고 메모이며 Markdown 내보내기에 포함됩니다.").font(.caption).foregroundStyle(.secondary)
+                    Toggle("변환 후 문맥 자동 교정", isOn: $correction.automatic)
+                    HStack {
+                        Text(correction.referenceURL?.lastPathComponent ?? "참고 폴더 없음").font(.caption).foregroundStyle(.secondary)
+                        Button("참고 폴더 연결…", action: correction.chooseReferences).disabled(correction.busy)
+                        if correction.referenceURL != nil { Button("연결 해제", action: correction.disconnectReferences).disabled(correction.busy) }
+                    }
+                    Text("자동 교정 시 참석자·맥락·참고 정보를 활용합니다. 전송할 참고 발췌는 변환 확인창에서 볼 수 있습니다.").font(.caption).foregroundStyle(.secondary)
                     if processing.localOnly.contains(speech.id) { Text("이 녹음은 로컬 저장만 하도록 설정되어 있습니다.").font(.callout) }
                 }.padding(32)
             }
@@ -314,11 +358,13 @@ struct LibraryShell: View {
             Divider()
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
+                    correctionHeader(file).padding(.bottom, 18)
                     DisclosureGroup("녹음·변환 정보") {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("녹음: \(date(file.script.recordedAt)) · \(file.script.timeZoneID)")
                             Text(file.script.dateSource)
                             Text("참여 화자 수: \(file.script.input.speakerCount.map(String.init) ?? "자동 (미입력)")")
+                            Text("참석자: \(file.script.input.participants ?? "미입력")")
                             Text("맥락: \(file.script.input.context.isEmpty ? "미입력" : file.script.input.context)")
                             Text("참고 정보: \(file.script.input.reference.isEmpty ? "미입력" : file.script.input.reference)")
                         }.font(.callout).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
@@ -326,7 +372,13 @@ struct LibraryShell: View {
                     ForEach(file.script.blocks()) { block in
                         ScriptBlockRow(block: block,
                             rename: { beginEdit(LibraryEdit(file: file, kind: .speaker(block), value: block.name)) },
-                            editText: { beginEdit(LibraryEdit(file: file, kind: .text(block), value: block.text)) })
+                            editText: { beginEdit(LibraryEdit(file: file, kind: .text(block), value: block.text)) },
+                            play: { workspace.play(block, file: file) },
+                            playing: playback.playingID == file.id + ":" + block.id,
+                            canPlay: !capture.phase.busy && block.startUs != nil && block.endUs != nil,
+                            corrections: file.script.correction?.edits.filter { block.turnIDs.contains($0.turnID) } ?? [],
+                            resolvedTurnIDs: Set(file.script.turnTexts.keys),
+                            resolveCorrection: { edit, apply in workspace.resolveCorrection(edit, apply: apply, file: file) })
                             .padding(.vertical, 9)
                     }
                 }.padding(.horizontal, 32).padding(.vertical, 20)
@@ -334,10 +386,34 @@ struct LibraryShell: View {
         }
     }
     private func date(_ date: Date?) -> String { date?.formatted(date: .numeric, time: .shortened) ?? "녹음 날짜 미확인" }
+    private func correctionHeader(_ file: LibraryScriptFile) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if correction.activeID == file.id {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("문맥 교정 중 · \(correction.total > 0 ? correction.completed * 100 / correction.total : 0)% · \(correction.completed)/\(correction.total) 구간 완료")
+                    Spacer(); Button("교정 중단", action: correction.cancel)
+                }
+                if correction.total > 0 { ProgressView(value: Double(correction.completed), total: Double(correction.total)) }
+            } else {
+                HStack {
+                    if let saved = file.script.correction {
+                        Text(saved.state == .completed ? "AI 문맥 교정 완료" : "AI 교정 미완료 · 원문 사용 가능").font(.callout)
+                        if saved.state == .completed {
+                            Button(file.script.showsOriginal == true ? "교정본 보기" : "교정 전 보기") { workspace.toggleOriginal(file) }.disabled(!workspace.canLeave)
+                        }
+                    } else { Text("맥락과 참석자 정보를 활용해 표기를 교정할 수 있습니다.").font(.caption).foregroundStyle(.secondary) }
+                    Spacer()
+                    Button(file.script.correction == nil ? "AI 교정" : "다시 교정") { correction.review(file) }.disabled(correction.busy || !workspace.canLeave)
+                }
+            }
+        }
+    }
 }
 
 struct LibrarySettings: View {
     @ObservedObject var workspace: LibraryWorkspace
+    @ObservedObject private var correction = CorrectionWorkspace.shared
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var capture = RecordingWorkspace.shared.capture
     var body: some View {
@@ -359,6 +435,11 @@ struct LibrarySettings: View {
             }
             Divider()
             APIKeySettings()
+            Divider()
+            Text("문맥 교정 · Codex CLI").font(.headline)
+            Text(correction.executable.path).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            Button("Codex 실행 파일 선택…", action: correction.chooseExecutable).disabled(correction.busy)
+            Text("이 Mac에 설치·로그인된 Codex를 사용합니다. CLI 실행과 계정 접근은 앱 권한에 따라 제한될 수 있습니다.").font(.caption).foregroundStyle(.secondary)
             HStack { Spacer(); Button("닫기") { dismiss() }.keyboardShortcut(.cancelAction) }
         }.padding(24).frame(width: 470)
     }

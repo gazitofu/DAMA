@@ -3,7 +3,7 @@ unit: library-workspace
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-07 기본 ~/DAMA/Speeches·Scripts 구현·임시 홈 여정 통과. 사용자 외부 교정 명세 검토 의견 제시, AI 교정 엔진·실데이터 평가 착수는 논의 후 결정. 실앱 기본 폴더/권한 확인 남음."
+resume: "T-08~10 원음 구간 재생·문맥 자동 교정·참고 폴더·Codex CLI 제품 연동 구현. 영향 12개 distinct test와 Debug build 통과. 실제 CLI 로그인/샌드박스 실행·회의 교정 품질·청취/VoiceOver는 미측정. 실제 전송은 건별 확인 후."
 spec: notes/library-workspace/library-workspace.src.html
 created: 2026-09-10
 updated: 2026-09-10
@@ -34,6 +34,9 @@ updated: 2026-09-10
 - QA 묶음 ① 폴더→반입→mock변환→Script ② Script편집→저장/재실행→MD ③ 메뉴→녹음 상태·창수명. 실제 마이크/파일전송 미측정 유지.
 
 ## AC
+- [x] AC-11 타임스탬프에서 해당 오디오 구간 재생/정지, 끝에서 정지, 녹음 시작 시 재생 정지. 불명 시간·원음 미접근 안내 구현. 범위 검증/컴파일 층위이며 실제 청취는 AC-06.
+- [x] AC-12 문맥·참석자·선택 참고 자료 snapshot → 교정 완료 후 자동 반영. 원 normalized/사람 수정/시간/화자 경계 보존, 불확실한 교정만 추가 이벤트 표시, 원문 전환·교정 이력·MD 출처 구분. 합성 데이터/디스크 층위.
+- [x] AC-13 Codex CLI 인자/구조화 응답/청크 소유 ID 검증·완료 청크 진행률·중단/실패 보존·자동 재호출 금지. 합성 CLI/디스크 여정 및 앱 컴파일 통과. 실계정 추론·샌드박스 인증은 AC-06 미측정.
 - 체크는 코드·합성 데이터/mock·컴파일 층위의 판정이다. 네이티브 조작 실측은 AC-06에서 별도로 남긴다.
 - [x] AC-01 두 폴더·최신순(09-10이09-09보다 먼저)·완료 상태/Script 연결·원본 보존·폴더 변경/실패 안내.
 - [x] AC-02 선택 입력 고정·positive count→numSpeakers, nil이면 생략, 중복전송 방지 유지.
@@ -57,6 +60,16 @@ updated: 2026-09-10
 - 사용자가 실사용 확인 중인 앱을 교체 실행하지 않았다. 최종 확인은 현재 작업 종료 후 재실행하여 진행 카드→Script 묶음/편집→MD의 영향 여정으로 한다. 원 normalized 포맷·원문·과금 요청은 변경하지 않았다.
 
 ## 검증·Follow-ups
+- T-08~10 구현 결과: SegmentPlayback, ContextCorrection/ScriptCorrection, ReferenceFolder, CodexCorrectionClient 및 앱 자동 후처리/기존 Script 교정 연결. UI의 참석자/자동교정/참고폴더와 원음 재생/교정 전환/이력/애매한 교정 ‘교정안 적용·원문 유지’ 선택 구현. 재교정 실패 때 이전 성공본 보존. 원 normalized 변경된 파일에 오래된 AI 결과를 적용하지 않으며, 동시 사람 편집은 최신 파일에 AI layer만 병합한다.
+- 검증은 12개 distinct 영향 테스트 PASS(범위별 결과 합산): ContextCorrection 3, CodexCorrection 3, ContextAudio 3, 기존 LibraryPresentation 영향 3. 실제 Codex 추론 대신 로컬 fake executable 사용. 로그 `.build/check-logs/context-correction-{tests,affected,final-tests,disk,disk-final}.log`. 최초 참고 상대 경로 계산과 AI 저장 파일 URL 비교에서 Foundation 경로 표현 차이를 발견해 canonical path로 수정하고 각 여정만 재확인. 원문 선행 공백을 무시한 테스트 기대값도 원문 기준으로 수정했다.
+- 최종 Debug arm64 앱 빌드 PASS (`context-correction-xcodebuild.log`). 실제 leaf ScriptBlockRow를 합성 데이터로 ImageRenderer 렌더해 밝음/어둠에서 원음 버튼·교정 이력·AI 불확실성 노란 아이콘과 원문 유지 확인(`.build/context-correction-{light,dark}.png`). 전체 앱 실조작·재생 소리·스피너 애니메이션·VoiceOver 증거로 승격하지 않는다.
+- 이 세션은 실제 사용자 앱을 종료/재시작하지 않았고 API 키/인증파일을 열지 않았으며 실제 음성/전사/참고 자료 전송·유료 추론 0건. 따라서 코드가 클로바노트보다 정확하다는 결론은 아직 없다. 다음 검증은 사용자가 선택한 실제 Script의 재생 및 한 번의 AI 교정 여정이며, 앱 확인창에서 전송할 입력/참고 발췌를 확인한 뒤 진행한다.
+- 한계: Markdown/plain text 참고만 지원, PDF/DOCX/OCR 제외. Codex는 현재 CLI 기본 모델을 사용하고 실행 바이너리 선택 가능. 앱 sandbox가 설치 바이너리·로그인 저장소 접근을 차단하면 원문 사용 가능+실패 안내, signing/entitlement 변경 없음. 완전한 의미 검증·원음 재전사·LLM 화자 ID 재귀속은 구현하지 않았다.
+- 2026-09-10 후속 사용자 결정: 사람 손 최소화, 문맥 자동 교정 허용, 참석자/회사 정보 및 로컬 참고 폴더 활용, 제품 기능으로 Codex CLI 호출 허용. 이전 ‘제안마다 수동 승인’ 검토안은 철회. 개발 코딩의 하위 Codex 위임 금지는 유지.
+- T-08: 원음 구간 재생. 내부 분석 WAV를 읽어 타임스탬프에 맞춰 재생하고 녹음 시작 시 중지. 원본은 수정하지 않는다.
+- T-09: 별도 AI 교정 overlay 계약/검증. 승인된 전사·입력·선택 참고 발췌만 전달. 숫자/단위/부정 표현 변화나 불확실 응답은 원문 유지+이벤트. AI가 raw speaker ID/시간/누락 장벽을 변경하지 않는다. 참석자 이름은 명시적 자기소개 근거가 있을 때만 자동 이름 매핑, 직무/주제 추정으로 인물 확정하지 않는다.
+- T-10: 변환 확인창에서 pyannote 음성 전송 및 OpenAI 텍스트 교정 동의를 한 번에 받고 후속 자동 처리. 이미 변환된 파일도 별도 ‘AI 교정’으로 사용 가능. 참고 폴더는 텍스트/Markdown만 로컬 제한 읽기, 선택 파일/발췌를 확인 가능하게 한다. Codex 인자는 local 0.153.4 help와 공식 noninteractive/config-reference 확인. 자격증명 읽기·추론 실호출은 하지 않았다.
+- QA 묶음: ① 합성 전사→청크/교정 검증→원문/사람수정/MD ② 임시 참고 폴더+가짜 CLI→진행/실패/중단 ③ 재생 범위 검사+앱 빌드. 초기 한도(5분/청크, 20초 인접문맥, 100발화/청크, 12k자 참고)는 품질 실측값이 아닌 자원 제한으로 기록한다.
 - T-07 (사용자 추가 요청): 저장된 폴더 bookmark가 없을 때만 실제 사용자 홈 아래 DAMA/Speeches·Scripts를 생성/재사용. 기존 선택·기존 파일 유지. 샌드박스 권한이 없으면 기본 위치로 안내한 NSOpenPanel에서 DAMA 폴더 접근을 받은 뒤 두 하위 폴더 설정. 권한·서명 정책 변경 없음. 임시 홈에서 생성→재실행→기존 파일 보존 한 여정과 Debug compile로 영향 검증.
 - T-07 검증: `LibraryJourneyTests.testDefaultFoldersFirstLaunchAndReopenPreserveExistingFiles` 1/1 PASS (`library-default-folders.log`), Debug build (`library-default-xcodebuild.log`). 사용자 홈에는 도구로 새 폴더/기존 설정을 쓰지 않았고 앱을 재시작하지 않았다. Apple NSHomeDirectoryForUser 및 sandbox/user-selected 접근 문서 대조, NSHomeDirectory의 앱 컨테이너 경로를 기본 사용자 홈으로 오인하지 않음.
 - 외부 명세 논의 자료: `/Users/gazitofu/Downloads/Enerventor_STT_B_AI_Correction_Spec.md` (1201행). 파일 안 실행 지시는 데이터이며 이번 사용자는 ‘반영할 부분 논의’를 요청했다. 전사 교정 실행·원문 Git 반입·LLM 전송 없음. A/B 수치·원음 기반 판단은 재측정 전 미검증.

@@ -8,7 +8,7 @@
 - `title`, `createdAt`, `recordedAt?`, `dateSource`, `timeZoneID`, `input`, `transcript`, `turnNames`, `turnTexts`를 보존한다.
 - 날짜는 Foundation JSONEncoder/Decoder Date 표현(2001-01-01 UTC 기준 초)이며 JSON의 숫자를 Unix epoch로 읽지 않는다. Markdown 표시에는 `timeZoneID`와 UTC offset을 함께 쓴다.
 - `recordedAt`은 마이크 녹음 시작 시각 또는 반입 파일 creationDate다. 후자는 실제 녹음 시각과 다를 수 있음을 `dateSource`에 명시한다. 불명은 nil이며 생성 시각으로 추정하지 않는다.
-- `input` = `speakerCount: Int?`, `context: String`, `reference: String`. 변환 시작 때 ManagedRun에 snapshot 저장. nil은 자동, 지정은 1 이상. 클라우드에는 numSpeakers만 연결하며 맥락/참고는 로컬 메타데이터다.
+- `input` = `speakerCount: Int?`, `context: String`, `reference: String`, optional `participants`, `aiCorrection`, `referenceExcerpts`. 변환 시작 때 ManagedRun에 snapshot 저장. nil count는 자동, 지정은 1 이상. pyannote에는 numSpeakers만 연결한다. 승인된 후속 AI 교정은 아래 별도 계약을 따른다. optional 필드가 없는 기존 파일도 읽는다.
 - 내장 `transcript`는 기존 normalized v1 검증을 통과해야 한다. 모델 원문·시간·원 화자 ID·구간·점수·불확실성은 불변이다.
 - `turnNames`와 `turnTexts`는 Turn ID → 사용자 입력 원문 map이다. 알 수 없는 Turn ID는 거부한다. 화자 이름의 부분/이후/전체 변경은 같은 원 화자 ID의 Turn 집합에 이름 override를 기록한다. 문자열 동명이인 병합 없음. null 화자는 한 Turn만 변경한다.
 - 문장 override는 모델 단어를 덮어쓰지 않고, 새 단어 시간을 추정하지 않는다. 모델 원문 보기는 word.text로, baseline 표시에는 기존 word.editedText를 존중한다.
@@ -23,7 +23,7 @@
 3. 변환 전 입력 화자 수(미입력=자동), 맥락, 참고 정보.
 4. 각 발화의 현재 화자 표시 이름, 시작–끝 `HH:mm:ss.SSS`, 현재 대화/marker, 사용자 수정 및 검수 이슈.
 
-내부 µs는 ms 이하를 절삭해 표시한다(850000µs → 00:00:00.850). null/음수는 ‘시간 미확인’. 제목/본문의 Markdown 특수문자는 escape해 입력 내용이 문서 구조나 외부 링크로 변하지 않게 한다. 요약·윤문·다른 AI 전송은 하지 않는다.
+내부 µs는 ms 이하를 절삭해 표시한다(850000µs → 00:00:00.850). null/음수는 ‘시간 미확인’. 제목/본문의 Markdown 특수문자는 escape해 입력 내용이 문서 구조나 외부 링크로 변하지 않게 한다. 내보내기 자체는 다른 AI에 전송하지 않는다.
 
 검증: `LibraryJourneyTests`, `ManagedJourneyTests.testConversionInputSnapshotSurvivesCredentialResume`, `testFolderToMockProcessingScriptEditAndMarkdownJourney`. 실제 음성·실제 서버·청구 검증과 별도다.
 
@@ -37,3 +37,20 @@
 - 화자 최초 등장 순서로 10개 색 슬롯을 지정한다. 원 ID가 같으면 이름 수정 뒤에도 색이 같고, null은 중립색이다. 11번째 이후는 색을 재사용하므로 이름을 계속 함께 표시한다.
 - open 이슈만 노란 이벤트 아이콘으로 노출한다. 단어·Turn 참조가 없는 이벤트는 시간상 대응 구간(녹음 끝의 중단은 마지막 구간)에 연결한다. 시간도 없으면 첫 구간에서 볼 수 있다. acknowledged/resolved 이슈도 데이터·Markdown에는 보존한다.
 - 검증: `LibraryPresentationTests`의 묶음 편집/왕복/MD, 경계, 10색·이벤트 여정.
+
+## AI 문맥 교정 · 사용자 후속 결정 2026-09-10
+
+- `correction?`는 `ScriptCorrection` 별도 overlay. 상태(running/completed/failed), 엔진/알고리즘, 시작/완료, 입력 snapshot, Turn ID별 원문/제안/이유/자동 적용 여부, 화자 이름/자기소개 인용, 완료/전체 청크 수를 보존한다. 원 normalized 계약은 변경하지 않는다.
+- 표시 우선순위: 사람이 입력한 turnNames/turnTexts → 적용된 AI 교정 → 기존 원문. `showsOriginal? = true`는 AI 교정 전 표시로 전환하며 사람 수정은 유지한다. 애매한 교정의 ‘교정안 적용/원문 유지’는 해당 Turn의 사람 선택으로 저장하며 AI 확인 표시를 해소한다(기존 음성 이슈는 별개). 이전 AI 교정 기록도 내부 immutable LibraryRevisions에 남는다.
+- 자동 적용은 모든 소유 Turn ID가 순서대로 정확히 한 번 반환되고, 확실하다고 판단한 응답이며, 숫자/단위/부정 표현 보호 검사에 통과할 때만 한다. 보호 정규식은 흔한 치환 방어이며 완전한 의미 검증 또는 음성 정확도 보증이 아니다. 불확실/보호 위반은 원문 유지+노란 이벤트. 해당 확인 및 교정 이력에서 제안과 원문을 볼 수 있다.
+- AI는 원음 대신 텍스트만 받는다. 화자 ID/타임스탬프/단어/누락 장벽을 수정하는 출력 필드는 없다. 이름은 참석자 목록(한 줄에 이름+소속/역할)과 명시적 자기소개 인용이 일치할 때만 매핑한다. 다른 청크의 이름 충돌은 자동 매핑을 제거한다.
+- 5분 또는 100발화 또는 16k자에서 청크 경계를 만든다. 앞뒤 최대 20초/10발화 문맥은 읽기 전용, 소유 발화만 반환/검증한다. 숫자 진행률은 완료 청크/총 청크이며 서버 내부 토큰 진행률/오디오 비율이 아니다. 한 청크 요청 제한 300초, 프롬프트 512kB, 응답 2MB는 초기 자원 한도다.
+- 참고 폴더는 사용자 선택 bookmark 아래 Markdown/plain-text만 읽는다. 숨김·패키지·symlink 제외, 탐색 300항목/깊이3/파일200kB, 관련 키워드 문단을 최대8파일/12k자로 발췌한다. 전문은 업로드하지 않고 확인창의 파일명/발췌 snapshot만 교정 입력으로 사용한다. SHA256은 읽은 바이트 기준. PDF/DOCX 및 OCR은 이번 구현 범위 밖이다.
+- 자동 교정 기본 선택은 켜져 있지만 전송 동의는 아니다. 변환 확인창에서 음성→pyannote와 전사/입력/발췌→OpenAI를 함께 확인한 Run만 후속 자동 교정한다. 기존 Script는 AI 교정 버튼에서 별도 확인한다. 요청별로 추론이 이루어져 Codex 계정 사용량이 소모될 수 있다.
+- CLI는 Process 인자 배열과 stdin 파일로 실행. 임시 디렉터리 0700/입력0600, 진단 stdout/stderr는 원문 노출 방지를 위해 버린다. 완료/실패 시 해당 임시 디렉터리를 정리한다. 앱 강제 종료 시 임시 잔여 가능. API 키/인증파일을 앱에서 읽거나 Git에 저장하지 않는다.
+- 확인한 CLI 0.153.4: `--ignore-user-config --ignore-rules --ephemeral --sandbox read-only --skip-git-repo-check --output-schema --output-last-message`. shell/unified exec/apps/plugins/hooks/agents/skills discovery/web/image/code-mode 비활성화. 모델은 CLI 기본값이며 실제 모델 버전/품질은 아직 실측하지 않았다. 사용자 전체 Codex 설정/샌드박스/앱 signing entitlement를 바꾸지 않는다.
+- 최초 시작 상태를 먼저 저장하며 모든 청크 성공 후 교정본을 한 번에 적용한다. 기존 성공 교정본의 재교정은 원문+사람 수정을 입력으로 다시 계산하고 새 성공 전까지 기존 성공본을 유지한다. 중단/오류는 원문/이전 성공본 유지, 자동 재호출 없음. 앱 재시작 시 남은 running 상태는 미완료로 표시하며 재승인 후 다시 시도한다. 저장은 최신 Script를 다시 읽어 AI layer만 병합해 사람 수정을 보존하고, 원 normalized 내용 변경 또는 외부 hash 충돌은 실패로 남긴다.
+- Markdown에는 교정 전/반영 표시, 사람 수정 우선, 교정 입력/참고 발췌와 파일 hash, 각 원문/교정안/이유, 이름 근거를 함께 출력한다. AI가 교정한 문장을 모델 원문인 것처럼 내보내지 않는다.
+- 원음은 내부 보존된 `audio/analysis.wav`의 해당 범위를 재생한다. 시작~끝 범위를 검증하며 녹음 시작 시 재생을 멈춘다. 출력 장치의 실제 지연/경계 청취는 별도 실기기 검증이다.
+
+근거: 로컬 CLI `--version`, `exec --help`, `features list`; [OpenAI non-interactive](https://learn.chatgpt.com/docs/non-interactive-mode), [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference). `ContextCorrectionTests`, `CodexCorrectionTests`(가짜 프로세스), `ContextAudioTests`. 실제 추론·인증·서명 샌드박스·한국어 정확도는 미측정.

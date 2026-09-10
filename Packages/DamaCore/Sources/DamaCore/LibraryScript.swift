@@ -4,8 +4,13 @@ public struct ConversionNotes: Codable, Sendable, Equatable {
     public var speakerCount: Int?
     public var context: String
     public var reference: String
-    public init(speakerCount: Int? = nil, context: String = "", reference: String = "") {
+    public var participants: String?
+    public var aiCorrection: Bool?
+    public var referenceExcerpts: [ReferenceExcerpt]?
+    public init(speakerCount: Int? = nil, context: String = "", reference: String = "", participants: String? = nil,
+                aiCorrection: Bool? = nil, referenceExcerpts: [ReferenceExcerpt]? = nil) {
         self.speakerCount = speakerCount; self.context = context; self.reference = reference
+        self.participants = participants; self.aiCorrection = aiCorrection; self.referenceExcerpts = referenceExcerpts
     }
     public func validate() throws {
         if let speakerCount, speakerCount < 1 { throw LibraryFailure.invalidInput }
@@ -32,6 +37,8 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     public let transcript: TranscriptDocument
     public var turnNames: [String: String]
     public var turnTexts: [String: String]
+    public var correction: ScriptCorrection?
+    public var showsOriginal: Bool?
 
     public init(transcript: TranscriptDocument, title: String, recordedAt: Date?, dateSource: String,
                 timeZoneID: String = TimeZone.current.identifier, input: ConversionNotes,
@@ -48,6 +55,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     public func validate() throws {
         try input.validate()
         try TranscriptValidator().validate(transcript)
+        try correction?.validate(transcript: transcript)
         let ids = Set(transcript.turns.map(\.id))
         guard format == "dama-library-script-1", id == transcript.runId,
               !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -58,6 +66,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     }
     public func name(for turn: TranscriptTurn) -> String {
         if let name = turnNames[turn.id] { return name }
+        if showsOriginal != true, let id = turn.speakerId, let name = correction?.speakerNames[id] { return name }
         guard let id = turn.speakerId else { return "화자 미확정" }
         // Preserve names already manually edited in a legacy current revision.
         if transcript.revision.humanEdited,
@@ -79,6 +88,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     }
     public func text(for turn: TranscriptTurn) -> String {
         if let text = turnTexts[turn.id] { return text }
+        if showsOriginal != true, let edit = correction?.edits.first(where: { $0.turnID == turn.id && $0.applied }) { return edit.text }
         return originalText(for: turn)
     }
     public func originalText(for turn: TranscriptTurn) -> String {
@@ -135,13 +145,31 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
                      "## 변환 전 입력 정보", "", "- 참여 화자 수: \(input.speakerCount.map(String.init) ?? "자동 (미입력)")",
                      "", "### 맥락", "", Self.escape(input.context.isEmpty ? "미입력" : input.context),
                      "", "### 참고 정보", "", Self.escape(input.reference.isEmpty ? "미입력" : input.reference),
-                     "", "맥락·참고 정보는 사용자가 입력한 로컬 참고 메모입니다.", "", "## 스크립트", ""]
+                     "", "### 참석자", "", Self.escape(input.participants ?? "미입력"), ""]
+        if let correction {
+            lines += ["## AI 교정 정보", "", "- 엔진: \(Self.escape(correction.engine))",
+                      "- 상태: \(correction.state.rawValue)", "- 내보낸 본문: \(showsOriginal == true || correction.state != .completed ? "교정 전" : "AI 교정 반영") · 사용자 수정 우선",
+                      "- 원문·시간·화자 경계 보존. AI는 원음을 듣지 않고 텍스트 문맥을 참고했습니다.",
+                      "", "### 교정에 사용한 입력", "", Self.escape(correction.input.participants ?? ""),
+                      Self.escape(correction.input.context), Self.escape(correction.input.reference), ""]
+            for source in correction.input.referenceExcerpts ?? [] {
+                lines += ["- 참고 자료: \(Self.escape(source.name)) · SHA256 \(source.sha256)", "", Self.escape(source.text), ""]
+            }
+            for id in correction.speakerNames.keys.sorted() {
+                lines += ["- 화자 이름 교정: \(Self.escape(correction.speakerNames[id] ?? "")) · 근거 \(Self.escape(correction.nameEvidence[id] ?? "미기록"))", ""]
+            }
+        }
+        lines += ["## 스크립트", ""]
         for block in blocks() {
             lines += ["### [\(Self.timestamp(block.startUs)) – \(Self.timestamp(block.endUs))] \(Self.escape(block.name))", "",
                       Self.escape(block.text), ""]
             if block.edited { lines += ["*사용자 수정 발화 · 시간은 원 모델 구간이며 재정렬하지 않았습니다.*", ""] }
             for issue in block.issues {
                 lines += ["> 검수: \(Self.escape(issue.kind.rawValue))", ""]
+            }
+            for edit in correction?.edits.filter({ block.turnIDs.contains($0.turnID) }) ?? [] {
+                lines += ["> AI \(edit.applied ? "교정" : "미적용 · 확인 필요"): \(Self.escape(edit.reason))", "",
+                          "> 교정 전: \(Self.escape(edit.original))", "", "> 교정안: \(Self.escape(edit.text))", ""]
             }
         }
         return Data(lines.joined(separator: "\n").utf8)

@@ -18,6 +18,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published var speakerCount = ""
     @Published var context = ""
     @Published var reference = ""
+    @Published var participants = ""
+    let playback = SegmentPlayback()
     @Published var message: String?
     @Published private(set) var busy = false
     @Published var editing = false
@@ -31,9 +33,9 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     var speech: LibrarySpeech? { speeches.first { $0.id == selectedSpeechID } }
     var scriptFile: LibraryScriptFile? { scripts.first { $0.id == selectedScriptID } }
     var notesValid: Bool { speakerCount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (Int(speakerCount).map { $0 > 0 } == true) }
-    var notes: ConversionNotes { ConversionNotes(speakerCount: Int(speakerCount), context: context, reference: reference) }
+    var notes: ConversionNotes { ConversionNotes(speakerCount: Int(speakerCount), context: context, reference: reference, participants: participants.isEmpty ? nil : participants) }
     var notesDirty: Bool { speech.map { $0.notes != notes } ?? false }
-    var foldersLocked: Bool { !canLeave || notesDirty || ProcessingWorkspace.shared.busy || RecordingWorkspace.shared.capture.phase.busy }
+    var foldersLocked: Bool { !canLeave || notesDirty || ProcessingWorkspace.shared.busy || CorrectionWorkspace.shared.busy || RecordingWorkspace.shared.capture.phase.busy }
 
     func start() {
         guard !started else { return }; started = true
@@ -138,9 +140,11 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         }
     }
     private func setSpeech(_ id: String?) {
+        playback.stop()
         selectedSpeechID = id
         let notes = speech?.notes ?? ConversionNotes()
         speakerCount = notes.speakerCount.map(String.init) ?? ""; context = notes.context; reference = notes.reference
+        participants = notes.participants ?? ""
     }
     private func persistNotes() async throws {
         guard let speech, let store, notesDirty else { return }
@@ -152,6 +156,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     func saveNotes() { navigate {} }
     private func navigate(_ action: @escaping @MainActor () -> Void) {
         guard canLeave else { return }; busy = true
+        playback.stop()
         Task {
             defer { busy = false }
             do { try await persistNotes(); action() }
@@ -184,7 +189,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             do {
                 try await persistNotes()
                 let manifest = try await AudioLibrary(root: root).prepareAnalysis(speech.id)
-                processing.reviewTransmission(manifest, input: input)
+                let prepared = try await CorrectionWorkspace.shared.preparedInput(input, enabled: CorrectionWorkspace.shared.automatic)
+                processing.reviewTransmission(manifest, input: prepared)
             } catch { message = "원본 확인 또는 분석 파일 준비에 실패했습니다. 음성을 전송하지 않았습니다." }
         }
     }
@@ -202,6 +208,9 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 scripts = try await store.scripts(in: destination)
                 if canLeave && !notesDirty { selectedScriptID = result.id; folder = .scripts }
                 message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요."
+                if result.script.correction == nil, run.input?.aiCorrection == true {
+                    CorrectionWorkspace.shared.enqueue(result, input: run.input!)
+                }
             } catch { message = "스크립트 저장이 필요합니다. 변환 버튼으로 로컬 저장을 다시 시도할 수 있습니다. 음성을 다시 제출하지 않습니다." }
         }
     }
@@ -210,6 +219,38 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         busy = true; defer { busy = false }
         let result = try await store.saveScript(candidate, to: original.url, expectedHash: original.hash)
         if let i = scripts.firstIndex(where: { $0.url == original.url }) { scripts[i] = result }
+    }
+    func storeCorrection(_ correction: ScriptCorrection, file: LibraryScriptFile) async throws {
+        guard let store else { throw LibraryFailure.invalidInput }
+        // Re-read and merge only the AI layer. Concurrent manual edits remain authoritative.
+        let result = try await store.saveCorrection(correction, for: file)
+        if let i = scripts.firstIndex(where: { $0.id == result.id }) { scripts[i] = result }
+    }
+    func toggleOriginal(_ file: LibraryScriptFile) {
+        guard canLeave else { return }
+        Task {
+            do {
+                var script = file.script; script.showsOriginal = !(script.showsOriginal ?? false); script.revisionID = UUID().uuidString
+                try await saveScript(script, original: file)
+            } catch { message = "표시 선택을 저장하지 못했습니다. 파일을 새로 고친 뒤 다시 시도해 주세요." }
+        }
+    }
+    func resolveCorrection(_ edit: CorrectionEdit, apply: Bool, file: LibraryScriptFile) {
+        guard canLeave else { return }
+        Task {
+            do {
+                var candidate = file.script
+                try candidate.editText(edit.turnID, text: apply ? edit.text : edit.original)
+                try await saveScript(candidate, original: file)
+            } catch { message = "교정 선택을 저장하지 못했습니다. 파일의 변경 여부를 확인한 뒤 다시 시도해 주세요." }
+        }
+    }
+    func play(_ block: ScriptBlock, file: LibraryScriptFile) {
+        guard !RecordingWorkspace.shared.capture.phase.busy, let root else { return }
+        do {
+            let session = try AudioFiles.session(file.script.transcript.sessionId, root: root)
+            playback.play(url: session.appendingPathComponent("audio/analysis.wav"), id: file.id + ":" + block.id, startUs: block.startUs, endUs: block.endUs)
+        } catch { playback.message = "원음 위치를 찾을 수 없습니다. 이 Mac에 해당 녹음이 보존되어 있는지 확인해 주세요." }
     }
     func exportMarkdown() {
         guard canLeave, let file = scriptFile, let store else { return }

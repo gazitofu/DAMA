@@ -44,6 +44,7 @@ final class RecordingWorkspace: ObservableObject {
             guard alert.runModal() == .alertFirstButtonReturn else { return }
             UserDefaults.standard.set(true, forKey: "microphoneIntroductionSeen")
         }
+        LibraryWorkspace.shared.playback.stop()
         capture.toggle()
     }
 

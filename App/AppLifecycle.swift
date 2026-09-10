@@ -8,6 +8,10 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
         statusBar = StatusBarController()
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if CorrectionWorkspace.shared.busy {
+            CorrectionWorkspace.shared.message = "AI 교정 중입니다. 완료를 기다리거나 ‘교정 중단’을 누른 뒤 종료해 주세요."
+            return .terminateCancel
+        }
         let library = LibraryWorkspace.shared
         if library.notesDirty { library.saveNotes(); library.message = "입력 정보를 저장한 뒤 다시 종료해 주세요."; return .terminateCancel }
         guard library.canLeave else { library.preventLeaving(); return .terminateCancel }

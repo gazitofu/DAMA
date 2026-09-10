@@ -38,8 +38,12 @@ final class ProcessingWorkspace: ObservableObject {
         let alert = NSAlert()
         alert.messageText = "음성을 전송할까요?"
         alert.informativeText = "\(record.title) · \(record.durationUs / 1_000_000)초\n\n이 녹음의 음성을 pyannote.ai로 보내 화자별 스크립트를 만듭니다. 계정에 따라 비용이 발생할 수 있습니다. 원본은 이 Mac에 보관합니다.\n\n계정의 처리 지역과 보관 정책을 확인해 주세요. 앱에서 지워도 서버에서 즉시 삭제되지는 않습니다."
+        if input.aiCorrection == true {
+            alert.informativeText += "\n\n전사 후 Codex CLI로 자동 교정합니다. 전사·참석자·맥락·아래 참고 발췌를 OpenAI에 전송하며 Codex 계정 사용량이 소모될 수 있습니다. 원문과 시간은 보존합니다."
+            CorrectionWorkspace.addPreview(to: alert, input: input)
+        }
         alert.addButton(withTitle: "닫기")
-        alert.addButton(withTitle: "음성 전송")
+        alert.addButton(withTitle: input.aiCorrection == true ? "전송하고 자동 교정" : "음성 전송")
         alert.addButton(withTitle: "로컬 저장만")
         let response = alert.runModal()
         if response == .alertThirdButtonReturn {

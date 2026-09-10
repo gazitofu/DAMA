@@ -151,6 +151,17 @@ public actor FolderLibraryStore {
         try bytes.write(to: url, options: .atomic)
         return LibraryScriptFile(url: url, hash: try AudioFiles.hash(url), script: script)
     }
+    public func saveCorrection(_ correction: ScriptCorrection, for source: LibraryScriptFile) throws -> LibraryScriptFile {
+        let path = source.url.standardizedFileURL.resolvingSymlinksInPath().path
+        guard let latest = try scripts(in: source.url.deletingLastPathComponent()).first(where: {
+            $0.id == source.id && $0.url.standardizedFileURL.resolvingSymlinksInPath().path == path
+        }) else { throw LibraryFailure.changedFile }
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        guard try encoder.encode(latest.script.transcript) == encoder.encode(source.script.transcript) else { throw LibraryFailure.changedFile }
+        var candidate = latest.script
+        candidate.correction = correction; candidate.revisionID = UUID().uuidString
+        return try saveScript(candidate, to: latest.url, expectedHash: latest.hash)
+    }
     public func exportMarkdown(_ file: LibraryScriptFile, to destination: URL) throws {
         try safe(destination)
         guard destination.pathExtension.lowercased() == "md",

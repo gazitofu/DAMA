@@ -23,6 +23,7 @@
 		100000000000000000000003 /* DamaCore in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000002 /* DamaCore */; };
 		100000000000000000000015 = {isa = PBXBuildFile; fileRef = 200000000000000000000015; };
 		100000000000000000000016 = {isa = PBXBuildFile; fileRef = 200000000000000000000016; };
+		100000000000000000000017 = {isa = PBXBuildFile; fileRef = 200000000000000000000017; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +42,7 @@
 		200000000000000000000004 /* DAMA.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DAMA.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		200000000000000000000015 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryWorkspace.swift; sourceTree = "<group>"; };
 		200000000000000000000016 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryShell.swift; sourceTree = "<group>"; };
+		200000000000000000000017 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrectionWorkspace.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +73,7 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000015,
+				200000000000000000000017,
 				200000000000000000000001 /* DamaApp.swift */,
 				200000000000000000000005 /* ReviewWorkspace.swift */,
 				200000000000000000000006 /* AppLifecycle.swift */,
@@ -210,6 +213,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				100000000000000000000016,
+				100000000000000000000017,
 				100000000000000000000015,
 				100000000000000000000001 /* DamaApp.swift in Sources */,
 				100000000000000000000002 /* ReviewShell.swift in Sources */,
