@@ -22,6 +22,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published private(set) var busy = false
     @Published var editing = false
     @Published private(set) var preparingSpeechID: String?
+    @Published private(set) var needsDefaultFolderAccess = false
     private var store: FolderLibraryStore?
     private var root: URL?
     private var started = false
@@ -49,8 +50,46 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                     if stale { try persistFolder(folder, url: url) }
                 } catch { message = "\(folder.rawValue) 폴더에 접근할 수 없습니다. 다시 선택해 주세요." }
             }
+            setUpDefaultFolders()
             refresh()
         } catch { message = "DAMA 저장소를 열지 못했습니다." }
+    }
+    private var userHome: URL? {
+        // NSHomeDirectory() may return an app container in a sandboxed build.
+        NSHomeDirectoryForUser(NSUserName()).map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+    var defaultFolderDescription: String { "~/DAMA/Speeches · ~/DAMA/Scripts" }
+    private func setUpDefaultFolders() {
+        guard let home = userHome, let root else { return }
+        needsDefaultFolderAccess = false
+        for kind in LibraryFolder.allCases where UserDefaults.standard.data(forKey: "library.folder.\(kind.rawValue)") == nil {
+            do {
+                let url = try FolderLibraryStore.prepareDefaultFolder(kind.rawValue, home: home,
+                    other: folders[kind == .speeches ? .scripts : .speeches], internalRoot: root)
+                try persistFolder(kind, url: url)
+                if url.startAccessingSecurityScopedResource() { scoped.append(url) }
+                folders[kind] = url
+            } catch {
+                needsDefaultFolderAccess = true
+                message = "기본 폴더를 준비하려면 DAMA 폴더 접근을 허용해 주세요. 기존 파일은 유지됩니다."
+            }
+        }
+    }
+    func authorizeDefaultFolders() {
+        guard !foldersLocked, let home = userHome else { return }
+        let expected = home.appendingPathComponent("DAMA", isDirectory: true)
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false; panel.prompt = "DAMA 폴더 사용"
+        panel.directoryURL = FileManager.default.fileExists(atPath: expected.path) ? expected : home
+        panel.message = "홈의 DAMA 폴더를 선택해 주세요. 없으면 ‘새로운 폴더’로 DAMA를 만드세요. 안에 Speeches와 Scripts를 준비합니다."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard url.standardizedFileURL.resolvingSymlinksInPath() == expected.standardizedFileURL.resolvingSymlinksInPath() else {
+            message = "기본 위치는 ~/DAMA입니다. 다른 위치는 각 폴더의 메뉴에서 선택할 수 있습니다."; return
+        }
+        if url.startAccessingSecurityScopedResource() { scoped.append(url) }
+        message = nil
+        setUpDefaultFolders(); refresh()
     }
     private func persistFolder(_ folder: LibraryFolder, url: URL) throws {
         let data = try url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)

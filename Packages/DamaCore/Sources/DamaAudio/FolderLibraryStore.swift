@@ -23,6 +23,14 @@ public actor FolderLibraryStore {
     private let root: URL
     private var scanning = false
     public init(root: URL) { self.root = root.standardizedFileURL }
+    public static func prepareDefaultFolder(_ name: String, home: URL, other: URL?, internalRoot: URL) throws -> URL {
+        guard ["Speeches", "Scripts"].contains(name) else { throw LibraryFailure.invalidInput }
+        let url = home.appendingPathComponent("DAMA", isDirectory: true).appendingPathComponent(name, isDirectory: true)
+        // Never replace an existing file or relocate an existing library.
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        try validateFolder(url, other: other, internalRoot: internalRoot)
+        return url
+    }
     private var indexURL: URL { root.appendingPathComponent("library-index.json") }
     private func readIndex() throws -> [LibrarySpeech] {
         guard FileManager.default.fileExists(atPath: indexURL.path) else { return [] }

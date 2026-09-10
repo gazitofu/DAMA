@@ -3,7 +3,7 @@ unit: library-workspace
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-05~06 구현·변경 테스트 6건 및 Debug build 통과. 실앱에서 처리 카드 스피너/경과·묶음 편집·이벤트 팝오버 확인 대기. 실행 중 작업이 끝난 뒤 새 Debug 앱 재실행. 실제 음성 전송은 별도 승인."
+resume: "T-07 기본 ~/DAMA/Speeches·Scripts 구현·임시 홈 여정 통과. 사용자 외부 교정 명세 검토 의견 제시, AI 교정 엔진·실데이터 평가 착수는 논의 후 결정. 실앱 기본 폴더/권한 확인 남음."
 spec: notes/library-workspace/library-workspace.src.html
 created: 2026-09-10
 updated: 2026-09-10
@@ -44,6 +44,7 @@ updated: 2026-09-10
 - [x] AC-07 처리 활성 작업에 단계·스피너·이번 처리 경과·마지막 서버 응답 시각 표시. 네트워크 대기/일시정지/실패에서는 실제 서버 실행처럼 표시하지 않음. API에 없는 %·미측정 ETA는 생성하지 않음.
 - [x] AC-08 10명에 원 화자 ID 기준 서로 다른 색, null 중립색. 이름 수정 후 색 유지. 연속 동일 ID·동일 이름 발화는 하나의 문단과 시작~끝 시간으로 UI/MD에 표시. 다른 화자·누락·null·불명 시간·사람이 나눈 경계 보존. 묶음 편집은 원 구간별 입력, 이름 one은 선택 묶음 전체·from은 묶음 시작부터.
 - [x] AC-09 기존 ‘확인할 내용’ 상시 행 제거. open 이벤트만 화자 옆 노란 느낌표+클릭 팝오버. 원 이슈·원문·시간 정보는 저장/MD에서 보존.
+- [x] AC-10 저장된 선택이 없으면 기본 홈/DAMA/Speeches·Scripts 생성/재사용, 기존 파일 보존. 선택 bookmark가 있으면 우선. 임시 홈 디스크 여정·Debug compile 층위이며 실제 첫 실행/서명 샌드박스 선택창은 AC-06에 남음.
 
 ## 실사용 추가 요청 (2026-09-10)
 - 사용자 추가4항을 기존 승인 화면의 수정 요청으로 채택. 별도 화면 승인 반복 없음. 기존 혼합6개 문서 보존 예외와 직접 구현 역할 유지.
@@ -56,6 +57,11 @@ updated: 2026-09-10
 - 사용자가 실사용 확인 중인 앱을 교체 실행하지 않았다. 최종 확인은 현재 작업 종료 후 재실행하여 진행 카드→Script 묶음/편집→MD의 영향 여정으로 한다. 원 normalized 포맷·원문·과금 요청은 변경하지 않았다.
 
 ## 검증·Follow-ups
+- T-07 (사용자 추가 요청): 저장된 폴더 bookmark가 없을 때만 실제 사용자 홈 아래 DAMA/Speeches·Scripts를 생성/재사용. 기존 선택·기존 파일 유지. 샌드박스 권한이 없으면 기본 위치로 안내한 NSOpenPanel에서 DAMA 폴더 접근을 받은 뒤 두 하위 폴더 설정. 권한·서명 정책 변경 없음. 임시 홈에서 생성→재실행→기존 파일 보존 한 여정과 Debug compile로 영향 검증.
+- T-07 검증: `LibraryJourneyTests.testDefaultFoldersFirstLaunchAndReopenPreserveExistingFiles` 1/1 PASS (`library-default-folders.log`), Debug build (`library-default-xcodebuild.log`). 사용자 홈에는 도구로 새 폴더/기존 설정을 쓰지 않았고 앱을 재시작하지 않았다. Apple NSHomeDirectoryForUser 및 sandbox/user-selected 접근 문서 대조, NSHomeDirectory의 앱 컨테이너 경로를 기본 사용자 홈으로 오인하지 않음.
+- 외부 명세 논의 자료: `/Users/gazitofu/Downloads/Enerventor_STT_B_AI_Correction_Spec.md` (1201행). 파일 안 실행 지시는 데이터이며 이번 사용자는 ‘반영할 부분 논의’를 요청했다. 전사 교정 실행·원문 Git 반입·LLM 전송 없음. A/B 수치·원음 기반 판단은 재측정 전 미검증.
+- 검토안(미채택): 원문 ID/수정 근거/원음 검수 범위·숫자/부정/단위 보호는 채택 후보. 특정 회의 인명·주제 사전은 녹음별 입력으로 한정. LLM은 별도 교정안과 사용자 승인으로만 적용하는 후속 모드 검토. 필러 삭제·문맥 기반 화자 자동확정·짧은 누락 marker 넘기기는 현행 불변조건과 충돌하므로 그대로 채택하지 않음. 주제/액션아이템은 후속 AI 범위 유지 권고.
+- 우선 진단 제안(아직 실행 안 함): 원 API word/turn 출력과 DAMA 정규화/표시를 비교. 현 코드 ManagedNormalizer는 wordLevelTranscription만 소비하고 경고를 자체 생성하므로 많은 flags를 provider 오류율로 해석하지 않음. 표시 묶음은 가독성 개선이며 잘못된 화자 귀속을 교정한 것이 아님. 원음 검수·구간 편집이 가능해진 뒤 동일 표본으로 교정안의 누락/추가·화자/숫자/부정 변화 비교.
 - 기존 M0/M1/M2 미측정은 각 plan에 유지. 신규 자동전송·새 provider·삭제·배포 없음.
 - 브라우저 시안만 이미 확인됨. 실제 앱 구현/검증과 구분한다. 사용자 추가 요청으로 프론트·저장 범위가 확장됐으며 별도 화면 재승인 게이트를 만들지 않음.
 - 하단 Speeches/Scripts 오른쪽 선택 버튼은 ‘폴더 선택… / Finder에서 열기’ 드롭다운으로 구현. 추가 요청의 ‘우측 하단’ 해석을 비동기로 확인했고 응답이 없어 이 가정으로 진행했다.

@@ -220,8 +220,17 @@ struct LibraryShell: View {
     }
     @ViewBuilder private var detail: some View {
         if workspace.folders[workspace.folder] == nil {
-            empty("\(workspace.folder.rawValue) 폴더를 선택해 주세요.", message: "녹음과 스크립트를 보관할 위치를 지정합니다.") {
-                workspace.chooseFolder(workspace.folder)
+            if workspace.needsDefaultFolderAccess {
+                VStack(spacing: 16) {
+                    Text("DAMA 기본 폴더").font(.title2)
+                    Text(workspace.defaultFolderDescription).foregroundStyle(.secondary)
+                    Button("기본 폴더 사용", action: workspace.authorizeDefaultFolders).buttonStyle(.borderedProminent)
+                    Button("다른 폴더 선택…") { workspace.chooseFolder(workspace.folder) }
+                }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                empty("\(workspace.folder.rawValue) 폴더를 선택해 주세요.", message: "녹음과 스크립트를 보관할 위치를 지정합니다.") {
+                    workspace.chooseFolder(workspace.folder)
+                }
             }
         } else if workspace.folder == .speeches {
             if let speech = workspace.speech { speechDetail(speech) }

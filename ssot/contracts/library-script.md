@@ -3,6 +3,7 @@
 사용자 2026-09-10 화면 확정 및 제목/Markdown 요청. 구현 정본은 `Packages/DamaCore/Sources/DamaCore/LibraryScript.swift`다. 기존 `transcript.v1.schema.json`·`DomainContracts.swift`·normalized 파일은 변경하지 않는다.
 
 - 파일 확장자 `.dama.json`, `format = dama-library-script-1`. 기존 normalized v1과 구분되는 envelope다.
+- 기본 라이브러리는 실제 사용자 홈의 `DAMA/Speeches`, `DAMA/Scripts`. 기존 폴더 bookmark가 있으면 그대로 사용하며 파일을 자동 이동하지 않는다. App Sandbox가 접근을 허용하지 않으면 NSOpenPanel에서 기본 DAMA 부모 폴더를 선택한 뒤 하위 폴더를 생성/재사용한다.
 - `id`는 내장 `transcript.runId`와 동일, `revisionID`는 저장할 편집마다 새 UUID. 파일 이름은 안정 UUID로 만들어 제목 수정으로 바꾸지 않는다.
 - `title`, `createdAt`, `recordedAt?`, `dateSource`, `timeZoneID`, `input`, `transcript`, `turnNames`, `turnTexts`를 보존한다.
 - 날짜는 Foundation JSONEncoder/Decoder Date 표현(2001-01-01 UTC 기준 초)이며 JSON의 숫자를 Unix epoch로 읽지 않는다. Markdown 표시에는 `timeZoneID`와 UTC offset을 함께 쓴다.

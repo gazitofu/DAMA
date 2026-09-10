@@ -4,6 +4,18 @@ import XCTest
 @testable import DamaAudio
 
 final class LibraryJourneyTests: XCTestCase {
+    func testDefaultFoldersFirstLaunchAndReopenPreserveExistingFiles() throws {
+        let home = try root(), internalRoot = home.appendingPathComponent("internal")
+        let speeches = try FolderLibraryStore.prepareDefaultFolder("Speeches", home: home, other: nil, internalRoot: internalRoot)
+        let scripts = try FolderLibraryStore.prepareDefaultFolder("Scripts", home: home, other: speeches, internalRoot: internalRoot)
+        XCTAssertEqual(speeches.path, home.appendingPathComponent("DAMA/Speeches").path)
+        XCTAssertEqual(scripts.path, home.appendingPathComponent("DAMA/Scripts").path)
+        let file = scripts.appendingPathComponent("existing.md")
+        try Data("keep".utf8).write(to: file)
+        XCTAssertEqual(try FolderLibraryStore.prepareDefaultFolder("Scripts", home: home, other: speeches, internalRoot: internalRoot), scripts)
+        XCTAssertEqual(try String(contentsOf: file, encoding: .utf8), "keep")
+        XCTAssertThrowsError(try FolderLibraryStore.prepareDefaultFolder("../outside", home: home, other: nil, internalRoot: internalRoot))
+    }
     func testABACAScopeUsesIdentityNotDisplayName() throws {
         let labels = ["SPEAKER_00", "SPEAKER_01", "SPEAKER_00", "SPEAKER_02", "SPEAKER_00"]
         let intervals: [[String: Any]] = labels.enumerated().map { ["start": Double($0.offset), "end": Double($0.offset + 1), "speaker": $0.element] }
