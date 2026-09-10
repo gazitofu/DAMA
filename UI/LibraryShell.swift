@@ -257,6 +257,9 @@ struct LibraryShell: View {
                                         .background((complete == nil ? Color.red : Color.green).opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
                                 }.buttonStyle(.plain) }
                             }.padding(12).background(workspace.selectedSpeechID == speech.id ? Color(nsColor: .textBackgroundColor) : .clear, in: RoundedRectangle(cornerRadius: 8))
+                                .contextMenu {
+                                    Button("Speech 삭제…", role: .destructive) { workspace.deleteSpeech(speech) }.disabled(workspace.foldersLocked)
+                                }
                         }
                     } else {
                         ForEach(workspace.scripts) { file in
@@ -267,6 +270,10 @@ struct LibraryShell: View {
                                 }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
                                     .background(workspace.selectedScriptID == file.id ? Color(nsColor: .textBackgroundColor) : .clear, in: RoundedRectangle(cornerRadius: 8))
                             }.buttonStyle(.plain)
+                                .contextMenu {
+                                    Button("재전사…") { workspace.retranscribeScript(file) }.disabled(!workspace.canRetranscribe(file.script.transcript.sessionId))
+                                    Button("Script 삭제…", role: .destructive) { workspace.deleteScript(file) }.disabled(workspace.foldersLocked)
+                                }
                         }
                     }
                 }.padding(.horizontal, 4)
@@ -330,7 +337,7 @@ struct LibraryShell: View {
                 ProcessingProgressCard(run: run, tracking: processing.activeSessionID == speech.id,
                     preparing: workspace.preparingSpeechID == speech.id,
                     startedAt: processing.activeSessionID == speech.id ? processing.attemptStartedAt : nil,
-                    scriptSaved: workspace.completedScript(for: speech) != nil)
+                    scriptSaved: run.map { value in workspace.scripts.contains { $0.id == value.id } } ?? false)
                     .padding(.horizontal, 32).padding(.vertical, 16)
                 Divider()
             }
@@ -360,13 +367,26 @@ struct LibraryShell: View {
             Divider()
             HStack {
                 Button(workspace.notesDirty ? "정보 저장" : "정보 저장됨", action: workspace.saveNotes).disabled(!workspace.notesDirty || !workspace.notesValid || !workspace.canLeave)
+                Button("삭제…", systemImage: "trash") { workspace.deleteSpeech(speech) }.disabled(workspace.foldersLocked)
                 Spacer()
                 if workspace.folders[.scripts] == nil { Button("Scripts 폴더 선택…") { workspace.chooseFolder(.scripts) } }
-                Button(processing.activeSessionID == speech.id ? "변환 중…" : workspace.preparingSpeechID == speech.id ? "오디오 준비 중…" : workspace.completedScript(for: speech) != nil ? "스크립트 열기" : run?.stage == "readyForReview" ? "스크립트 저장" : run != nil ? "변환 재개" : "변환", action: workspace.convert)
+                if run != nil || workspace.completedScript(for: speech) != nil {
+                    Button("재전사…", action: workspace.retranscribeSpeech).disabled(!workspace.canRetranscribe(speech.id))
+                }
+                Button(conversionTitle(speech, run: run), action: workspace.convert)
                     .buttonStyle(.borderedProminent)
                     .disabled(!workspace.canLeave || !workspace.notesValid || processing.busy || workspace.folders[.scripts] == nil || processing.localOnly.contains(speech.id))
             }.padding(24)
         }
+    }
+    private func conversionTitle(_ speech: LibrarySpeech, run: ManagedRun?) -> String {
+        if processing.activeSessionID == speech.id { return "변환 중…" }
+        if workspace.preparingSpeechID == speech.id { return "오디오 준비 중…" }
+        if let run {
+            if run.stage == "readyForReview" { return workspace.scripts.contains { $0.id == run.id } ? "스크립트 열기" : "스크립트 저장" }
+            return processing.canResume(run) ? "변환 재개" : "처리 상태 확인"
+        }
+        return workspace.completedScript(for: speech) != nil ? "스크립트 열기" : "변환"
     }
     private func noteField(_ label: String, text: Binding<String>, height: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -386,8 +406,11 @@ struct LibraryShell: View {
                         Label(file.script.title, systemImage: "pencil").font(.headline)
                     }.buttonStyle(.plain).accessibilityLabel("스크립트 제목 수정")
                     Text(date(file.script.recordedAt)).font(.caption).foregroundStyle(.secondary)
+                    Text("생성 \(file.script.createdAt.formatted(date: .numeric, time: .standard))").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
+                Button("재전사…") { workspace.retranscribeScript(file) }.disabled(!workspace.canRetranscribe(file.script.transcript.sessionId))
+                Button("삭제…", systemImage: "trash") { workspace.deleteScript(file) }.disabled(workspace.foldersLocked)
                 Button("내보내기", systemImage: "square.and.arrow.up", action: workspace.exportMarkdown).disabled(!workspace.canLeave)
             }.padding(32)
             Divider()

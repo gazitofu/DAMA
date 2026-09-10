@@ -17,6 +17,17 @@ public struct ManagedRun: Codable, Sendable, Identifiable {
     public var failure: String?
     public var input: ConversionNotes?
     public var lastServerCheckAt: Date?
+
+    public var canRetranscribe: Bool {
+        ["readyForReview", "failed", "partialResult", "resultExpired", "submissionUncertain"].contains(stage)
+    }
+    public var creationDate: Date {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: createdAt) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: createdAt) ?? .distantPast
+    }
 }
 
 public actor ManagedProcessor {
@@ -75,7 +86,7 @@ public actor ManagedProcessor {
                 result.append(run)
             }
         }
-        return result.sorted { $0.createdAt > $1.createdAt }
+        return result.sorted { $0.creationDate == $1.creationDate ? $0.id > $1.id : $0.creationDate > $1.creationDate }
     }
     public func isLocalOnly(_ sessionID: String) throws -> Bool {
         let file = try AudioFiles.session(sessionID, root: root).appendingPathComponent("audio/never-upload.json")
@@ -88,13 +99,16 @@ public actor ManagedProcessor {
         try immutable(Data("{\"neverUpload\":true}".utf8), to: file)
     }
 
-    public func begin(sessionID: String, confirmed: Bool, key: String, input: ConversionNotes = ConversionNotes()) async throws -> ManagedRun {
+    public func begin(sessionID: String, confirmed: Bool, key: String, input: ConversionNotes = ConversionNotes(), retranscribing: Bool = false) async throws -> ManagedRun {
         try input.validate()
         guard confirmed, try !isLocalOnly(sessionID) else { throw ManagedFailure.consentRequired }
         guard !active else { throw ManagedFailure.busy }
-        guard try !runs().contains(where: { $0.sessionID == sessionID }) else { throw ManagedFailure.existingRun }
+        let previous = try runs(recover: true).filter { $0.sessionID == sessionID }
+        guard previous.isEmpty || (retranscribing && previous.allSatisfy(\.canRetranscribe)) else { throw ManagedFailure.existingRun }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let run = ManagedRun(id: UUID().uuidString, sessionID: sessionID,
-                             createdAt: ISO8601DateFormatter().string(from: Date()), consent: true, stage: "queued", input: input)
+                             createdAt: formatter.string(from: Date()), consent: true, stage: "queued", input: input)
         try persist(run)
         return try await execute(run, key: key)
     }

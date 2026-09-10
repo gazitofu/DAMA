@@ -25,11 +25,12 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published var editing = false
     @Published private(set) var preparingSpeechID: String?
     @Published private(set) var needsDefaultFolderAccess = false
+    @Published private(set) var savingRunIDs: Set<String> = []
     private var store: FolderLibraryStore?
     private var root: URL?
     private var started = false
     private var scoped: [URL] = []
-    var canLeave: Bool { !busy && !editing }
+    var canLeave: Bool { !busy && !editing && savingRunIDs.isEmpty }
     var speech: LibrarySpeech? { speeches.first { $0.id == selectedSpeechID } }
     var scriptFile: LibraryScriptFile? { scripts.first { $0.id == selectedScriptID } }
     var notesValid: Bool { speakerCount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (Int(speakerCount).map { $0 > 0 } == true) }
@@ -171,16 +172,83 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     func selectScript(_ id: String) { navigate { self.selectedScriptID = id; self.folder = .scripts } }
     func completedScript(for speech: LibrarySpeech) -> LibraryScriptFile? { scripts.first { $0.script.transcript.sessionId == speech.id } }
 
+    func canRetranscribe(_ sessionID: String) -> Bool {
+        canLeave && notesValid && folders[.scripts] != nil && !RecordingWorkspace.shared.capture.phase.busy &&
+        !CorrectionWorkspace.shared.busy && ProcessingWorkspace.shared.canRetranscribe(sessionID)
+    }
+    func retranscribeSpeech() {
+        guard let speech else { return }
+        retranscribe(sessionID: speech.id, input: notes)
+    }
+    func retranscribeScript(_ file: LibraryScriptFile) {
+        let sessionID = file.script.transcript.sessionId
+        let input = selectedSpeechID == sessionID ? notes : speeches.first { $0.id == sessionID }?.notes ?? file.script.input
+        retranscribe(sessionID: file.script.transcript.sessionId, input: input)
+    }
+    private func retranscribe(sessionID: String, input: ConversionNotes) {
+        guard canRetranscribe(sessionID), let root else { return }
+        busy = true; preparingSpeechID = sessionID; playback.stop()
+        Task {
+            defer { busy = false; preparingSpeechID = nil }
+            do {
+                try await persistNotes()
+                let manifest = try await AudioLibrary(root: root).prepareAnalysis(sessionID)
+                let prepared = try await CorrectionWorkspace.shared.preparedInput(input, enabled: CorrectionWorkspace.shared.automatic)
+                ProcessingWorkspace.shared.reviewTransmission(manifest, input: prepared, retranscribing: true)
+            } catch { message = "재전사할 원음을 준비하지 못했습니다. 이 Mac의 내부 녹음과 참고 폴더 접근을 확인해 주세요. 전송하지 않았습니다." }
+        }
+    }
+
+    func deleteSpeech(_ speech: LibrarySpeech) {
+        guard !foldersLocked, let store, let folder = folders[.speeches] else { return }
+        busy = true; playback.stop()
+        guard confirmDeletion(title: speech.title, kind: "Speech", detail: "선택한 녹음 파일 또는 녹음 묶음을 휴지통으로 이동합니다. 연결된 Scripts와 내부 원음 사본은 남아 재생·재전사에 사용할 수 있습니다.") else { busy = false; return }
+        Task {
+            defer { busy = false }
+            do {
+                try await store.trashSpeech(speech, in: folder)
+                speeches.removeAll { $0.fileURL == speech.fileURL }
+                if selectedSpeechID == speech.id { setSpeech(speeches.first?.id) }
+                message = "Speech를 휴지통으로 이동했습니다. 연결된 Scripts와 내부 복구 사본은 유지됩니다."
+            } catch { message = "Speech를 삭제하지 못했습니다. 파일 변경 여부와 폴더 권한을 확인한 뒤 새로고침해 주세요. 영구 삭제로 재시도하지 않습니다." }
+        }
+    }
+    func deleteScript(_ file: LibraryScriptFile) {
+        guard !foldersLocked, let store, let folder = folders[.scripts] else { return }
+        busy = true; playback.stop()
+        guard confirmDeletion(title: file.script.title, kind: "Script", detail: "선택한 스크립트 파일을 휴지통으로 이동합니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 내부 복구 이력은 남습니다.") else { busy = false; return }
+        Task {
+            defer { busy = false }
+            do {
+                try await store.trashScript(file, in: folder)
+                scripts.removeAll { $0.url == file.url }
+                if selectedScriptID == file.id { selectedScriptID = scripts.first?.id }
+                message = "Script를 휴지통으로 이동했습니다. 원음과 다른 스크립트는 유지됩니다."
+            } catch { message = "Script를 삭제하지 못했습니다. 파일 변경 여부와 폴더 권한을 확인한 뒤 새로고침해 주세요. 영구 삭제로 재시도하지 않습니다." }
+        }
+    }
+    private func confirmDeletion(title: String, kind: String, detail: String) -> Bool {
+        let alert = NSAlert(); alert.alertStyle = .warning
+        alert.messageText = "\(kind)를 삭제할까요?"
+        alert.informativeText = "\(title)\n\n\(detail)\n\n휴지통에서 되돌릴 수 있습니다. 서버에 전송된 데이터는 삭제하지 않습니다."
+        alert.addButton(withTitle: "취소"); alert.addButton(withTitle: "휴지통으로 이동")
+        return alert.runModal() == .alertSecondButtonReturn
+    }
+
     func convert() {
         guard canLeave, notesValid, let speech, let root, folders[.scripts] != nil else { return }
-        if let existing = completedScript(for: speech) { selectScript(existing.id); return }
         let processing = ProcessingWorkspace.shared
         if let run = processing.run(for: speech.id) {
-            if run.stage == "readyForReview" { processingFinished(run); return }
+            if run.stage == "readyForReview" {
+                if let existing = scripts.first(where: { $0.id == run.id }) { selectScript(existing.id) }
+                else { processingFinished(run) }
+                return
+            }
             if processing.canResume(run) { processing.resume(run) }
             else { message = processing.label(run) }
             return
         }
+        if let existing = completedScript(for: speech) { selectScript(existing.id); return }
         let input = notes
         busy = true
         preparingSpeechID = speech.id
@@ -195,17 +263,20 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         }
     }
     func processingFinished(_ run: ManagedRun) {
-        guard let store, let root, let destination = folders[.scripts],
-              let speech = speeches.first(where: { $0.id == run.sessionID }) else {
+        guard let store, let root, let destination = folders[.scripts] else {
             message = "결과는 내부에 보존했습니다. 해당 Speeches와 Scripts 폴더를 선택한 뒤 스크립트를 저장해 주세요."
             return
         }
+        guard savingRunIDs.insert(run.id).inserted else { return }
         // A remote completion may arrive while a different script is being edited.
         Task {
+            defer { savingRunIDs.remove(run.id) }
             do {
-                let document = try await FileSessionRepository(rootURL: root).load(sessionId: run.sessionID, revisionId: nil)
+                guard let speech = try await store.storedSpeech(run.sessionID) else { throw LibraryFailure.missingFile }
+                let document = try await FileSessionRepository(rootURL: root).loadModel(sessionId: run.sessionID, runId: run.id)
                 let result = try await store.createScript(document, speech: speech, input: run.input ?? speech.notes, in: destination)
                 scripts = try await store.scripts(in: destination)
+                savingRunIDs.remove(run.id)
                 if canLeave && !notesDirty { selectedScriptID = result.id; folder = .scripts }
                 message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요."
                 if result.script.correction == nil, run.input?.aiCorrection == true {

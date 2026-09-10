@@ -14,6 +14,15 @@
 - 문장 override는 모델 단어를 덮어쓰지 않고, 새 단어 시간을 추정하지 않는다. 모델 원문 보기는 word.text로, baseline 표시에는 기존 word.editedText를 존중한다.
 - 저장은 내부 `LibraryRevisions/<revisionID>.dama.json` 기록 후 외부 활성 파일을 atomic 쓰기한다. 읽었을 때의 SHA256과 다르면 기존 외부 편집을 덮지 않고 실패한다. 중복 Run ID 파일이 있는 폴더는 임의 하나를 택하지 않고 오류를 표시한다.
 
+## 재전사·라이브러리 삭제 (2026-09-10 사용자 추가 요청, T-15)
+
+- Speeches의 ‘재전사…’와 Scripts의 ‘재전사…’는 내부 보존 원음으로 새 ManagedRun을 생성한다. 기존 ‘변환 재개’는 같은 Run을 이어간다. 새로운 제출은 매번 음성 전송·비용·선택한 자동 교정 발췌를 확인받는다. 기존 local-only는 유지한다.
+- 기존 Run이 모두 readyForReview/failed/partialResult/resultExpired/submissionUncertain일 때만 새 제출을 허용한다. 접수 불명 기록이 하나라도 있으면 중복 처리·과금 가능성을 확인창에 명시한다. 미완료/paused/unknownRemoteStatus Run은 새 제출로 우회하지 않는다.
+- 새 결과는 session의 active revision이 아닌 해당 runId의 model을 로드한다. 서로 다른 Run의 Script는 별도 파일이며 이름·문장 override를 자동 이식하지 않는다(INV-09). 기존 파일·원문·수정본·원음은 보존한다. 제목이 같아도 생성 시각과 목록 항목으로 각각 열 수 있다. 실행 상태와 로컬 저장 버튼은 최신 Run에 대응한다.
+- ‘삭제…’와 목록 우클릭의 ‘Speech 삭제…’/‘Script 삭제…’는 선택 폴더의 해당 파일 또는 `.dama-audio` 묶음을 macOS 휴지통으로 보낸다. 확인창 기본 버튼은 ‘취소’, 실행 버튼은 ‘휴지통으로 이동’. 연결 항목·내보낸 Markdown·내부 녹음/Run/LibraryRevisions/index는 남긴다. 내부 원음이 있으므로 Speech를 휴지통으로 보내도 Script의 재생·재전사가 가능하다. 완전 삭제/서버 삭제와 구별해 설명한다.
+- 편집/미저장 입력/녹음/변환/교정/Script 저장 중 삭제를 차단한다. 대상은 선택 폴더 바로 아래여야 하며 symlink·내부 저장소 중첩을 거부한다. 선택 시 hash와 실행 시 hash가 다르면 삭제하지 않는다. 녹음 묶음은 manifest뿐 아니라 원본 청크 hash도 확인한다. 휴지통 이동 실패를 영구 삭제로 대체하지 않는다.
+- 휴지통에서 원래 위치로 복원하면 새로고침으로 다시 표시한다. index를 보존하므로 같은 Speech의 session/입력 연결을 유지한다. 내부 녹음 복구 또는 완료 Run의 ‘스크립트 저장’은 사용자가 명시적으로 보존 사본을 다시 만드는 동작이다.
+
 ## Markdown 내보내기
 
 제품 내보내기는 `.md` 하나다. 코드의 기존 Core JSON/TXT exporter는 기존 계약 호환용으로 남지만 새 라이브러리 UI에서 노출하지 않는다.

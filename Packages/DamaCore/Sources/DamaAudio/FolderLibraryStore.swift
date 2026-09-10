@@ -21,8 +21,11 @@ public struct LibraryScriptFile: Sendable, Identifiable {
 /// File I/O stays outside MainActor. All caller URLs remain security-scoped for the operation.
 public actor FolderLibraryStore {
     private let root: URL
+    private let trash: @Sendable (URL) throws -> Void
     private var scanning = false
-    public init(root: URL) { self.root = root.standardizedFileURL }
+    public init(root: URL, trash: @escaping @Sendable (URL) throws -> Void = {
+        try FileManager.default.trashItem(at: $0, resultingItemURL: nil)
+    }) { self.root = root.standardizedFileURL; self.trash = trash }
     public static func prepareDefaultFolder(_ name: String, home: URL, other: URL?, internalRoot: URL) throws -> URL {
         guard ["Speeches", "Scripts"].contains(name) else { throw LibraryFailure.invalidInput }
         let url = home.appendingPathComponent("DAMA", isDirectory: true).appendingPathComponent(name, isDirectory: true)
@@ -104,6 +107,7 @@ public actor FolderLibraryStore {
         guard let i = index.firstIndex(where: { $0.id == speechID }) else { throw LibraryFailure.missingFile }
         index[i].notes = notes; try writeIndex(index)
     }
+    public func storedSpeech(_ id: String) throws -> LibrarySpeech? { try readIndex().first { $0.id == id } }
     public func publishRecording(_ record: AudioManifest, to folder: URL) throws {
         guard ["saved", "interrupted"].contains(record.state), !record.sources.isEmpty else { return }
         let destination = folder.appendingPathComponent(record.id + ".dama-audio")
@@ -168,5 +172,38 @@ public actor FolderLibraryStore {
               !destination.path.hasPrefix(root.path + "/"),
               try AudioFiles.hash(file.url) == file.hash else { throw LibraryFailure.changedFile }
         try TranscriptExporter().write(file.script.markdown(), to: destination)
+    }
+
+    private func validateDeletion(_ url: URL, in folder: URL) throws {
+        guard !scanning else { throw LibraryFailure.invalidInput }
+        try safe(url)
+        let folder = folder.standardizedFileURL.resolvingSymlinksInPath()
+        try Self.validateFolder(folder, other: nil, internalRoot: root)
+        guard url.standardizedFileURL.deletingLastPathComponent() == folder else { throw LibraryFailure.unsafePath }
+    }
+    public func trashScript(_ file: LibraryScriptFile, in folder: URL) throws {
+        try validateDeletion(file.url, in: folder)
+        guard file.url.lastPathComponent.hasSuffix(".dama.json"),
+              try AudioFiles.hash(file.url) == file.hash else { throw LibraryFailure.changedFile }
+        try trash(file.url)
+    }
+    public func trashSpeech(_ speech: LibrarySpeech, in folder: URL) throws {
+        try validateDeletion(speech.fileURL, in: folder)
+        let bundle = speech.fileURL.pathExtension == "dama-audio"
+        let hashURL = bundle ? speech.fileURL.appendingPathComponent("capture-manifest.json") : speech.fileURL
+        try safe(hashURL)
+        guard try AudioFiles.hash(hashURL) == speech.sourceHash else { throw LibraryFailure.changedFile }
+        if bundle {
+            let record = try JSONDecoder().decode(AudioManifest.self, from: Data(contentsOf: hashURL))
+            guard record.id == speech.id, !record.sources.isEmpty else { throw LibraryFailure.changedFile }
+            for source in record.sources {
+                guard source.filename == URL(fileURLWithPath: source.filename).lastPathComponent else { throw LibraryFailure.unsafePath }
+                let url = speech.fileURL.appendingPathComponent("source").appendingPathComponent(source.filename)
+                try safe(url)
+                guard try AudioFiles.hash(url) == source.sha256 else { throw LibraryFailure.changedFile }
+            }
+        }
+        // Keep internal audio, run results, index identity and revisions for connected Scripts/recovery.
+        try trash(speech.fileURL)
     }
 }

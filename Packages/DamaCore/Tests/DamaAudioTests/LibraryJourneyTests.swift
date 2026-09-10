@@ -4,6 +4,23 @@ import XCTest
 @testable import DamaAudio
 
 final class LibraryJourneyTests: XCTestCase {
+    func testTrashRejectsChangedScriptWrongFolderAndFilesystemFailure() async throws {
+        let base = try root(), internalRoot = base.appendingPathComponent("internal")
+        let folder = base.appendingPathComponent("Scripts"), other = base.appendingPathComponent("Other")
+        for url in [folder, other] { try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true) }
+        let script = try LibraryScript(transcript: fixture(), title: "합성", recordedAt: nil, dateSource: "미확인", input: ConversionNotes())
+        let url = folder.appendingPathComponent("script.dama.json")
+        let store = FolderLibraryStore(root: internalRoot, trash: { _ in throw CocoaError(.fileWriteNoPermission) })
+        let file = try await store.saveScript(script, to: url, expectedHash: nil)
+        let bytes = try Data(contentsOf: url)
+        do { try await store.trashScript(file, in: other); XCTFail("wrong folder") } catch LibraryFailure.unsafePath {} catch { XCTFail("unexpected \(error)") }
+        do { try await store.trashScript(file, in: folder); XCTFail("trash failure") } catch let error as CocoaError { XCTAssertEqual(error.code, .fileWriteNoPermission) }
+        XCTAssertEqual(try Data(contentsOf: url), bytes)
+        try Data("external edit".utf8).write(to: url)
+        do { try await store.trashScript(file, in: folder); XCTFail("changed file") } catch LibraryFailure.changedFile {} catch { XCTFail("unexpected \(error)") }
+        XCTAssertEqual(try Data(contentsOf: url), Data("external edit".utf8))
+    }
+
     func testDefaultFoldersFirstLaunchAndReopenPreserveExistingFiles() throws {
         let home = try root(), internalRoot = home.appendingPathComponent("internal")
         let speeches = try FolderLibraryStore.prepareDefaultFolder("Speeches", home: home, other: nil, internalRoot: internalRoot)

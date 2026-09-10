@@ -7,6 +7,93 @@ import XCTest
 @testable import DamaManaged
 
 final class ManagedJourneyTests: XCTestCase {
+    func testRetranscriptionCreatesIndependentScriptAndTrashPreservesConnectedData() async throws {
+        let base = try root(), root = base.appendingPathComponent("internal")
+        let speeches = base.appendingPathComponent("Speeches"), scripts = base.appendingPathComponent("Scripts")
+        let trash = base.appendingPathComponent("TestTrash")
+        for folder in [root, speeches, scripts, trash] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        _ = try await recording(root)
+        try FileManager.default.copyItem(at: root.appendingPathComponent("synthetic.wav"), to: speeches.appendingPathComponent("example.wav"))
+        let store = FolderLibraryStore(root: root, trash: { try FileManager.default.moveItem(at: $0, to: trash.appendingPathComponent($0.lastPathComponent)) })
+        let entries = try await store.speeches(in: speeches)
+        let speech = try XCTUnwrap(entries.first)
+        let fake = FakeTransport(final: try fixture())
+        let processor = ManagedProcessor(root: root, transport: fake, sleep: { _ in })
+        let first = try await processor.begin(sessionID: speech.id, confirmed: true, key: "test-only")
+        let repository = FileSessionRepository(rootURL: root)
+        let original = try await repository.loadModel(sessionId: speech.id, runId: first.id)
+        let file = try await store.createScript(original, speech: speech, input: ConversionNotes(), in: scripts)
+        var edit = file.script
+        try edit.renameTitle("사람 수정 제목"); try edit.rename(original.turns[0].id, name: "사람 이름", scope: .all)
+        try edit.editText(original.turns[0].id, text: "사람 수정 문장")
+        let saved = try await store.saveScript(edit, to: file.url, expectedHash: file.hash)
+        let before = try Data(contentsOf: saved.url)
+        do { _ = try await processor.begin(sessionID: speech.id, confirmed: true, key: "test-only"); XCTFail("duplicate default begin") } catch {}
+        do { _ = try await processor.begin(sessionID: speech.id, confirmed: false, key: "test-only", retranscribing: true); XCTFail("fresh consent required") } catch {}
+        let secondInput = ConversionNotes(speakerCount: 2, context: "new input")
+        let second = try await processor.begin(sessionID: speech.id, confirmed: true, key: "test-only", input: secondInput, retranscribing: true)
+        XCTAssertEqual(second.stage, "readyForReview"); XCTAssertNotEqual(first.id, second.id)
+        let newDocument = try await repository.loadModel(sessionId: speech.id, runId: second.id)
+        let newFile = try await store.createScript(newDocument, speech: speech, input: secondInput, in: scripts)
+        XCTAssertEqual(newFile.id, second.id); XCTAssertNotEqual(newFile.url, saved.url)
+        XCTAssertTrue(newFile.script.turnNames.isEmpty); XCTAssertTrue(newFile.script.turnTexts.isEmpty)
+        XCTAssertEqual(newFile.script.input, secondInput)
+        XCTAssertEqual(try Data(contentsOf: saved.url), before)
+        let reopened = try await FolderLibraryStore(root: root).scripts(in: scripts)
+        XCTAssertEqual(reopened.count, 2)
+        let calls = await fake.calls
+        XCTAssertEqual(calls.filter { $0 == "POST /v1/diarize" }.count, 2)
+        // Deleting the visible Speech retains audio needed by both Scripts and reprocessing.
+        try await store.trashSpeech(speech, in: speeches)
+        let remainingSpeeches = try await store.speeches(in: speeches)
+        XCTAssertTrue(remainingSpeeches.isEmpty)
+        let analysis = try await AudioLibrary(root: root).prepareAnalysis(speech.id)
+        XCTAssertNotNil(analysis.analysis)
+        let retained = try await store.storedSpeech(speech.id)
+        XCTAssertEqual(retained?.sourceHash, speech.sourceHash)
+        try await store.trashScript(saved, in: scripts)
+        let remainingScripts = try await FolderLibraryStore(root: root).scripts(in: scripts)
+        XCTAssertEqual(remainingScripts.map(\.id), [second.id])
+        XCTAssertEqual(try Data(contentsOf: trash.appendingPathComponent(saved.url.lastPathComponent)), before)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("LibraryRevisions/\(saved.script.revisionID).dama.json").path))
+        let preservedModel = try await repository.loadModel(sessionId: speech.id, runId: first.id)
+        XCTAssertEqual(preservedModel.runId, first.id)
+        // Restore from trash: the Speech keeps its session identity; both Scripts remain separate.
+        try FileManager.default.moveItem(at: trash.appendingPathComponent(speech.fileURL.lastPathComponent), to: speech.fileURL)
+        try FileManager.default.moveItem(at: trash.appendingPathComponent(saved.url.lastPathComponent), to: saved.url)
+        let restored = try await store.speeches(in: speeches)
+        XCTAssertEqual(restored.first?.id, speech.id)
+        let restoredScripts = try await store.scripts(in: scripts)
+        XCTAssertEqual(restoredScripts.count, 2)
+        let bundles = base.appendingPathComponent("Bundles")
+        try FileManager.default.createDirectory(at: bundles, withIntermediateDirectories: true)
+        try await store.publishRecording(analysis, to: bundles)
+        let bundled = try await store.speeches(in: bundles)
+        let bundle = try XCTUnwrap(bundled.first)
+        let chunk = bundle.fileURL.appendingPathComponent("source").appendingPathComponent(analysis.sources[0].filename)
+        let chunkBytes = try Data(contentsOf: chunk)
+        try Data("changed source".utf8).write(to: chunk)
+        do { try await store.trashSpeech(bundle, in: bundles); XCTFail("changed bundle source") } catch LibraryFailure.changedFile {} catch { XCTFail("unexpected \(error)") }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: bundle.fileURL.path))
+        try chunkBytes.write(to: chunk)
+        try await store.trashSpeech(bundle, in: bundles)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: bundle.fileURL.path))
+        XCTAssertEqual(try Data(contentsOf: trash.appendingPathComponent(bundle.fileURL.lastPathComponent).appendingPathComponent("source").appendingPathComponent(analysis.sources[0].filename)), chunkBytes)
+    }
+
+    func testRetranscriptionRequiresFinishingPendingRunAndSortsMixedDates() async throws {
+        let root = try root(), audio = try await recording(root)
+        let fake = FakeTransport(final: try fixture())
+        let processor = ManagedProcessor(root: root, transport: fake, sleep: { _ in })
+        let waiting = try await processor.begin(sessionID: audio.id, confirmed: true, key: "")
+        do { _ = try await processor.begin(sessionID: audio.id, confirmed: true, key: "test-only", retranscribing: true); XCTFail("pending run must resume") } catch {}
+        let calls = await fake.calls; XCTAssertTrue(calls.isEmpty)
+        var older = waiting, newer = waiting
+        older = ManagedRun(id: "old", sessionID: audio.id, createdAt: "2026-09-10T00:00:00Z", consent: true, stage: "readyForReview")
+        newer = ManagedRun(id: "new", sessionID: audio.id, createdAt: "2026-09-10T00:00:00.123Z", consent: true, stage: "readyForReview")
+        XCTAssertGreaterThan(newer.creationDate, older.creationDate)
+    }
+
     func testConversionInputSnapshotSurvivesCredentialResume() async throws {
         let root = try root(), record = try await recording(root)
         let fake = FakeTransport(final: try fixture())
@@ -215,6 +302,11 @@ final class ManagedJourneyTests: XCTestCase {
         try JSONEncoder().encode(crashed).write(to: root.appendingPathComponent("Sessions/\(run.sessionID)/runs/\(run.id)/state.json"))
         let recovered = try await restarted.runs(recover: true)
         XCTAssertEqual(recovered[0].stage, "submissionUncertain")
+        do { _ = try await restarted.begin(sessionID: record.id, confirmed: false, key: "test-only", retranscribing: true); XCTFail("explicit confirmation required") } catch {}
+        let explicit = try await restarted.begin(sessionID: record.id, confirmed: true, key: "test-only", retranscribing: true)
+        XCTAssertNotEqual(explicit.id, run.id)
+        let explicitSubmits = await fake.calls.filter { $0 == "POST /v1/diarize" }.count
+        XCTAssertEqual(explicitSubmits, 2)
     }
 
     func testHTTPFailuresAndLocalOnly() async throws {
