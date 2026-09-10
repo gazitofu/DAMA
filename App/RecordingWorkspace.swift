@@ -21,7 +21,10 @@ final class RecordingWorkspace: ObservableObject {
             self.root = root
             let library = AudioLibrary(root: root)
             self.library = library
-            capture.onSaved = { [weak self] saved in self?.refreshAndPrepare(saved.id) }
+            capture.onSaved = { [weak self] saved in
+                self?.refreshAndPrepare(saved.id)
+                LibraryWorkspace.shared.recordingSaved(saved)
+            }
             Task {
                 defer { ready = true }
                 do { records = try await library.list(recover: true) }
@@ -35,7 +38,7 @@ final class RecordingWorkspace: ObservableObject {
         if !capture.phase.busy && !UserDefaults.standard.bool(forKey: "microphoneIntroductionSeen") {
             let alert = NSAlert()
             alert.messageText = "마이크로 대화를 녹음하고 원본을 이 Mac에 저장합니다."
-            alert.informativeText = "메뉴바 좌클릭은 녹음 시작·종료, 우클릭은 패널 열기입니다. 참석자에게 녹음 사실을 알리고 조직의 보안 정책을 확인해 주세요. API 키 없이 녹음할 수 있습니다."
+            alert.informativeText = "메뉴바 메뉴의 녹음 토글로 시작·종료합니다. 참석자에게 녹음 사실을 알리고 조직의 보안 정책을 확인해 주세요. API 키 없이 녹음할 수 있습니다."
             alert.addButton(withTitle: "마이크 접근 허용")
             alert.addButton(withTitle: "나중에 설정")
             guard alert.runModal() == .alertFirstButtonReturn else { return }

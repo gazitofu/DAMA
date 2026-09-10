@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DAMA · Speeches와 Scripts · 화면 시안 r1</title>
+<style>
+/*__FONTS__*/
+
+/* ══════════ 토큰 (ssot 디자인 시스템 정본 값 그대로. 임의 수정 금지) ══════════ */
+:root{
+  /* 지면 */
+  --paper:#FFFFFF; --paper-2:#F7F7F7; --paper-3:#EDEDED;
+  /* 잉크 */
+  --ink:#1A1A1A; --ink-2:#4A4A4A; --ink-3:#6A6A6A;
+  /* 선 */
+  --hair:#DDDDDD;
+  /* 포인트 6색 (apricot 은 본문 #태그 밑줄 전용) */
+  --rose:#FF4D79; --lilac:#8A4BFF; --sky:#1E8AFF; --lemon:#FFF056; --sage:#29C06E; --apricot:#FFC24D;
+  /* 소프트 14% */
+  --rose-soft:#FFE6EC; --lilac-soft:#EFE6FF; --sky-soft:#DFEFFF; --lemon-soft:#FFFDE7; --sage-soft:#E1F6EB; --apricot-soft:#FFF6E6;
+  /* 틴트 8% */
+  --rose-tint:#FFF1F4; --lilac-tint:#F6F1FF; --sky-tint:#EDF6FF; --lemon-tint:#FFFEF1; --sage-tint:#EEFAF3; --apricot-tint:#FFFAF1;
+  /* 스크림 (이미지 위 텍스트 받침) */
+  --scrim:rgba(34,28,22,.62);
+  /* 내비 모션 공통 이징 */
+  --ease-nav:cubic-bezier(.22,1,.36,1);
+  /* 폰트 */
+  --serif:'KoPub Batang',serif;
+  --sans:'KoPub Dotum',-apple-system,'Apple SD Gothic Neo',sans-serif;
+  --num:'Fraunces',Georgia,serif;
+  --w-num:400; --w-num-strong:600;
+  /* 선 굵기 */
+  --lw:0.5px; --lw-strong:1px;
+  /* 라운딩 */
+  --r:3px;
+  /* 여백 자리 */
+  --sp-page:24px; --sp-block:24px; --sp-el:12px;
+  --sp-sec-above:48px; --sp-sec-head:24px; --sp-sec-body:32px;
+  --sp-grid:24px; --sp-grid-tight:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;font-weight:300;line-height:1.8;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+img{max-width:100%;display:block}
+
+/* ── 라인 아이콘 (Phosphor, 잉크색 단색 에셋) ── */
+.ic{display:inline-block;width:22px;height:22px;background:var(--m) center/contain no-repeat;flex:0 0 auto}
+.ic.inv{--m:url('assets/icons-a/add-inv.svg')}
+.ic-home{--m:url('assets/icons-a/home.svg')}
+.ic-chat{--m:url('assets/icons-a/chat.svg')}
+.ic-tools{--m:url('assets/icons-a/tools.svg')}
+.ic-world{--m:url('assets/icons-a/world.svg')}
+.ic-lounge{--m:url('assets/icons-a/lounge.svg')}
+.ic-add{--m:url('assets/icons-a/add.svg')}
+.ic-player{--m:url('assets/icons-a/player.svg')}
+.ic-turn{--m:url('assets/icons-a/turn.svg')}
+
+.col{max-width:920px;margin:0 auto;padding:0 24px}
+
+/* ── 문서 헤더 ── */
+header.doc{padding:64px 0 40px;border-bottom:var(--lw-strong) solid var(--ink)}
+.doc .date{font-family:var(--num);font-weight:var(--w-num-strong);font-size:64px;line-height:.95;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.doc .meta{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-top:10px;letter-spacing:.03em}
+.doc h1{font-family:var(--serif);font-weight:700;font-size:30px;line-height:1.35;margin-top:22px;letter-spacing:-.01em}
+.doc .sub{margin-top:12px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.hl{background:linear-gradient(transparent 60%, var(--lemon) 60%);font-weight:500;color:var(--ink)}
+code{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;background:var(--paper-2);padding:1px 5px}
+
+/* ── 00 판정 블록 (헤더 바로 아래 · 사용자가 답할 것만 · 열림/닫힘 2상태) ── */
+.verdict{margin-top:28px;border:var(--lw-strong) solid var(--ink);background:var(--paper)}
+.verdict .vh{display:flex;align-items:baseline;gap:12px;padding:14px 20px;border-bottom:var(--lw) solid var(--ink);background:var(--paper-2)}
+.verdict .vh h2{font-family:var(--serif);font-size:18px;font-weight:700}
+.verdict .vh .cnt{font-family:var(--num);font-size:13px;color:var(--ink-3)}
+.verdict .vh .stamp{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--lemon);padding:2px 8px}
+.verdict[data-state="closed"] .stamp{display:none}
+.verdict .vb{padding:6px 20px 18px}
+.vitem{padding:14px 0;border-bottom:var(--lw) solid var(--hair)}
+.vitem:last-child{border-bottom:0}
+.vitem .vt{display:flex;gap:10px;align-items:baseline;font-weight:700;font-size:14.5px}
+.vitem .vt .id{font-family:var(--num);font-weight:400;color:var(--ink-3);font-size:13px;min-width:44px;flex:0 0 auto}
+.vitem .vq{margin:6px 0 0 54px;color:var(--ink-2);font-size:13.5px;max-width:66ch}
+.vitem .vq b{color:var(--ink)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 54px}
+.opts label{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer;user-select:none;line-height:1.4}
+.opts label:has(input:checked){background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.opts label code{color:inherit}
+.opts label:has(input:checked) code{background:rgba(255,255,255,.18)}
+.opts input{position:absolute;opacity:0;width:0;height:0}
+.memo{margin:8px 0 0 54px}
+.memo input{font-family:var(--sans);font-weight:300;font-size:13.5px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--hair);background:none;padding:6px 2px;width:100%;outline:none;border-radius:0}
+.memo input:focus{border-bottom-color:var(--ink)}
+.memo input::placeholder{color:var(--ink-3)}
+.vfoot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 20px;border-top:var(--lw-strong) solid var(--ink);background:var(--paper-2)}
+.vfoot .ok{font-size:12.5px;color:var(--ink-3)}
+.verdict pre.md{margin:0;padding:14px 20px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6;color:var(--ink-2);background:var(--paper);border-top:var(--lw) solid var(--hair);white-space:pre-wrap;user-select:all}
+.verdict[data-state="closed"] .opts,.verdict[data-state="closed"] .memo,.verdict[data-state="closed"] .vfoot,.verdict[data-state="closed"] pre.md{display:none}
+
+/* ── 문서 내비 ── */
+.tabs{position:sticky;top:0;z-index:40;background:var(--paper);border-bottom:var(--lw) solid var(--hair)}
+.tabs .row{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;padding:0 24px;max-width:920px;margin:0 auto}
+.tabs .row::-webkit-scrollbar{display:none}
+.tabs a{text-decoration:none;font-family:var(--sans);font-size:13.5px;font-weight:700;color:var(--ink-3);padding:14px 0 12px;white-space:nowrap}
+.tabs a:hover{color:var(--ink)}
+
+/* ── 섹션 문법 ── */
+section.sec{padding-top:88px}
+.sec>.rule{border-top:var(--lw-strong) solid var(--ink);padding-top:20px;display:flex;align-items:baseline;gap:14px}
+.sec>.rule .no{font-family:var(--num);font-weight:var(--w-num);font-size:15px;color:var(--ink-3)}
+.sec>.rule h2{font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.01em}
+.sec .intro{margin-top:14px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.sec p:not([class]){margin-top:14px;max-width:66ch}
+.sec h3{font-family:var(--sans);font-weight:700;font-size:15px;margin-top:46px;padding-top:12px;border-top:var(--lw) solid var(--ink)}
+.sec h4{font-family:var(--serif);font-weight:700;font-size:15.5px;margin-top:22px}
+.note{margin-top:12px;font-size:12.5px;color:var(--ink-3);max-width:66ch}
+
+/* ── 리스트 (병렬 항목은 본문·표 셀 어디서든 한 항목 한 줄 · 가운뎃점 연결 금지) ── */
+.sec ol,.sec ul{margin:10px 0 0;padding-left:1.6em;max-width:66ch}
+.sec li{margin-top:5px;padding-left:.2em}
+.sec li::marker{font-family:var(--num);color:var(--ink-3);font-size:13px}
+td ol,td ul{margin:0;padding-left:1.5em;max-width:none}
+td li{margin-top:3px}
+td li:first-child{margin-top:0}
+.sec td p:not([class]){margin-top:6px;max-width:none}
+.sec td p:not([class]):first-child{margin-top:0}
+.then{display:block;margin-top:6px}
+
+/* ── 표 (2차원 데이터만 · 셀 안 병렬 항목은 리스트) ── */
+.twrap{overflow-x:auto;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.65}
+th{text-align:left;font-weight:700;font-size:12px;color:var(--ink-3);background:var(--paper-2);padding:8px 12px;border-bottom:var(--lw) solid var(--ink);white-space:nowrap}
+td{padding:10px 12px;border-bottom:var(--lw) solid var(--hair);vertical-align:top;font-weight:300}
+td strong,td b{font-weight:700}
+td.num,.tnum{font-family:var(--num);font-weight:var(--w-num);font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap}
+
+/* ── 각주 (본문에는 번호만 · 정보는 최하단 · 클릭 팝오버. 저자는 span.fn 으로 근거를 쓰고 빌드가 번호를 단다) ── */
+sup.fn{font-family:var(--num);font-size:11px;line-height:0;vertical-align:super;margin-left:1px}
+sup.fn a{color:var(--sky);text-decoration:none;padding:0 2px;border-radius:2px;cursor:pointer}
+sup.fn a:hover,sup.fn a.open{background:var(--sky-soft)}
+.pop{position:absolute;z-index:50;max-width:400px;min-width:220px;padding:10px 12px 11px;background:var(--paper);border:var(--lw) solid var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.10);font-size:12.5px;line-height:1.65;color:var(--ink-2);font-weight:300}
+.pop .pn{font-family:var(--num);color:var(--ink-3);margin-right:6px}
+.pop::after{content:'';position:absolute;left:10px;bottom:-6px;width:10px;height:10px;background:var(--paper);border-right:var(--lw) solid var(--ink);border-bottom:var(--lw) solid var(--ink);transform:rotate(45deg)}
+.pop.below::after{bottom:auto;top:-6px;transform:rotate(225deg)}
+.fnlist{margin-top:14px;padding-left:0;list-style:none;font-size:12.5px;color:var(--ink-2);line-height:1.65;max-width:72ch}
+.fnlist li{display:flex;gap:10px;padding:5px 0;border-bottom:var(--lw) solid var(--hair)}
+.fnlist li:target{background:var(--sky-soft)}
+.fnlist .n{font-family:var(--num);color:var(--ink-3);min-width:22px;flex:0 0 auto}
+.fnlist .t{flex:1 1 auto}
+.fnlist .back{margin-left:6px;color:var(--sky);text-decoration:none;flex:0 0 auto}
+details.audit{margin-top:28px;border-top:var(--lw) solid var(--hair);padding-top:10px}
+details.audit summary{cursor:pointer;font-size:12.5px;color:var(--ink-3);font-weight:500}
+details.audit .body{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.65}
+details.audit table{font-size:12.5px}
+
+/* ── 데모 프레임과 스펙 ── */
+.stage{display:flex;flex-wrap:wrap;gap:24px;margin-top:20px;align-items:flex-start}
+.frame{width:400px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);flex:0 0 auto}
+.frame .fbody{padding:20px 18px 24px}
+.spec{flex:1 1 260px;min-width:240px;font-size:13px}
+.spec dt{font-weight:700;font-size:12.5px;margin-top:12px}
+.spec dd{color:var(--ink-2);margin-top:2px;line-height:1.65}
+
+/* ── 컴포넌트 (디자인 시스템 정본 발췌) ── */
+.btn{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:14px;line-height:1;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.fill{background:var(--ink);color:var(--paper);border:var(--lw) solid var(--ink);height:44px;padding:0 22px}
+.btn.line{background:var(--paper);color:var(--ink);border:var(--lw) solid var(--ink);height:40px;padding:0 18px}
+.btn.soft{background:var(--paper-2);color:var(--ink);border:0;height:40px;padding:0 18px}
+.btn.sm{height:34px;padding:0 14px;font-size:13px}
+.btn.text{background:none;border:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;height:auto;padding:4px 2px;font-weight:500}
+.btn:disabled{background:var(--paper-3);border-color:var(--paper-3);color:var(--ink-3);cursor:default}
+.btn:not(:disabled):active{transform:translateY(1px)}
+.btnrow{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.chip.sel{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.htag{display:inline-block;font-size:12px;font-weight:500;color:var(--ink-2);line-height:1.5;padding:0 2px;background:linear-gradient(transparent 62%, var(--lemon) 62%)}
+.in-line{font-family:var(--sans);font-weight:300;font-size:16px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--ink-3);background:none;padding:7px 2px;width:100%;outline:none;border-radius:0}
+.in-line:focus{border-bottom:var(--lw-strong) solid var(--ink)}
+.in-line::placeholder{color:var(--ink-3)}
+.in-area{font-family:var(--sans);font-weight:300;font-size:14.5px;color:var(--ink);background:var(--paper-2);border:var(--lw) solid transparent;border-radius:var(--r);padding:12px 14px;width:100%;outline:none;line-height:1.7;resize:vertical}
+.in-area:focus{border-color:var(--ink)}
+.in-area::placeholder{color:var(--ink-3)}
+.in-label{display:block;font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:6px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:var(--lw) solid var(--hair);font-size:13px}
+.kv .k{color:var(--ink-3);font-weight:500}
+.kv .v{font-weight:500;color:var(--ink)}
+.stat{display:inline-flex;align-items:center;gap:5px;font-family:var(--num);font-weight:var(--w-num);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.stat .ic{width:14px;height:14px;opacity:.72}
+.sechead h4{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.01em}
+.sechead .sub{font-size:13px;color:var(--ink-2);margin-top:4px}
+
+/* ── 폰 프레임 (모바일 프로토타입) ── */
+.phone{width:390px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;position:relative;overflow:hidden}
+.phone .pbody{padding:18px 20px 120px}
+.pdock{position:absolute;left:0;right:0;bottom:0;height:118px;pointer-events:none;background:linear-gradient(to top, var(--paper) 0%, var(--paper) 34%, rgba(255,255,255,0) 100%);display:flex;align-items:flex-end}
+.pdock .icons{width:100%;display:flex;justify-content:space-around;align-items:center;padding:0 10px 18px}
+.pdock .icons .ic{opacity:.38}
+.pdock .icons .ic.on{opacity:1}
+
+/* ── 데스크탑 조합 목업 ── */
+.mock{border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;overflow:hidden}
+.mock .mkhead{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:var(--lw) solid var(--hair)}
+.mock .mkhead .lg{height:16px;width:auto;display:block}
+.mock .mkhead nav{display:flex;gap:20px;font-size:14px;font-weight:700}
+.mock .mkhead nav span{color:var(--ink-3)}
+.mock .mkhead nav span.on{color:var(--ink)}
+.mock .mkhead .util{display:flex;gap:14px;align-items:center;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.mock .mkbody{padding:26px 24px 34px}
+
+/* ── 데스크탑 실척 스테이지 (맥북 뷰포트 1440x820 을 가로폭에 맞춰 비율 그대로 축소.
+     내부는 1440px 고정 가상 뷰포트라 실서비스 데스크탑 레이아웃이 그대로 재현된다.
+     문서 본문 col(920px)보다 넓게 브레이크아웃해 화면 가로폭을 최대로 쓴다) ── */
+.deskwrap{width:calc(100vw - 48px);max-width:1440px;margin:20px auto 0;margin-left:calc(50% - min(50vw - 24px, 720px))}
+.deskstage{position:relative;width:100%;aspect-ratio:1440/820;border:var(--lw) solid var(--ink);background:var(--paper);overflow:hidden}
+.deskvp{position:absolute;left:0;top:0;width:1440px;height:820px;transform-origin:0 0;transform:scale(var(--ds,1));overflow-y:auto;overscroll-behavior:contain}
+.deskcap{font-size:12.5px;color:var(--ink-3);margin-top:10px;font-weight:500}
+
+/* 상태 세그 (프로토타입 상태 전환 컨트롤) */
+.segrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.seg{height:32px;padding:0 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center}
+.seg.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+
+@media (max-width:760px){
+  .col{padding:0 18px}
+  header.doc{padding:44px 0 30px}
+  .doc .date{font-size:46px}
+  .doc h1{font-size:23px}
+  .sec>.rule h2{font-size:19px}
+  .vitem .vq,.opts,.memo{margin-left:0}
+  .pop{max-width:calc(100vw - 36px)}
+}
+
+.col{max-width:1240px}.doc .date{font-size:40px}.doc h1{font-family:var(--sans)}
+.sec{scroll-margin-top:65px}.specnav{display:flex;gap:20px;padding:12px 0;border-bottom:1px solid var(--hair);margin:20px 0}
+.specnav a{color:var(--ink);font-size:13px;text-decoration:none}.native{font:13px/1.5 -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif}
+.native button,.native input,.native textarea,.native select{font:inherit}.native button{cursor:pointer}.native button:disabled{cursor:default;opacity:.45}
+.native h2,.native h3,.native p{margin:0;padding:0;border:0;max-width:none;font-family:inherit}.native button:focus-visible,.native input:focus-visible,.native textarea:focus-visible{outline:2px solid var(--sky);outline-offset:3px}
+.lab{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0}.lab button{background:white;border:1px solid var(--hair);padding:7px 12px;border-radius:6px}.lab .muted{margin-left:auto}
+.muted{color:var(--ink-3);font-size:12px}.demo{border:1px solid var(--hair);border-radius:12px;overflow:hidden;background:var(--paper);box-shadow:0 15px 40px #0000000a}
+.titlebar{height:52px;display:flex;align-items:center;padding:0 18px;gap:20px;background:var(--paper-2);border-bottom:1px solid var(--hair)}
+.traffic{display:flex;gap:7px}.traffic i{height:11px;width:11px;border:1px solid #ccc;border-radius:50%;background:var(--paper-3)}
+.titlebar strong{font-size:13px;letter-spacing:.06em}.titlebar .muted{margin-left:auto}.plain{border:0;background:none;color:var(--ink);padding:6px 8px;border-radius:5px}.plain:hover{background:var(--paper-3)}
+.appbody{height:670px;display:grid;grid-template-columns:260px minmax(0,1fr)}.sidebar{background:var(--paper-2);border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
+.sidehead{display:flex;align-items:center;justify-content:space-between;padding:22px 18px 14px}.sidehead b{font-size:14px}.sidehead small{color:var(--ink-3);font-size:11px}
+.filelist{flex:1;overflow:auto;padding:0 10px}.file{display:block;border:1px solid transparent;background:none;border-radius:8px;padding:14px 12px;text-align:left;width:100%;margin:3px 0 8px}.file:hover{background:var(--paper-3)}.file[aria-current=true]{border-color:var(--hair);background:white;box-shadow:0 2px 3px #00000004}
+.file b{display:block;font-weight:550;margin-bottom:7px}.file time{display:block;color:var(--ink-3);font-size:11px}.badge{display:inline-flex;gap:5px;align-items:center;font-size:10px;padding:3px 7px;border-radius:4px;margin-top:10px;border:1px solid transparent}.pending{color:#a91f38;background:var(--rose-tint);border-color:#f4c2cc}.done{color:#176837;background:var(--sage-tint);border-color:#b8ddc7}.working{color:var(--ink-2);background:var(--paper-3)}
+.sidebottom{padding:12px;border-top:1px solid var(--hair)}.foldernav{display:flex;gap:2px}.foldernav>button:first-child{flex:1;text-align:left;padding:11px 12px;border:0;border-radius:6px;background:none;font-weight:550}.foldernav.active>button:first-child{background:var(--paper-3)}.foldernav>button:last-child{padding:8px;border:0;background:none;color:var(--ink-3)}
+.detail{display:flex;flex-direction:column;min-width:0;min-height:0;background:white}.detailhead{padding:32px 40px 22px;border-bottom:1px solid var(--hair)}.eyebrow{font-size:11px;color:var(--ink-3);letter-spacing:.03em;margin-bottom:10px}.detailhead h2{font-size:25px;letter-spacing:-.035em;font-weight:600}.subline{display:flex;gap:16px;margin-top:10px;font-size:12px;color:var(--ink-3)}
+.detailcontent{flex:1;overflow:auto;padding:26px 40px}.formrow{margin-bottom:21px;max-width:660px}.formrow label{display:block;font-size:13px;font-weight:550;margin-bottom:8px}.formrow input,.formrow textarea{display:block;width:100%;padding:11px 12px;border:1px solid var(--hair);border-radius:6px;background:white;color:var(--ink);resize:vertical}.formrow input[type=number]{max-width:160px}.formrow small{display:block;color:var(--ink-3);margin-top:7px;font-size:11px}
+.detailfoot{padding:18px 40px;border-top:1px solid var(--hair);display:flex;justify-content:space-between;align-items:center;gap:20px}.primary{background:var(--ink);border:1px solid var(--ink);border-radius:6px;color:white;padding:10px 29px;font-weight:550!important}.secondary{background:white;border:1px solid var(--hair);border-radius:6px;padding:9px 14px;color:var(--ink)}
+.notice{padding:12px 16px;background:var(--paper-2);border:1px solid var(--hair);border-radius:6px;font-size:12px;line-height:1.8}.scriptbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.turn{padding:19px 0;border-bottom:1px solid var(--hair)}.turntop{display:flex;align-items:center;gap:10px;margin-bottom:10px}.turntop time{font:11px ui-monospace,monospace;color:var(--ink-3);margin-left:auto}.speaker{padding:4px 9px;margin-left:-9px;background:none;border:0;border-radius:5px;font-weight:600!important}.speaker:hover{background:var(--paper-2)}.lineedit{display:block;width:100%;background:none;border:1px solid transparent;border-radius:4px;padding:6px 8px;margin-left:-8px;font-size:16px!important;line-height:1.85!important;resize:vertical;min-height:48px;color:var(--ink)}.lineedit:hover,.lineedit:focus{border-color:var(--hair)}
+.empty{display:flex;flex:1;align-items:center;justify-content:center;text-align:center;flex-direction:column;gap:12px;padding:50px}.empty h2{font-size:20px}.empty p{color:var(--ink-3);font-size:13px}
+.menuarea{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}.macbar{background:var(--paper-2);border:1px solid var(--hair);border-radius:9px;padding:12px;width:330px}.menutop{display:flex;align-items:center;justify-content:flex-end;gap:15px;height:30px}.micbutton{border:0;background:none;color:var(--ink);padding:4px 9px}.micbutton svg{width:17px;height:20px;display:block}.micbutton.recording{color:#c3263e}.menu{border:1px solid var(--hair);border-radius:8px;background:white;padding:6px;box-shadow:0 6px 16px #00000010}.menu button{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:none;padding:10px 12px;border-radius:5px;text-align:left;color:var(--ink)}.menu button:hover{background:var(--paper-2)}.switch{width:30px;height:18px;background:var(--paper-3);border:1px solid var(--hair);border-radius:12px;position:relative}.switch:after{content:'';position:absolute;width:14px;height:14px;top:1px;left:1px;border-radius:50%;background:white;box-shadow:0 1px 2px #0003}.switch.on{background:#c3263e;border-color:#c3263e}.switch.on:after{left:13px}.menu hr{border:0;border-top:1px solid var(--hair);margin:4px 0}
+dialog{border:1px solid var(--hair);border-radius:12px;padding:26px;width:480px;max-width:calc(100vw - 32px);margin:auto;box-shadow:0 20px 80px #0002;color:var(--ink)}dialog::backdrop{background:#0003}dialog h2{font-size:19px;margin-bottom:10px!important}dialog p{font-size:13px;color:var(--ink-2);margin-bottom:16px!important}.dialogactions{display:flex;justify-content:flex-end;gap:9px;margin-top:22px}.scopeopt{display:flex;gap:9px;padding:10px 0;border-bottom:1px solid var(--hair)}.scopeopt span{font-size:13px}.scopeopt small{display:block;color:var(--ink-3);font-size:11px}.renamefield{width:100%;padding:11px;border:1px solid var(--hair);border-radius:6px;margin:12px 0}.folderrow{padding:12px 0;border-bottom:1px solid var(--hair);display:flex;align-items:center;justify-content:space-between;gap:12px}.folderrow b{display:block;font-size:13px}.folderrow small{color:var(--ink-3);font-size:11px}.folderrow button{border:1px solid var(--hair);padding:6px 10px;background:white;border-radius:5px}
+.smallcallout{font-size:12px;padding:12px 16px;background:var(--paper-2);border-left:2px solid var(--ink);margin-top:18px}.docdetails{margin-top:28px}.docdetails summary{cursor:pointer;font-size:14px;font-weight:600}.checks{font-size:13px}.checks li{margin-bottom:7px}
+[hidden]{display:none!important}
+@media(max-width:900px){.appbody{grid-template-columns:210px minmax(0,1fr)}.detailhead,.detailcontent{padding:24px}.detailfoot{padding:16px 24px}.titlebar .muted{display:none}}
+@media(max-width:650px){.demo{min-width:760px}.previewscroll{overflow:auto}.col{padding:0 16px}.lab .muted{margin-left:0}.appbody{height:640px}.vitem .vq,.opts,.memo{margin-left:0}}
+
+.filetitle,.statusbutton{padding:0;border:0;background:none;text-align:left;color:inherit}.filetitle{display:block;width:100%}.statusbutton{display:block}
+</style>
+</head>
+<body>
+
+<div class="col">
+<header class="doc"><div class="date">09.10</div><div class="meta">DAMA · LIBRARY WORKSPACE · r1</div>
+<h1>녹음을 고르고, 스크립트를 다듬는 두 화면.</h1>
+<p class="sub">Speeches에서 변환하고 Scripts에서 읽고 수정합니다. 메뉴바는 녹음과 앱 열기만 남깁니다.</p></header>
+<section class="verdict" id="s-verdict" data-unit="library-workspace" data-round="r1" data-gate="①" data-state="closed">
+<div class="vh"><h2>화면 확인</h2><span class="cnt">화면 확인 1 · 처리 방식 확정</span><span class="stamp">2026-09-10 사용자 확정</span></div><div class="vb">
+<div class="vitem" data-k="①"><div class="vt"><span class="id">①</span>두 화면과 화자 이름 변경</div><p class="vq">아래 시안에서 Speeches/Scripts 전환, 변환, 화자 이름 클릭, 메뉴바 녹음 토글을 확인합니다. 모든 예시는 합성 데이터이며 실제 파일·API를 사용하지 않습니다.</p><div class="opts"><label><input type="radio" name="screen" value="확정" checked>확정</label><label><input type="radio" name="screen" value="수정">수정</label></div><div class="memo"><input type="text" placeholder="수정할 부분"></div></div>
+</div><div class="vfoot"><button class="btn fill sm" data-act="copy">회신 복사</button><button class="btn line sm" data-act="reset">초기화</button><span class="ok">시안 확인은 실제 음성 전송 승인과 별개입니다.</span></div><pre class="md"></pre></section>
+<nav class="specnav"><a href="#s-screen">앱 시안</a><a href="#s-menu">메뉴바</a><a href="#s-policy">동작 규칙</a><a href="#s-impact">구현 영향</a></nav>
+<section id="s-screen" class="sec" style="padding-top:24px"><div class="rule"><span class="no">01</span><h2>Speeches / Scripts</h2></div>
+<p class="intro">왼쪽 목록은 최신순, 아래 두 버튼은 폴더 전환입니다. 각 폴더 옆의 선택 버튼으로 저장 위치를 바꿉니다. 설정에는 두 폴더와 API 키만 둡니다.<span class="fn">사용자 2026-09-10 요구 1–6. 괄호의 ‘1, 2번’은 명시한 Speeches·Scripts에 따라 폴더 1·4로 해석. 창·설정·메뉴의 공식 표기는 DAMA; 다마는 한국어 호칭.</span></p>
+<div class="lab native"><button id="resetDemo">시안 초기화</button><button id="emptyDemo">빈 폴더 보기</button><span class="muted">합성 데이터 시안 · 파일 저장·음성 전송 없음</span></div>
+<div class="previewscroll"><div class="demo native" id="appDemo">
+<div class="titlebar"><div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div><strong>DAMA</strong><span class="muted" id="topstate">녹음 준비</span><button class="plain" id="settingsButton" aria-label="DAMA 설정">설정</button></div>
+<div class="appbody"><aside class="sidebar"><div class="sidehead"><b id="folderTitle">Speeches</b><small>최신순</small></div><div class="filelist" id="filelist"></div>
+<div class="sidebottom"><div class="foldernav active" id="navSpeeches"><button id="speechesButton">▱ &nbsp; Speeches</button><button data-folder="0" aria-label="Speeches 폴더 선택">선택</button></div><div class="foldernav" id="navScripts"><button id="scriptsButton">▱ &nbsp; Scripts</button><button data-folder="1" aria-label="Scripts 폴더 선택">선택</button></div></div></aside>
+<main class="detail" id="detail"></main></div></div></div>
+<p class="note">새 화면 후보: 기본 1180×760pt, 최소 900×600pt. 2열 구성, 오른쪽 상시 근거 패널 제거. 선택한 이슈의 세부 근거는 필요할 때 펼칩니다. 브라우저 시안은 폭에 맞춰 표시하며, 실제 AppKit 창 치수·접근성 검증과 구분합니다.</p>
+</section>
+<section id="s-menu" class="sec"><div class="rule"><span class="no">02</span><h2>메뉴바는 네 항목</h2></div><p class="intro">아이콘 클릭으로 메뉴가 열립니다. 녹음 중에는 같은 마이크 아이콘이 빨간색이고, 그 외에는 시스템 모노톤입니다.</p>
+<div class="menuarea native" style="margin-top:20px"><div class="macbar"><div class="menutop"><button class="micbutton" id="micButton" aria-label="DAMA 메뉴 열기" aria-expanded="true"><svg viewBox="0 0 20 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="6" y="1" width="8" height="13" rx="4"/><path d="M3 10v2a7 7 0 0 0 14 0v-2M10 19v4M6 23h8"/></svg></button><span class="muted">목 09:41</span></div><div class="menu" id="damaMenu"><button id="recordToggle" role="switch" aria-checked="false"><span id="recordLabel">녹음 시작</span><i class="switch" id="recordSwitch" aria-hidden="true"></i></button><hr><button id="openDama">Open DAMA</button><button id="versionDama">DAMA Version info</button><hr><button id="quitDama">Quit DAMA</button></div></div><div style="max-width:520px"><p>좌클릭과 우클릭 모두 메뉴를 엽니다. 메뉴가 열려도 녹음은 계속됩니다. 토글로 시작한 뒤 실제 입력 프레임을 받은 시점부터 빨간색을 표시합니다.</p><p style="margin-top:14px">시작·저장 중에는 토글을 비활성화하고 ‘녹음 시작 중’·‘녹음 저장 중’으로 표시합니다. Quit DAMA는 녹음 중이면 ‘녹음 계속’ 또는 ‘저장 후 종료’를 확인합니다.</p></div></div></section>
+<section id="s-policy" class="sec"><div class="rule"><span class="no">03</span><h2>동작 규칙</h2></div>
+<h3>2026-09-10 확정 추가 요청</h3><ul><li>하단 폴더별 선택 버튼은 ‘폴더 선택… / Finder에서 열기’ 드롭다운 메뉴. Speeches/Scripts 탐색은 유지한다.</li><li>Script 제목을 수정·저장한다. 제목 변경은 파일 식별자나 목록 정렬 시각을 바꾸지 않는다.</li><li>제품의 내보내기는 Markdown(.md) 한 개다. 제목, 녹음 날짜·시간·시간대·길이, 변환 전 입력 화자 수(공백=자동), 맥락, 참고 정보, 각 발화의 화자 표시 이름·시작/끝 타임스탬프·현재 수정 대화를 포함한다. 시간 미제공은 미확인으로 표시하며 원문·미확정/누락 이슈를 숨기지 않는다. 앱이 회의록을 자동 생성하거나 다른 AI에 자동 전송하지 않는다.</li><li>변환 당시 입력값의 snapshot은 스크립트와 함께 고정한다. 이후 Speech 메모를 바꿔도 과거 Script의 입력 정보는 바뀌지 않는다.</li><li>범위별 표시 이름·문장 수정·제목·녹음 정보를 담는 LibraryScript envelope를 추가하고 기존 normalized transcript v1은 그대로 보존한다. 외부 Scripts에는 .dama.json 편집 파일, 내보내기는 사용자 선택 경로의 .md. 원문 v1을 변경했다고 위장하지 않는다.</li></ul><h3>두 폴더</h3><p>사용자 확정: pyannote.ai가 Whisper까지 통합 처리합니다. 중간 결과는 앱 내부에 보존하고 사용자 지정 폴더는 Speeches와 Scripts만 둡니다.<span class="fn">사용자 2026-09-10 후속: 별도 폴더 분리 필요 없음, 기존 안 유지, 최종 스크립트만 필요. 통합 처리 관련 필드는 공식 요청 계약 (https://docs.pyannote.ai/api-reference/diarize) 및 통합 전사 (https://docs.pyannote.ai/tutorials/speech-to-text-diarization)에서 재확인.</span></p><div class="twrap"><table><tr><th>위치</th><th>내용</th><th>설정과 보존</th></tr>
+<tr><td>Speeches</td><td>반입 원본 또는 녹음별 원본 청크 묶음, 녹음 정보</td><td>사용자가 지정. 30초 청크는 UI에서 녹음 하나로 표시. 원본 자동 이동·삭제 없음.</td></tr>
+
+
+<tr><td>Scripts</td><td>편집 가능한 스크립트(.dama.json). 원본·모델 결과·수정 revision 구분</td><td>정본은 LibraryScript 구조화 파일. Markdown은 저장된 수정본에서 내보내기. 같은 이름 덮어쓰기 금지, 녹음/Run ID로 식별.</td></tr></table></div>
+<ul><li>첫 선택은 macOS 폴더 선택 창. 재클릭은 해당 목록 전환; 옆 ‘선택’은 위치 변경. 설정에서 두 위치와 API 키를 관리합니다. 시안의 경로는 예시이며 실제 사용자 경로를 고르지 않습니다.</li><li>동일 폴더·상하위 중첩 선택은 거부해 파일 중복 수집을 막습니다. 다른 폴더로 바꿔도 기존 파일을 옮기거나 삭제하지 않습니다. 처리/녹음 중 위치 변경은 종료 후 가능합니다.</li><li>폴더 권한 상실·외장 디스크 분리 시 ‘폴더에 접근할 수 없습니다. 다시 선택해 주세요.’와 재선택을 제공합니다. 기존 내부 녹음 안전 저장소는 유지하고 선택 Speeches로 내보내기 실패를 안내합니다. 사용자 폴더 문제로 확정된 녹음 원본을 잃지 않습니다.</li><li>목록은 녹음 시각 내림차순, 외부 파일은 파일 생성 시각을 사용하고 가져온 시각과 구분합니다. Scripts는 스크립트 생성 시각 순으로, 이름·문장 수정은 순서를 바꾸지 않습니다. 예: 2026-09-10 09:30이 2026-09-09 16:00보다 먼저. 동률은 안정 ID 순입니다.</li></ul>
+<h3>Speech 선택 → 정보 입력 → 변환 → Scripts</h3><ul><li>총 참여 화자 수는 선택 입력. 공백이면 자동, 1 이상의 정수만 허용. 설정값은 녹음별 저장하고 변환 시 고정합니다. 현재 API의 numSpeakers로 전달하며 근거 없는 상한을 만들지 않습니다.</li><li>맥락과 참고 정보는 녹음별 원문 그대로 저장합니다. 통합 처리 유지 시 로컬 검수 참고용임을 입력란 아래 표시합니다. 모델에 전달하지 않은 정보를 ‘전사에 반영됨’으로 표현하지 않습니다. 맥락으로 원문을 윤문하거나 화자를 추정하지 않습니다.</li><li>변환 버튼은 대상 파일·길이·전송 서비스를 제시하는 건별 확인으로 이어집니다. 동의 후 한 번 제출하며 더블클릭·창 재개로 추가 제출하지 않습니다. 비용 인정은 실제 파일 업로드에 대한 포괄 승인으로 해석하지 않습니다.</li><li>통합 방식의 처리 중 문구는 ‘화자 분리·전사 중’입니다. 단계별 상태를 공급자가 주지 않으면 퍼센트나 독립 단계 완료를 만들지 않습니다. 결과 준비 후 내부 원 응답·스크립트 저장을 확인해야 ‘변환완료’가 됩니다.</li><li>이미 완료한 Speech는 초록색 ‘변환완료’ 버튼으로 대응 Script를 엽니다. 미변환은 빨간색 ‘변환필요’ 버튼으로 상세 변환 영역을 엽니다. 완료 표시는 정확도 확인 완료를 뜻하지 않습니다.</li><li>일부 저장만 성공하면 ‘저장 필요’와 로컬 저장 재시도를 제공합니다. 원격 결과가 있는데 다시 API 제출하지 않습니다. 스크립트 외부 삭제 시 완료 이력은 유지하며 ‘스크립트 없음’·로컬 결과 복구를 안내합니다.</li></ul>
+<div class="twrap"><table><tr><th>상태</th><th>목록·상세 문구</th><th>다음 동작</th></tr><tr><td>미변환</td><td>변환필요 / 변환</td><td>정보 입력 및 건별 전송 확인</td></tr><tr><td>진행 중</td><td>변환 중 / 화자 분리·전사 중</td><td>전송 버튼 비활성화, 목록 전환 허용</td></tr><tr><td>저장 완료</td><td>변환완료 / 스크립트 열기</td><td>Scripts의 연결된 스크립트 열기</td></tr><tr><td>키 없음·결제 확인</td><td>API 키 필요 / 결제 상태 확인 필요</td><td>설정 확인 후 같은 작업 재개</td></tr><tr><td>접수 불명</td><td>작업 접수 여부를 확인할 수 없습니다.</td><td>자동 재제출 금지, 조회로 확인하는 후속 경로</td></tr><tr><td>오류·부분 결과</td><td>변환필요 + 오류 안내</td><td>일부 결과 보존, 원격 단계와 로컬 저장 실패 구분</td></tr></table></div>
+<h3>Script 열기 → 화자/문장 수정 → 저장</h3><ul><li>가운데 상단 제목은 ‘스크립트’. 아래 녹음 이름과 생성 날짜, 시간·화자·발화가 시간순으로 표시됩니다. Speaker A, B, C는 해당 Run 내 공급자 화자를 최초 등장순으로 표시하는 이름입니다. Z 이후 AA, AB. 확인할 수 없는 화자는 ‘화자 미확정’이며 새 인물로 추정하지 않습니다.</li><li>화자 버튼 클릭 → 변경할 이름과 적용 범위. 기본 범위는 ‘전체 바꾸기’. 대상은 화면 문자열이 아닌 선택한 화자 ID로 결정합니다. 동명인 다른 화자를 합치지 않으며 다른 녹음/Run에는 영향이 없습니다.</li><li>‘이 부분만 바꾸기’는 선택 발화 한 개. ‘이 부분부터 바꾸기’는 선택 발화를 포함한 이후의 동일 화자 발화. ‘전체 바꾸기’는 현재 스크립트의 동일 화자 발화 전부. 적용 전 대상 발화 수를 표시하며 취소하면 변경하지 않습니다.</li><li>예: A₁ → B₂ → A₃ → C₄ → A₅에서 A₃ 선택. 부분은 {3}, 이후는 {3,5}, 전체는 {1,3,5}. 앞서 부분 변경한 이름도 동일 원 화자 그룹의 전체 변경 대상입니다. 다른 화자 귀속 변경과 이름 표시 변경은 구분합니다.</li><li>이름 변경은 사람이 정한 표시 이름이며 공급자 라벨·원 모델 화자·구간 confidence map은 보존합니다. 현재 v1은 Speaker별 displayName만 있으므로 범위별 이름 영속·Markdown 반영에 계약 확장이 필요합니다. 기존 v1 파일은 읽을 수 있어야 합니다.</li><li>발화 문장을 클릭해 직접 수정. ‘수정 저장’·‘취소’로 확정하고 자동 맞춤법/문장 다듬기를 끕니다. 모델 원문과 edited text를 분리하고 시간은 자동 재정렬하지 않습니다. 저장 중·실패를 표시하고 미저장 상태에서 다른 문서로 이동하면 저장/이동 취소를 제공합니다.</li><li>복수 단어의 문장 편집은 발화 원문을 보존하는 revision 연산으로 추가합니다. 변경된 텍스트에 모델이 주지 않은 단어별 시간을 새로 만들지 않습니다. Markdown과 화면 표시가 같은 저장 revision을 사용해야 합니다.</li></ul>
+<h3>빈 상태·검수 이슈</h3><p>빈 Speeches: ‘녹음 파일이 없습니다.’ / ‘메뉴바에서 녹음을 시작하거나 이 폴더에 M4A·WAV 파일을 넣어 주세요.’ 빈 Scripts: ‘아직 스크립트가 없습니다.’ / ‘Speeches에서 녹음을 선택해 변환하세요.’ 폴더 미선택: ‘Speeches 폴더를 선택해 주세요.’ / ‘Scripts 폴더를 선택해 주세요.’</p>
+<p>간단한 화면에서도 기존 6종 이슈 문구는 해당 발화나 오류 안내에 유지합니다. 상세 근거는 접어서 확인합니다.<span class="fn">ssot/tone/review-workspace.md 채택 문구; INV-06 A→B→A 장벽, INV-08 점수와 사람 확인 분리, INV-09 Run별 화자.</span></p>
+<ul><li>화자 미확정 · 후보가 비슷합니다.</li><li>동시에 여러 화자가 감지되었습니다. 두 사람의 발화가 모두 전사되었다는 뜻은 아닙니다.</li><li>[음성 감지 / 전사 누락 의심]</li><li>단어 시간이 화자 전환 경계를 걸칩니다.</li><li>녹음이 중단되었습니다. 이후 구간은 녹음되지 않았을 수 있습니다.</li><li>서버 결과를 가져오지 못했습니다. 원본은 보존되어 있습니다. (원본 존재 확인 시만 사용)</li></ul>
+</section>
+<section id="s-impact" class="sec"><div class="rule"><span class="no">04</span><h2>구현 영향과 확인 범위</h2></div>
+<h3>재사용</h3><ul><li>DamaAudio 원본·청크·복구·변환, Keychain, Run별 원본 응답, 접수 불명 재제출 방지.</li><li>Core 원문 불변·revision·실행 취소/다시 실행·정확한 텍스트 편집. 완료된 M0 기본 여정은 재검사하지 않음.</li><li>기존 native 시스템 서체·중립 배경·헤어라인·화면 치수. 새 목록 폭 260pt와 상태 색은 이번 후보값.</li></ul>
+<h3>변경</h3><ul><li>App/DamaApp.swift·StatusBarController.swift·Resources/Info.plist: 공식 표시 DAMA, 메뉴 클릭 동작·2가지 아이콘 색·네 항목·실제 번들 버전.</li><li>UI/ReviewShell.swift·EditDialog.swift·App/ReviewWorkspace.swift: 두 폴더 탐색·녹음별 변환 정보·발화 편집·이름 범위 선택. 기존 오른쪽 상시 inspector는 접힘으로 전환.</li><li>ProcessingWorkspace/ManagedProcessor: 화자 수·입력 저장, 지정 폴더에 결과 확정, 성공 Script 연결. 기존 통합 엔진 유지.</li></ul>
+<h3>신규</h3><ul><li>2개 폴더 선택·security-scoped bookmark·오류 및 중복 경로 검증, 녹음/Run과 파일 목록 연결, 메타데이터 영속, 안전한 결과 저장.</li><li>범위별 화자 이름과 문장 편집의 원문/수정본을 재실행·export까지 보존하는 계약 확장. Speaker.providerId는 현재 유일성을 검사하므로 복제해 임시 화자를 만드는 편법은 쓰지 않음.<span class="fn">실측: DomainContracts.swift Speaker·TranscriptWord·TranscriptTurn·EngineInput; TranscriptEditing.swift rename은 Speaker.displayName 전체 변경만; TranscriptValidator.swift:16–22 providerId 유일성.</span></li></ul>
+<h3>QA는 세 여정으로</h3><ol class="checks"><li>폴더 지정 → 최신 목록 → Speech 정보 저장 → 변환 → Scripts의 최종 스크립트 확인 → 완료 Speech에서 Script 열기. 합성/mock 먼저, 실제 전송 별도 승인.</li><li>Script → A₃ 이름의 세 범위·동명이인 → 문장 수정 → 저장·재실행 → Markdown의 동일 결과. 이 변경 영향만 검사.</li><li>메뉴 열기 → 녹음 토글·빨간색 → 창 열기/닫기 → 정지·원본 보존 → Quit 보호. 마이크/TCC·실기기 결과는 코드 compile/mock와 별도.</li></ol>
+<p>각 QA에서 결함을 모아 수정한 뒤 해당 결함과 영향 범위만 다시 확인합니다. 키보드·VoiceOver·밝음/어둠·900×600 창에서 이 유닛의 변경 컨트롤을 확인합니다. 이 HTML 확인은 실제 앱 UI·키체인·마이크·한국어 정확도 PASS가 아닙니다.</p>
+<p class="note">비범위: 자동 요약·윤문·이름 추정, 다른 AI로 자동 전송, 음성 자동 삭제, 기존 사용자 폴더 자동 이관, 서명·배포. 스펙 확인 전 앱·계약 코드를 수정하지 않습니다.</p>
+</section>
+<section class="sec" id="s-fn"><div class="rule"><span class="no">주</span><h2>근거</h2></div><!--__FOOTNOTES__--><details class="audit"><summary>참조 근거와 현재 상태</summary><div class="body"><ul><li>2026-09-10 branch work/m0-fixture-review. 기존 미커밋 build.md·README·dev·M0/M1/M2 plan 보존. 신규 notes/library-workspace만 이번 화면 작업 소유.</li><li>~/CLAUDE.md, ~/Vault/appdev/CLAUDE.md, repo CLAUDE.md·README, Vault Dama _index, spec/plan/build 커맨드 재확인.</li><li>규율 22종 frontmatter 확인. 본문은 같은 세션에서 읽은 spec 필수14종(purpose-first, ambiguous-instructions, scope-stop, gate-hygiene, measurement, negative-claims, carryover-remeasure, verify-at-consumption, delegation-artifacts, destructive-writes, shared-tree-commits, numeric-test-integrity, external-media-verify, longrun-watchdog)과 apple-toolchain-sandbox·inline-script-file-exec·sort-direction-concrete-pair·review-termination 재사용. 직접 구현, 하위 Codex 없음.</li><li>doc-template README/template, design00·api검증·tone 재확인; design01–07 및 schema/Swift 전체 계약은 앞 단계 열람분 재사용. 현행 App/StatusBar/EditDialog·Core 계약·rename·validator·managed request 실측.</li><li>기존 채택 notes/review-workspace의 native 서체·배경·창/최소 크기 참조. 새 문서는 template.src.html 복제로 시작. 폰트 파일 누락 시 시스템 폰트 대체는 빌드 결과에 표시.</li><li id="verification">2026-09-10 HTML 빌드 PASS(64KB, 각주4개, 외부 로딩 없음, 폰트0KB로 시스템 폰트 대체). Chrome에서 합성 변환 확인→Scripts, 완료 상태 버튼→해당 Script, A₃ 이름 부분{3}/이후{3,5}/전체{1,3,5}, 문장 수정→미저장 이동 보호→저장 후 이동→재열기, 녹음 토글 on/off 및 아이콘 클래스, 두 폴더 설정, 각주 팝오버 확인. Speeches·Scripts 스크린샷 직접 확인. 시안 메모리 상태만 검사하며 앱·디스크 저장·실API·마이크·VoiceOver 검증 아님.</li></ul></div></details><p class="note">r1 (2026-09-10) 사용자 요구 1–8의 시안. 통합 처리 및 화면 사용자 확정, 구현 진행, 실음성 전송 계속 보류.</p></section><div style="height:90px"></div></div>
+<dialog id="renameDialog" class="native"><h2>화자 이름 변경</h2><p id="renameDescription"></p><label for="newName">변경할 이름</label><input class="renamefield" id="newName" autocomplete="off"><label class="scopeopt"><input name="scope" type="radio" value="one"><span>이 부분만 바꾸기<small>선택한 대사 하나</small></span></label><label class="scopeopt"><input name="scope" type="radio" value="from"><span>이 부분부터 바꾸기<small>이 대사부터 같은 화자의 대사</small></span></label><label class="scopeopt"><input name="scope" type="radio" value="all" checked><span>전체 바꾸기<small>이 스크립트 안의 같은 화자 전부</small></span></label><p id="scopeCount" style="margin-top:15px"></p><div class="dialogactions"><button class="secondary" data-close="renameDialog">취소</button><button class="primary" id="applyName">적용</button></div></dialog>
+<dialog id="settingsDialog" class="native"><h2>DAMA 설정</h2><p>파일을 보관할 두 폴더</p><div id="folderSettings"></div><p style="margin-top:18px">API 키는 이 Mac의 키체인에 저장합니다. 시안에서는 실제 키를 입력하거나 저장하지 않습니다.</p><div class="dialogactions"><button class="primary" data-close="settingsDialog">닫기</button></div></dialog>
+<dialog id="noticeDialog" class="native"><h2 id="noticeTitle"></h2><p id="noticeText"></p><div class="dialogactions"><button class="primary" data-close="noticeDialog">닫기</button></div></dialog>
+<dialog id="convertDialog" class="native"><h2>이 녹음을 변환할까요?</h2><p id="convertSummary"></p><p>음성을 pyannote.ai로 전송하며 계정의 사용 크레딧을 소비합니다. 원본은 이 Mac에 보관합니다.</p><p class="muted">이 화면은 합성 시안입니다. 아래 버튼은 완료 화면 예시로만 전환합니다.</p><div class="dialogactions"><button class="secondary" data-close="convertDialog">취소</button><button class="primary" id="confirmConvert">변환 시작</button></div></dialog>
+<dialog id="unsavedDialog" class="native"><h2>수정한 내용을 저장할까요?</h2><p>저장한 뒤 선택한 화면으로 이동합니다.</p><div class="dialogactions"><button class="secondary" data-close="unsavedDialog">이동 취소</button><button class="primary" id="saveAndGo">저장 후 이동</button></div></dialog><script>
+// 00 판정 블록: 고른 선택지·메모로 MD 회신을 만든다 (data-state="closed" 일 때만)
+(function(){
+  const v = document.getElementById('s-verdict');
+  if (!v || v.dataset.state !== 'open') return;
+  const md = v.querySelector('pre.md'), ok = v.querySelector('.ok');
+  const items = [...v.querySelectorAll('.vitem')];
+  const d = new Date();
+  const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  function build(){
+    const L = ['## ' + v.dataset.unit + ' 스펙 ' + v.dataset.round + ' · 게이트 ' + v.dataset.gate + ' 회신 (' + date + ')', ''];
+    items.forEach(it => {
+      const k = it.dataset.k;
+      const sel = it.querySelector('input[type=radio]:checked');
+      const memoEl = it.querySelector('input[type=text]');
+      const memo = memoEl ? memoEl.value.trim() : '';
+      const title = it.querySelector('.vt').textContent.replace(k, '').trim();
+      L.push('- ' + k + ' ' + title + ': ' + (sel ? sel.value : '(미선택)') + (memo ? ' · ' + memo : ''));
+    });
+    md.textContent = L.join('\n');
+  }
+  v.addEventListener('input', build);
+  v.querySelector('[data-act=copy]').onclick = async () => {
+    build();
+    try { await navigator.clipboard.writeText(md.textContent); ok.textContent = '복사됨.'; }
+    catch { const r = document.createRange(); r.selectNodeContents(md); const s = getSelection(); s.removeAllRanges(); s.addRange(r); ok.textContent = '클립보드 권한 없음. 선택된 텍스트를 복사하면 된다.'; }
+  };
+  v.querySelector('[data-act=reset]').onclick = () => {
+    items.forEach(it => { const r = it.querySelector('input[type=radio]'); if (r) r.checked = true; const m = it.querySelector('input[type=text]'); if (m) m.value = ''; });
+    build(); ok.textContent = '초기화됨.';
+  };
+  build();
+})();
+
+// 각주 팝오버: 번호 클릭 → 마커 우상단에 상자. 바깥 클릭·ESC·재클릭·스크롤에 닫힌다
+(function(){
+  let pop = null, cur = null;
+  function close(){ if (pop) pop.remove(); pop = null; if (cur) cur.classList.remove('open'); cur = null; }
+  document.querySelectorAll('sup.fn a[data-fn]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    if (cur === a) { close(); return; }
+    close();
+    const src = document.getElementById('fn-' + a.dataset.fn);
+    if (!src) return;
+    const t = src.querySelector('.t');
+    pop = document.createElement('div'); pop.className = 'pop';
+    pop.innerHTML = '<span class="pn">' + a.dataset.fn + '</span>' + (t ? t.innerHTML : src.innerHTML);
+    document.body.appendChild(pop);
+    const r = a.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = r.left + scrollX - 8, top = r.top + scrollY - ph - 10, below = false;
+    if (left + pw > scrollX + innerWidth - 12) left = scrollX + innerWidth - 12 - pw;
+    if (left < scrollX + 12) left = scrollX + 12;
+    if (r.top - ph - 10 < 8) { top = r.bottom + scrollY + 10; below = true; }
+    pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.classList.toggle('below', below);
+    cur = a; a.classList.add('open');
+  }));
+  document.addEventListener('click', e => { if (pop && !pop.contains(e.target) && !e.target.closest('sup.fn')) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  addEventListener('scroll', () => { if (pop) close(); }, {passive:true});
+})();
+
+// 데스크탑 실척 스테이지: 컨테이너 폭 / 1440 비율로 가상 뷰포트를 축소한다
+(function(){
+  const fit = () => document.querySelectorAll('.deskstage').forEach(st => {
+    st.querySelectorAll(':scope > .deskvp').forEach(vp => vp.style.setProperty('--ds', st.clientWidth / 1440));
+  });
+  addEventListener('resize', fit);
+  addEventListener('DOMContentLoaded', fit);
+  fit();
+})();
+</script>
+
+<script>
+
+(()=>{
+const $=id=>document.getElementById(id);
+let folder='Speeches', chosen=0, empty=false, recording=false, target=2;
+const initial=[{title:'제품 논의',date:'2026.09.10 · 09:30',duration:'32분 18초',complete:false,count:'',context:'',refs:''},{title:'주간 대화',date:'2026.09.09 · 16:00',duration:'24분 06초',complete:true,count:'',context:'',refs:''}];
+let files=structuredClone(initial);
+const baseline=[{speaker:'A',name:'Speaker A',time:'00:00:03',text:'오늘은 다음 주에 진행할 일부터 확인할게요.'},{speaker:'B',name:'Speaker B',time:'00:00:09',text:'네, 저는 금요일까지 초안을 준비할 수 있어요.'},{speaker:'A',name:'Speaker A',time:'00:00:15',text:'좋아요. 그럼 초안을 보고 다시 이야기하죠.'},{speaker:'C',name:'Speaker C',time:'00:00:21',text:'그 전에 확인할 자료가 하나 있어요.'},{speaker:'A',name:'Speaker A',time:'00:00:27',text:'그 자료도 같이 보겠습니다.'}];
+let scripts=[structuredClone(baseline),structuredClone(baseline)],drafts={}, pendingGo=null;
+function leave(action){if(Object.keys(drafts).length){pendingGo=action;$('unsavedDialog').showModal()}else action()}
+$('saveAndGo').onclick=()=>{for(const[i,v]of Object.entries(drafts))scripts[chosen][i].text=v;drafts={};$('unsavedDialog').close();const action=pendingGo;pendingGo=null;action?.()};
+const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function notify(title,text){$('noticeTitle').textContent=title;$('noticeText').textContent=text;$('noticeDialog').showModal()}
+function badge(f){return `<span class="badge ${f.complete?'done':'pending'}">${f.complete?'✓ 변환완료':'• 변환필요'}</span>`}
+function render(){
+ $('folderTitle').textContent=folder;$('navSpeeches').classList.toggle('active',folder==='Speeches');$('navScripts').classList.toggle('active',folder==='Scripts');
+ const entries=empty?[]:files.map((f,i)=>({f,i})).filter(({f})=>folder==='Speeches'||f.complete);
+ if(!entries.some(x=>x.i===chosen))chosen=entries.length?entries[0].i:-1;
+ $('filelist').innerHTML=entries.map(({f,i})=>`<div class="file" aria-current="${chosen===i}"><button class="filetitle" data-file="${i}"><b>${escape(f.title)}${folder==='Scripts'?' · 스크립트':''}</b><time>${f.date}</time></button>${folder==='Speeches'?`<button class="statusbutton" data-status="${i}" aria-label="${escape(f.title)} ${f.complete?'변환완료':'변환필요'}">${badge(f)}</button>`:'<span class="muted">스크립트</span>'}</div>`).join('');
+ document.querySelectorAll('[data-file]').forEach(b=>b.onclick=()=>leave(()=>{chosen=+b.dataset.file;drafts={};render()}));
+ document.querySelectorAll('[data-status]').forEach(b=>b.onclick=()=>leave(()=>{chosen=+b.dataset.status;folder=files[chosen].complete?'Scripts':'Speeches';render()}));
+ if(chosen<0){$('detail').innerHTML=`<div class="empty"><h2>${folder==='Speeches'?'녹음 파일이 없습니다.':'아직 스크립트가 없습니다.'}</h2><p>${folder==='Speeches'?'메뉴바에서 녹음을 시작하거나 이 폴더에 M4A·WAV 파일을 넣어 주세요.':'Speeches에서 녹음을 선택해 변환하세요.'}</p></div>`;return}
+ const f=files[chosen];
+ if(folder==='Speeches'){
+ $('detail').innerHTML=`<header class="detailhead"><div class="eyebrow">Speeches</div><h2>${escape(f.title)}</h2><div class="subline"><span>${f.date}</span><span>${f.duration}</span><span>M4A · 모노</span></div></header><div class="detailcontent"><div class="formrow"><label for="speakerCount">총 참여 화자 수</label><input id="speakerCount" type="number" min="1" step="1" placeholder="자동" value="${escape(f.count)}"><small>비워 두면 자동으로 판단합니다.</small></div><div class="formrow"><label for="contextField">맥락</label><textarea id="contextField" rows="3" placeholder="대화의 주제나 배경">${escape(f.context)}</textarea></div><div class="formrow"><label for="referenceField">참고 정보</label><textarea id="referenceField" rows="2" placeholder="전문 용어, 이름 표기 등">${escape(f.refs)}</textarea><small>현재 통합 처리에서는 맥락·참고 정보를 로컬 검수용으로 저장합니다.</small></div>${f.complete?'<div class="notice">스크립트가 준비되었습니다. 화자와 내용을 확인해 주세요.</div>':''}</div><footer class="detailfoot"><span class="muted" id="formStatus">${f.complete?'Scripts에 저장됨':'정보는 이 녹음과 함께 저장됩니다.'}</span><button class="primary" id="convertButton">${f.complete?'스크립트 열기':'변환'}</button></footer>`;
+ for(const [id,key] of [['speakerCount','count'],['contextField','context'],['referenceField','refs']])$(id).oninput=()=>{f[key]=$(id).value;const valid=$('speakerCount').checkValidity();$('convertButton').disabled=!valid;$('formStatus').textContent=valid?'시안 입력 유지됨':'화자 수는 1 이상의 정수로 입력해 주세요.'};
+ $('convertButton').onclick=()=>{if(f.complete){folder='Scripts';render();return}$('convertSummary').textContent=`${f.title} · ${f.duration} · 화자 수 ${f.count||'자동'}`;$('convertDialog').showModal()};
+ }else{
+ $('detail').innerHTML=`<header class="detailhead"><div class="eyebrow">Scripts</div><h2>스크립트</h2><div class="subline"><span>${escape(f.title)}</span><span>${f.date}</span></div></header><div class="detailcontent"><div class="scriptbar"><span class="muted">화자 이름과 문장을 눌러 수정하세요.</span><span class="muted">합성 대화 예시</span></div>${scripts[chosen].map((t,i)=>`<article class="turn"><div class="turntop"><button class="speaker" data-turn="${i}" aria-label="${escape(t.name)} ${t.time} 이름 변경">${escape(t.name)} ▾</button><time>${t.time}</time></div><textarea class="lineedit" rows="2" data-line="${i}" aria-label="${t.time} 대사">${escape(t.text)}</textarea></article>`).join('')}</div><footer class="detailfoot"><span class="muted" id="saveStatus">저장됨 · 시안</span><div><button class="secondary" id="cancelEdits" hidden>취소</button> <button class="primary" id="saveEdits" disabled>수정 저장</button></div></footer>`;
+ document.querySelectorAll('[data-turn]').forEach(b=>b.onclick=()=>leave(()=>openRename(+b.dataset.turn)));
+ document.querySelectorAll('[data-line]').forEach(a=>a.oninput=()=>{drafts[a.dataset.line]=a.value;$('saveEdits').disabled=false;$('cancelEdits').hidden=false;$('saveStatus').textContent='저장하지 않은 수정'});
+ $('cancelEdits').onclick=()=>{drafts={};render()};$('saveEdits').onclick=()=>{for(const [i,v]of Object.entries(drafts))scripts[chosen][i].text=v;drafts={};render()};
+ }
+}
+function openRename(index){target=index;const t=scripts[chosen][target];$('newName').value=t.name;$('renameDescription').textContent=`${t.time} · ${t.name}`;document.querySelector('input[name=scope][value=all]').checked=true;updateCount();$('renameDialog').showModal();$('newName').select()}
+function affected(){const scope=document.querySelector('input[name=scope]:checked').value;return scripts[chosen].map((t,i)=>i).filter(i=>scripts[chosen][i].speaker===scripts[chosen][target].speaker&&(scope==='all'||(scope==='from'?i>=target:i===target)))}
+function updateCount(){$('scopeCount').textContent=`${affected().length}개 발화에 적용됩니다.`;$('applyName').disabled=!$('newName').value.trim()}
+document.querySelectorAll('input[name=scope]').forEach(r=>r.onchange=updateCount);$('newName').oninput=updateCount;
+$('applyName').onclick=()=>{const value=$('newName').value.trim();if(!value)return;affected().forEach(i=>scripts[chosen][i].name=value);$('renameDialog').close();render()};
+const labels=['Speeches','Scripts'];const paths=['Speeches','Scripts'];
+function showSettings(){ $('folderSettings').innerHTML=labels.map((x,i)=>`<div class="folderrow"><div><b>${x}</b><small>예시: ~/Documents/DAMA/${paths[i]}</small></div><button data-pick="${i}">선택</button></div>`).join('');document.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>notify(labels[+b.dataset.pick]+' 폴더 선택','앱에서는 macOS 폴더 선택 창이 열립니다. 이 시안에서는 실제 폴더에 접근하지 않습니다.'));$('settingsDialog').showModal()}
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$(b.dataset.close).close());
+document.querySelectorAll('[data-folder]').forEach(b=>b.onclick=showSettings);$('settingsButton').onclick=showSettings;
+$('speechesButton').onclick=()=>leave(()=>{folder='Speeches';empty=false;drafts={};render()});$('scriptsButton').onclick=()=>leave(()=>{folder='Scripts';empty=false;drafts={};render()});
+$('confirmConvert').onclick=()=>{files[chosen].complete=true;$('convertDialog').close();folder='Scripts';render()};
+$('emptyDemo').onclick=()=>{empty=!empty;render()};$('resetDemo').onclick=()=>{files=structuredClone(initial);scripts=[structuredClone(baseline),structuredClone(baseline)];folder='Speeches';chosen=0;empty=false;drafts={};render()};
+$('micButton').onclick=()=>{$('damaMenu').hidden=!$('damaMenu').hidden;$('micButton').setAttribute('aria-expanded',!$('damaMenu').hidden)};
+function setRecording(value){recording=value;$('micButton').classList.toggle('recording',recording);$('micButton').setAttribute('aria-label',recording?'DAMA 녹음 중 메뉴 열기':'DAMA 메뉴 열기');$('recordLabel').textContent=recording?'녹음 중':'녹음 시작';$('recordSwitch').classList.toggle('on',recording);$('recordToggle').setAttribute('aria-checked',recording);$('topstate').textContent=recording?'녹음 중 · 시안':'녹음 준비'}
+$('recordToggle').onclick=()=>setRecording(!recording);$('openDama').onclick=()=>$('appDemo').scrollIntoView({behavior:'smooth',block:'center'});
+$('versionDama').onclick=()=>notify('DAMA Version info','DAMA · 다마. 실제 앱에서는 번들의 버전과 빌드 번호를 표시합니다. 이 화면은 프론트 시안 r1입니다.');
+$('quitDama').onclick=()=>notify(recording?'녹음을 저장하고 종료할까요?':'Quit DAMA',recording?'앱에서는 ‘녹음 계속’ 또는 ‘저장 후 종료’를 선택합니다. 저장 실패 시 종료하지 않습니다.':'앱에서는 DAMA가 종료됩니다. 이 시안은 브라우저를 종료하지 않습니다.');
+render();
+})();
+
+</script>
+</body>
+</html>

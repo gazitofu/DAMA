@@ -1,6 +1,7 @@
 import AppKit
 import DamaAudio
 import DamaManaged
+import DamaCore
 import SwiftUI
 
 @MainActor
@@ -30,7 +31,7 @@ final class ProcessingWorkspace: ObservableObject {
 
     func run(for id: String) -> ManagedRun? { runs.first { $0.sessionID == id } }
 
-    func reviewTransmission(_ record: AudioManifest) {
+    func reviewTransmission(_ record: AudioManifest, input: ConversionNotes = ConversionNotes()) {
         guard !busy, let processor, record.analysis != nil, !localOnly.contains(record.id) else { return }
         let alert = NSAlert()
         alert.messageText = "음성을 전송할까요?"
@@ -47,7 +48,7 @@ final class ProcessingWorkspace: ObservableObject {
             return
         }
         guard response == .alertSecondButtonReturn else { return }
-        launch { key in try await processor.begin(sessionID: record.id, confirmed: true, key: key) }
+        launch { key in try await processor.begin(sessionID: record.id, confirmed: true, key: key, input: input) }
     }
 
     func resume(_ run: ManagedRun) {
@@ -74,7 +75,10 @@ final class ProcessingWorkspace: ObservableObject {
             do {
                 let result = try await action(key)
                 runs = (try? await processor.runs()) ?? runs
-                if result.stage == "readyForReview" { message = "전사 완료 · 검수 전. 결과의 화자와 원문을 확인해 주세요." }
+                if result.stage == "readyForReview" {
+                    message = "전사 완료 · 검수 전. 결과의 화자와 원문을 확인해 주세요."
+                    LibraryWorkspace.shared.processingFinished(result)
+                }
             } catch { message = "처리를 시작하지 못했습니다. 원본과 기존 결과는 유지됩니다." }
         }
     }

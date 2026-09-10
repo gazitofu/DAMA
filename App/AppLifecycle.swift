@@ -8,6 +8,9 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
         statusBar = StatusBarController()
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let library = LibraryWorkspace.shared
+        if library.notesDirty { library.saveNotes(); library.message = "입력 정보를 저장한 뒤 다시 종료해 주세요."; return .terminateCancel }
+        guard library.canLeave else { library.preventLeaving(); return .terminateCancel }
         let workspace = ReviewWorkspace.shared
         guard workspace.canLeave else {
             workspace.preventLeaving()
@@ -32,6 +35,30 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
         return .terminateNow
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+}
+
+struct LibraryWindowGuard: NSViewRepresentable {
+    let workspace: LibraryWorkspace
+    func makeCoordinator() -> Coordinator { Coordinator(workspace: workspace) }
+    func makeNSView(context: Context) -> ReviewWindowGuard.WindowAttachmentView {
+        let view = ReviewWindowGuard.WindowAttachmentView()
+        view.attach = { [weak coordinator = context.coordinator] window in coordinator?.attach(to: window) }
+        return view
+    }
+    func updateNSView(_ view: ReviewWindowGuard.WindowAttachmentView, context: Context) {}
+    final class Coordinator: NSObject, NSWindowDelegate {
+        let workspace: LibraryWorkspace
+        weak var prior: (any NSWindowDelegate)?
+        init(workspace: LibraryWorkspace) { self.workspace = workspace }
+        @MainActor func attach(to window: NSWindow) { guard window.delegate !== self else { return }; prior = window.delegate; window.delegate = self }
+        func windowShouldClose(_ sender: NSWindow) -> Bool {
+            if workspace.notesDirty { workspace.saveNotes(); workspace.message = "입력 정보를 저장한 뒤 창을 닫아 주세요."; return false }
+            guard workspace.canLeave else { workspace.preventLeaving(); return false }
+            return prior?.windowShouldClose?(sender) ?? true
+        }
+        override func responds(to selector: Selector!) -> Bool { super.responds(to: selector) || prior?.responds(to: selector) == true }
+        override func forwardingTarget(for selector: Selector!) -> Any? { prior }
+    }
 }
 
 /// Preserve SwiftUI's delegate behavior while guarding unsaved or in-flight work.
