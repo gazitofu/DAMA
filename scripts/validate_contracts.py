@@ -11,12 +11,19 @@ import json
 import math
 import re
 import sys
+import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def documentation_paths(root: Path) -> list[Path]:
+    # Build products and private diagnostic inputs aren't project documentation.
+    return [path for path in root.rglob("*.md")
+            if path.relative_to(root).parts[0] not in {".build", "DerivedData", ".git"}]
 
 
 def load(name: str) -> Any:
@@ -266,12 +273,26 @@ class ContractTests(unittest.TestCase):
         jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(self.doc)
 
     def test_relative_markdown_links_exist(self):
-        for path in ROOT.rglob("*.md"):
+        for path in documentation_paths(ROOT):
             for target in re.findall(r"\]\(([^)]+)\)", path.read_text(encoding="utf-8")):
                 if target.startswith(("https://", "http://", "mailto:", "#")):
                     continue
                 candidate = (path.parent / target.split("#")[0]).resolve()
                 self.assertTrue(candidate.exists(), f"broken link in {path.name}: {target}")
+
+    def test_documentation_scope_keeps_source_and_excludes_diagnostic_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ["README.md", "ssot/source.md", ".build/private/review.md", "DerivedData/product.md"]:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("[broken](missing.md)", encoding="utf-8")
+            paths = documentation_paths(root)
+            self.assertEqual({p.relative_to(root).as_posix() for p in paths}, {"README.md", "ssot/source.md"})
+            # A broken source link is still included and fails the same existence predicate.
+            for path in paths:
+                target = re.findall(r"\]\(([^)]+)\)", path.read_text(encoding="utf-8"))[0]
+                self.assertFalse((path.parent / target).exists())
 
 
 def add_case(case: dict[str, Any]) -> None:
