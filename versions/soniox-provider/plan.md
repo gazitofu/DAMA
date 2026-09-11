@@ -5,7 +5,7 @@ status: building
 decisions_resolved: true
 created: 2026-09-11
 updated: 2026-09-11
-resume: "Soniox 선택·async·키 분리·비교 모드 구현. 영향58개/계약30 및 Debug 검증. 0.2.0(7) 빌드 준비. 실행 앱 녹음 중이라 종료/설치/네이티브 UI 확인 보류, 사용자에게 녹음 유지 또는 저장 후 교체 질문 pending."
+resume: "fada176 구현 커밋을 GitHub main/work 브랜치에 push/원격 HEAD 대조 완료. 영향58개/계약30 및 Debug PASS, 0.2.0(7) 빌드 준비. 실행 앱 0.1.5가 녹음 중이라 설치/새 UI 확인 보류. 다음: 사용자 녹음 종료 확인 후 정상 종료→기존 앱 백업→새 앱 설치→선택/설정/버전 UI 확인."
 ---
 
 ## 근거와 범위
@@ -23,7 +23,7 @@ resume: "Soniox 선택·async·키 분리·비교 모드 구현. 영향58개/계
 - [x] AC-03 401/402/429/5xx/네트워크/불명확 접수/재개 경로, 잘못된 ID 및 전송 동의 방어.
 - [x] AC-04 서브워드·문장 끝·A→B→A·null·시간 오류·confidence 독립 보존 검증.
 - [ ] AC-05 네이티브 앱 build 및 선택 UI 확인, 버전 표시, 로컬 설치. 실제 음성 전송·한국어 정확도는 미검증으로 명시.
-- [ ] AC-06 관련 코드만 커밋/push, 원격 HEAD 확인. 기존 혼합6문서 미포함.
+- [x] AC-06 관련 코드만 커밋/push, 원격 HEAD 확인. 기존 혼합6문서 미포함.
 
 ## 검증 기록
 - 최초 push: `03e7957`, private gazitofu/DAMA, main 및 work/m0-fixture-review. 과거 blob 274개 credential/음성 경로 검사 발견0. 실제 키·음성·전사 업로드 없음.
@@ -33,3 +33,4 @@ resume: "Soniox 선택·async·키 분리·비교 모드 구현. 영향58개/계
 - 첫 재사용 SwiftPM 산출물에서 ContextCorrectionTests가 SIGSEGV, 코드 변경 없이 별도 `.build/soniox-swiftpm` 전체 컴파일 후 기존32개 PASS. crash report는 타입 metadata 접근이며 증분 산출물 불일치 가능성으로 기록, 제품 오류로 단정하지 않음. 새 Soniox 여정에서는 strict JSON shape의 신규 필드 누락을 검출해 정상 필드만 optional allowlist로 추가. 표시 앞 공백 trim/Markdown escape 기대값도 실제 공통 계약에 맞게 수정. 임계값 완화·검사 skip 없음.
 - `python3 scripts/validate_contracts.py`:30 PASS; `python3 scripts/check_contract_copy.py`:11991bytes SHA256 76e4b15a294ac6f2742551de2ea298475a4a33ef6942de7bbde8f09222a31fab. 최종 Debug arm64 build 명령은 기존 절대 캐시 경로/서명 정책 유지, 로그 `soniox-xcodebuild.log`.
 - CUA에서 설치된 0.1.5 앱의 진행 중 녹음 표시(14:59→19:08) 실측. 종료/교체하지 않았고 녹음 중단 여부를 비동기 질문했다. 새 UI 조작·Keychain 저장/실호출·실제 전사 정확도는 미검증, AC-05와 building 유지.
+- `fada17643a41d7eb11ae5652fb476475a7db846f` main/work/m0-fixture-review push 성공 및 `git ls-remote origin` 일치. 별도6혼합문서만 unstaged로 남음. 최종 빌드 Info.plist 0.2.0(7), 설치본 Info.plist 0.1.5 확인. 문서 상태 커밋은 별도이며 재빌드 사유 아님.
