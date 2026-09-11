@@ -1,6 +1,9 @@
 import Foundation
 
 public struct ConversionNotes: Codable, Sendable, Equatable {
+    public var sonioxSourceRunID: String?
+    public var precisionSourceRunID: String?
+    public var meetingTerms: String?
     public var speakerCount: Int?
     public var context: String
     public var reference: String
@@ -22,7 +25,7 @@ public struct ConversionNotes: Codable, Sendable, Equatable {
     }
     public var transcriptionContextSummary: String {
         if provider == .qwen { return "Qwen 로컬 입력 · 외부 전송 없음" }
-        return provider == .soniox && sonioxContext == true ? "Soniox에 전송" : "미전송"
+        return provider.usesSoniox && sonioxContext == true ? "Soniox에 전송" : "미전송"
     }
     public var provider: TranscriptionProvider { transcriptionProvider ?? .pyannote }
     public init(speakerCount: Int? = nil, context: String = "", reference: String = "", participants: String? = nil,
@@ -62,6 +65,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     public var showsOriginal: Bool?
     /// Boundary before an existing Turn: true = split, false = join if identity/evidence permits.
     public var paragraphBreaks: [String: Bool]?
+    public var reviewRecords: [ScriptReviewRecord]?
 
     public init(transcript: TranscriptDocument, title: String, recordedAt: Date?, dateSource: String,
                 timeZoneID: String = TimeZone.current.identifier, input: ConversionNotes,
@@ -87,6 +91,13 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
               Set((paragraphBreaks ?? [:]).keys).isSubset(of: ids),
               turnNames.values.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
         else { throw LibraryFailure.invalidScript }
+        for record in reviewRecords ?? [] {
+            guard UUID(uuidString: record.id) != nil,
+                  record.audioSHA256 == transcript.provenance.sourceAudioSHA256,
+                  !record.turns.isEmpty, Set(record.turns.map(\.turnID)).isSubset(of: ids),
+                  record.activeSeconds.map({ $0.isFinite && $0 >= 0 }) ?? true,
+                  record.error != .noError || record.audioChecked else { throw LibraryFailure.invalidScript }
+        }
     }
     public func name(for turn: TranscriptTurn) -> String {
         if let name = turnNames[turn.id] { return name }
@@ -169,7 +180,10 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
                      "- Run: \(Self.escape(transcript.runId))",
                      "- 입력 음성 SHA256: \(transcript.provenance.sourceAudioSHA256 ?? "미기록")",
                      "- 전사 문맥: \(input.transcriptionContextSummary)",
-                     "- 화자 분리 재사용 Run: \(input.qwenDiarizationRunID ?? "없음")",
+                     "- 화자 분리 원본 Run: \(input.precisionSourceRunID ?? input.qwenDiarizationRunID ?? "없음")",
+                     "- Soniox 원본 Run: \(input.sonioxSourceRunID ?? "없음")",
+                     "- 결합/정규화: \(transcript.provenance.algorithmVersion)",
+                     "- 검수: \(reviewSummary)",
                      "- 화자 수: \(speakerCountSummary)",
                      "- 화자 수 적용: \(speakerCountApplication)",
                      "- 문단 표시: \(ScriptReadingPolicy.algorithmVersion)",

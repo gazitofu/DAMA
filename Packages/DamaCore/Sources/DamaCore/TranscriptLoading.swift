@@ -162,7 +162,7 @@ private enum NormalizedJSONShape {
         try objects(object["speakers"]!, keys: speaker, path: "$.speakers")
         try objects(object["diarization"]!, keys: interval, path: "$.diarization", confidence: true)
         try objects(object["exclusiveDiarization"]!, keys: interval, path: "$.exclusiveDiarization", confidence: true)
-        try objects(object["words"]!, keys: word, path: "$.words", optionalKeys: ["asrConfidence", "language"])
+        try objects(object["words"]!, keys: word, path: "$.words", optionalKeys: ["asrConfidence", "language", "asrSpeakerLabel"])
         try objects(object["turns"]!, keys: turn, path: "$.turns")
         try objects(object["reviewIssues"]!, keys: issue, path: "$.reviewIssues")
     }

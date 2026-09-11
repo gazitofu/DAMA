@@ -39,12 +39,18 @@ public struct ScriptReviewEvent: Identifiable, Sendable {
     public var kinds: [IssueKind] {
         Array(Set(issues.map(\.kind))).sorted { $0.rawValue < $1.rawValue }
     }
-    public static func grouped(_ issues: [ReviewIssue]) -> [Self] {
+    public static let listeningPolicy = "review-events-v2"
+    /// Initial listening-layout limits, not measured accuracy thresholds. Raw issue IDs remain intact.
+    public static func forListening(_ issues: [ReviewIssue]) -> [Self] {
+        grouped(issues, maximumGapUs: 1_000_000, maximumSpanUs: 30_000_000)
+    }
+    public static func grouped(_ issues: [ReviewIssue], maximumGapUs: Int64 = 0, maximumSpanUs: Int64 = .max) -> [Self] {
         let sorted = issues.sorted { ($0.startUs ?? Int64.max, $0.id) < ($1.startUs ?? Int64.max, $1.id) }
         var groups: [Self] = []
         for issue in sorted {
             if let start = issue.startUs, let end = issue.endUs, start <= end,
-               let last = groups.last, let lastEnd = last.endUs, start <= lastEnd {
+               let last = groups.last, let lastEnd = last.endUs, let first = last.startUs,
+               start <= lastEnd || (start - lastEnd <= maximumGapUs && end - first <= maximumSpanUs) {
                 groups[groups.count - 1] = Self(issues: last.issues + [issue])
             } else { groups.append(Self(issues: [issue])) }
         }
@@ -89,9 +95,13 @@ extension LibraryScript {
         guard !transcript.revision.humanEdited,
               let i = transcript.turns.firstIndex(where: { $0.id == turnID }), i > 0 else { return false }
         let previous = transcript.turns[i - 1], next = transcript.turns[i]
+        return canJoin(previous, next, previousName: name(for: previous), nextName: name(for: next))
+    }
+    private func canJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn, previousName: String, nextName: String) -> Bool {
+        guard !transcript.revision.humanEdited else { return false }
         guard previous.kind == .speech, next.kind == .speech,
               let speaker = previous.speakerId, speaker == next.speakerId,
-              name(for: previous) == name(for: next),
+              previousName == nextName,
               let start = previous.startUs, let end = previous.endUs,
               let nextStart = next.startUs, let nextEnd = next.endUs,
               start <= end, nextStart <= nextEnd, start <= nextStart, end <= nextEnd else { return false }
@@ -139,7 +149,7 @@ extension LibraryScript {
         }
         let texts = Dictionary(uniqueKeysWithValues: transcript.turns.map { ($0.id, currentText($0)) })
         func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn) -> Bool {
-            guard canJoinParagraph(before: next.id) else { return false }
+            guard canJoin(previous, next, previousName: displayName(previous), nextName: displayName(next)) else { return false }
             if let split = paragraphBreaks?[next.id] { return !split }
             return !ScriptReadingPolicy.completesReadingSentence(texts[previous.id] ?? "")
         }
@@ -151,12 +161,13 @@ extension LibraryScript {
         }
         var result: [ScriptBlock] = []
         var attached = Set<String>()
+        let issueIndex = Dictionary(uniqueKeysWithValues: transcript.reviewIssues.enumerated().map { ($0.element.id, ($0.offset, $0.element)) })
         for group in groups {
             let ids = Set(group.flatMap(\.reviewIssueIds) + group.flatMap(\.wordIds).flatMap { words[$0]?.reviewIssueIds ?? [] })
-            let issues = transcript.reviewIssues.filter { ids.contains($0.id) }
+            let issues = ids.compactMap { issueIndex[$0] }.sorted { $0.0 < $1.0 }.map(\.1)
             attached.formUnion(issues.map(\.id))
             let text = group.map { texts[$0.id] ?? "" }.reduce("") { current, next in
-                let preservesSourceSpacing = transcript.provenance.engine == .managedSoniox || transcript.provenance.engine == .hybridPyannoteQwen
+                let preservesSourceSpacing = transcript.provenance.engine == .hybridSonioxPyannote || transcript.provenance.engine == .managedSoniox || transcript.provenance.engine == .hybridPyannoteQwen
                 let needsSpace = !preservesSourceSpacing && !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
                 return current + (needsSpace ? " " : "") + next
             }

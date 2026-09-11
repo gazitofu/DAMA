@@ -48,7 +48,7 @@ public enum TimingOrigin: String, Codable, Sendable {
 }
 public enum TokenKind: String, Codable, Sendable { case lexical, punctuation }
 public enum EngineKind: String, Codable, Sendable {
-    case managedPyannoteWhisper, hybridPyannoteWhisperKit, managedSoniox, hybridPyannoteQwen
+    case managedPyannoteWhisper, hybridPyannoteWhisperKit, managedSoniox, hybridPyannoteQwen, hybridSonioxPyannote
 }
 
 public struct TranscriptWord: Codable, Sendable {
@@ -69,11 +69,12 @@ public struct TranscriptWord: Codable, Sendable {
     public var timingOrigin: TimingOrigin
     public var tokenKind: TokenKind
     // ASR token confidence (0...1), never speaker confidence or alignment score.
+    public var asrSpeakerLabel: String? = nil
     public var asrConfidence: Double? = nil
     public var language: String? = nil
 
     private enum CodingKeys: String, CodingKey {
-        case id, ordinal, text, editedText, prefix, startUs, endUs, modelSpeakerId, speakerId, assignmentSource, alignmentScore, overlap, reviewIssueIds, sourceIntervalIds, timingOrigin, tokenKind, asrConfidence, language
+        case id, ordinal, text, editedText, prefix, startUs, endUs, modelSpeakerId, speakerId, assignmentSource, alignmentScore, overlap, reviewIssueIds, sourceIntervalIds, timingOrigin, tokenKind, asrConfidence, language, asrSpeakerLabel
     }
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -93,6 +94,7 @@ public struct TranscriptWord: Codable, Sendable {
         try container.encode(sourceIntervalIds, forKey: .sourceIntervalIds)
         try container.encode(timingOrigin, forKey: .timingOrigin)
         try container.encode(tokenKind, forKey: .tokenKind)
+        try container.encodeIfPresent(asrSpeakerLabel, forKey: .asrSpeakerLabel)
         try container.encodeIfPresent(asrConfidence, forKey: .asrConfidence)
         try container.encodeIfPresent(language, forKey: .language)
     }
@@ -128,7 +130,7 @@ public struct TranscriptTurn: Codable, Sendable {
 }
 public enum IssueKind: String, Codable, Sendable {
     case ambiguous_speaker, overlapping_speech, missing_speech
-    case boundary_conflict, unrepresented_speaker, invalid_timestamp
+    case provider_disagreement, boundary_conflict, unrepresented_speaker, invalid_timestamp
     case low_confidence, capture_interrupted, partial_result
 }
 public enum IssueSeverity: String, Codable, Sendable { case info, warning, error }

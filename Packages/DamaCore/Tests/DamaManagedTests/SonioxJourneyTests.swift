@@ -23,6 +23,50 @@ import XCTest
         value.transcriptionProvider = .soniox
         return value
     }
+    func testCombinedResumeReusesCompletedSonioxAndThenBothSourcesWithoutKeys() async throws {
+        let (root, audio) = try await setup(), fake = SonioxFake()
+        var fixturePath = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { fixturePath.deleteLastPathComponent() }
+        let p2 = CombinedPyannote(final: try Data(contentsOf: fixturePath.appendingPathComponent("fixtures/pyannote-job-succeeded.synthetic.json")))
+        let processor = ManagedProcessor(root: root, transport: p2, soniox: fake, sleep: { _ in })
+        var input = notes; input.transcriptionProvider = .sonioxPrecision
+        let waiting = try await processor.begin(sessionID: audio.id, confirmed: true, key: "", input: input, sonioxKey: "soniox-key")
+        XCTAssertEqual(waiting.stage, "waitingForCredentials")
+        let asrID = try XCTUnwrap(waiting.sonioxRunID)
+        let asrDoc = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: asrID)
+        XCTAssertEqual(asrDoc.provenance.engine, .managedSoniox)
+        let done = try await processor.resume(waiting.id, key: "pyannote-key", sonioxKey: "")
+        XCTAssertEqual(done.stage, "readyForReview")
+        let combined = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: done.id)
+        XCTAssertEqual(combined.provenance.engine, .hybridSonioxPyannote)
+        XCTAssertEqual(combined.words.map(\.text), asrDoc.words.map(\.text))
+        XCTAssertEqual(combined.words.map(\.startUs), asrDoc.words.map(\.startUs))
+        let calls = await fake.calls; XCTAssertEqual(calls.filter { $0 == "POST /v1/transcriptions" }.count, 1)
+        let requests = await p2.requests; XCTAssertEqual(requests.count, 1)
+        let payload = try JSONSerialization.jsonObject(with: requests[0]) as! [String: Any]
+        XCTAssertEqual(payload["transcription"] as? Bool, false); XCTAssertNil(payload["transcriptionConfig"])
+        input.sonioxSourceRunID = try await processor.reusableSoniox(sessionID: audio.id, audioHash: done.sourceAudioSHA256!, input: input)
+        input.precisionSourceRunID = try await processor.reusableDiarization(sessionID: audio.id, audioHash: done.sourceAudioSHA256!, speakerCount: nil)
+        XCTAssertNotNil(input.sonioxSourceRunID); XCTAssertNotNil(input.precisionSourceRunID)
+        let reused = try await processor.begin(sessionID: audio.id, confirmed: true, key: "", input: input, retranscribing: true)
+        XCTAssertEqual(reused.stage, "readyForReview"); XCTAssertNotEqual(reused.id, done.id)
+        let after = await fake.calls, p2After = await p2.requests
+        XCTAssertEqual(after, calls); XCTAssertEqual(p2After, requests)
+        var different = input; different.context = "new context"; different.sonioxContext = true
+        let mismatch = try await processor.reusableSoniox(sessionID: audio.id, audioHash: done.sourceAudioSHA256!, input: different)
+        XCTAssertNil(mismatch)
+    }
+    func testCombinedUncertainSubmissionNeverRunsOtherProviderOrResubmits() async throws {
+        let (root, audio) = try await setup(), fake = SonioxFake(fault: "submitTimeout")
+        let p2 = ForbiddenPyannote(), processor = ManagedProcessor(root: root, transport: p2, soniox: fake, sleep: { _ in })
+        var input = notes; input.transcriptionProvider = .sonioxPrecision
+        let run = try await processor.begin(sessionID: audio.id, confirmed: true, key: "p2", input: input, sonioxKey: "soniox")
+        XCTAssertEqual(run.stage, "submissionUncertain")
+        let before = await fake.calls
+        do { _ = try await processor.resume(run.id, key: "p2", sonioxKey: "soniox"); XCTFail() } catch {}
+        let after = await fake.calls, unwanted = await p2.calls
+        XCTAssertEqual(before, after); XCTAssertEqual(unwanted, 0)
+    }
     func testConsentCredentialResumeWholeFileAndImmutableRetranscription() async throws {
         let (root, audio) = try await setup(), fake = SonioxFake(), forbidden = ForbiddenPyannote()
         let processor = ManagedProcessor(root: root, transport: forbidden, soniox: fake, sleep: { _ in })
@@ -114,6 +158,20 @@ private actor ForbiddenPyannote: ManagedTransport {
     var calls = 0
     func api(path: String, method: String, body: Data?, key: String) throws -> HTTPReply { calls += 1; throw ManagedFailure.invalidURL }
     func upload(file: URL, to url: URL) throws -> HTTPReply { calls += 1; throw ManagedFailure.invalidURL }
+}
+private actor CombinedPyannote: ManagedTransport {
+    let final: Data
+    var requests: [Data] = []
+    init(final: Data) { self.final = final }
+    func api(path: String, method: String, body: Data?, key: String) throws -> HTTPReply {
+        XCTAssertEqual(key, "pyannote-key")
+        if path == "/v1/media/input" { return HTTPReply(data: Data("{\"url\":\"https://synthetic.example/audio\"}".utf8), status: 201) }
+        if path == "/v1/diarize" { requests.append(body!); return HTTPReply(data: Data("{\"jobId\":\"synthetic\"}".utf8), status: 201) }
+        let object = try JSONSerialization.jsonObject(with: final) as! [String: Any]
+        var result = object; result["jobId"] = "synthetic"
+        return HTTPReply(data: try JSONSerialization.data(withJSONObject: result), status: 200)
+    }
+    func upload(file: URL, to url: URL) -> HTTPReply { HTTPReply(data: Data(), status: 200) }
 }
 private struct SyntheticPyannote: ManagedTransport {
     let final: Data

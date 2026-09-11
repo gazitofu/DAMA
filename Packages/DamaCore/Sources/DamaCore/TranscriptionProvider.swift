@@ -1,13 +1,15 @@
 import Foundation
 
 public enum TranscriptionProvider: String, Codable, CaseIterable, Sendable {
-    case pyannote, soniox, qwen
+    case pyannote, soniox, qwen, sonioxPrecision, precision
+    public static var selectable: [Self] { [.sonioxPrecision, .soniox, .qwen, .pyannote] }
+    public var usesSoniox: Bool { self == .soniox || self == .sonioxPrecision }
     public var title: String {
-        switch self { case .pyannote: "pyannote + Whisper"; case .soniox: "Soniox"; case .qwen: "로컬 Qwen + Precision-2 (비교)" }
+        switch self { case .pyannote: "pyannote + Whisper (비교)"; case .soniox: "Soniox 단독 (비교)"; case .qwen: "로컬 Qwen + Precision-2 (비교)"; case .sonioxPrecision: "Soniox + Precision-2 (운영)"; case .precision: "Precision-2 화자분리" }
     }
     public var destination: String { self == .soniox ? "Soniox (api.soniox.com)" : "pyannote.ai" }
     public var model: String {
-        switch self { case .pyannote: "faster-whisper-large-v3-turbo"; case .soniox: "stt-async-v5"; case .qwen: "Qwen3-ASR-1.7B + Qwen3-ForcedAligner-0.6B" }
+        switch self { case .pyannote: "faster-whisper-large-v3-turbo"; case .soniox, .sonioxPrecision: "stt-async-v5"; case .qwen: "Qwen3-ASR-1.7B + Qwen3-ForcedAligner-0.6B"; case .precision: "precision-2" }
     }
     public var rawFilename: String { self == .soniox ? "soniox-response.json" : "pyannote-response.json" }
 }
@@ -19,6 +21,7 @@ extension EngineKind {
         case .managedSoniox: "Soniox"
         case .hybridPyannoteWhisperKit: "pyannote + WhisperKit"
         case .hybridPyannoteQwen: "로컬 Qwen + Precision-2"
+        case .hybridSonioxPyannote: "Soniox + Precision-2"
         }
     }
 }
@@ -28,7 +31,7 @@ public enum SonioxRequest {
     // Conservative application byte budget, not a measured tokenizer/API limit.
     public static let maximumContextBytes = 7_500
     public static func context(_ input: ConversionNotes) throws -> Data? {
-        guard input.provider == .soniox, input.sonioxContext == true else { return nil }
+        guard input.provider.usesSoniox, input.sonioxContext == true else { return nil }
         var general: [[String: String]] = []
         if let count = input.sonioxSpeakerCountHint {
             guard (1...15).contains(count) else { throw LibraryFailure.invalidInput }
@@ -53,7 +56,7 @@ public enum SonioxRequest {
         result.sonioxReferenceExcerpts = []
         result.sonioxOmittedReferences = []
         result.sonioxSpeakerCountHint = nil
-        guard input.provider == .soniox, input.sonioxContext == true else { return result }
+        guard input.provider.usesSoniox, input.sonioxContext == true else { return result }
         result.sonioxSpeakerCountHint = input.speakerCount
         _ = try context(result) // Basic context/terms must fit intact; never silently truncate them.
         for excerpt in input.referenceExcerpts ?? [] {

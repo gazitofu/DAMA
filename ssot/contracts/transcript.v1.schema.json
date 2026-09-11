@@ -214,6 +214,7 @@
           "minimum": 0,
           "maximum": 1
         },
+        "asrSpeakerLabel": { "type": ["string", "null"] },
         "asrConfidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
         "language": { "type": ["string", "null"] },
         "overlap": {
@@ -360,6 +361,7 @@
             "missing_speech",
             "boundary_conflict",
             "unrepresented_speaker",
+            "provider_disagreement",
             "invalid_timestamp",
             "low_confidence",
             "capture_interrupted",
@@ -434,7 +436,8 @@
             "managedPyannoteWhisper",
             "managedSoniox",
             "hybridPyannoteWhisperKit",
-            "hybridPyannoteQwen"
+            "hybridPyannoteQwen",
+            "hybridSonioxPyannote"
           ]
         },
         "diarizationModel": {
