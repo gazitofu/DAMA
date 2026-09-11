@@ -53,6 +53,7 @@ struct ScriptBlockRow: View {
     let block: ScriptBlock
     let rename: () -> Void
     let editText: () -> Void
+    var editParagraphs: (() -> Void)?
     var play: () -> Void = {}
     var playing = false
     var canPlay = false
@@ -125,6 +126,10 @@ struct ScriptBlockRow: View {
                             }
                     }
                     Spacer(minLength: 8)
+                    if block.isSpeech, let editParagraphs {
+                        Button("문단", action: editParagraphs).buttonStyle(.plain).font(.caption)
+                            .accessibilityLabel("문단 합치기·나누기")
+                    }
                     Button(action: play) {
                         Label("\(LibraryScript.timestamp(block.startUs)) – \(LibraryScript.timestamp(block.endUs))", systemImage: playing ? "stop.fill" : "play.fill")
                             .font(.system(.caption, design: .monospaced))
@@ -214,18 +219,24 @@ struct LibraryShell: View {
                     }.frame(width: 260)
                     Toggle("엔진 비교 · 자동 교정 끔", isOn: $processing.comparison)
                     if processing.selectedProvider == .soniox {
-                        Toggle("맥락·참고 전송", isOn: $processing.sonioxContext)
+                        Toggle("기본 문맥 전송", isOn: $processing.sonioxContext)
                         Button("용어…") { terms = true }.disabled(!processing.sonioxContext)
                             .popover(isPresented: $terms) {
                                 VStack(alignment: .leading, spacing: 12) {
                                     Text("Soniox 전사 용어 · 한 줄에 하나씩").font(.headline)
                                     TextEditor(text: $processing.sonioxTerms).frame(width: 340, height: 140)
-                                    Text("선택한 녹음의 맥락·참고·참석자와 함께 전송합니다. 전송 전에 전체 내용을 확인할 수 있습니다.").font(.caption).frame(width: 340)
+                                    Text("맥락·참석자·예상 발화자 수와 함께 전송합니다. 폴더 발췌는 별도 선택하며, 전송 전에 전체 내용을 확인할 수 있습니다.").font(.caption).frame(width: 340)
                                     Button("완료") { terms = false }
                                 }.padding(16)
                             }
                     }
                     Spacer(minLength: 0)
+                }
+                if processing.selectedProvider == .soniox {
+                    HStack {
+                        Toggle("참고 폴더 발췌 추가", isOn: $processing.sonioxFolderContext).disabled(!processing.sonioxContext)
+                        Text("기본 문맥: 맥락·참석자·예상 인원·직접 입력 참고·용어. 폴더는 남은 용량 안에서 선택합니다.").font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 Text("새 변환·재전사에 적용합니다. 재개는 원래 엔진으로 계속하며, 이전 스크립트는 별도로 보존합니다.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -370,9 +381,9 @@ struct LibraryShell: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("총 참여 화자 수").fontWeight(.medium)
-                        TextField("자동", text: $workspace.speakerCount).textFieldStyle(.roundedBorder).frame(width: 150).accessibilityLabel("총 참여 화자 수").disabled(!workspace.canLeave)
-                        Text(workspace.notesValid ? (processing.selectedProvider == .soniox ? "Soniox는 화자 수를 자동 판단합니다. 이 입력은 녹음 정보로 보관합니다." : "비워 두면 자동으로 판단합니다.") : "1 이상의 정수를 입력해 주세요.")
+                        Text("예상 발화자 수").fontWeight(.medium)
+                        TextField("자동", text: $workspace.speakerCount).textFieldStyle(.roundedBorder).frame(width: 150).accessibilityLabel("예상 발화자 수").disabled(!workspace.canLeave)
+                        Text(workspace.notesValid ? (processing.selectedProvider == .soniox ? "기본 문맥을 켜면 예상 인원을 Soniox에 힌트로 전송합니다 (1~15명). 인원을 강제하지 않습니다." : "입력한 인원을 pyannote 화자 수 제약으로 전달합니다. 비워 두면 자동 판단합니다.") : "1 이상의 정수를 입력해 주세요.")
                             .font(.caption).foregroundStyle(workspace.notesValid ? Color.secondary : Color.red)
                     }
                     noteField("맥락", text: $workspace.context, height: 90)
@@ -445,13 +456,17 @@ struct LibraryShell: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     correctionHeader(file).padding(.bottom, 18)
+                    Text(file.script.speakerCountSummary)
+                        .font(.callout).foregroundStyle(file.script.speakerCountMismatch ? Color.orange : Color.secondary)
+                    Text(file.script.speakerCountApplication).font(.caption).foregroundStyle(.secondary).padding(.bottom, 18)
                     DisclosureGroup("녹음·변환 정보") {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("녹음: \(date(file.script.recordedAt)) · \(file.script.timeZoneID)")
                             Text(file.script.dateSource)
                             Text("Run: \(file.script.transcript.runId)")
                             Text("전사 문맥: \(file.script.input.sonioxContext == true ? "Soniox에 전송" : "미전송")")
-                            Text("참여 화자 수: \(file.script.input.speakerCount.map(String.init) ?? "자동 (미입력)")")
+                            Text("예상 발화자 수: \(file.script.input.speakerCount.map(String.init) ?? "자동 (미입력)")")
+                            Text("문단 표시: \(ScriptReadingPolicy.algorithmVersion)")
                             Text("참석자: \(file.script.input.participants ?? "미입력")")
                             Text("맥락: \(file.script.input.context.isEmpty ? "미입력" : file.script.input.context)")
                             Text("참고 정보: \(file.script.input.reference.isEmpty ? "미입력" : file.script.input.reference)")
@@ -461,6 +476,7 @@ struct LibraryShell: View {
                         ScriptBlockRow(block: block,
                             rename: { beginEdit(LibraryEdit(file: file, kind: .speaker(block), value: block.name)) },
                             editText: { beginEdit(LibraryEdit(file: file, kind: .text(block), value: block.text)) },
+                            editParagraphs: { beginEdit(LibraryEdit(file: file, kind: .paragraphs(block), value: "")) },
                             play: { workspace.play(block, file: file) },
                             playing: playback.playingID == file.id + ":" + block.id,
                             canPlay: !capture.phase.busy && block.startUs != nil && block.endUs != nil,
@@ -536,7 +552,7 @@ struct LibrarySettings: View {
 }
 
 struct LibraryEdit: Identifiable {
-    enum Kind { case title, speaker(ScriptBlock), text(ScriptBlock) }
+    enum Kind { case title, speaker(ScriptBlock), text(ScriptBlock), paragraphs(ScriptBlock) }
     let id = UUID()
     let file: LibraryScriptFile
     let kind: Kind
@@ -548,6 +564,7 @@ struct LibraryEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var value: String
     @State private var texts: [String: String]
+    @State private var breaks: [String: String] = [:]
     @State private var scope: SpeakerNameScope = .all
     @State private var error: String?
     init(edit: LibraryEdit, workspace: LibraryWorkspace) {
@@ -555,6 +572,11 @@ struct LibraryEditSheet: View {
         if case let .text(block) = edit.kind {
             _texts = State(initialValue: Dictionary(uniqueKeysWithValues: block.turns.map { ($0.id, edit.file.script.text(for: $0)) }))
         } else { _texts = State(initialValue: [:]) }
+        if case let .paragraphs(block) = edit.kind {
+            _breaks = State(initialValue: Dictionary(uniqueKeysWithValues: block.turns.map { turn in
+                (turn.id, edit.file.script.paragraphBreaks?[turn.id].map { $0 ? "split" : "join" } ?? "auto")
+            }))
+        }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -574,6 +596,23 @@ struct LibraryEditSheet: View {
                     ScrollView { Text(block.turns.map { edit.file.script.modelText(for: $0) }.joined(separator: "\n")).textSelection(.enabled) }.frame(maxHeight: 120)
                 }
                 Text("모델 원문은 보존됩니다. 시간은 재정렬하지 않습니다.").font(.caption).foregroundStyle(.secondary)
+            } else if case let .paragraphs(block) = edit.kind {
+                Text("아래 발화 앞에서 문단을 나누거나 앞 문단과 합칠 수 있습니다. 다른 화자·미확정·누락 경계는 유지합니다.").font(.caption)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        ForEach(block.turns, id: \.id) { turn in
+                            Text(LibraryScript.timestamp(turn.startUs)).font(.caption).foregroundStyle(.secondary)
+                            Text(edit.file.script.text(for: turn)).font(.callout).textSelection(.enabled)
+                            Picker("이 발화 앞 경계", selection: Binding(get: { breaks[turn.id] ?? "auto" }, set: { breaks[turn.id] = $0 })) {
+                                Text("자동").tag("auto")
+                                Text("새 문단").tag("split")
+                                if edit.file.script.canJoinParagraph(before: turn.id) { Text("앞 문단과 합치기").tag("join") }
+                            }
+                            Divider()
+                        }
+                    }
+                }.frame(maxHeight: 340)
+                Text("원문·문장부호·시간·화자 정보는 바꾸지 않습니다. ‘자동’을 선택하면 수동 경계를 해제합니다.").font(.caption).foregroundStyle(.secondary)
             } else {
                 ExactTextEditor(text: $value, label: title).frame(height: 120)
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.3)))
@@ -594,8 +633,8 @@ struct LibraryEditSheet: View {
             }
         }.padding(24).frame(width: 500).interactiveDismissDisabled()
     }
-    private var title: String { switch edit.kind { case .title: "스크립트 제목 수정"; case .speaker: "화자 이름 변경"; case .text: "대사 수정" } }
-    private var valid: Bool { if case .text = edit.kind { return true }; return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var title: String { switch edit.kind { case .title: "스크립트 제목 수정"; case .speaker: "화자 이름 변경"; case .text: "대사 수정"; case .paragraphs: "문단 합치기·나누기" } }
+    private var valid: Bool { switch edit.kind { case .text, .paragraphs: return true; default: return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } }
     private func save() {
         Task {
             do {
@@ -606,6 +645,11 @@ struct LibraryEditSheet: View {
                 case let .text(block):
                     for turn in block.turns where texts[turn.id] != edit.file.script.text(for: turn) {
                         try candidate.editText(turn.id, text: texts[turn.id] ?? "")
+                    }
+                case let .paragraphs(block):
+                    for turn in block.turns {
+                        let choice = breaks[turn.id] ?? "auto"
+                        try candidate.setParagraphBreak(before: turn.id, split: choice == "auto" ? nil : choice == "split")
                     }
                 }
                 try await workspace.saveScript(candidate, original: edit.file)

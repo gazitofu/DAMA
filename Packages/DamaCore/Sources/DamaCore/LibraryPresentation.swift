@@ -2,7 +2,7 @@ import Foundation
 
 /// Reading layout, separately versioned from model normalization.
 public enum ScriptReadingPolicy {
-    public static let algorithmVersion = "reading-v4"
+    public static let algorithmVersion = "reading-v5"
 
     static func endsSentence(_ text: String) -> Bool {
         let closers = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'”’)]}」』"))
@@ -12,6 +12,21 @@ public enum ScriptReadingPolicy {
         // Ellipses and a bare number followed by a dot are not a clear sentence end.
         guard last == ".", !ending.hasSuffix("..") else { return false }
         return ending.dropLast().contains(where: \.isLetter)
+    }
+
+    /// Reading-only Korean continuation heuristic. Does not rewrite provider punctuation or turns.
+    static func completesReadingSentence(_ text: String) -> Bool {
+        guard endsSentence(text) else { return false }
+        let ending = text.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'”’)]}」』")))
+        guard ending.last == "." else { return true } // Keep explicit questions/exclamations.
+        let stem = String(ending.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        let word = stem.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? ""
+        let acknowledgments: Set<String> = ["네", "네네", "네네네", "예", "예예", "응", "어", "음", "아", "맞아", "그래", "그렇죠", "맞죠", "오케이"]
+        if acknowledgments.contains(stem) { return true }
+        // Explicit endings take precedence over suffixes that may occur inside a complete verb.
+        if ["요", "습니다", "입니다", "합니다", "했다", "한다", "된다", "있다", "없다", "같다", "겠다", "거다", "이다", "거야", "거지", "했지", "하자", "해라", "해줘", "맞아", "맞지"].contains(where: word.hasSuffix) { return true }
+        if ["그리고", "그다음", "그다음에", "그러니까", "그런데", "그래서", "일단", "이제", "대충", "예를 들어서"].contains(stem) { return false }
+        return !["은", "는", "을", "를", "의", "에", "에서", "에게", "한테", "으로", "로", "하고", "되고", "했고", "있고", "없고", "보고", "주고", "잡고", "하면", "하면은", "하지만", "는데", "건데", "니까", "면서", "다가", "라고", "거나", "든지", "부터", "까지", "보다", "처럼", "위해서", "관해서", "대해서"].contains(where: word.hasSuffix)
     }
 }
 
@@ -55,6 +70,45 @@ public struct ScriptBlock: Identifiable, Sendable {
 }
 
 extension LibraryScript {
+    public var detectedSpeakerCount: Int { Set(transcript.words.compactMap(\.speakerId)).count }
+    public var speakerCountMismatch: Bool { input.speakerCount.map { $0 != detectedSpeakerCount } ?? false }
+    public var speakerCountSummary: String {
+        let expected = input.speakerCount.map { "예상 \($0)명 · " } ?? "예상 미입력 · "
+        return expected + "감지 \(detectedSpeakerCount)명" + (speakerCountMismatch ? " · 화자 구분 검수 필요" : " · 인원 일치만으로 정확도를 보장하지 않습니다")
+    }
+    public var speakerCountApplication: String {
+        if transcript.provenance.engine == .managedSoniox {
+            if input.sonioxContext == true, let count = input.sonioxSpeakerCountHint { return "Soniox에 \(count)명 힌트 전송 · 강제 지정 아님" }
+            return "Soniox 자동 판단 · 화자 수 힌트 미전송"
+        }
+        return input.speakerCount.map { "pyannote에 \($0)명 제약 전달" } ?? "자동 판단"
+    }
+
+    /// Hard boundary guard shared by automatic and manual reading layout.
+    public func canJoinParagraph(before turnID: String) -> Bool {
+        guard !transcript.revision.humanEdited,
+              let i = transcript.turns.firstIndex(where: { $0.id == turnID }), i > 0 else { return false }
+        let previous = transcript.turns[i - 1], next = transcript.turns[i]
+        guard previous.kind == .speech, next.kind == .speech,
+              let speaker = previous.speakerId, speaker == next.speakerId,
+              name(for: previous) == name(for: next),
+              let start = previous.startUs, let end = previous.endUs,
+              let nextStart = next.startUs, let nextEnd = next.endUs,
+              start <= end, nextStart <= nextEnd, start <= nextStart, end <= nextEnd else { return false }
+        guard end < nextStart else { return true }
+        return !(transcript.diarization + transcript.exclusiveDiarization).contains {
+            $0.speakerId != speaker && $0.startUs >= end && $0.startUs < nextStart && $0.endUs > $0.startUs
+        }
+    }
+
+    public mutating func setParagraphBreak(before turnID: String, split: Bool?) throws {
+        guard let turn = transcript.turns.first(where: { $0.id == turnID }), turn.kind == .speech,
+              split != false || canJoinParagraph(before: turnID) else { throw LibraryFailure.invalidInput }
+        if paragraphBreaks == nil { paragraphBreaks = [:] }
+        paragraphBreaks?[turnID] = split
+        revisionID = UUID().uuidString
+    }
+
     public func colorIndex(for speakerID: String?) -> Int? {
         guard let speakerID else { return nil }
         var seen = Set<String>(), order: [String] = []
@@ -83,25 +137,11 @@ extension LibraryScript {
             return turn.wordIds.compactMap { words[$0] }.sorted { $0.ordinal < $1.ordinal }
                 .map { $0.prefix + ($0.editedText ?? $0.text) }.joined()
         }
-        let evidence = transcript.diarization + transcript.exclusiveDiarization
         let texts = Dictionary(uniqueKeysWithValues: transcript.turns.map { ($0.id, currentText($0)) })
         func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn) -> Bool {
-            guard !transcript.revision.humanEdited,
-                  previous.kind == .speech, next.kind == .speech,
-                  let speaker = previous.speakerId, speaker == next.speakerId,
-                  displayName(previous) == displayName(next),
-                  let start = previous.startUs, let end = previous.endUs,
-                  let nextStart = next.startUs, let nextEnd = next.endUs,
-                  start <= end, nextStart <= nextEnd, start <= nextStart, end <= nextEnd,
-                  !ScriptReadingPolicy.endsSentence(texts[previous.id] ?? "") else { return false }
-            // A warning inside either A turn does not create a new reading paragraph.
-            // Preserve a new B starting in the gap, even without returned B text/marker.
-            // An already overlapping B ending inside A does not interrupt A anew.
-            guard end < nextStart else { return true }
-            return !evidence.contains {
-                $0.speakerId != speaker && $0.startUs >= end &&
-                $0.startUs < nextStart && $0.endUs > $0.startUs
-            }
+            guard canJoinParagraph(before: next.id) else { return false }
+            if let split = paragraphBreaks?[next.id] { return !split }
+            return !ScriptReadingPolicy.completesReadingSentence(texts[previous.id] ?? "")
         }
         var groups: [[TranscriptTurn]] = []
         for turn in transcript.turns {

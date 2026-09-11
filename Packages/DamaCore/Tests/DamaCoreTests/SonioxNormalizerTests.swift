@@ -3,6 +3,36 @@ import XCTest
 @testable import DamaCore
 
 final class SonioxNormalizerTests: XCTestCase {
+    func testSpeakerHintAndFolderBudgetPreserveBaseAndLegacyRequest() throws {
+        var input = ConversionNotes(speakerCount: 3, context: "회의", participants: "민수, 영희, 철수")
+        input.transcriptionProvider = .soniox; input.sonioxContext = true
+        let legacy = try SonioxRequest.context(input)!
+        XCTAssertFalse(String(decoding: legacy, as: UTF8.self).contains("3 speakers"))
+        input.referenceExcerpts = [
+            ReferenceExcerpt(name: "large", sha256: String(repeating: "a", count: 64), text: String(repeating: "한", count: 3_000)),
+            ReferenceExcerpt(name: "small", sha256: String(repeating: "b", count: 64), text: "관련 용어")]
+        let prepared = try SonioxRequest.prepare(input, includeFolder: true)
+        XCTAssertEqual(prepared.sonioxSpeakerCountHint, 3)
+        XCTAssertEqual(prepared.sonioxReferenceExcerpts?.map(\.name), ["small"])
+        XCTAssertEqual(prepared.sonioxOmittedReferences, ["large"])
+        XCTAssertEqual(prepared.referenceExcerpts, input.referenceExcerpts) // AI correction input intact.
+        let payload = try JSONSerialization.jsonObject(with: SonioxRequest.payload(fileID: UUID().uuidString, runID: UUID().uuidString, input: prepared)) as! [String: Any]
+        XCTAssertNil(payload["numSpeakers"]); XCTAssertNil(payload["speaker_count"])
+        let context = payload["context"] as! [String: Any]
+        XCTAssertEqual((context["general"] as! [[String: String]]).first, ["key": "speakers", "value": "3 speakers"])
+        XCTAssertEqual(context["text"] as? String, "관련 용어")
+        XCTAssertLessThanOrEqual(try SonioxRequest.context(prepared)!.count, SonioxRequest.maximumContextBytes)
+        let noFolder = try SonioxRequest.prepare(input, includeFolder: false)
+        XCTAssertEqual(noFolder.sonioxReferenceExcerpts, [])
+        input.sonioxContext = false
+        XCTAssertNil(try SonioxRequest.context(SonioxRequest.prepare(input, includeFolder: true)))
+        input.sonioxContext = true; input.speakerCount = nil
+        XCTAssertNil(try SonioxRequest.prepare(input, includeFolder: false).sonioxSpeakerCountHint)
+        input.speakerCount = 16
+        XCTAssertThrowsError(try SonioxRequest.prepare(input, includeFolder: false))
+        input.speakerCount = 3; input.context = String(repeating: "가", count: 3_000)
+        XCTAssertThrowsError(try SonioxRequest.prepare(input, includeFolder: true)) // no silent base truncation
+    }
     private func normalize(_ tokens: [[String: Any]], text: String? = nil, run: String = "run") throws -> TranscriptDocument {
         let data = try JSONSerialization.data(withJSONObject: ["id": "job", "text": text ?? tokens.map { $0["text"] as! String }.joined(), "tokens": tokens])
         return try SonioxNormalizer.normalize(data, jobID: "job", sessionID: "session", runID: run,

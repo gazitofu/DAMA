@@ -25,11 +25,15 @@ public enum SonioxRequest {
     public static func context(_ input: ConversionNotes) throws -> Data? {
         guard input.provider == .soniox, input.sonioxContext == true else { return nil }
         var general: [[String: String]] = []
+        if let count = input.sonioxSpeakerCountHint {
+            guard (1...15).contains(count) else { throw LibraryFailure.invalidInput }
+            general.append(["key": "speakers", "value": "\(count) speakers"])
+        }
         if !input.context.isEmpty { general.append(["key": "topic", "value": input.context]) }
         if let people = input.participants, !people.isEmpty { general.append(["key": "participants", "value": people]) }
         let terms = (input.sonioxTerms ?? "").components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        let text = ([input.reference] + (input.referenceExcerpts ?? []).map(\.text)).filter { !$0.isEmpty }.joined(separator: "\n\n")
+        let text = ([input.reference] + (input.sonioxReferenceExcerpts ?? input.referenceExcerpts ?? []).map(\.text)).filter { !$0.isEmpty }.joined(separator: "\n\n")
         var value: [String: Any] = [:]
         if !general.isEmpty { value["general"] = general }
         if !terms.isEmpty { value["terms"] = terms }
@@ -37,6 +41,24 @@ public enum SonioxRequest {
         let bytes = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys, .withoutEscapingSlashes])
         guard bytes.count <= maximumContextBytes else { throw LibraryFailure.invalidInput }
         return bytes
+    }
+    /// Used only for a new request, never when resuming or rendering an older Run.
+    public static func prepare(_ input: ConversionNotes, includeFolder: Bool) throws -> ConversionNotes {
+        var result = input
+        result.sonioxReferenceExcerpts = []
+        result.sonioxOmittedReferences = []
+        result.sonioxSpeakerCountHint = nil
+        guard input.provider == .soniox, input.sonioxContext == true else { return result }
+        result.sonioxSpeakerCountHint = input.speakerCount
+        _ = try context(result) // Basic context/terms must fit intact; never silently truncate them.
+        for excerpt in input.referenceExcerpts ?? [] {
+            guard includeFolder else { result.sonioxOmittedReferences?.append(excerpt.name); continue }
+            var candidate = result
+            candidate.sonioxReferenceExcerpts?.append(excerpt)
+            if (try? context(candidate)) != nil { result = candidate }
+            else { result.sonioxOmittedReferences?.append(excerpt.name) }
+        }
+        return result
     }
     public static func payload(fileID: String, runID: String, input: ConversionNotes) throws -> Data {
         guard UUID(uuidString: fileID) != nil, UUID(uuidString: runID) != nil else { throw LibraryFailure.invalidInput }

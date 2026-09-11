@@ -19,7 +19,12 @@ final class ProcessingWorkspace: ObservableObject {
     @Published var comparison = UserDefaults.standard.object(forKey: "transcription.comparison") as? Bool ?? true {
         didSet { UserDefaults.standard.set(comparison, forKey: "transcription.comparison") }
     }
-    @Published var sonioxContext = false
+    @Published var sonioxContext = UserDefaults.standard.object(forKey: "transcription.sonioxContext") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(sonioxContext, forKey: "transcription.sonioxContext") }
+    }
+    @Published var sonioxFolderContext = UserDefaults.standard.object(forKey: "transcription.sonioxFolderContext") as? Bool ?? false {
+        didSet { UserDefaults.standard.set(sonioxFolderContext, forKey: "transcription.sonioxFolderContext") }
+    }
     @Published var sonioxTerms = ""
     private var processor: ManagedProcessor?
     private var task: Task<Void, Never>?
@@ -50,8 +55,9 @@ final class ProcessingWorkspace: ObservableObject {
         selected.transcriptionProvider = selectedProvider
         selected.sonioxContext = selectedProvider == .soniox && sonioxContext
         selected.sonioxTerms = selectedProvider == .soniox && sonioxContext ? sonioxTerms : nil
-        let prepared = try await CorrectionWorkspace.shared.preparedInput(selected,
-            enabled: !comparison && CorrectionWorkspace.shared.automatic)
+        let notes = try await CorrectionWorkspace.shared.preparedInput(selected,
+            enabled: !comparison && CorrectionWorkspace.shared.automatic, includeSonioxFolder: sonioxFolderContext)
+        let prepared = selectedProvider == .soniox ? try SonioxRequest.prepare(notes, includeFolder: sonioxFolderContext) : notes
         try prepared.validate()
         return prepared
     }
@@ -67,7 +73,10 @@ final class ProcessingWorkspace: ObservableObject {
         alert.informativeText = "\(record.title) · \(record.durationUs / 1_000_000)초\n\n이 녹음의 음성을 \(input.provider.destination)로 보내 화자별 스크립트를 만듭니다. 모델: \(input.provider.model). 계정에 따라 비용이 발생할 수 있습니다. 원본은 이 Mac에 보관합니다.\n\n계정의 처리 지역과 보관 정책을 확인해 주세요. 앱에서 지워도 서버에서 즉시 삭제되지는 않습니다."
         if input.provider == .soniox {
             alert.informativeText += "\n\n한국어·영어 힌트, 화자 분리·언어 감지를 사용합니다. 화자 수는 자동 판단합니다. 앱은 서버 파일·작업을 자동 삭제하지 않습니다. Soniox 정책상 30일 후 자동 삭제됩니다."
-            alert.informativeText += input.sonioxContext == true ? "\n아래 전사 문맥·용어·참고 발췌도 Soniox에 전송합니다." : "\n맥락·참고 정보는 Soniox에 전송하지 않습니다."
+            alert.informativeText += input.sonioxContext == true ? "\n아래 맥락·참석자·용어와 선택된 참고 발췌도 Soniox에 전송합니다." : "\n맥락·참고 정보·화자 수 힌트는 Soniox에 전송하지 않습니다."
+            if let count = input.sonioxSpeakerCountHint {
+                alert.informativeText += "\n예상 발화자 \(count)명은 참고 힌트입니다. 결과를 해당 인원으로 강제하지 않습니다."
+            }
         }
         if input.aiCorrection != true { alert.informativeText += "\n\nAI 문맥 교정 OFF · 모델 원문으로 스크립트를 만듭니다." }
         if retranscribing {

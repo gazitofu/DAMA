@@ -3,6 +3,48 @@ import XCTest
 @testable import DamaCore
 
 final class LibraryPresentationTests: XCTestCase {
+    func testKoreanFragmentsJoinWhileCompletedSentencesAndResponsesStay() throws {
+        for text in ["그다음에.", "주요 조건을.", "그 회사는.", "진행하고.", "할 건데.", "예를 들어서."] {
+            XCTAssertFalse(ScriptReadingPolicy.completesReadingSentence(text), text)
+        }
+        for text in ["정해야죠.", "완료했습니다.", "진행합니다.", "네.", "네!", "조건을?", "완료했습니다.\""] {
+            XCTAssertTrue(ScriptReadingPolicy.completesReadingSentence(text), text)
+        }
+        var model = try script(["A", "A", "A", "A", "B", "A"]).transcript
+        let texts = ["그다음에.", "주요 조건을.", "정해야죠.", "이 회사는.", "네.", "검토합니다."]
+        for i in texts.indices { model.words[i].text = texts[i] }
+        let value = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        XCTAssertEqual(value.blocks().map(\.text), ["그다음에. 주요 조건을. 정해야죠.", "이 회사는.", "네.", "검토합니다."])
+        XCTAssertEqual(value.blocks().flatMap { $0.turns.flatMap(\.wordIds) }, value.transcript.words.map(\.id))
+    }
+
+    func testManualParagraphRoundtripGuardsAndSpeakerCountDisclosure() throws {
+        var value = try script(["A", "A", "B", "A"])
+        let original = try NormalizedTranscriptCodec.encode(value.transcript)
+        try value.setParagraphBreak(before: value.transcript.turns[1].id, split: true)
+        XCTAssertEqual(value.blocks().count, 4)
+        let loaded = try JSONDecoder().decode(LibraryScript.self, from: JSONEncoder().encode(value))
+        XCTAssertEqual(loaded.blocks().count, 4)
+        XCTAssertEqual(try NormalizedTranscriptCodec.encode(loaded.transcript), original)
+        XCTAssertEqual(String(decoding: try loaded.markdown(), as: UTF8.self).components(separatedBy: "### [").count - 1, 4)
+        try value.setParagraphBreak(before: value.transcript.turns[1].id, split: false)
+        XCTAssertEqual(value.blocks().count, 3)
+        XCTAssertThrowsError(try value.setParagraphBreak(before: value.transcript.turns[2].id, split: false))
+        XCTAssertThrowsError(try value.setParagraphBreak(before: value.transcript.turns[3].id, split: false))
+        XCTAssertThrowsError(try value.setParagraphBreak(before: "missing", split: true))
+        try value.setParagraphBreak(before: value.transcript.turns[1].id, split: nil)
+        XCTAssertEqual(value.paragraphBreaks, [:])
+        var input = ConversionNotes(speakerCount: 3)
+        input.transcriptionProvider = .soniox; input.sonioxContext = true
+        var model = value.transcript; model.provenance.engine = .managedSoniox
+        let old = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: input)
+        XCTAssertEqual(old.detectedSpeakerCount, 2); XCTAssertTrue(old.speakerCountMismatch)
+        XCTAssertTrue(old.speakerCountApplication.contains("미전송"))
+        input.sonioxSpeakerCountHint = 3
+        let hinted = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: input)
+        XCTAssertTrue(hinted.speakerCountApplication.contains("3명 힌트 전송"))
+        XCTAssertTrue(hinted.speakerCountSummary.contains("검수 필요"))
+    }
     func testExplicitSentenceEndDoesNotTreatEllipsisOrDecimalAsCompletion() {
         for text in ["완료했습니다.", "완료했습니다.\"  ", "맞습니까?", "네!", "끝。"] {
             XCTAssertTrue(ScriptReadingPolicy.endsSentence(text), text)

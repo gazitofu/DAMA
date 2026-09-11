@@ -56,9 +56,9 @@ import SwiftUI
         guard !busy else { return }; referenceURL = nil; preview = []
         UserDefaults.standard.removeObject(forKey: "correction.references")
     }
-    func preparedInput(_ input: ConversionNotes, enabled: Bool) async throws -> ConversionNotes {
+    func preparedInput(_ input: ConversionNotes, enabled: Bool, includeSonioxFolder: Bool = false) async throws -> ConversionNotes {
         var result = input; result.aiCorrection = enabled; result.referenceExcerpts = nil
-        if enabled || (input.provider == .soniox && input.sonioxContext == true), let referenceURL {
+        if enabled || (input.provider == .soniox && input.sonioxContext == true && includeSonioxFolder), let referenceURL {
             let excerpts = try await ReferenceFolder().excerpts(in: referenceURL, query: [input.participants ?? "", input.context, input.reference].joined(separator: "\n"))
             result.referenceExcerpts = excerpts; preview = excerpts
         }
@@ -72,7 +72,11 @@ import SwiftUI
             (input.referenceExcerpts ?? []).map { "[\($0.name)]\n\($0.text)" }.joined(separator: "\n\n")
         if let bytes = try? SonioxRequest.context(input) {
             let context = String(decoding: bytes, as: UTF8.self)
-            view.string = "Soniox 전사 문맥 (전체 전송값)\n\(context)\n\n" + (input.aiCorrection == true ? "OpenAI 교정 입력\n" + view.string : "")
+            let included = (input.sonioxReferenceExcerpts ?? input.referenceExcerpts ?? []).map(\.name).joined(separator: ", ")
+            let omitted = (input.sonioxOmittedReferences ?? []).joined(separator: ", ")
+            view.string = "Soniox 전사 문맥 (전체 전송값 · \(bytes.count)/7,500바이트)\n\(context)\n\n" +
+                "포함한 폴더 발췌: \(included.isEmpty ? "없음" : included)\n제외한 발췌 (선택/용량): \(omitted.isEmpty ? "없음" : omitted)\n\n" +
+                (input.aiCorrection == true ? "OpenAI 교정 입력\n" + view.string : "")
         }
         let scroll = NSScrollView(frame: view.frame); scroll.hasVerticalScroller = true; scroll.documentView = view
         view.isVerticallyResizable = true; view.autoresizingMask = [.width]

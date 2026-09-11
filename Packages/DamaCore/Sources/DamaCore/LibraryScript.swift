@@ -10,6 +10,10 @@ public struct ConversionNotes: Codable, Sendable, Equatable {
     public var transcriptionProvider: TranscriptionProvider?
     public var sonioxContext: Bool?
     public var sonioxTerms: String?
+    // Explicit snapshots: absent in older runs means no speaker-count hint was sent.
+    public var sonioxSpeakerCountHint: Int?
+    public var sonioxReferenceExcerpts: [ReferenceExcerpt]?
+    public var sonioxOmittedReferences: [String]?
     public var provider: TranscriptionProvider { transcriptionProvider ?? .pyannote }
     public init(speakerCount: Int? = nil, context: String = "", reference: String = "", participants: String? = nil,
                 aiCorrection: Bool? = nil, referenceExcerpts: [ReferenceExcerpt]? = nil) {
@@ -44,6 +48,8 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     public var turnTexts: [String: String]
     public var correction: ScriptCorrection?
     public var showsOriginal: Bool?
+    /// Boundary before an existing Turn: true = split, false = join if identity/evidence permits.
+    public var paragraphBreaks: [String: Bool]?
 
     public init(transcript: TranscriptDocument, title: String, recordedAt: Date?, dateSource: String,
                 timeZoneID: String = TimeZone.current.identifier, input: ConversionNotes,
@@ -66,6 +72,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
               !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               UUID(uuidString: revisionID) != nil,
               Set(turnNames.keys).isSubset(of: ids), Set(turnTexts.keys).isSubset(of: ids),
+              Set((paragraphBreaks ?? [:]).keys).isSubset(of: ids),
               turnNames.values.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
         else { throw LibraryFailure.invalidScript }
     }
@@ -150,6 +157,9 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
                      "- Run: \(Self.escape(transcript.runId))",
                      "- 입력 음성 SHA256: \(transcript.provenance.sourceAudioSHA256 ?? "미기록")",
                      "- 전사 문맥: \(input.provider == .soniox && input.sonioxContext == true ? "Soniox에 전송" : "미전송")",
+                     "- 화자 수: \(speakerCountSummary)",
+                     "- 화자 수 적용: \(speakerCountApplication)",
+                     "- 문단 표시: \(ScriptReadingPolicy.algorithmVersion)",
                      "- 스크립트 생성: \(date.string(from: createdAt))", "",
                      "## 변환 전 입력 정보", "", "- 참여 화자 수: \(input.speakerCount.map(String.init) ?? "자동 (미입력)")",
                      "", "### 맥락", "", Self.escape(input.context.isEmpty ? "미입력" : input.context),

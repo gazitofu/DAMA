@@ -44,3 +44,19 @@ resume: ""
 
 ## 후속 제품 요구
 - 사용자 2026-09-11 방향: 맥락·참석자를 기본 입력으로 사용하는 제품을 전제한다. 기존 OFF 기본 계약을 향후 변경할 때 짧은 기본 문맥과 큰 참고 폴더 발췌의 선택·용량 예산을 분리해, 폴더 초과가 기본 문맥 전송까지 막지 않도록 한다. 이번 단계는 실제 전송 비교이며 앱 영구 기본값/용량 정책의 코드 변경·설치는 하지 않았다. 현 UI의 context ON + 복원된 큰 참고 폴더는 다음 요청에서 같은 용량 제한이 재발할 수 있는 확인된 후속 항목이다.
+
+## 승인된 후속 구현 (2026-09-11)
+- 사용자 ‘개선 모두 진행’으로 앞선 5항 개선안의 코드/표시/설치/현재 동일 음성 3명 힌트 비교를 승인. 기존 mixed 6문서 보존 예외와 현재 브랜치 유지. 별도 새 유료 모델/AI 교정/원격 push는 범위 밖. 기존 계약·build 절차 및 세션 규율 본문 재사용, 현재 코드/입력/request 실측. 반복 용어·인물·회사명 기능은 설계 검토만 하며 자동 수집/외부 전송을 새로 실행하지 않는다.
+- [x] AC-07 새 Soniox Run에 사용자 화자 수를 speakers 힌트로 저장·전송, 미입력/기본 문맥 OFF에는 생략, 과거 Run에 힌트 소급 주장 없음. 예상/감지/일치의 한계 표시와 내보내기.
+- [x] AC-08 기본 문맥 ON(사용자 OFF 보존), 폴더 발췌 별도 OFF 기본. 기본 문맥은 보존하고 폴더 발췌는 전체 항목 단위로 byte 예산 내 선택, 포함/제외 미리보기와 Run snapshot. AI 교정 참고자료와 Soniox 발췌를 분리. 폴더 미선택 시 읽지 않음.
+- [x] AC-09 reading-v5: 마침표로 끝난 한국어 미완성 어구를 같은 화자 다음 발화와 병합. 완결문/의문문/맞장구·화자전환/null/누락·다른 화자 근거/역행 장벽 유지. normalized 변경 없이 사용자 문단 경계 선택/복원 저장·재열기·Markdown. 단일 모델 Turn 안의 임의 단어 위치 분할은 이 버전에서 제공하지 않고 실제 조정 가능한 기존 Turn 경계를 표시.
+- [x] AC-10 영향 Core/HTTP tests·계약·Debug build 후 0.2.1(8) 설치/실제 UI/기존 읽기·내보내기 및 동일 음성 3명 힌트 1회. 원문/이전 Script hash·입력 payload·화자/문단 측정, 미검증 정확도 구분. 새 정책 통계는 원본별 분모와 동일 측정기를 사용.
+- [x] AC-11 반복 용어 사전: 확인된 교정 중심 후보 수집, 전역/프로젝트 구분, 동명이인·약어충돌, 전송 선택/예산·로컬 보관·삭제/되돌림·효과 비교를 기존 notes에 설계 검토 기록.
+
+### 후속 검증 결과
+- 영향42개 PASS: LibraryPresentation11, SonioxNormalizer6, SonioxJourney4, ContextCorrection9, ManagedJourney12. 명령은 repo 캐시/키체인 비활성 `swift test --scratch-path .build/context-swiftpm --filter 'LibraryPresentationTests|SonioxNormalizerTests|SonioxJourneyTests|ContextCorrectionTests|ManagedJourneyTests|LibraryFolderTests'`, 정확한 전체 실행값/출력은 `.build/check-logs/soniox-improvements-fresh.log`. 첫 manifest 홈 캐시 쓰기 거절 후 경로 명시. 첫 증분 실행에서는 새 ‘건데’ continuation 기대 실패를 수정, managed signal11은 새 scratch 전체 컴파일로 해소(증분 ABI 불일치 가능성, 원인 확정 아님). 테스트 삭제/skip/완화 없음. 계약30개·Swift 계약 사본 검증 PASS, Debug Xcode build PASS (`soniox-improvements-xcodebuild.log`).
+- 설치 백업 `.build/app-backups/DAMA-0.2.0-before-context-20260911.app`. 첫 Quit 저장 보호에서 종료가 취소됐는데 복사가 먼저 실행된 절차 오류가 있었다. 이후 정상 Quit 재시도·프로세스 없음 확인 후 새 앱 실행, 기본 문맥 ON/폴더 OFF·예상인원 입력·기존 데이터·About 0.2.1(8) 확인. 다음 설치는 종료 결과를 먼저 읽고 복사를 별도 실행한다. 설치/빌드 dylib SHA256 350a50a9810ade7a07cb75e99bd4c699afcd92851a371401b077a4b9b84d1aca 동일.
+- CUA 폴더 ON 미리보기에서 전송 7,058바이트·2개 발췌 포함/나머지 제외 목록 확인. 확인창에서 사용자 조작으로 해당 작업이 시작되어 별도 Run으로 보존. 이어서 승인된 순수 힌트 비교는 폴더 OFF·645바이트로 완료. 이전 맥락·참석자 request와 비교해 `speakers: 3 speakers` 및 job/file ID 외 값 동일. 두 작업 모두 completed/readyForReview·stt-async-v5·AI OFF, 실제 오디오 전송 사용. 추가 반복 호출 없음.
+- 같은 기존 원문의 v4→v5 표시 비교: pyannote 발화 문단454→437/1초 미만190→176, Soniox 문맥OFF449→435/150→143, Soniox 맥락·참석자ON451→436/150→143. normalized 전수 동일, 모든 Turn 순서대로1회 포함·독립 집계/경계 대조군 PASS. 새 3명 힌트 결과(v5)는434문단/1초미만146, 힌트+폴더431/139. 두 신규 결과 모두 감지2명이라 화자 수 개선은 확인 못 함. DER/WER/CER·원음 정답 판정 없음.
+- CUA 실제 새 힌트 Script 문단 합치기 저장→재열기→분리 저장→자동 복원 확인, 내장 transcript 불변 및 paragraphBreaks={} 확인. 기존3개 Script SHA256 불변. 원문·내보낸 Markdown·병렬 비교는 ignored `.build/diagnostics/soniox-reading-v5/`, 재현 `python3 .build/diagnostics/soniox-reading-v5/measure.py`. 읽기 통계와 hint 전사 결과를 분리해 기록. 현재 앱은 순수 힌트 결과를 열어 둠, 기본 문맥ON/폴더OFF/AI교정OFF.
+- 반복 사전 검토: [vocabulary-memory.md](../../notes/soniox-provider/vocabulary-memory.md). 로컬 확인 사전·프로젝트 범위·수정에서 등록 제안·충돌/동명이인·Run snapshot·삭제/되돌림·검증 정의. 아직 사전 기능 구현/자동 수집/모델 재훈련 없음. 기존 mixed6문서는 보존하며 이번 커밋에서 제외.
