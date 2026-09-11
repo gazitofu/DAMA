@@ -9,7 +9,7 @@ import CryptoKit
         if !condition { throw NSError(domain: "ReadingDiagnostic", code: 1, userInfo: [NSLocalizedDescriptionKey: label]) }
     }
     static func hash(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
-    static func reason(_ script: LibraryScript, _ index: Int) -> String {
+    static func reason(_ script: LibraryScript, _ index: Int, accumulated: String) -> String {
         let a = script.transcript.turns[index - 1], b = script.transcript.turns[index]
         if script.transcript.revision.humanEdited { return "legacyHumanRevision" }
         if a.kind != .speech || b.kind != .speech { return "missingMarker" }
@@ -20,7 +20,11 @@ import CryptoKit
         if s > e || ns > ne || s > ns || e > ne { return "nonmonotonicTime" }
         if !script.canJoinParagraph(before: b.id) { return "interveningSpeaker" }
         if let split = script.paragraphBreaks?[b.id] { return split ? "manualSplit" : "manualJoin" }
-        return ScriptReadingPolicy.completesReadingSentence(script.text(for: a)) ? "sentenceEnd" : "joined"
+        guard ScriptReadingPolicy.completesReadingSentence(accumulated) else { return "joined" }
+        let next = script.text(for: b), suffix = next.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !suffix.isEmpty && suffix.unicodeScalars.allSatisfy(CharacterSet(charactersIn: ".?!。？！…\"'”’)]}」』").contains) { return "punctuationContinuation" }
+        if accumulated.last == ".", accumulated.dropLast().last?.isNumber == true, next.first?.isNumber == true { return "decimalContinuation" }
+        return "sentenceEnd"
     }
     static func measure(_ script: LibraryScript) throws -> [String: Any] {
         try script.validate()
@@ -31,13 +35,16 @@ import CryptoKit
         var cumulativeText = t.turns.first.map { script.text(for: $0) } ?? ""
         var missedAccumulatedEnds = 0
         for i in t.turns.indices.dropFirst() {
-            let r = reason(script, i)
+            let r = reason(script, i, accumulated: cumulativeText)
             reasons[r, default: 0] += 1
-            let joined = r == "joined" || r == "manualJoin"
+            let joined = ["joined", "manualJoin", "punctuationContinuation", "decimalContinuation"].contains(r)
             try require(joined == !starts.contains(t.turns[i].id), "reason-vs-production-blocks")
             if joined {
                 if r == "joined" && ScriptReadingPolicy.completesReadingSentence(cumulativeText) { missedAccumulatedEnds += 1 }
-                cumulativeText += script.text(for: t.turns[i])
+                let next = script.text(for: t.turns[i])
+                let sourceSpacing = [.hybridSonioxPyannote, .managedSoniox, .hybridPyannoteQwen].contains(t.provenance.engine)
+                let space = !sourceSpacing && !cumulativeText.isEmpty && !next.isEmpty && cumulativeText.last?.isWhitespace == false && next.first?.isWhitespace == false
+                cumulativeText += (space ? " " : "") + next
             } else { cumulativeText = script.text(for: t.turns[i]) }
         }
         for w in t.words where w.speakerId == nil {
@@ -65,7 +72,7 @@ import CryptoKit
             "nilTimeWords": t.words.filter { $0.startUs == nil }.count,
             "unknownWords": unknownReasons, "turns": t.turns.count,
             "speechTurns": t.turns.filter { $0.kind == .speech }.count,
-            "blocks": blocks.count, "speechBlocks": speech.count,
+            "blocks": blocks.count, "blockStartIDs": blocks.map(\.id), "speechBlocks": speech.count,
             "shortSpeechBlocks": speech.filter { b in
                 guard let s = b.startUs, let e = b.endUs else { return false }; return e - s < 1_000_000
             }.count,
@@ -104,11 +111,10 @@ import CryptoKit
         try require(manual.blocks().count == 2, "manual-split")
         let whole = try model(["완료했습니다.", " 다음입니다."], ["A", "A"])
         let split = try model(["완료했습니다", ".", " 다음입니다", "."], ["A", "A", "A", "A"])
-        // Characterization of a defect; never label the observed one-block result a policy pass.
-        try require(whole.blocks().count == 2 && split.blocks().count == 1, "split-punctuation-defect-reproduced")
+        try require(whole.blocks().count == 2 && split.blocks().count == 2, "split-punctuation-defect-fixed")
         for s in [continuation, aba, missing, manual, whole, split] { _ = try measure(s) }
         return ["controlsPassed": 6, "wholeSentenceBlocks": whole.blocks().count,
-                "splitPunctuationBlocks": split.blocks().count, "splitPunctuationDefectReproduced": true]
+                "splitPunctuationBlocks": split.blocks().count, "splitPunctuationDefectFixed": true]
     }
     static func main() throws {
         try require(CommandLine.arguments.count == 6, "arguments")

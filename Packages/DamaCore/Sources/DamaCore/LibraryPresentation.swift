@@ -2,7 +2,18 @@ import Foundation
 
 /// Reading layout, separately versioned from model normalization.
 public enum ScriptReadingPolicy {
-    public static let algorithmVersion = "reading-v5"
+    public static let algorithmVersion = "reading-v6"
+
+    /// Evaluate the displayed paragraph accumulated so far, including split punctuation.
+    /// This runs only after speaker/time/manual boundary checks have permitted a join.
+    static func continuesReadingSentence(_ text: String, with next: String) -> Bool {
+        let suffix = next.trimmingCharacters(in: .whitespacesAndNewlines)
+        let closingPunctuation = CharacterSet(charactersIn: ".?!。？！…\"'”’)]}」』")
+        if !suffix.isEmpty && suffix.unicodeScalars.allSatisfy(closingPunctuation.contains) { return true }
+        // 3 + . + 14 remains 3.14; whitespace before 14 denotes a separate token boundary.
+        if text.last == ".", text.dropLast().last?.isNumber == true, next.first?.isNumber == true { return true }
+        return !completesReadingSentence(text)
+    }
 
     static func endsSentence(_ text: String) -> Bool {
         let closers = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'”’)]}」』"))
@@ -148,29 +159,33 @@ extension LibraryScript {
                 .map { $0.prefix + ($0.editedText ?? $0.text) }.joined()
         }
         let texts = Dictionary(uniqueKeysWithValues: transcript.turns.map { ($0.id, currentText($0)) })
-        func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn) -> Bool {
+        let preservesSourceSpacing = transcript.provenance.engine == .hybridSonioxPyannote || transcript.provenance.engine == .managedSoniox || transcript.provenance.engine == .hybridPyannoteQwen
+        func appended(_ current: String, _ next: String) -> String {
+            let needsSpace = !preservesSourceSpacing && !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
+            return current + (needsSpace ? " " : "") + next
+        }
+        func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn, accumulated: String) -> Bool {
             guard canJoin(previous, next, previousName: displayName(previous), nextName: displayName(next)) else { return false }
             if let split = paragraphBreaks?[next.id] { return !split }
-            return !ScriptReadingPolicy.completesReadingSentence(texts[previous.id] ?? "")
+            return ScriptReadingPolicy.continuesReadingSentence(accumulated, with: texts[next.id] ?? "")
         }
         var groups: [[TranscriptTurn]] = []
+        var groupTexts: [String] = []
         for turn in transcript.turns {
-            if let previous = groups.last?.last, mayJoin(previous, turn) {
+            let text = texts[turn.id] ?? ""
+            if let previous = groups.last?.last, let accumulated = groupTexts.last, mayJoin(previous, turn, accumulated: accumulated) {
                 groups[groups.count - 1].append(turn)
-            } else { groups.append([turn]) }
+                groupTexts[groupTexts.count - 1] = appended(accumulated, text)
+            } else { groups.append([turn]); groupTexts.append(text) }
         }
         var result: [ScriptBlock] = []
         var attached = Set<String>()
         let issueIndex = Dictionary(uniqueKeysWithValues: transcript.reviewIssues.enumerated().map { ($0.element.id, ($0.offset, $0.element)) })
-        for group in groups {
+        for (groupIndex, group) in groups.enumerated() {
             let ids = Set(group.flatMap(\.reviewIssueIds) + group.flatMap(\.wordIds).flatMap { words[$0]?.reviewIssueIds ?? [] })
             let issues = ids.compactMap { issueIndex[$0] }.sorted { $0.0 < $1.0 }.map(\.1)
             attached.formUnion(issues.map(\.id))
-            let text = group.map { texts[$0.id] ?? "" }.reduce("") { current, next in
-                let preservesSourceSpacing = transcript.provenance.engine == .hybridSonioxPyannote || transcript.provenance.engine == .managedSoniox || transcript.provenance.engine == .hybridPyannoteQwen
-                let needsSpace = !preservesSourceSpacing && !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
-                return current + (needsSpace ? " " : "") + next
-            }
+            let text = groupTexts[groupIndex]
             // Trim only the reading paragraph. Keep source tokens and user-authored spacing intact.
             let hasHumanText = transcript.revision.humanEdited || group.contains {
                 turnTexts[$0.id] != nil || $0.wordIds.contains { words[$0]?.editedText != nil }

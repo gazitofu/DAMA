@@ -18,7 +18,7 @@
 
 - 새 Soniox 입력의 `sonioxSpeakerCountHint: Int?`는 사용자의 예상 발화자 수를 실제로 전송하는 snapshot이다. 기본 문맥 OFF/미입력은 nil. 과거 Run의 nil에는 전송 주장을 붙이지 않는다. 기존 speakerCount는 예상 인원으로 재사용하며 인원 일치/불일치는 검수 안내다.
 - `sonioxReferenceExcerpts: [ReferenceExcerpt]?`는 Soniox에 실제 포함한 발췌, `sonioxOmittedReferences: [String]?`는 선택/용량으로 제외한 발췌 이름이다. 구 Run의 nil은 기존 referenceExcerpts 계약을 따른다. 새 Run의 빈 배열은 폴더 미전송이며 AI 교정용 referenceExcerpts와 섞지 않는다. 기본 문맥 ON·폴더 OFF 초기값과 사용자 설정 영속 저장, 전송 전 실제 payload 미리보기.
-- `reading-v5`는 아래 reading-v4의 **표시 문장 완결 판정만** 보완한다. 마침표가 있어도 한국어 조사·연결 어미로 끝난 미완성 어구는 동일 화자 다음 Turn과 연결한다. 명시적 의문/감탄, 완결 어미, 짧은 맞장구는 종결로 유지한다. 형태소/원음으로 확정한 판정이 아닌 로컬 휴리스틱이며 공급자 model normalization/원문 문장부호는 바꾸지 않는다.
+- `reading-v6`는 reading-v5의 한국어 미완성 어구 휴리스틱을 유지하고 **누적 표시 문장으로** 완결을 판정한다. 마침표가 있어도 조사·연결 어미로 끝난 미완성 어구는 동일 화자 다음 Turn과 연결한다. 명시적 의문/감탄, 완결 어미, 짧은 맞장구는 종결로 유지한다. 분리된 종결부호·닫는 따옴표/괄호는 앞 문단에 붙이고, 토큰으로 나뉜 소수점·말줄임표는 중간에서 쪼개지 않는다. 단, 아래 화자/시간/누락/수동 경계가 항상 우선한다. 형태소/원음으로 확정한 판정이 아닌 로컬 휴리스틱이며 공급자 model normalization/원문 문장부호는 바꾸지 않는다.
 - envelope optional `paragraphBreaks: [TurnID: Bool]?`: 해당 기존 Turn 앞 true=새 문단, false=앞 문단과 합치기, 키 없음=자동. 다른 원 화자/표시 이름/null/누락/다른 화자 근거/역행 시간/humanEdited legacy 장벽은 수동 합치기도 넘지 않는다. 조정은 기존 모델 Turn 경계에서 제공한다. 단일 모델 Turn 안의 임의 단어 분할은 제공하지 않는다.
 - 수동 경계는 revisionID 갱신 및 기존 atomic 저장/외부 수정 충돌 검사를 따르고 원 normalized는 불변. 같은 blocks()를 UI와 Markdown에 사용한다. 사용자 ‘자동’ 복원은 해당 override 키 삭제. 재전사에는 복사하지 않는다.
 
