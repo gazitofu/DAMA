@@ -58,14 +58,14 @@ import SwiftUI
     }
     func preparedInput(_ input: ConversionNotes, enabled: Bool, includeSonioxFolder: Bool = false, includeQwenFolder: Bool = false) async throws -> ConversionNotes {
         var result = input; result.aiCorrection = enabled; result.referenceExcerpts = nil
-        if enabled || (input.provider == .soniox && input.sonioxContext == true && includeSonioxFolder) || (input.provider == .qwen && includeQwenFolder), let referenceURL {
+        if enabled || (input.provider.usesSoniox && input.sonioxContext == true && includeSonioxFolder) || (input.provider == .qwen && includeQwenFolder), let referenceURL {
             let excerpts = try await ReferenceFolder().excerpts(in: referenceURL, query: [input.participants ?? "", input.context, input.reference].joined(separator: "\n"))
             result.referenceExcerpts = excerpts; preview = excerpts
         }
         return result
     }
     static func addPreview(to alert: NSAlert, input: ConversionNotes) {
-        guard input.aiCorrection == true || input.provider == .qwen || (input.provider == .soniox && input.sonioxContext == true) else { return }
+        guard input.aiCorrection == true || input.provider == .qwen || (input.provider.usesSoniox && input.sonioxContext == true) else { return }
         let view = NSTextView(frame: NSRect(x: 0, y: 0, width: 460, height: 170))
         view.isEditable = false; view.isSelectable = true; view.font = .systemFont(ofSize: 11)
         view.string = "참석자\n\(input.participants ?? "미입력")\n\n맥락\n\(input.context)\n\n참고 정보\n\(input.reference)\n\n" +

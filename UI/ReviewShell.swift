@@ -325,6 +325,7 @@ func issueLabel(_ kind: IssueKind) -> String {
     case .invalid_timestamp: "시간을 확인할 수 없습니다. 원문은 보존되어 있습니다."
     case .low_confidence: "공급자 화자 점수가 낮아 확인이 필요합니다."
     case .capture_interrupted: "녹음이 중단되었습니다. 이후 구간은 녹음되지 않았을 수 있습니다."
+    case .provider_disagreement: "제공자 간 화자 구분 충돌"
     case .partial_result: "일부 전사 결과를 받지 못했습니다."
     }
 }

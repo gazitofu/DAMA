@@ -13,8 +13,8 @@ final class ProcessingWorkspace: ObservableObject {
     @Published private(set) var activeSessionID: String?
     @Published private(set) var attemptStartedAt: Date?
     @Published var message: String?
-    @Published var selectedProvider = TranscriptionProvider(rawValue: UserDefaults.standard.string(forKey: "transcription.provider") ?? "") ?? .pyannote {
-        didSet { UserDefaults.standard.set(selectedProvider.rawValue, forKey: "transcription.provider") }
+    @Published var selectedProvider = TranscriptionProvider(rawValue: UserDefaults.standard.string(forKey: "transcription.operatingProvider") ?? "") ?? .sonioxPrecision {
+        didSet { UserDefaults.standard.set(selectedProvider.rawValue, forKey: "transcription.operatingProvider") }
     }
     @Published var comparison = UserDefaults.standard.object(forKey: "transcription.comparison") as? Bool ?? true {
         didSet { UserDefaults.standard.set(comparison, forKey: "transcription.comparison") }
@@ -25,8 +25,6 @@ final class ProcessingWorkspace: ObservableObject {
     @Published var sonioxFolderContext = UserDefaults.standard.object(forKey: "transcription.sonioxFolderContext") as? Bool ?? false {
         didSet { UserDefaults.standard.set(sonioxFolderContext, forKey: "transcription.sonioxFolderContext") }
     }
-    @Published var sonioxTerms = ""
-    @Published var qwenTerms = ""
     @Published var qwenFolderContext = false
     @Published var qwenRuntimeURL = URL(fileURLWithPath: UserDefaults.standard.string(forKey:"qwen.runtime") ?? QwenRunner.defaultRuntime.path)
     var qwenReady: Bool { (try? QwenRunner(runtimeURL:qwenRuntimeURL).validateReady()) != nil }
@@ -59,23 +57,24 @@ final class ProcessingWorkspace: ObservableObject {
         } catch { message = "처리 저장소를 열지 못했습니다." }
     }
 
-    func run(for id: String) -> ManagedRun? { runs.first { $0.sessionID == id } }
+    func run(for id: String) -> ManagedRun? { runs.first { $0.sessionID == id && $0.parentRunID == nil } }
 
     func canRetranscribe(_ sessionID: String) -> Bool {
-        !busy && !localOnly.contains(sessionID) && runs.filter { $0.sessionID == sessionID }.allSatisfy(\.canRetranscribe)
+        !busy && !localOnly.contains(sessionID) && runs.filter { $0.sessionID == sessionID && $0.parentRunID == nil && (selectedProvider == .qwen || $0.provider != .qwen) }.allSatisfy(\.canRetranscribe)
     }
 
     func preparedInput(_ input: ConversionNotes) async throws -> ConversionNotes {
         var selected = input
         selected.transcriptionProvider = selectedProvider
-        selected.sonioxContext = selectedProvider == .soniox && sonioxContext
-        selected.sonioxTerms = selectedProvider == .soniox && sonioxContext ? sonioxTerms : nil
-        selected.qwenTerms = selectedProvider == .qwen ? qwenTerms : nil
+        selected.sonioxContext = selectedProvider.usesSoniox && sonioxContext
+        selected.sonioxTerms = selectedProvider.usesSoniox && sonioxContext ? input.meetingTerms : nil
+        selected.qwenTerms = selectedProvider == .qwen ? input.meetingTerms : nil
         selected.qwenDiarizationRunID=nil
+        selected.sonioxSourceRunID=nil; selected.precisionSourceRunID=nil
         let notes = try await CorrectionWorkspace.shared.preparedInput(selected,
-            enabled: selectedProvider != .qwen && !comparison && CorrectionWorkspace.shared.automatic,
+            enabled: ![.qwen, .sonioxPrecision].contains(selectedProvider) && !comparison && CorrectionWorkspace.shared.automatic,
             includeSonioxFolder: sonioxFolderContext, includeQwenFolder: qwenFolderContext)
-        let prepared = selectedProvider == .soniox ? try SonioxRequest.prepare(notes, includeFolder: sonioxFolderContext) : notes
+        let prepared = selectedProvider.usesSoniox ? try SonioxRequest.prepare(notes, includeFolder: sonioxFolderContext) : notes
         try prepared.validate()
         return prepared
     }
@@ -89,15 +88,21 @@ final class ProcessingWorkspace: ObservableObject {
                 audioHash:record.analysis!.sha256,speakerCount:input.speakerCount) }
             catch { message="기존 화자 분리 결과를 확인하지 못했습니다. 새 음성을 전송하지 않았습니다.";return }
         }
+        if input.provider == .sonioxPrecision {
+            do {
+                input.sonioxSourceRunID = try await processor.reusableSoniox(sessionID: record.id, audioHash: record.analysis!.sha256, input: input)
+                input.precisionSourceRunID = try await processor.reusableDiarization(sessionID: record.id, audioHash: record.analysis!.sha256, speakerCount: input.speakerCount)
+            } catch { message = "기존 결과의 조건을 확인하지 못했습니다. 전송하지 않았습니다."; return }
+        }
         guard !busy else { return }
-        if input.provider == .soniox && record.durationUs > SonioxRequest.maximumDurationUs {
+        if input.provider.usesSoniox && record.durationUs > SonioxRequest.maximumDurationUs {
             message = "Soniox는 300분 이하의 녹음을 지원합니다. 음성을 전송하지 않았습니다."; return
         }
         if retranscribing && !canRetranscribe(record.id) { message = "진행 중이거나 일시 정지된 전사를 먼저 완료해 주세요."; return }
         let alert = NSAlert()
         alert.messageText = retranscribing ? "음성을 다시 전송해 재전사할까요?" : "음성을 전송할까요?"
         alert.informativeText = "\(record.title) · \(record.durationUs / 1_000_000)초\n\n이 녹음의 음성을 \(input.provider.destination)로 보내 화자별 스크립트를 만듭니다. 모델: \(input.provider.model). 계정에 따라 비용이 발생할 수 있습니다. 원본은 이 Mac에 보관합니다.\n\n계정의 처리 지역과 보관 정책을 확인해 주세요. 앱에서 지워도 서버에서 즉시 삭제되지는 않습니다."
-        if input.provider == .soniox {
+        if input.provider.usesSoniox {
             alert.informativeText += "\n\n한국어·영어 힌트, 화자 분리·언어 감지를 사용합니다. 화자 수는 자동 판단합니다. 앱은 서버 파일·작업을 자동 삭제하지 않습니다. Soniox 정책상 30일 후 자동 삭제됩니다."
             alert.informativeText += input.sonioxContext == true ? "\n아래 맥락·참석자·용어와 선택된 참고 발췌도 Soniox에 전송합니다." : "\n맥락·참고 정보·화자 수 힌트는 Soniox에 전송하지 않습니다."
             if let count = input.sonioxSpeakerCountHint {
@@ -117,12 +122,26 @@ final class ProcessingWorkspace: ObservableObject {
                 (input.qwenDiarizationRunID != nil ? "같은 오디오·화자 수 설정의 Precision-2 결과를 재사용합니다. 새 음성 전송·화자 분리 과금은 없습니다." : "화자 분리를 위해 전체 음성을 pyannote.ai로 전송합니다. Precision-2 요금이 발생할 수 있습니다. Whisper 전사는 요청하지 않습니다.") +
                 "\n\n새 스크립트로 저장하며 기존 결과와 사람 수정은 보존합니다. 경계·겹말의 화자는 미확정으로 남길 수 있습니다."
         }
+        if input.provider == .sonioxPrecision {
+            alert.messageText = "운영 스크립트를 만들까요?"
+            alert.informativeText = "\(record.title) · \(record.durationUs / 1_000_000)초\n\nSoniox: " +
+                (input.sonioxSourceRunID.map { "동일 음성·문맥 결과 재사용 (\($0))" } ?? "전체 음성 전송 · stt-async-v5 전사 및 자체 화자분리") +
+                "\nPrecision-2: " + (input.precisionSourceRunID.map { "동일 음성·화자 수 설정 결과 재사용 (\($0))" } ?? "전체 음성을 pyannote.ai에 전송 · 화자분리만 (전사 OFF)") +
+                "\n\n새 요청에만 해당 서비스 사용량이 발생합니다. 완료된 결과는 보존하고, Soniox 단독과 결합본을 따로 엽니다. AI 교정 OFF. 화자 충돌·경계·겹말은 검수 대상으로 남습니다.\n\n" +
+                (input.speakerCount.map { "실제 발화자 \($0)명: Precision-2 제약" } ?? "실제 발화자 수 미입력: Precision-2 자동 판단") +
+                (input.sonioxSpeakerCountHint.map { " · Soniox \($0)명 힌트 (강제 아님)" } ?? " · Soniox 자동 판단") +
+                "\n참석자 명단과 실제 발화자 수는 다를 수 있습니다. 선택한 문맥은 Soniox에만 보내며 참고 문서를 정답으로 강제하지 않습니다.\n\n기존 수정본은 보존됩니다. Soniox 서버 파일은 자동 삭제하지 않으며 보관 정책이 적용됩니다."
+        }
+        if retranscribing && [.sonioxPrecision, .qwen].contains(input.provider) &&
+            runs.contains(where: { $0.sessionID == record.id && $0.stage == "submissionUncertain" }) {
+            alert.informativeText += "\n\n이전 작업의 접수 여부가 불명확합니다. 새 API 요청이 필요하면 중복 처리·과금이 발생할 수 있습니다. 기존 접수 불명 작업은 자동 재제출하지 않습니다."
+        }
         if input.aiCorrection == true {
             alert.informativeText += "\n\n전사 후 Codex CLI로 자동 교정합니다. 전사·참석자·맥락·아래 참고 발췌를 OpenAI에 전송하며 Codex 계정 사용량이 소모될 수 있습니다. 원문과 시간은 보존합니다."
         }
         CorrectionWorkspace.addPreview(to: alert, input: input)
         alert.addButton(withTitle: "닫기")
-        alert.addButton(withTitle: input.provider == .qwen ? "비교 전사 시작" : retranscribing ? "재전사 시작" : input.aiCorrection == true ? "전송하고 자동 교정" : "음성 전송")
+        alert.addButton(withTitle: input.provider == .sonioxPrecision ? "결합본 만들기" : input.provider == .qwen ? "비교 전사 시작" : retranscribing ? "재전사 시작" : input.aiCorrection == true ? "전송하고 자동 교정" : "음성 전송")
         if !retranscribing { alert.addButton(withTitle: "로컬 저장만") }
         let response = alert.runModal()
         if response == .alertThirdButtonReturn {
@@ -134,45 +153,71 @@ final class ProcessingWorkspace: ObservableObject {
         }
         guard response == .alertSecondButtonReturn else { return }
         let confirmedInput=input
-        launch(sessionID:record.id,provider:input.provider,needsKey:input.provider != .qwen || input.qwenDiarizationRunID == nil) { key in
-            try await processor.begin(sessionID:record.id,confirmed:true,key:key,input:confirmedInput,retranscribing:retranscribing)
+        let combined = input.provider == .sonioxPrecision
+        launch(sessionID: record.id, provider: input.provider,
+               needsKey: combined ? input.precisionSourceRunID == nil : input.provider != .qwen || input.qwenDiarizationRunID == nil,
+               needsSonioxKey: combined && input.sonioxSourceRunID == nil) { key, sonioxKey in
+            try await processor.begin(sessionID: record.id, confirmed: true, key: key, input: confirmedInput,
+                                      retranscribing: retranscribing, sonioxKey: sonioxKey)
         }
     }
 
     func resume(_ run: ManagedRun) {
         guard !busy, let processor else { return }
-        launch(sessionID:run.sessionID,provider:run.provider,needsKey:run.provider != .qwen || run.input?.qwenDiarizationRunID == nil) { key in try await processor.resume(run.id,key:key) }
+        let combined = run.provider == .sonioxPrecision
+        let p2Done = (run.precisionRunID ?? run.input?.precisionSourceRunID).map { id in runs.contains { $0.id == id && $0.stage == "readyForReview" } } ?? false
+        let sonioxDone = (run.sonioxRunID ?? run.input?.sonioxSourceRunID).map { id in runs.contains { $0.id == id && $0.stage == "readyForReview" } } ?? false
+        launch(sessionID: run.sessionID, provider: run.provider,
+               needsKey: combined ? !p2Done : run.provider != .qwen || run.input?.qwenDiarizationRunID == nil,
+               needsSonioxKey: combined && !sonioxDone) { key, sonioxKey in
+            try await processor.resume(run.id, key: key, sonioxKey: sonioxKey)
+        }
     }
 
-    private func launch(sessionID: String, provider: TranscriptionProvider, needsKey: Bool = true, _ action: @escaping @Sendable (String) async throws -> ManagedRun) {
+    private func saveCompletedSources() {
+        let saved = Set(UserDefaults.standard.stringArray(forKey: "library.savedSourceRuns") ?? [])
+        for run in runs where run.parentRunID != nil && run.sessionID == activeSessionID && run.provider == .soniox && run.stage == "readyForReview" && !saved.contains(run.id) {
+            if !LibraryWorkspace.shared.scripts.contains(where: { $0.id == run.id }) {
+                LibraryWorkspace.shared.processingFinished(run, select: false)
+            }
+        }
+    }
+    private func launch(sessionID: String, provider: TranscriptionProvider, needsKey: Bool = true,
+                        needsSonioxKey: Bool = false, _ action: @escaping @Sendable (String, String) async throws -> ManagedRun) {
         guard let processor else { return }
-        let key: String
+        let key: String, sonioxKey: String
         do {
-            key = needsKey ? try KeychainStore.read(provider: provider) ?? "" : ""
+            key = needsKey ? try KeychainStore.read(provider: provider == .sonioxPrecision ? .pyannote : provider) ?? "" : ""
+            sonioxKey = needsSonioxKey ? try KeychainStore.read(provider: .soniox) ?? "" : ""
         } catch { message = "키체인에서 API 키를 읽지 못했습니다. 녹음은 계속 사용할 수 있습니다."; return }
-        busy = true
-        activeSessionID = sessionID; attemptStartedAt = Date()
-        message = needsKey && key.isEmpty ? "\(provider.title) API 키가 필요합니다. 동의한 작업은 키 설정 후 계속할 수 있습니다." : nil
+        busy = true; activeSessionID = sessionID; attemptStartedAt = Date(); message = nil
         task = Task {
             let monitor = Task {
                 while !Task.isCancelled {
                     runs = (try? await processor.runs()) ?? runs
+                    saveCompletedSources()
                     try? await Task.sleep(for: .milliseconds(500))
                 }
             }
             defer { monitor.cancel(); busy = false; activeSessionID = nil; attemptStartedAt = nil; task = nil }
             do {
-                let result = try await action(key)
+                let result = try await action(key, sonioxKey)
                 runs = (try? await processor.runs()) ?? runs
+                saveCompletedSources()
                 if result.stage == "readyForReview" {
                     message = "전사 완료 · 검수 전. 결과의 화자와 원문을 확인해 주세요."
                     LibraryWorkspace.shared.processingFinished(result)
-                } else if result.provider == .qwen {
-                    message=result.failure == "runtimeUnavailable" ? "Qwen 실행 환경을 확인해 주세요. 원본과 완료 청크는 보존했습니다." : "Qwen 처리가 완료되지 않았습니다. 완료 청크를 보존했으며 변환 재개로 이어갈 수 있습니다."
+                } else {
+                    message = label(result)
+                    if result.provider == .sonioxPrecision, let id = result.sonioxRunID,
+                       runs.contains(where: { $0.id == id && $0.stage == "readyForReview" }) {
+                        message = "결합 처리 미완료 · Soniox 단독 결과는 Scripts에서 열 수 있습니다. " + label(result)
+                    }
                 }
             } catch { message = "처리를 시작하지 못했습니다. 원본과 기존 결과는 유지됩니다." }
         }
     }
+
     func pause() { task?.cancel() }
     var localInferenceActive: Bool {
         guard busy, let id = activeSessionID else { return false }

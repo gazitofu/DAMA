@@ -54,6 +54,7 @@ struct ScriptBlockRow: View {
     let rename: () -> Void
     let editText: () -> Void
     var editParagraphs: (() -> Void)?
+    var review: (() -> Void)?
     var play: () -> Void = {}
     var playing = false
     var canPlay = false
@@ -126,6 +127,7 @@ struct ScriptBlockRow: View {
                             }
                     }
                     Spacer(minLength: 8)
+                    if let review { Button("검수 기록", action: review).buttonStyle(.plain).font(.caption) }
                     if block.isSpeech, let editParagraphs {
                         Button("문단", action: editParagraphs).buttonStyle(.plain).font(.caption)
                             .accessibilityLabel("문단 합치기·나누기")
@@ -184,6 +186,7 @@ struct ScriptBlockRow: View {
         case .invalid_timestamp: "발화 길이가 없거나 시간이 불확실합니다. 앞뒤 원음으로 확인해 주세요."
         case .low_confidence: "공급자의 화자 점수가 낮아 확인이 필요합니다."
         case .partial_result: "일부 전사 결과를 받지 못했습니다."
+        case .provider_disagreement: "두 제공자의 화자 구분이 일치하지 않습니다. 원 후보와 원음을 확인해 주세요."
         }
     }
 }
@@ -215,16 +218,17 @@ struct LibraryShell: View {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 16) {
                     Picker("새 전사 엔진", selection: $processing.selectedProvider) {
-                        ForEach(TranscriptionProvider.allCases, id: \.self) { Text($0.title).tag($0) }
+                        ForEach(TranscriptionProvider.selectable, id: \.self) { Text($0.title).tag($0) }
                     }.frame(width: 260)
-                    Toggle("엔진 비교 · 자동 교정 끔", isOn: $processing.comparison)
-                    if processing.selectedProvider == .soniox {
+                    if [.sonioxPrecision, .qwen].contains(processing.selectedProvider) { Text("AI 교정 OFF").font(.caption) }
+                    else { Toggle("엔진 비교 · 자동 교정 끔", isOn: $processing.comparison) }
+                    if processing.selectedProvider.usesSoniox {
                         Toggle("기본 문맥 전송", isOn: $processing.sonioxContext)
                         Button("용어…") { terms = true }.disabled(!processing.sonioxContext)
                             .popover(isPresented: $terms) {
                                 VStack(alignment: .leading, spacing: 12) {
-                                    Text("Soniox 전사 용어 · 한 줄에 하나씩").font(.headline)
-                                    TextEditor(text: $processing.sonioxTerms).frame(width: 340, height: 140)
+                                    Text("회의 공통 용어 · Soniox/Qwen · 한 줄에 하나씩").font(.headline)
+                                    TextEditor(text: $workspace.meetingTerms).frame(width: 340, height: 140)
                                     Text("맥락·참석자·예상 발화자 수와 함께 전송합니다. 폴더 발췌는 별도 선택하며, 전송 전에 전체 내용을 확인할 수 있습니다.").font(.caption).frame(width: 340)
                                     Button("완료") { terms = false }
                                 }.padding(16)
@@ -232,7 +236,7 @@ struct LibraryShell: View {
                     }
                     Spacer(minLength: 0)
                 }
-                if processing.selectedProvider == .soniox {
+                if processing.selectedProvider.usesSoniox {
                     HStack {
                         Toggle("참고 폴더 발췌 추가", isOn: $processing.sonioxFolderContext).disabled(!processing.sonioxContext)
                         Text("기본 문맥: 맥락·참석자·예상 인원·직접 입력 참고·용어. 폴더는 남은 용량 안에서 선택합니다.").font(.caption).foregroundStyle(.secondary)
@@ -243,7 +247,7 @@ struct LibraryShell: View {
                         Text(processing.qwenReady ? "로컬 엔진 준비됨 · 한국어 · AI 교정 OFF" : "로컬 엔진 설치 필요").font(.caption)
                         Button("엔진 연결…") { processing.chooseQwenRuntime() }
                         Toggle("참고 폴더 로컬 입력",isOn:$processing.qwenFolderContext)
-                        TextField("Qwen 참고 용어",text:$processing.qwenTerms).textFieldStyle(.roundedBorder).frame(maxWidth:280)
+                        TextField("회의 공통 용어",text:$workspace.meetingTerms).textFieldStyle(.roundedBorder).frame(maxWidth:280)
                     }
                     Text("전사·정렬은 이 Mac에서 처리합니다. 화자 분리는 Precision-2를 사용하며, 같은 오디오·인원 설정의 결과가 있으면 재사용합니다.").font(.caption).foregroundStyle(.secondary)
                 }
@@ -396,16 +400,17 @@ struct LibraryShell: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("예상 발화자 수").fontWeight(.medium)
                         TextField("자동", text: $workspace.speakerCount).textFieldStyle(.roundedBorder).frame(width: 150).accessibilityLabel("예상 발화자 수").disabled(!workspace.canLeave)
-                        Text(workspace.notesValid ? (processing.selectedProvider == .soniox ? "기본 문맥을 켜면 예상 인원을 Soniox에 힌트로 전송합니다 (1~15명). 인원을 강제하지 않습니다." : "입력한 인원을 pyannote 화자 수 제약으로 전달합니다. 비워 두면 자동 판단합니다.") : "1 이상의 정수를 입력해 주세요.")
+                        Text(workspace.notesValid ? (processing.selectedProvider.usesSoniox ? "기본 문맥을 켜면 예상 인원을 Soniox에 힌트로 전송합니다 (1~15명). 인원을 강제하지 않습니다." : "입력한 인원을 pyannote 화자 수 제약으로 전달합니다. 비워 두면 자동 판단합니다.") : "1 이상의 정수를 입력해 주세요.")
                             .font(.caption).foregroundStyle(workspace.notesValid ? Color.secondary : Color.red)
                     }
+                    Text("실제로 말한 인원을 아는 경우에만 지정하세요. 운영 결합은 Precision-2 제약과 Soniox 힌트를 함께 사용합니다.").font(.caption).foregroundStyle(.secondary)
                     noteField("맥락", text: $workspace.context, height: 90)
                     noteField("참석자 · 한 줄에 이름과 소속/역할", text: $workspace.participants, height: 70)
                     noteField("참고 정보", text: $workspace.reference, height: 80)
                     Text("용어 표기를 지정하려면 ‘용어 | 주제 | 원표기 | 표준표기’를 한 줄씩 입력하세요. 맥락과 해당 발화에서 주제가 확인되는 경우에 적용합니다.")
                         .font(.caption).foregroundStyle(.secondary)
-                    Toggle("변환 후 문맥 자동 교정", isOn: Binding(get: { correction.automatic && !processing.comparison }, set: { correction.automatic = $0 }))
-                        .disabled(processing.comparison)
+                    Toggle("변환 후 문맥 자동 교정", isOn: Binding(get: { correction.automatic && !processing.comparison && ![.sonioxPrecision, .qwen].contains(processing.selectedProvider) }, set: { correction.automatic = $0 }))
+                        .disabled(processing.comparison || [.sonioxPrecision, .qwen].contains(processing.selectedProvider))
                     HStack {
                         Text(correction.referenceURL?.lastPathComponent ?? "참고 폴더 없음").font(.caption).foregroundStyle(.secondary)
                         Button("참고 폴더 연결…", action: correction.chooseReferences).disabled(correction.busy)
@@ -468,6 +473,46 @@ struct LibraryShell: View {
             Divider()
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Menu("같은 원음 결과 비교") {
+                            ForEach(workspace.scripts.filter { $0.script.transcript.provenance.sourceAudioSHA256 != nil && $0.script.transcript.provenance.sourceAudioSHA256 == file.script.transcript.provenance.sourceAudioSHA256 }) { other in
+                                Button("\(other.id == file.id ? "✓ " : "")\(other.script.transcript.provenance.engine.title) · \(other.script.createdAt.formatted(date: .omitted, time: .standard))") { workspace.selectScript(other.id) }
+                            }
+                        }.fixedSize().disabled(!workspace.canLeave)
+                        Button("평가 내보내기", action: workspace.exportEvaluation).disabled(!workspace.canLeave)
+                        Spacer()
+                    }.padding(.bottom, 12)
+                    Text(file.script.reviewSummary).font(.caption).foregroundStyle(.secondary)
+                    Text("경고가 없는 구간도 미검수입니다. 문제 구간과 무작위 정상 표본을 함께 확인하세요.").font(.caption).foregroundStyle(.secondary).padding(.bottom, 12)
+                    DisclosureGroup("검수 사건 \(ScriptReviewEvent.forListening(file.script.transcript.reviewIssues.filter { $0.status == .open }).count)개") {
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 12) {
+                                ForEach(ScriptReviewEvent.forListening(file.script.transcript.reviewIssues.filter { $0.status == .open })) { event in
+                                    HStack(alignment: .top) {
+                                        Button("\(LibraryScript.timestamp(event.startUs)) 원음") { workspace.play(event, file: file) }
+                                            .disabled(capture.phase.busy || event.startUs == nil || event.endUs == nil)
+                                        Text(event.kinds.map { issueLabel($0) }.joined(separator: " · ")).font(.caption)
+                                    }
+                                }
+                            }
+                        }.frame(maxHeight: 220)
+                    }.padding(.bottom, 12)
+                    DisclosureGroup("사용자 검수 이력") {
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 10) {
+                                ForEach((file.script.reviewRecords ?? []).reversed()) { record in
+                                    VStack(alignment: .leading) {
+                                        Text("\(record.error.title) · \(record.sample.title) · 원음 \(record.audioChecked ? "확인" : "미확인")")
+                                        Text("\(record.recordedAt.formatted()) · \(record.activeSeconds.map { String(format: "%.1f초", $0) } ?? "시간 미측정")")
+                                        ForEach(record.turns, id: \.turnID) { turn in
+                                            Text("\(LibraryScript.timestamp(turn.startUs)) [\(turn.beforeName)] \(turn.beforeText) → [\(turn.afterName)] \(turn.afterText)")
+                                        }
+                                        if !record.note.isEmpty { Text(record.note) }
+                                    }.font(.caption).textSelection(.enabled)
+                                }
+                            }
+                        }.frame(maxHeight: 200)
+                    }.padding(.bottom, 18)
                     correctionHeader(file).padding(.bottom, 18)
                     Text(file.script.speakerCountSummary)
                         .font(.callout).foregroundStyle(file.script.speakerCountMismatch ? Color.orange : Color.secondary)
@@ -478,6 +523,9 @@ struct LibraryShell: View {
                             Text(file.script.dateSource)
                             Text("Run: \(file.script.transcript.runId)")
                             Text("전사 문맥: \(file.script.input.transcriptionContextSummary)")
+                            Text("결합/정규화: \(file.script.transcript.provenance.algorithmVersion)")
+                            if let source = file.script.input.sonioxSourceRunID { Text("Soniox 원본 Run: \(source)") }
+                            if let source = file.script.input.precisionSourceRunID { Text("Precision-2 원본 Run: \(source)") }
                             if let source=file.script.input.qwenDiarizationRunID { Text("화자 분리 재사용 Run: \(source)") }
                             Text("예상 발화자 수: \(file.script.input.speakerCount.map(String.init) ?? "자동 (미입력)")")
                             Text("문단 표시: \(ScriptReadingPolicy.algorithmVersion)")
@@ -491,6 +539,7 @@ struct LibraryShell: View {
                             rename: { beginEdit(LibraryEdit(file: file, kind: .speaker(block), value: block.name)) },
                             editText: { beginEdit(LibraryEdit(file: file, kind: .text(block), value: block.text)) },
                             editParagraphs: { beginEdit(LibraryEdit(file: file, kind: .paragraphs(block), value: "")) },
+                            review: { beginEdit(LibraryEdit(file: file, kind: .review(block), value: "")) },
                             play: { workspace.play(block, file: file) },
                             playing: playback.playingID == file.id + ":" + block.id,
                             canPlay: !capture.phase.busy && block.startUs != nil && block.endUs != nil,
@@ -536,6 +585,7 @@ struct LibrarySettings: View {
     @ObservedObject private var correction = CorrectionWorkspace.shared
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var capture = RecordingWorkspace.shared.capture
+    @State private var costSettings = false
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("DAMA 설정").font(.title2)
@@ -556,21 +606,80 @@ struct LibrarySettings: View {
             Divider()
             APIKeySettings()
             Divider()
+            Button("월 비용·무료 혜택 기록…") { costSettings = true }
             Text("문맥 교정 · Codex CLI").font(.headline)
             Text(correction.executable.path).font(.caption).foregroundStyle(.secondary).lineLimit(2)
             Button("Codex 실행 파일 선택…", action: correction.chooseExecutable).disabled(correction.busy)
             Text("이 Mac에 설치·로그인된 Codex를 사용합니다. CLI 실행과 계정 접근은 앱 권한에 따라 제한될 수 있습니다.").font(.caption).foregroundStyle(.secondary)
             HStack { Spacer(); Button("닫기") { dismiss() }.keyboardShortcut(.cancelAction) }
         }.padding(24).frame(width: 470)
+            .sheet(isPresented: $costSettings) { OperatingCostSheet(workspace: workspace) }
     }
 }
 
 struct LibraryEdit: Identifiable {
-    enum Kind { case title, speaker(ScriptBlock), text(ScriptBlock), paragraphs(ScriptBlock) }
+    enum Kind { case title, speaker(ScriptBlock), text(ScriptBlock), paragraphs(ScriptBlock), review(ScriptBlock) }
     let id = UUID()
     let file: LibraryScriptFile
     let kind: Kind
     let value: String
+}
+
+struct OperatingCostSheet: View {
+    @ObservedObject var workspace: LibraryWorkspace
+    @Environment(\.dismiss) private var dismiss
+    @State private var cost: MonthlyOperatingCost
+    @State private var values: [String: String]
+    @State private var error: String?
+    private static let fields: [(String, WritableKeyPath<MonthlyOperatingCost, Double?>)] = [
+        ("pyannote 정상 월 구독료", \.normalSubscriptionUSD), ("pyannote 포함 크레딧", \.includedCreditUSD),
+        ("pyannote 정상 단가 사용액", \.precisionUsageUSD), ("Soniox 정상 단가 사용액", \.sonioxUsageUSD),
+        ("기타 현금 비용", \.otherCostUSD), ("실제 청구 합계", \.actualBilledUSD), ("TIRO 등 실제 비교 청구액", \.referenceBillUSD)]
+    init(workspace: LibraryWorkspace) {
+        self.workspace = workspace
+        let saved = workspace.monthlyCost
+        _cost = State(initialValue: saved)
+        _values = State(initialValue: Dictionary(uniqueKeysWithValues: Self.fields.map { ($0.0, saved[keyPath: $0.1].map { String($0) } ?? "") }))
+    }
+    private func parsed() throws -> MonthlyOperatingCost {
+        var result = cost
+        for (label, path) in Self.fields {
+            let text = (values[label] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty { result[keyPath: path] = nil }
+            else {
+                guard let value = Double(text), value.isFinite, value >= 0 else { throw LibraryFailure.invalidInput }
+                result[keyPath: path] = value
+            }
+        }
+        return result
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("월 비용·무료 혜택 기록").font(.title2)
+            Text("USD · 계정 대시보드/청구서 기준 수동 입력. 빈칸은 미측정이며, 확인한 무료 청구액만 0으로 입력하세요.").font(.caption)
+            TextField("대상 월 (YYYY-MM)", text: $cost.month).textFieldStyle(.roundedBorder)
+            ForEach(Self.fields, id: \.0) { label, _ in
+                HStack {
+                    Text(label).frame(width: 210, alignment: .leading)
+                    TextField("미입력", text: Binding(get: { values[label] ?? "" }, set: { values[label] = $0 })).textFieldStyle(.roundedBorder)
+                }
+            }
+            Text("정상 월 비용 = 구독료 + max(0, pyannote 사용액 − 포함 크레딧) + Soniox 사용액 + 기타 비용").font(.caption)
+            Text((try? parsed().normalTotalUSD).map { String(format: "혜택 종료 후 정상 월 비용: $%.2f", $0) } ?? "혜택 종료 후 정상 월 비용: 미측정").font(.headline)
+            TextField("무료 혜택 종료일 (확인 전은 빈칸)", text: $cost.trialEnds).textFieldStyle(.roundedBorder)
+            TextField("무료 포함량·조건", text: $cost.trialAllowance).textFieldStyle(.roundedBorder)
+            TextField("청구서/단가 근거·기록일·재처리 사용량 메모", text: $cost.evidence).textFieldStyle(.roundedBorder)
+            Text("새 달의 기록은 해당 월 평가 JSON으로 내보낸 뒤 교체하세요. 구독을 유지하면 호출을 줄여도 고정비가 남습니다. 미입력 값을 공개 가격으로 자동 채우지 않습니다.").font(.caption).foregroundStyle(.secondary)
+            if let error { Text(error).foregroundStyle(.red) }
+            HStack {
+                Spacer(); Button("취소") { dismiss() }
+                Button("비용 기록 저장") {
+                    do { try workspace.saveMonthlyCost(parsed()); dismiss() }
+                    catch { self.error = "금액은 0 이상의 숫자 또는 빈칸으로 입력하세요." }
+                }.keyboardShortcut(.defaultAction)
+            }
+        }.padding(24).frame(width: 520)
+    }
 }
 struct LibraryEditSheet: View {
     let edit: LibraryEdit
@@ -580,6 +689,12 @@ struct LibraryEditSheet: View {
     @State private var texts: [String: String]
     @State private var breaks: [String: String] = [:]
     @State private var scope: SpeakerNameScope = .all
+    @State private var audioChecked = false
+    @State private var reviewError: ReviewError = .unclassified
+    @State private var sample: ReviewSample = .unclassified
+    @State private var reviewNote = ""
+    @State private var elapsed: Double?
+    @State private var timerStarted: Date?
     @State private var error: String?
     init(edit: LibraryEdit, workspace: LibraryWorkspace) {
         self.edit = edit; self.workspace = workspace; _value = State(initialValue: edit.value)
@@ -610,6 +725,9 @@ struct LibraryEditSheet: View {
                     ScrollView { Text(block.turns.map { edit.file.script.modelText(for: $0) }.joined(separator: "\n")).textSelection(.enabled) }.frame(maxHeight: 120)
                 }
                 Text("모델 원문은 보존됩니다. 시간은 재정렬하지 않습니다.").font(.caption).foregroundStyle(.secondary)
+            } else if case let .review(block) = edit.kind {
+                ScrollView { Text(block.text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 120)
+                Text("선택한 원 발화 범위에 대해 기록합니다. 내용 수정 없이 정상 표본도 남길 수 있습니다.").font(.caption)
             } else if case let .paragraphs(block) = edit.kind {
                 Text("아래 발화 앞에서 문단을 나누거나 앞 문단과 합칠 수 있습니다. 다른 화자·미확정·누락 경계는 유지합니다.").font(.caption)
                 ScrollView {
@@ -639,21 +757,53 @@ struct LibraryEditSheet: View {
                 }.pickerStyle(.radioGroup)
                 Text("\(edit.file.script.affectedTurns(in: block, scope: scope).count)개 원 발화에 적용됩니다.").font(.caption).foregroundStyle(.secondary)
             }
+            if let block = reviewBlock {
+                Button("선택 구간 원음 재생·정지") { workspace.play(block, file: edit.file) }
+                    .disabled(RecordingWorkspace.shared.capture.phase.busy || block.startUs == nil || block.endUs == nil)
+                Toggle("기록할 전체 범위를 원음으로 확인함", isOn: $audioChecked)
+                Picker("오류 유형", selection: $reviewError) {
+                    ForEach(ReviewError.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                Picker("표본 유형", selection: $sample) {
+                    ForEach(ReviewSample.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
+                TextField("검수 메모 · 용어·숫자·부정·조건 등", text: $reviewNote).textFieldStyle(.roundedBorder)
+                HStack {
+                    Button(timerStarted == nil ? "능동 시간 측정 시작" : "시간 측정 일시 정지") {
+                        if timerStarted == nil { timerStarted = Date(); if elapsed == nil { elapsed = 0 } }
+                        else { pauseTimer() }
+                    }
+                    TimelineView(.periodic(from: .now, by: 1)) { tick in
+                        Text(elapsed.map { String(format: "%.0f초", $0 + (timerStarted.map { tick.date.timeIntervalSince($0) } ?? 0)) } ?? "미측정").font(.caption)
+                    }
+                }
+                Text("다른 앱으로 전환하면 측정을 일시 정지합니다. 원음 미확인·윤문 기록은 학습 정답으로 자동 채택하지 않습니다.").font(.caption).foregroundStyle(.secondary)
+            }
             if let error { Text(error).foregroundStyle(.red).font(.callout) }
             HStack {
                 Spacer()
                 Button("취소") { dismiss() }.keyboardShortcut(.cancelAction).disabled(workspace.busy)
                 Button("수정 저장", action: save).keyboardShortcut(.defaultAction).disabled(workspace.busy || !valid)
             }
-        }.padding(24).frame(width: 500).interactiveDismissDisabled()
+        }.padding(24).frame(width: 520).interactiveDismissDisabled()
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in pauseTimer() }
+            .onDisappear { pauseTimer(); workspace.playback.stop() }
     }
-    private var title: String { switch edit.kind { case .title: "스크립트 제목 수정"; case .speaker: "화자 이름 변경"; case .text: "대사 수정"; case .paragraphs: "문단 합치기·나누기" } }
-    private var valid: Bool { switch edit.kind { case .text, .paragraphs: return true; default: return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } }
+    private var title: String { switch edit.kind { case .title: "스크립트 제목 수정"; case .speaker: "화자 이름 변경"; case .text: "대사 수정"; case .paragraphs: "문단 합치기·나누기"; case .review: "구간 검수 기록" } }
+    private var valid: Bool { switch edit.kind { case .text, .paragraphs, .review: return reviewError != .noError || audioChecked; default: return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } }
+    private var reviewBlock: ScriptBlock? {
+        switch edit.kind { case let .text(b), let .speaker(b), let .paragraphs(b), let .review(b): b; case .title: nil }
+    }
+    private func pauseTimer() {
+        if let start = timerStarted { elapsed = (elapsed ?? 0) + max(0, Date().timeIntervalSince(start)); timerStarted = nil }
+    }
     private func save() {
+        pauseTimer()
         Task {
             do {
                 var candidate = edit.file.script
                 switch edit.kind {
+                case .review: break
                 case .title: try candidate.renameTitle(value)
                 case let .speaker(block): try candidate.rename(block, name: value, scope: scope)
                 case let .text(block):
@@ -665,6 +815,13 @@ struct LibraryEditSheet: View {
                         let choice = breaks[turn.id] ?? "auto"
                         try candidate.setParagraphBreak(before: turn.id, split: choice == "auto" ? nil : choice == "split")
                     }
+                }
+                if let block = reviewBlock {
+                    let ids: [String]
+                    if case .speaker = edit.kind { ids = edit.file.script.affectedTurns(in: block, scope: scope) }
+                    else { ids = block.turnIDs }
+                    try candidate.recordReview(before: edit.file.script, turnIDs: ids, audioChecked: audioChecked,
+                        error: reviewError, sample: sample, activeSeconds: elapsed, note: reviewNote)
                 }
                 try await workspace.saveScript(candidate, original: edit.file)
                 dismiss()

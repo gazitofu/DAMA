@@ -19,6 +19,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published var context = ""
     @Published var reference = ""
     @Published var participants = ""
+    @Published var meetingTerms = ""
     let playback = SegmentPlayback()
     @Published var message: String?
     @Published private(set) var busy = false
@@ -34,7 +35,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     var speech: LibrarySpeech? { speeches.first { $0.id == selectedSpeechID } }
     var scriptFile: LibraryScriptFile? { scripts.first { $0.id == selectedScriptID } }
     var notesValid: Bool { speakerCount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (Int(speakerCount).map { $0 > 0 } == true) }
-    var notes: ConversionNotes { ConversionNotes(speakerCount: Int(speakerCount), context: context, reference: reference, participants: participants.isEmpty ? nil : participants) }
+    var notes: ConversionNotes { var value = ConversionNotes(speakerCount: Int(speakerCount), context: context, reference: reference, participants: participants.isEmpty ? nil : participants); value.meetingTerms = meetingTerms.isEmpty ? nil : meetingTerms; return value }
     var notesDirty: Bool { speech.map { $0.notes != notes } ?? false }
     var foldersLocked: Bool { !canLeave || notesDirty || ProcessingWorkspace.shared.busy || CorrectionWorkspace.shared.busy || RecordingWorkspace.shared.capture.phase.busy }
 
@@ -145,7 +146,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         selectedSpeechID = id
         let notes = speech?.notes ?? ConversionNotes()
         speakerCount = notes.speakerCount.map(String.init) ?? ""; context = notes.context; reference = notes.reference
-        participants = notes.participants ?? ""
+        participants = notes.participants ?? ""; meetingTerms = notes.meetingTerms ?? ""
     }
     private func persistNotes() async throws {
         guard let speech, let store, notesDirty else { return }
@@ -266,7 +267,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             } catch { message = "원본 확인 또는 분석 파일 준비에 실패했습니다. 음성을 전송하지 않았습니다." }
         }
     }
-    func processingFinished(_ run: ManagedRun) {
+    func processingFinished(_ run: ManagedRun, select: Bool = true) {
+        guard run.provider != .precision else { return }
         guard let store, let root, let destination = folders[.scripts] else {
             message = "결과는 내부에 보존했습니다. 해당 Speeches와 Scripts 폴더를 선택한 뒤 스크립트를 저장해 주세요."
             return
@@ -280,8 +282,12 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 let document = try await FileSessionRepository(rootURL: root).loadModel(sessionId: run.sessionID, runId: run.id)
                 let result = try await store.createScript(document, speech: speech, input: run.input ?? speech.notes, in: destination)
                 scripts = try await store.scripts(in: destination)
+                if !select {
+                    var saved = Set(UserDefaults.standard.stringArray(forKey: "library.savedSourceRuns") ?? [])
+                    saved.insert(run.id); UserDefaults.standard.set(Array(saved), forKey: "library.savedSourceRuns")
+                }
                 savingRunIDs.remove(run.id)
-                if canLeave && !notesDirty { selectedScriptID = result.id; folder = .scripts }
+                if select && canLeave && !notesDirty { selectedScriptID = result.id; folder = .scripts }
                 message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요."
                 if result.script.correction == nil, run.input?.aiCorrection == true {
                     CorrectionWorkspace.shared.enqueue(result, input: run.input!)
@@ -292,6 +298,14 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     func saveScript(_ candidate: LibraryScript, original: LibraryScriptFile) async throws {
         guard !busy, let store else { throw LibraryFailure.invalidInput }
         busy = true; defer { busy = false }
+        var candidate = candidate
+        if candidate.reviewRecords == original.script.reviewRecords {
+            let changed = candidate.transcript.turns.filter {
+                candidate.turnTexts[$0.id] != original.script.turnTexts[$0.id] ||
+                candidate.turnNames[$0.id] != original.script.turnNames[$0.id]
+            }.map(\.id)
+            if !changed.isEmpty { try candidate.recordReview(before: original.script, turnIDs: changed) }
+        }
         let result = try await store.saveScript(candidate, to: original.url, expectedHash: original.hash)
         if let i = scripts.firstIndex(where: { $0.url == original.url }) { scripts[i] = result }
     }
@@ -349,6 +363,34 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             defer { if accessed { destination.stopAccessingSecurityScopedResource() } }
             do { try await store.exportMarkdown(file, to: destination); message = "Markdown 파일을 저장했습니다." }
             catch { message = "내보내지 못했습니다. 원본 스크립트의 변경 여부와 저장 권한을 확인해 주세요." }
+        }
+    }
+    var monthlyCost: MonthlyOperatingCost {
+        UserDefaults.standard.data(forKey: "evaluation.monthlyCost").flatMap { try? JSONDecoder().decode(MonthlyOperatingCost.self, from: $0) } ?? MonthlyOperatingCost()
+    }
+    func saveMonthlyCost(_ cost: MonthlyOperatingCost) throws {
+        try cost.validate()
+        UserDefaults.standard.set(try JSONEncoder().encode(cost), forKey: "evaluation.monthlyCost")
+    }
+    func exportEvaluation() {
+        guard canLeave, let file = scriptFile, let root else { return }
+        let panel = NSSavePanel(); panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "DAMA-evaluation-" + file.id + ".json"
+        panel.message = "원문·수정 이력·문맥·검수 표본과 수동 입력한 월 비용을 저장합니다. 자동 외부 전송은 없습니다."
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        busy = true
+        Task {
+            defer { busy = false }
+            let scoped = destination.startAccessingSecurityScopedResource()
+            defer { if scoped { destination.stopAccessingSecurityScopedResource() } }
+            do {
+                try await FileSessionRepository(rootURL: root).validateExportDestination(destination)
+                guard !destination.lastPathComponent.hasSuffix(".dama.json"),
+                      !speeches.contains(where: { $0.fileURL == destination }),
+                      try AudioFiles.hash(file.url) == file.hash else { throw LibraryFailure.changedFile }
+                try TranscriptExporter().write(file.script.evaluationData(cost: monthlyCost), to: destination)
+                message = "평가 JSON을 저장했습니다. 정확도와 미측정 비용을 자동 추정하지 않습니다."
+            } catch { message = "평가 파일을 저장하지 못했습니다. 원본 파일과 저장 위치를 확인해 주세요." }
         }
     }
     func recordingSaved(_ record: AudioManifest) {
