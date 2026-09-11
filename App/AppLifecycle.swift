@@ -36,6 +36,14 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
             }
             return .terminateLater
         }
+        let processing = ProcessingWorkspace.shared
+        if processing.localInferenceActive {
+            Task {
+                await processing.pauseAndWait()
+                sender.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
+        }
         return .terminateNow
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

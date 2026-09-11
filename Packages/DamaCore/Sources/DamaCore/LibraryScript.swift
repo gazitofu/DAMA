@@ -14,6 +14,16 @@ public struct ConversionNotes: Codable, Sendable, Equatable {
     public var sonioxSpeakerCountHint: Int?
     public var sonioxReferenceExcerpts: [ReferenceExcerpt]?
     public var sonioxOmittedReferences: [String]?
+    public var qwenTerms: String?
+    public var qwenDiarizationRunID: String?
+    public var qwenLocalContext: String {
+        ([context, participants ?? "", reference, qwenTerms ?? ""] + (referenceExcerpts ?? []).map(\.text))
+            .filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+    public var transcriptionContextSummary: String {
+        if provider == .qwen { return "Qwen 로컬 입력 · 외부 전송 없음" }
+        return provider == .soniox && sonioxContext == true ? "Soniox에 전송" : "미전송"
+    }
     public var provider: TranscriptionProvider { transcriptionProvider ?? .pyannote }
     public init(speakerCount: Int? = nil, context: String = "", reference: String = "", participants: String? = nil,
                 aiCorrection: Bool? = nil, referenceExcerpts: [ReferenceExcerpt]? = nil) {
@@ -22,6 +32,8 @@ public struct ConversionNotes: Codable, Sendable, Equatable {
     }
     public func validate() throws {
         if let speakerCount, speakerCount < 1 { throw LibraryFailure.invalidInput }
+        if let qwenDiarizationRunID, UUID(uuidString: qwenDiarizationRunID) == nil { throw LibraryFailure.invalidInput }
+        if provider == .qwen && qwenLocalContext.utf8.count > 7_500 { throw LibraryFailure.invalidInput }
         _ = try SonioxRequest.context(self)
     }
 }
@@ -156,7 +168,8 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
                      "- 전사 엔진: \(transcript.provenance.engine.title) · \(Self.escape(transcript.provenance.asrModel))",
                      "- Run: \(Self.escape(transcript.runId))",
                      "- 입력 음성 SHA256: \(transcript.provenance.sourceAudioSHA256 ?? "미기록")",
-                     "- 전사 문맥: \(input.provider == .soniox && input.sonioxContext == true ? "Soniox에 전송" : "미전송")",
+                     "- 전사 문맥: \(input.transcriptionContextSummary)",
+                     "- 화자 분리 재사용 Run: \(input.qwenDiarizationRunID ?? "없음")",
                      "- 화자 수: \(speakerCountSummary)",
                      "- 화자 수 적용: \(speakerCountApplication)",
                      "- 문단 표시: \(ScriptReadingPolicy.algorithmVersion)",

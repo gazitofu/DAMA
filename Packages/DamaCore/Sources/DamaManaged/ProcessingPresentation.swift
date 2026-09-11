@@ -15,7 +15,7 @@ public struct ProcessingPresentation: Sendable {
             detail = "원본과 오디오 형식을 확인합니다."
             step = nil; spinning = preparing || tracking; return
         }
-        let activeStages = ["queued", "uploading", "uploadSubmitting", "uploaded", "submitting", "remotePending", "normalizing"]
+        let activeStages = ["queued", "uploading", "uploadSubmitting", "uploaded", "submitting", "remotePending", "normalizing", "localTranscribing"]
         spinning = tracking && activeStages.contains(run.stage)
         if activeStages.contains(run.stage) && !tracking {
             title = "처리 상태 확인이 멈춰 있습니다"
@@ -34,6 +34,8 @@ public struct ProcessingPresentation: Sendable {
             detail = "완료되면 스크립트를 자동으로 저장합니다. 서버는 진행률·남은 시간을 제공하지 않습니다."; step = 2
         case "normalizing":
             title = "스크립트를 준비하고 있습니다"; detail = "변환 결과를 읽고 이 Mac에 저장합니다."; step = 3
+        case "localTranscribing":
+            title="Qwen 로컬 전사·정렬 중입니다";detail="이 Mac에서 처리합니다. 중단해도 완료한 청크는 보존되며 재개할 수 있습니다.";step=2
         case "readyForReview":
             title = scriptSaved ? "변환이 완료되었습니다" : "전사 완료 · 스크립트 저장이 필요합니다"
             detail = scriptSaved ? "스크립트에서 화자와 대화를 확인하세요." : "저장이 끝나지 않으면 아래 스크립트 저장으로 다시 시도할 수 있습니다."; step = 3

@@ -74,7 +74,7 @@ struct RecordingPanel: View {
                         } else if processing.localOnly.contains(record.id) {
                             Text("로컬 저장만").font(.caption)
                         } else {
-                            Button("전송 검토") { processing.reviewTransmission(record) }
+                            Button("전송 검토") { Task { await processing.reviewTransmission(record) } }
                                 .disabled(record.analysis == nil || processing.busy)
                         }
                     }.padding(10).frame(maxWidth: .infinity, alignment: .leading)

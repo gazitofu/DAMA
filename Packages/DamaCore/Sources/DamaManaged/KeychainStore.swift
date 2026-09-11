@@ -5,7 +5,7 @@ import DamaCore
 public enum KeychainStore {
     private static func query(_ provider: TranscriptionProvider) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: "com.gazitofu.Dama.\(provider.rawValue)",
+         kSecAttrService as String: "com.gazitofu.Dama.\(provider == .qwen ? "pyannote" : provider.rawValue)",
          kSecAttrAccount as String: "personal-api-key"]
     }
     public static func read(provider: TranscriptionProvider = .pyannote) throws -> String? {

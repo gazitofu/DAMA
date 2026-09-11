@@ -386,7 +386,7 @@ public actor FileSessionRepository: TranscriptRepository {
     public func importManagedTranscript(_ document: TranscriptDocument, rawData: Data) async throws {
         try TranscriptValidator().validate(document)
         try validateIdentifiers(in: document)
-        guard [.managedPyannoteWhisper, .managedSoniox].contains(document.provenance.engine),
+        guard [.managedPyannoteWhisper, .managedSoniox, .hybridPyannoteQwen].contains(document.provenance.engine),
               !document.revision.humanEdited, document.revision.baseRevisionId == nil else {
             throw SessionRepositoryError(code: .identityConflict, context: "managed-model")
         }

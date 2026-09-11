@@ -194,7 +194,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 try await persistNotes()
                 let manifest = try await AudioLibrary(root: root).prepareAnalysis(sessionID)
                 let prepared = try await ProcessingWorkspace.shared.preparedInput(input)
-                ProcessingWorkspace.shared.reviewTransmission(manifest, input: prepared, retranscribing: true)
+                await ProcessingWorkspace.shared.reviewTransmission(manifest, input: prepared, retranscribing: true)
             } catch LibraryFailure.invalidInput {
                 message = "전사 입력을 확인해 주세요. Soniox 화자 수 힌트는 1~15명입니다. 기본 맥락·참석자·직접 입력 참고·용어는 합계 7,500바이트 이하여야 합니다. 폴더 발췌는 남은 용량 안에서 선택됩니다. 전송하지 않았습니다."
             } catch { message = "재전사할 원음을 준비하지 못했습니다. 이 Mac의 내부 녹음과 참고 폴더 접근을 확인해 주세요. 전송하지 않았습니다." }
@@ -260,7 +260,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 try await persistNotes()
                 let manifest = try await AudioLibrary(root: root).prepareAnalysis(speech.id)
                 let prepared = try await processing.preparedInput(input)
-                processing.reviewTransmission(manifest, input: prepared)
+                await processing.reviewTransmission(manifest, input: prepared)
             } catch LibraryFailure.invalidInput {
                 message = "전사 입력을 확인해 주세요. Soniox 화자 수 힌트는 1~15명입니다. 기본 맥락·참석자·직접 입력 참고·용어는 합계 7,500바이트 이하여야 합니다. 폴더 발췌는 남은 용량 안에서 선택됩니다. 전송하지 않았습니다."
             } catch { message = "원본 확인 또는 분석 파일 준비에 실패했습니다. 음성을 전송하지 않았습니다." }

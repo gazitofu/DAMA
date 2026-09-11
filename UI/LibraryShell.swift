@@ -238,6 +238,15 @@ struct LibraryShell: View {
                         Text("기본 문맥: 맥락·참석자·예상 인원·직접 입력 참고·용어. 폴더는 남은 용량 안에서 선택합니다.").font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                if processing.selectedProvider == .qwen {
+                    HStack {
+                        Text(processing.qwenReady ? "로컬 엔진 준비됨 · 한국어 · AI 교정 OFF" : "로컬 엔진 설치 필요").font(.caption)
+                        Button("엔진 연결…") { processing.chooseQwenRuntime() }
+                        Toggle("참고 폴더 로컬 입력",isOn:$processing.qwenFolderContext)
+                        TextField("Qwen 참고 용어",text:$processing.qwenTerms).textFieldStyle(.roundedBorder).frame(maxWidth:280)
+                    }
+                    Text("전사·정렬은 이 Mac에서 처리합니다. 화자 분리는 Precision-2를 사용하며, 같은 오디오·인원 설정의 결과가 있으면 재사용합니다.").font(.caption).foregroundStyle(.secondary)
+                }
                 Text("새 변환·재전사에 적용합니다. 재개는 원래 엔진으로 계속하며, 이전 스크립트는 별도로 보존합니다.")
                     .font(.caption).foregroundStyle(.secondary)
             }.padding(.horizontal, 20).padding(.vertical, 10).disabled(processing.busy || !workspace.canLeave)
@@ -376,6 +385,10 @@ struct LibraryShell: View {
                     startedAt: processing.activeSessionID == speech.id ? processing.attemptStartedAt : nil,
                     scriptSaved: run.map { value in workspace.scripts.contains { $0.id == value.id } } ?? false)
                     .padding(.horizontal, 32).padding(.vertical, 16)
+                if processing.activeSessionID == speech.id, run?.provider == .qwen {
+                    Button("로컬 전사 일시 정지", action: processing.pause)
+                        .padding(.horizontal, 32).padding(.bottom, 12)
+                }
                 Divider()
             }
             ScrollView {
@@ -464,7 +477,8 @@ struct LibraryShell: View {
                             Text("녹음: \(date(file.script.recordedAt)) · \(file.script.timeZoneID)")
                             Text(file.script.dateSource)
                             Text("Run: \(file.script.transcript.runId)")
-                            Text("전사 문맥: \(file.script.input.sonioxContext == true ? "Soniox에 전송" : "미전송")")
+                            Text("전사 문맥: \(file.script.input.transcriptionContextSummary)")
+                            if let source=file.script.input.qwenDiarizationRunID { Text("화자 분리 재사용 Run: \(source)") }
                             Text("예상 발화자 수: \(file.script.input.speakerCount.map(String.init) ?? "자동 (미입력)")")
                             Text("문단 표시: \(ScriptReadingPolicy.algorithmVersion)")
                             Text("참석자: \(file.script.input.participants ?? "미입력")")

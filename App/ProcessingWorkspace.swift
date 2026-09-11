@@ -26,13 +26,28 @@ final class ProcessingWorkspace: ObservableObject {
         didSet { UserDefaults.standard.set(sonioxFolderContext, forKey: "transcription.sonioxFolderContext") }
     }
     @Published var sonioxTerms = ""
+    @Published var qwenTerms = ""
+    @Published var qwenFolderContext = false
+    @Published var qwenRuntimeURL = URL(fileURLWithPath: UserDefaults.standard.string(forKey:"qwen.runtime") ?? QwenRunner.defaultRuntime.path)
+    var qwenReady: Bool { (try? QwenRunner(runtimeURL:qwenRuntimeURL).validateReady()) != nil }
+    func chooseQwenRuntime() {
+        guard !busy else { return }
+        let panel=NSOpenPanel();panel.canChooseFiles=true;panel.canChooseDirectories=false
+        panel.message="준비된 Qwen 로컬 엔진의 qwen-runtime.json 파일을 선택해 주세요."
+        guard panel.runModal() == .OK,let url=panel.url else { return }
+        do {
+            try QwenRunner(runtimeURL:url).validateReady()
+            qwenRuntimeURL=url;UserDefaults.standard.set(url.path,forKey:"qwen.runtime")
+            processor=nil;start()
+        } catch { message="Qwen 실행 환경 또는 모델을 찾지 못했습니다. 로컬 엔진 설치를 먼저 완료해 주세요." }
+    }
     private var processor: ManagedProcessor?
     private var task: Task<Void, Never>?
 
     func start() {
         guard processor == nil else { return }
         do {
-            let processor = ManagedProcessor(root: try AudioFiles.root())
+            let processor = ManagedProcessor(root: try AudioFiles.root(), qwen: QwenRunner(runtimeURL:qwenRuntimeURL))
             self.processor = processor
             Task {
                 do {
@@ -55,15 +70,26 @@ final class ProcessingWorkspace: ObservableObject {
         selected.transcriptionProvider = selectedProvider
         selected.sonioxContext = selectedProvider == .soniox && sonioxContext
         selected.sonioxTerms = selectedProvider == .soniox && sonioxContext ? sonioxTerms : nil
+        selected.qwenTerms = selectedProvider == .qwen ? qwenTerms : nil
+        selected.qwenDiarizationRunID=nil
         let notes = try await CorrectionWorkspace.shared.preparedInput(selected,
-            enabled: !comparison && CorrectionWorkspace.shared.automatic, includeSonioxFolder: sonioxFolderContext)
+            enabled: selectedProvider != .qwen && !comparison && CorrectionWorkspace.shared.automatic,
+            includeSonioxFolder: sonioxFolderContext, includeQwenFolder: qwenFolderContext)
         let prepared = selectedProvider == .soniox ? try SonioxRequest.prepare(notes, includeFolder: sonioxFolderContext) : notes
         try prepared.validate()
         return prepared
     }
 
-    func reviewTransmission(_ record: AudioManifest, input: ConversionNotes = ConversionNotes(), retranscribing: Bool = false) {
+    func reviewTransmission(_ record: AudioManifest, input original: ConversionNotes = ConversionNotes(), retranscribing: Bool = false) async {
+        var input=original
         guard !busy, let processor, record.analysis != nil, !localOnly.contains(record.id) else { return }
+        if input.provider == .qwen {
+            guard qwenReady else { message="Qwen 로컬 엔진이 준비되지 않았습니다. 엔진 설정에서 설치된 환경을 연결해 주세요.";return }
+            do { input.qwenDiarizationRunID=try await processor.reusableDiarization(sessionID:record.id,
+                audioHash:record.analysis!.sha256,speakerCount:input.speakerCount) }
+            catch { message="기존 화자 분리 결과를 확인하지 못했습니다. 새 음성을 전송하지 않았습니다.";return }
+        }
+        guard !busy else { return }
         if input.provider == .soniox && record.durationUs > SonioxRequest.maximumDurationUs {
             message = "Soniox는 300분 이하의 녹음을 지원합니다. 음성을 전송하지 않았습니다."; return
         }
@@ -85,12 +111,18 @@ final class ProcessingWorkspace: ObservableObject {
                 alert.informativeText += "\n\n이전 작업의 접수 여부가 불명확합니다. 이미 접수되었다면 중복 처리·과금이 발생할 수 있습니다."
             }
         }
+        if input.provider == .qwen {
+            alert.messageText="로컬 Qwen 비교 전사를 시작할까요?"
+            alert.informativeText="\(record.title) · \(record.durationUs/1_000_000)초\n\n이 Mac에서 Qwen3-ASR-1.7B와 ForcedAligner-0.6B로 한국어 전사·정렬을 실행합니다. 맥락·참석자·용어는 로컬 모델에만 입력합니다. AI 교정은 끕니다.\n\n" +
+                (input.qwenDiarizationRunID != nil ? "같은 오디오·화자 수 설정의 Precision-2 결과를 재사용합니다. 새 음성 전송·화자 분리 과금은 없습니다." : "화자 분리를 위해 전체 음성을 pyannote.ai로 전송합니다. Precision-2 요금이 발생할 수 있습니다. Whisper 전사는 요청하지 않습니다.") +
+                "\n\n새 스크립트로 저장하며 기존 결과와 사람 수정은 보존합니다. 경계·겹말의 화자는 미확정으로 남길 수 있습니다."
+        }
         if input.aiCorrection == true {
             alert.informativeText += "\n\n전사 후 Codex CLI로 자동 교정합니다. 전사·참석자·맥락·아래 참고 발췌를 OpenAI에 전송하며 Codex 계정 사용량이 소모될 수 있습니다. 원문과 시간은 보존합니다."
         }
         CorrectionWorkspace.addPreview(to: alert, input: input)
         alert.addButton(withTitle: "닫기")
-        alert.addButton(withTitle: retranscribing ? "재전사 시작" : input.aiCorrection == true ? "전송하고 자동 교정" : "음성 전송")
+        alert.addButton(withTitle: input.provider == .qwen ? "비교 전사 시작" : retranscribing ? "재전사 시작" : input.aiCorrection == true ? "전송하고 자동 교정" : "음성 전송")
         if !retranscribing { alert.addButton(withTitle: "로컬 저장만") }
         let response = alert.runModal()
         if response == .alertThirdButtonReturn {
@@ -101,23 +133,26 @@ final class ProcessingWorkspace: ObservableObject {
             return
         }
         guard response == .alertSecondButtonReturn else { return }
-        launch(sessionID: record.id, provider: input.provider) { key in try await processor.begin(sessionID: record.id, confirmed: true, key: key, input: input, retranscribing: retranscribing) }
+        let confirmedInput=input
+        launch(sessionID:record.id,provider:input.provider,needsKey:input.provider != .qwen || input.qwenDiarizationRunID == nil) { key in
+            try await processor.begin(sessionID:record.id,confirmed:true,key:key,input:confirmedInput,retranscribing:retranscribing)
+        }
     }
 
     func resume(_ run: ManagedRun) {
         guard !busy, let processor else { return }
-        launch(sessionID: run.sessionID, provider: run.provider) { key in try await processor.resume(run.id, key: key) }
+        launch(sessionID:run.sessionID,provider:run.provider,needsKey:run.provider != .qwen || run.input?.qwenDiarizationRunID == nil) { key in try await processor.resume(run.id,key:key) }
     }
 
-    private func launch(sessionID: String, provider: TranscriptionProvider, _ action: @escaping @Sendable (String) async throws -> ManagedRun) {
+    private func launch(sessionID: String, provider: TranscriptionProvider, needsKey: Bool = true, _ action: @escaping @Sendable (String) async throws -> ManagedRun) {
         guard let processor else { return }
         let key: String
         do {
-            key = try KeychainStore.read(provider: provider) ?? ""
+            key = needsKey ? try KeychainStore.read(provider: provider) ?? "" : ""
         } catch { message = "키체인에서 API 키를 읽지 못했습니다. 녹음은 계속 사용할 수 있습니다."; return }
         busy = true
         activeSessionID = sessionID; attemptStartedAt = Date()
-        message = key.isEmpty ? "\(provider.title) API 키가 필요합니다. 동의한 작업은 키 설정 후 계속할 수 있습니다." : nil
+        message = needsKey && key.isEmpty ? "\(provider.title) API 키가 필요합니다. 동의한 작업은 키 설정 후 계속할 수 있습니다." : nil
         task = Task {
             let monitor = Task {
                 while !Task.isCancelled {
@@ -132,11 +167,22 @@ final class ProcessingWorkspace: ObservableObject {
                 if result.stage == "readyForReview" {
                     message = "전사 완료 · 검수 전. 결과의 화자와 원문을 확인해 주세요."
                     LibraryWorkspace.shared.processingFinished(result)
+                } else if result.provider == .qwen {
+                    message=result.failure == "runtimeUnavailable" ? "Qwen 실행 환경을 확인해 주세요. 원본과 완료 청크는 보존했습니다." : "Qwen 처리가 완료되지 않았습니다. 완료 청크를 보존했으며 변환 재개로 이어갈 수 있습니다."
                 }
             } catch { message = "처리를 시작하지 못했습니다. 원본과 기존 결과는 유지됩니다." }
         }
     }
     func pause() { task?.cancel() }
+    var localInferenceActive: Bool {
+        guard busy, let id = activeSessionID else { return false }
+        return (run(for: id)?.provider ?? selectedProvider) == .qwen
+    }
+    func pauseAndWait() async {
+        let running = task
+        running?.cancel()
+        await running?.value
+    }
 
     func label(_ run: ManagedRun) -> String {
         switch run.stage {
@@ -146,6 +192,7 @@ final class ProcessingWorkspace: ObservableObject {
         case "submitting": "작업 접수 중"
         case "remotePending": "서버 처리 중"
         case "normalizing": "스크립트 준비 중"
+        case "localTranscribing": "Qwen 로컬 전사·정렬 중"
         case "readyForReview": "전사 완료 · 검수 전"
         case "submissionUncertain": "작업 접수 여부를 확인할 수 없습니다. 자동 재제출하지 않습니다."
         case "waitingForCredentials": "API 키 필요"
@@ -159,7 +206,7 @@ final class ProcessingWorkspace: ObservableObject {
         }
     }
     func canResume(_ run: ManagedRun) -> Bool {
-        !busy && ["queued", "uploading", "uploaded", "remotePending", "normalizing", "waitingForCredentials", "waitingForBilling", "waitingForNetwork", "paused"].contains(run.stage)
+        !busy && ["queued", "uploading", "uploaded", "remotePending", "normalizing", "localTranscribing", "waitingForCredentials", "waitingForBilling", "waitingForNetwork", "paused"].contains(run.stage)
     }
 }
 
@@ -170,7 +217,7 @@ struct APIKeySettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Picker("API 키 서비스", selection: $provider) {
-                ForEach(TranscriptionProvider.allCases, id: \.self) { Text($0.title).tag($0) }
+                ForEach([TranscriptionProvider.pyannote, .soniox], id: \.self) { Text($0.title).tag($0) }
             }.onChange(of: provider) { key = ""; message = nil }
             Text("\(provider.title) API 키").font(.headline)
             SecureField("API 키", text: $key).textFieldStyle(.roundedBorder)

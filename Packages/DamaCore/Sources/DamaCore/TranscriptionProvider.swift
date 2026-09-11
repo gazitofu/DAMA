@@ -1,11 +1,15 @@
 import Foundation
 
 public enum TranscriptionProvider: String, Codable, CaseIterable, Sendable {
-    case pyannote, soniox
-    public var title: String { self == .pyannote ? "pyannote + Whisper" : "Soniox" }
-    public var destination: String { self == .pyannote ? "pyannote.ai" : "Soniox (api.soniox.com)" }
-    public var model: String { self == .pyannote ? "faster-whisper-large-v3-turbo" : "stt-async-v5" }
-    public var rawFilename: String { self == .pyannote ? "pyannote-response.json" : "soniox-response.json" }
+    case pyannote, soniox, qwen
+    public var title: String {
+        switch self { case .pyannote: "pyannote + Whisper"; case .soniox: "Soniox"; case .qwen: "로컬 Qwen + Precision-2 (비교)" }
+    }
+    public var destination: String { self == .soniox ? "Soniox (api.soniox.com)" : "pyannote.ai" }
+    public var model: String {
+        switch self { case .pyannote: "faster-whisper-large-v3-turbo"; case .soniox: "stt-async-v5"; case .qwen: "Qwen3-ASR-1.7B + Qwen3-ForcedAligner-0.6B" }
+    }
+    public var rawFilename: String { self == .soniox ? "soniox-response.json" : "pyannote-response.json" }
 }
 
 extension EngineKind {
@@ -14,6 +18,7 @@ extension EngineKind {
         case .managedPyannoteWhisper: "pyannote + Whisper"
         case .managedSoniox: "Soniox"
         case .hybridPyannoteWhisperKit: "pyannote + WhisperKit"
+        case .hybridPyannoteQwen: "로컬 Qwen + Precision-2"
         }
     }
 }

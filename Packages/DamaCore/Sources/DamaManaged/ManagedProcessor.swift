@@ -38,14 +38,17 @@ public actor ManagedProcessor {
     private let root: URL
     private let transport: any ManagedTransport
     private let soniox: any SonioxTransporting
+    private let qwen: any QwenRunning
     private let sleep: @Sendable (Double) async throws -> Void
     private var active = false
     public init(root: URL, transport: any ManagedTransport = PyannoteTransport(),
                 soniox: any SonioxTransporting = SonioxTransport(),
+                qwen: any QwenRunning = QwenRunner(),
                 sleep: @escaping @Sendable (Double) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }) {
         self.root = root.standardizedFileURL
         self.transport = transport
         self.soniox = soniox
+        self.qwen = qwen
         self.sleep = sleep
     }
 
@@ -101,6 +104,22 @@ public actor ManagedProcessor {
         guard file.resolvingSymlinksInPath().path == file.path else { throw ManagedFailure.unsafePath }
         return FileManager.default.fileExists(atPath: file.path)
     }
+
+    public func reusableDiarization(sessionID: String, audioHash: String, speakerCount: Int?) throws -> String? {
+        for run in try runs() where run.sessionID==sessionID && (run.provider == .pyannote || run.provider == .qwen) && run.stage=="readyForReview" && run.sourceAudioSHA256==audioHash {
+            let dir=try directory(run)
+            guard let data=try? Data(contentsOf:dir.appendingPathComponent("request.json")),
+                  let request=try JSONSerialization.jsonObject(with:data) as? [String:Any],
+                  request["model"] as? String=="precision-2",request["exclusive"] as? Bool==true,
+                  request["turnLevelConfidence"] as? Bool==true,
+                  (request["numSpeakers"] as? Int)==speakerCount,
+                  let raw=try? Data(contentsOf:dir.appendingPathComponent("raw/pyannote-response.json")),
+                  let job=try? JSONDecoder().decode(PyannoteJobDTO.self,from:raw),job.status=="succeeded",
+                  job.output?.error==nil,job.output?.exclusiveDiarization != nil else { continue }
+            return run.id
+        }
+        return nil
+    }
     public func setLocalOnly(_ sessionID: String) throws {
         guard !active, try !runs().contains(where: { $0.sessionID == sessionID }) else { throw ManagedFailure.busy }
         let file = try AudioFiles.session(sessionID, root: root).appendingPathComponent("audio/never-upload.json")
@@ -133,8 +152,8 @@ public actor ManagedProcessor {
         active = true
         defer { active = false }
         var run = input
-        guard !key.isEmpty else { run.stage = "waitingForCredentials"; try persist(run); return run }
         do {
+            if run.provider == .qwen { try qwen.validateReady() }
             if let retryAt = run.retryAt, retryAt > Date() { try await sleep(retryAt.timeIntervalSinceNow) }
             let library = AudioLibrary(root: root)
             let audio = try await library.prepareAnalysis(run.sessionID)
@@ -153,9 +172,18 @@ public actor ManagedProcessor {
             let rawDir = dir.appendingPathComponent("raw")
             try FileManager.default.createDirectory(at: rawDir, withIntermediateDirectories: true)
             let rawURL = rawDir.appendingPathComponent(run.provider.rawFilename)
+            if run.provider == .qwen,let sourceID=run.input?.qwenDiarizationRunID,
+               !FileManager.default.fileExists(atPath:rawURL.path) {
+                guard try reusableDiarization(sessionID:run.sessionID,audioHash:analysis.sha256,speakerCount:run.input?.speakerCount)==sourceID,
+                      let source=try runs().first(where:{$0.id==sourceID}) else { throw ManagedFailure.sourceChanged }
+                let bytes=try Data(contentsOf:directory(source).appendingPathComponent("raw/pyannote-response.json"))
+                try immutable(bytes,to:rawURL)
+                run.jobID=source.jobID;run.remoteStatus="succeeded (reused)";try persist(run)
+            }
             if FileManager.default.fileExists(atPath: rawURL.path) {
                 return try await normalize(&run, audio: audio, bytes: Data(contentsOf: rawURL))
             }
+            guard !key.isEmpty else { run.stage="waitingForCredentials";try persist(run);return run }
             if run.provider == .soniox {
                 return try await executeSoniox(&run, audio: audio, file: file, dir: dir, rawDir: rawDir, key: key)
             }
@@ -174,6 +202,7 @@ public actor ManagedProcessor {
                     "url": media, "model": "precision-2", "exclusive": true, "turnLevelConfidence": true,
                     "transcription": true, "transcriptionConfig": ["model": "faster-whisper-large-v3-turbo"]
                 ]
+                if run.provider == .qwen { payload["transcription"]=false;payload.removeValue(forKey:"transcriptionConfig") }
                 if let count = run.input?.speakerCount { payload["numSpeakers"] = count }
                 let request = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
                 try immutable(request, to: dir.appendingPathComponent("request.json"))
@@ -233,11 +262,11 @@ public actor ManagedProcessor {
             throw CancellationError()
         } catch {
             if (run.stage == "submitting" && run.jobID == nil) || (run.stage == "uploadSubmitting" && run.uploadedFileID == nil) { run.stage = "submissionUncertain" }
-            else if error is CancellationError { run.stage = "paused" }
+            else if error is CancellationError || error is QwenFailure { run.stage = "paused" }
             else if error is ManagedNormalizationError || error is TranscriptContractError || error is DecodingError { run.stage = "partialResult" }
             else if error is URLError { run.stage = "waitingForNetwork" }
             else { run.stage = "failed" }
-            run.failure = (error as? ManagedFailure)?.rawValue ?? (error as? AudioFailure)?.rawValue ?? "operationFailed"
+            run.failure = (error as? QwenFailure)?.rawValue ?? (error as? ManagedFailure)?.rawValue ?? (error as? AudioFailure)?.rawValue ?? "operationFailed"
             try persist(run)
             return run
         }
@@ -248,7 +277,21 @@ public actor ManagedProcessor {
         guard let analysis = audio.analysis else { throw ManagedFailure.sourceChanged }
         let duration = try AudioFiles.microseconds(frames: analysis.frames, rate: analysis.sampleRate)
         let document: TranscriptDocument
-        if run.provider == .soniox {
+        if run.provider == .qwen {
+            run.stage="localTranscribing";try persist(run)
+            let dir=try directory(run)
+            let file=try AudioFiles.session(run.sessionID,root:root).appendingPathComponent("audio/analysis.wav")
+            let localURL=dir.appendingPathComponent("raw/qwen-response.json")
+            let local: Data
+            if FileManager.default.fileExists(atPath:localURL.path) { local=try Data(contentsOf:localURL) }
+            else {
+                local=try await qwen.transcribe(audio:file,work:dir.appendingPathComponent("qwen"),
+                    input:run.input ?? ConversionNotes(),audioHash:analysis.sha256,durationUs:duration)
+                try immutable(local,to:localURL)
+            }
+            document=try QwenNormalizer.normalize(local,diarization:bytes,sessionID:run.sessionID,runID:run.id,
+                durationUs:duration,audioSHA256:analysis.sha256,createdAt:run.createdAt,captureInterrupted:audio.interruption != nil)
+        } else if run.provider == .soniox {
             guard let jobID = run.jobID else { throw ManagedFailure.invalidResponse }
             document = try SonioxNormalizer.normalize(bytes, jobID: jobID, sessionID: run.sessionID, runID: run.id,
                 durationUs: duration, audioSHA256: analysis.sha256, model: run.reportedModel ?? run.provider.model,

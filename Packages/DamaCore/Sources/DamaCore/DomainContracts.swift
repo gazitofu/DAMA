@@ -48,7 +48,7 @@ public enum TimingOrigin: String, Codable, Sendable {
 }
 public enum TokenKind: String, Codable, Sendable { case lexical, punctuation }
 public enum EngineKind: String, Codable, Sendable {
-    case managedPyannoteWhisper, hybridPyannoteWhisperKit, managedSoniox
+    case managedPyannoteWhisper, hybridPyannoteWhisperKit, managedSoniox, hybridPyannoteQwen
 }
 
 public struct TranscriptWord: Codable, Sendable {

@@ -433,7 +433,8 @@
           "enum": [
             "managedPyannoteWhisper",
             "managedSoniox",
-            "hybridPyannoteWhisperKit"
+            "hybridPyannoteWhisperKit",
+            "hybridPyannoteQwen"
           ]
         },
         "diarizationModel": {
