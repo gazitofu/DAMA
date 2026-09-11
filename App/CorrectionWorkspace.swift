@@ -58,18 +58,22 @@ import SwiftUI
     }
     func preparedInput(_ input: ConversionNotes, enabled: Bool) async throws -> ConversionNotes {
         var result = input; result.aiCorrection = enabled; result.referenceExcerpts = nil
-        if enabled, let referenceURL {
+        if enabled || (input.provider == .soniox && input.sonioxContext == true), let referenceURL {
             let excerpts = try await ReferenceFolder().excerpts(in: referenceURL, query: [input.participants ?? "", input.context, input.reference].joined(separator: "\n"))
             result.referenceExcerpts = excerpts; preview = excerpts
         }
         return result
     }
     static func addPreview(to alert: NSAlert, input: ConversionNotes) {
-        guard input.aiCorrection == true else { return }
+        guard input.aiCorrection == true || (input.provider == .soniox && input.sonioxContext == true) else { return }
         let view = NSTextView(frame: NSRect(x: 0, y: 0, width: 460, height: 170))
         view.isEditable = false; view.isSelectable = true; view.font = .systemFont(ofSize: 11)
         view.string = "참석자\n\(input.participants ?? "미입력")\n\n맥락\n\(input.context)\n\n참고 정보\n\(input.reference)\n\n" +
             (input.referenceExcerpts ?? []).map { "[\($0.name)]\n\($0.text)" }.joined(separator: "\n\n")
+        if let bytes = try? SonioxRequest.context(input) {
+            let context = String(decoding: bytes, as: UTF8.self)
+            view.string = "Soniox 전사 문맥 (전체 전송값)\n\(context)\n\n" + (input.aiCorrection == true ? "OpenAI 교정 입력\n" + view.string : "")
+        }
         let scroll = NSScrollView(frame: view.frame); scroll.hasVerticalScroller = true; scroll.documentView = view
         view.isVerticallyResizable = true; view.autoresizingMask = [.width]
         alert.accessoryView = scroll

@@ -73,6 +73,9 @@ public struct TranscriptValidator: Sendable {
                 try require(score.isFinite && (0...1).contains(score), .invalidValue,
                             "\(path).alignmentScore")
             }
+            if let score = word.asrConfidence {
+                try require(score.isFinite && (0...1).contains(score), .invalidValue, "\(path).asrConfidence")
+            }
             try references(word.reviewIssueIds, known: issues, path: "\(path).reviewIssueIds")
             try references(word.sourceIntervalIds, known: intervals, path: "\(path).sourceIntervalIds")
         }

@@ -48,7 +48,7 @@ public enum TimingOrigin: String, Codable, Sendable {
 }
 public enum TokenKind: String, Codable, Sendable { case lexical, punctuation }
 public enum EngineKind: String, Codable, Sendable {
-    case managedPyannoteWhisper, hybridPyannoteWhisperKit
+    case managedPyannoteWhisper, hybridPyannoteWhisperKit, managedSoniox
 }
 
 public struct TranscriptWord: Codable, Sendable {
@@ -68,9 +68,12 @@ public struct TranscriptWord: Codable, Sendable {
     public var sourceIntervalIds: [String]
     public var timingOrigin: TimingOrigin
     public var tokenKind: TokenKind
+    // ASR token confidence (0...1), never speaker confidence or alignment score.
+    public var asrConfidence: Double? = nil
+    public var language: String? = nil
 
     private enum CodingKeys: String, CodingKey {
-        case id, ordinal, text, editedText, prefix, startUs, endUs, modelSpeakerId, speakerId, assignmentSource, alignmentScore, overlap, reviewIssueIds, sourceIntervalIds, timingOrigin, tokenKind
+        case id, ordinal, text, editedText, prefix, startUs, endUs, modelSpeakerId, speakerId, assignmentSource, alignmentScore, overlap, reviewIssueIds, sourceIntervalIds, timingOrigin, tokenKind, asrConfidence, language
     }
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -90,6 +93,8 @@ public struct TranscriptWord: Codable, Sendable {
         try container.encode(sourceIntervalIds, forKey: .sourceIntervalIds)
         try container.encode(timingOrigin, forKey: .timingOrigin)
         try container.encode(tokenKind, forKey: .tokenKind)
+        try container.encodeIfPresent(asrConfidence, forKey: .asrConfidence)
+        try container.encodeIfPresent(language, forKey: .language)
     }
 }
 

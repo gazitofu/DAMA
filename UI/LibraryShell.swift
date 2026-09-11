@@ -192,6 +192,7 @@ struct LibraryShell: View {
     @ObservedObject private var playback = LibraryWorkspace.shared.playback
     @State private var edit: LibraryEdit?
     @State private var settings = false
+    @State private var terms = false
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -205,6 +206,30 @@ struct LibraryShell: View {
                 if workspace.busy { ProgressView().controlSize(.small); Text("불러오거나 저장하는 중").font(.caption) }
                 Button("설정", systemImage: "gearshape") { settings = true }
             }.padding(.horizontal, 20).frame(height: 48)
+            Divider()
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 16) {
+                    Picker("새 전사 엔진", selection: $processing.selectedProvider) {
+                        ForEach(TranscriptionProvider.allCases, id: \.self) { Text($0.title).tag($0) }
+                    }.frame(width: 260)
+                    Toggle("엔진 비교 · 자동 교정 끔", isOn: $processing.comparison)
+                    if processing.selectedProvider == .soniox {
+                        Toggle("맥락·참고 전송", isOn: $processing.sonioxContext)
+                        Button("용어…") { terms = true }.disabled(!processing.sonioxContext)
+                            .popover(isPresented: $terms) {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Soniox 전사 용어 · 한 줄에 하나씩").font(.headline)
+                                    TextEditor(text: $processing.sonioxTerms).frame(width: 340, height: 140)
+                                    Text("선택한 녹음의 맥락·참고·참석자와 함께 전송합니다. 전송 전에 전체 내용을 확인할 수 있습니다.").font(.caption).frame(width: 340)
+                                    Button("완료") { terms = false }
+                                }.padding(16)
+                            }
+                    }
+                    Spacer(minLength: 0)
+                }
+                Text("새 변환·재전사에 적용합니다. 재개는 원래 엔진으로 계속하며, 이전 스크립트는 별도로 보존합니다.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }.padding(.horizontal, 20).padding(.vertical, 10).disabled(processing.busy || !workspace.canLeave)
             Divider()
             HStack(spacing: 0) {
                 sidebar.frame(width: 250)
@@ -267,6 +292,7 @@ struct LibraryShell: View {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(file.script.title).font(.body.weight(.medium)).lineLimit(2)
                                     Text(date(file.script.createdAt)).font(.caption).foregroundStyle(.secondary)
+                                    Text(file.script.transcript.provenance.engine.title).font(.caption2).foregroundStyle(.secondary)
                                 }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
                                     .background(workspace.selectedScriptID == file.id ? Color(nsColor: .textBackgroundColor) : .clear, in: RoundedRectangle(cornerRadius: 8))
                             }.buttonStyle(.plain)
@@ -346,7 +372,7 @@ struct LibraryShell: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("총 참여 화자 수").fontWeight(.medium)
                         TextField("자동", text: $workspace.speakerCount).textFieldStyle(.roundedBorder).frame(width: 150).accessibilityLabel("총 참여 화자 수").disabled(!workspace.canLeave)
-                        Text(workspace.notesValid ? "비워 두면 자동으로 판단합니다." : "1 이상의 정수를 입력해 주세요.")
+                        Text(workspace.notesValid ? (processing.selectedProvider == .soniox ? "Soniox는 화자 수를 자동 판단합니다. 이 입력은 녹음 정보로 보관합니다." : "비워 두면 자동으로 판단합니다.") : "1 이상의 정수를 입력해 주세요.")
                             .font(.caption).foregroundStyle(workspace.notesValid ? Color.secondary : Color.red)
                     }
                     noteField("맥락", text: $workspace.context, height: 90)
@@ -354,7 +380,8 @@ struct LibraryShell: View {
                     noteField("참고 정보", text: $workspace.reference, height: 80)
                     Text("용어 표기를 지정하려면 ‘용어 | 주제 | 원표기 | 표준표기’를 한 줄씩 입력하세요. 맥락과 해당 발화에서 주제가 확인되는 경우에 적용합니다.")
                         .font(.caption).foregroundStyle(.secondary)
-                    Toggle("변환 후 문맥 자동 교정", isOn: $correction.automatic)
+                    Toggle("변환 후 문맥 자동 교정", isOn: Binding(get: { correction.automatic && !processing.comparison }, set: { correction.automatic = $0 }))
+                        .disabled(processing.comparison)
                     HStack {
                         Text(correction.referenceURL?.lastPathComponent ?? "참고 폴더 없음").font(.caption).foregroundStyle(.secondary)
                         Button("참고 폴더 연결…", action: correction.chooseReferences).disabled(correction.busy)
@@ -407,6 +434,7 @@ struct LibraryShell: View {
                     }.buttonStyle(.plain).accessibilityLabel("스크립트 제목 수정")
                     Text(date(file.script.recordedAt)).font(.caption).foregroundStyle(.secondary)
                     Text("생성 \(file.script.createdAt.formatted(date: .numeric, time: .standard))").font(.caption).foregroundStyle(.secondary)
+                    Text("\(file.script.transcript.provenance.engine.title) · \(file.script.transcript.provenance.asrModel)").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("재전사…") { workspace.retranscribeScript(file) }.disabled(!workspace.canRetranscribe(file.script.transcript.sessionId))
@@ -421,6 +449,8 @@ struct LibraryShell: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("녹음: \(date(file.script.recordedAt)) · \(file.script.timeZoneID)")
                             Text(file.script.dateSource)
+                            Text("Run: \(file.script.transcript.runId)")
+                            Text("전사 문맥: \(file.script.input.sonioxContext == true ? "Soniox에 전송" : "미전송")")
                             Text("참여 화자 수: \(file.script.input.speakerCount.map(String.init) ?? "자동 (미입력)")")
                             Text("참석자: \(file.script.input.participants ?? "미입력")")
                             Text("맥락: \(file.script.input.context.isEmpty ? "미입력" : file.script.input.context)")

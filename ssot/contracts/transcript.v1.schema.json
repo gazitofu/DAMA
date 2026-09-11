@@ -214,6 +214,8 @@
           "minimum": 0,
           "maximum": 1
         },
+        "asrConfidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "language": { "type": ["string", "null"] },
         "overlap": {
           "type": "boolean"
         },
@@ -430,6 +432,7 @@
           "type": "string",
           "enum": [
             "managedPyannoteWhisper",
+            "managedSoniox",
             "hybridPyannoteWhisperKit"
           ]
         },

@@ -386,12 +386,13 @@ public actor FileSessionRepository: TranscriptRepository {
     public func importManagedTranscript(_ document: TranscriptDocument, rawData: Data) async throws {
         try TranscriptValidator().validate(document)
         try validateIdentifiers(in: document)
-        guard document.provenance.engine == .managedPyannoteWhisper,
+        guard [.managedPyannoteWhisper, .managedSoniox].contains(document.provenance.engine),
               !document.revision.humanEdited, document.revision.baseRevisionId == nil else {
             throw SessionRepositoryError(code: .identityConflict, context: "managed-model")
         }
         let run = try runURL(sessionId: document.sessionId, runId: document.runId)
-        let raw = run.appendingPathComponent("raw/pyannote-response.json")
+        let filename = document.provenance.engine == .managedSoniox ? "soniox-response.json" : "pyannote-response.json"
+        let raw = run.appendingPathComponent("raw/\(filename)")
         let model = run.appendingPathComponent("normalized/model.json")
         let revisions = try sessionURL(document.sessionId).appendingPathComponent("revisions")
         try ensureDirectory(raw.deletingLastPathComponent(), context: "raw-directory")

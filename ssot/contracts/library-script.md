@@ -38,6 +38,13 @@
 
 ## 연속 발화 표시 (2026-09-10 실사용 수정)
 
+### 제공자 비교 (2026-09-11)
+
+- ConversionNotes에 optional transcriptionProvider/sonioxContext/sonioxTerms 추가. 구 파일의 nil 제공자는 pyannote로 읽는다. 실제 Run 생성 시 선택값과 AI/context 입력을 snapshot하며 재개 때 변경하지 않는다.
+- normalized EngineKind에 managedSoniox 추가, Word에 optional asrConfidence(0~1)/language 추가. 기존 필수 nullable 키는 그대로이며 두 신규 필드는 구 JSON에 없어도 된다. 원 Soniox token이 subword이면 words의 한 항목도 subword다. ASR confidence는 speaker confidence/alignmentScore가 아니다.
+- Script 목록·상세·Markdown에 공급자/모델을 표시한다. Markdown은 Run/음성 SHA256/context 전송 여부도 표시해 동일 음성의 독립 결과를 비교한다. 원응답·실제 작업 상태/서버 보고 모델은 Run 내부에 보존한다. 상세는 `ssot/api/soniox-verified.md`.
+- 같은 화자 Soniox 문자열 연결은 원 토큰의 공백 그대로이며, reading-v4에서 새 공백을 만들지 않는다. 문단 표시 바깥의 앞뒤 공백 trimming은 기존 공통 표시 규칙이고 원 토큰은 불변이다.
+
 ### 문장 기준 연속 발화 (2026-09-11 T-18, 현행)
 
 - `reading-v4`는 아래 T-11/T-12의 분절 조건을 대체한다. 원 화자 ID·표시 이름이 같은 연속 speech는 기존 본문의 문장 종결부호까지 연결한다. 30초 길이와1.5초 간격 제한을 제거한다. 종결부호는 `.?!。？！` 및 뒤 닫는 따옴표/괄호를 인식하며 말줄임표·숫자만 있는 `3.`은 명확한 종결로 간주하지 않는다. 기존 Turn 내부 문장을 새로 쪼개거나 종결부호를 생성하지 않는다.

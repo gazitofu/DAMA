@@ -17,7 +17,7 @@
 3. **모르는 화자는 null이다.** 가장 가까운 화자나 문맥상 그럴듯한 화자로 자동으로 채우지 않는다.
 4. **모델 원문은 보존한다.** 요약·윤문·군더더기 제거·문맥만으로 화자 귀속 추정은 하지 않는다. 사용자 2026-09-10 후속 결정으로 **별도 AI 문맥 교정본**을 자동 생성할 수 있다. 전사·참석자·선택 참고 발췌의 OpenAI 전송은 녹음별 확인 후 진행하며, 원문/시간/화자 ID/사람 수정은 보존한다. 계약은 `ssot/contracts/library-script.md`의 AI 교정 절을 따른다.
 5. **exclusive는 음원 분리가 아니다.** 겹친 두 사람의 텍스트를 모두 복구했다는 보장이 아니다.
-6. **P0는 통합 API(managed) 경로다.** WhisperKit·Python·다른 STT 제품으로 임의 대체하지 않는다. 로컬 Whisper를 써도 Precision-2 클라우드 전송은 사라지지 않는다.
+6. **P0는 통합 API(managed) 경로다.** 사용자 2026-09-11 승인으로 기존 pyannote와 Soniox async v5를 선택한다 (`versions/soniox-provider/plan.md`, `ssot/api/soniox-verified.md`). 기본 pyannote 유지, Run별 공급자/동의/키 분리. 임의 STT 대체·자동 모델 전환은 하지 않는다. 로컬 Whisper를 써도 Precision-2 클라우드 전송은 사라지지 않는다.
 
 전체 규칙은 `ssot/design/07_SECURITY_AND_DECISIONS.md` §6과 `ssot/design/04_DATA_AND_RECONCILIATION.md` §3(INV-01~10).
 

@@ -162,7 +162,7 @@ private enum NormalizedJSONShape {
         try objects(object["speakers"]!, keys: speaker, path: "$.speakers")
         try objects(object["diarization"]!, keys: interval, path: "$.diarization", confidence: true)
         try objects(object["exclusiveDiarization"]!, keys: interval, path: "$.exclusiveDiarization", confidence: true)
-        try objects(object["words"]!, keys: word, path: "$.words")
+        try objects(object["words"]!, keys: word, path: "$.words", optionalKeys: ["asrConfidence", "language"])
         try objects(object["turns"]!, keys: turn, path: "$.turns")
         try objects(object["reviewIssues"]!, keys: issue, path: "$.reviewIssues")
     }
@@ -171,12 +171,13 @@ private enum NormalizedJSONShape {
     private static func exactObject(
         _ value: Any,
         keys: [String],
-        path: String
+        path: String,
+        optionalKeys: [String] = []
     ) throws -> [String: Any] {
         guard let object = value as? [String: Any] else {
             throw TranscriptContractError(code: .typeMismatch, path: path)
         }
-        let allowed = Set(keys)
+        let allowed = Set(keys + optionalKeys)
         if let missing = keys.first(where: { object[$0] == nil }) {
             throw TranscriptContractError(code: .missingRequiredKey, path: "\(path).\(missing)")
         }
@@ -190,14 +191,15 @@ private enum NormalizedJSONShape {
         _ value: Any,
         keys: [String],
         path: String,
-        confidence: Bool = false
+        confidence: Bool = false,
+        optionalKeys: [String] = []
     ) throws {
         guard let values = value as? [Any] else {
             throw TranscriptContractError(code: .typeMismatch, path: path)
         }
         for (index, value) in values.enumerated() {
             let itemPath = "\(path)[\(index)]"
-            let object = try exactObject(value, keys: keys, path: itemPath)
+            let object = try exactObject(value, keys: keys, path: itemPath, optionalKeys: optionalKeys)
             if confidence, let confidenceValue = object["confidence"], !(confidenceValue is NSNull),
                !(confidenceValue is [String: Any]) {
                 throw TranscriptContractError(code: .typeMismatch, path: "\(itemPath).confidence")

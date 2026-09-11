@@ -116,7 +116,7 @@ extension LibraryScript {
             let issues = transcript.reviewIssues.filter { ids.contains($0.id) }
             attached.formUnion(issues.map(\.id))
             let text = group.map { texts[$0.id] ?? "" }.reduce("") { current, next in
-                let needsSpace = !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
+                let needsSpace = transcript.provenance.engine != .managedSoniox && !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
                 return current + (needsSpace ? " " : "") + next
             }
             // Trim only the reading paragraph. Keep source tokens and user-authored spacing intact.

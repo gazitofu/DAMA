@@ -17,6 +17,10 @@ public struct ManagedRun: Codable, Sendable, Identifiable {
     public var failure: String?
     public var input: ConversionNotes?
     public var lastServerCheckAt: Date?
+    public var uploadedFileID: String?
+    public var reportedModel: String?
+    public var sourceAudioSHA256: String?
+    public var provider: TranscriptionProvider { input?.provider ?? .pyannote }
 
     public var canRetranscribe: Bool {
         ["readyForReview", "failed", "partialResult", "resultExpired", "submissionUncertain"].contains(stage)
@@ -33,12 +37,15 @@ public struct ManagedRun: Codable, Sendable, Identifiable {
 public actor ManagedProcessor {
     private let root: URL
     private let transport: any ManagedTransport
+    private let soniox: any SonioxTransporting
     private let sleep: @Sendable (Double) async throws -> Void
     private var active = false
     public init(root: URL, transport: any ManagedTransport = PyannoteTransport(),
+                soniox: any SonioxTransporting = SonioxTransport(),
                 sleep: @escaping @Sendable (Double) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }) {
         self.root = root.standardizedFileURL
         self.transport = transport
+        self.soniox = soniox
         self.sleep = sleep
     }
 
@@ -79,7 +86,8 @@ public actor ManagedProcessor {
                 guard FileManager.default.fileExists(atPath: file.path) else { continue }
                 var run = try JSONDecoder().decode(ManagedRun.self, from: Data(contentsOf: file))
                 guard run.id == directory.lastPathComponent, run.sessionID == session.lastPathComponent else { throw ManagedFailure.unsafePath }
-                if recover && !active && run.stage == "submitting" && run.jobID == nil {
+                if recover && !active && ((run.stage == "submitting" && run.jobID == nil) ||
+                    (run.stage == "uploadSubmitting" && run.uploadedFileID == nil)) {
                     run.stage = "submissionUncertain"
                     try persist(run)
                 }
@@ -139,12 +147,17 @@ public actor ManagedProcessor {
             }
             let file = audioDir.appendingPathComponent("analysis.wav")
             guard try AudioFiles.hash(file) == analysis.sha256 else { throw ManagedFailure.sourceChanged }
+            if let saved = run.sourceAudioSHA256, saved != analysis.sha256 { throw ManagedFailure.sourceChanged }
+            run.sourceAudioSHA256 = analysis.sha256
             let dir = try directory(run)
             let rawDir = dir.appendingPathComponent("raw")
             try FileManager.default.createDirectory(at: rawDir, withIntermediateDirectories: true)
-            let rawURL = rawDir.appendingPathComponent("pyannote-response.json")
+            let rawURL = rawDir.appendingPathComponent(run.provider.rawFilename)
             if FileManager.default.fileExists(atPath: rawURL.path) {
                 return try await normalize(&run, audio: audio, bytes: Data(contentsOf: rawURL))
+            }
+            if run.provider == .soniox {
+                return try await executeSoniox(&run, audio: audio, file: file, dir: dir, rawDir: rawDir, key: key)
             }
             if run.jobID == nil {
                 run.stage = "uploading"; run.retryAt = nil; try persist(run)
@@ -219,7 +232,7 @@ public actor ManagedProcessor {
             }
             throw CancellationError()
         } catch {
-            if run.stage == "submitting" && run.jobID == nil { run.stage = "submissionUncertain" }
+            if (run.stage == "submitting" && run.jobID == nil) || (run.stage == "uploadSubmitting" && run.uploadedFileID == nil) { run.stage = "submissionUncertain" }
             else if error is CancellationError { run.stage = "paused" }
             else if error is ManagedNormalizationError || error is TranscriptContractError || error is DecodingError { run.stage = "partialResult" }
             else if error is URLError { run.stage = "waitingForNetwork" }
@@ -234,12 +247,91 @@ public actor ManagedProcessor {
         run.stage = "normalizing"; try persist(run)
         guard let analysis = audio.analysis else { throw ManagedFailure.sourceChanged }
         let duration = try AudioFiles.microseconds(frames: analysis.frames, rate: analysis.sampleRate)
-        let document = try ManagedNormalizer.normalize(bytes, sessionID: run.sessionID, runID: run.id,
-            durationUs: duration, audioSHA256: analysis.sha256, captureInterrupted: audio.interruption != nil,
-            createdAt: run.createdAt)
+        let document: TranscriptDocument
+        if run.provider == .soniox {
+            guard let jobID = run.jobID else { throw ManagedFailure.invalidResponse }
+            document = try SonioxNormalizer.normalize(bytes, jobID: jobID, sessionID: run.sessionID, runID: run.id,
+                durationUs: duration, audioSHA256: analysis.sha256, model: run.reportedModel ?? run.provider.model,
+                captureInterrupted: audio.interruption != nil, createdAt: run.createdAt)
+        } else {
+            document = try ManagedNormalizer.normalize(bytes, sessionID: run.sessionID, runID: run.id,
+                durationUs: duration, audioSHA256: analysis.sha256, captureInterrupted: audio.interruption != nil,
+                createdAt: run.createdAt)
+        }
         try await FileSessionRepository(rootURL: root).importManagedTranscript(document, rawData: bytes)
         run.stage = "readyForReview"; run.failure = nil; try persist(run)
         return run
+    }
+    private func executeSoniox(_ run: inout ManagedRun, audio: AudioManifest, file: URL,
+                               dir: URL, rawDir: URL, key: String) async throws -> ManagedRun {
+        guard audio.durationUs <= SonioxRequest.maximumDurationUs else { throw ManagedFailure.audioTooLong }
+        struct Remote: Decodable { let id: String; let status: String; let model: String? }
+        if run.jobID == nil {
+            if run.uploadedFileID == nil {
+                run.stage = "uploadSubmitting"; run.retryAt = nil; try persist(run)
+                let upload = try await soniox.upload(file: file, key: key)
+                try immutable(upload.data, to: rawDir.appendingPathComponent("upload-\(UUID().uuidString).json"))
+                guard (200..<300).contains(upload.status) else { return try httpFailure(upload, run: run, submitting: true) }
+                struct Uploaded: Decodable { let id: String }
+                let uploaded = try JSONDecoder().decode(Uploaded.self, from: upload.data)
+                guard UUID(uuidString: uploaded.id) != nil else { throw ManagedFailure.invalidResponse }
+                run.uploadedFileID = uploaded.id; run.stage = "uploaded"; try persist(run)
+            }
+            guard let fileID = run.uploadedFileID else { throw ManagedFailure.invalidResponse }
+            let request = try SonioxRequest.payload(fileID: fileID, runID: run.id, input: run.input ?? ConversionNotes())
+            try immutable(request, to: dir.appendingPathComponent("request.json"))
+            run.attemptID = UUID().uuidString
+            run.requestHash = SHA256.hash(data: request).map { String(format: "%02x", $0) }.joined()
+            run.stage = "submitting"; try persist(run)
+            let accepted = try await soniox.api(path: "/v1/transcriptions", method: "POST", body: request, key: key)
+            try immutable(accepted.data, to: rawDir.appendingPathComponent("submission-\(UUID().uuidString).json"))
+            guard (200..<300).contains(accepted.status) else { return try httpFailure(accepted, run: run, submitting: true) }
+            let remote = try JSONDecoder().decode(Remote.self, from: accepted.data)
+            guard UUID(uuidString: remote.id) != nil else { throw ManagedFailure.invalidResponse }
+            run.jobID = remote.id; run.reportedModel = remote.model; run.remoteStatus = remote.status
+            run.stage = "remotePending"; try persist(run)
+        }
+        var attempt = 0, failures = 0
+        while !Task.isCancelled {
+            guard let jobID = run.jobID, UUID(uuidString: jobID) != nil else { throw ManagedFailure.invalidResponse }
+            run.stage = "remotePending"; try persist(run)
+            let reply: HTTPReply
+            do { reply = try await soniox.api(path: "/v1/transcriptions/\(jobID)", method: "GET", body: nil, key: key) }
+            catch {
+                if error is CancellationError { throw error }
+                failures += 1
+                if failures >= 3 { run.stage = "waitingForNetwork"; try persist(run); return run }
+                try await sleep(PollDelay.seconds(retryAfter: nil, attempt: failures)); continue
+            }
+            if reply.status == 429 || reply.status >= 500 {
+                failures += 1
+                if failures >= 3 { return try httpFailure(reply, run: run, submitting: false) }
+                try await sleep(PollDelay.seconds(retryAfter: reply.retryAfter, attempt: failures)); continue
+            }
+            if reply.status == 404 || reply.status == 410 { run.stage = "resultExpired"; try persist(run); return run }
+            guard (200..<300).contains(reply.status) else { return try httpFailure(reply, run: run, submitting: false) }
+            try immutable(reply.data, to: rawDir.appendingPathComponent("poll-\(UUID().uuidString).json"))
+            let remote = try JSONDecoder().decode(Remote.self, from: reply.data)
+            guard remote.id == jobID else { throw ManagedFailure.invalidResponse }
+            run.remoteStatus = remote.status; run.lastServerCheckAt = Date()
+            if let model = remote.model { run.reportedModel = model }
+            failures = 0
+            try persist(run)
+            switch remote.status {
+            case "completed":
+                let transcript = try await soniox.api(path: "/v1/transcriptions/\(jobID)/transcript", method: "GET", body: nil, key: key)
+                if transcript.status == 404 || transcript.status == 410 { run.stage = "resultExpired"; try persist(run); return run }
+                guard (200..<300).contains(transcript.status) else { return try httpFailure(transcript, run: run, submitting: false) }
+                try immutable(transcript.data, to: rawDir.appendingPathComponent(run.provider.rawFilename))
+                return try await normalize(&run, audio: audio, bytes: transcript.data)
+            case "error": run.stage = "failed"; try persist(run); return run
+            case "queued", "processing": break
+            default: run.stage = "unknownRemoteStatus"; try persist(run); return run
+            }
+            try await sleep(PollDelay.seconds(retryAfter: reply.retryAfter, attempt: attempt))
+            attempt += 1
+        }
+        throw CancellationError()
     }
     private func httpFailure(_ reply: HTTPReply, run original: ManagedRun, submitting: Bool) throws -> ManagedRun {
         var run = original

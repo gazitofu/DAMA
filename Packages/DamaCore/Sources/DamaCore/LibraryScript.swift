@@ -7,6 +7,10 @@ public struct ConversionNotes: Codable, Sendable, Equatable {
     public var participants: String?
     public var aiCorrection: Bool?
     public var referenceExcerpts: [ReferenceExcerpt]?
+    public var transcriptionProvider: TranscriptionProvider?
+    public var sonioxContext: Bool?
+    public var sonioxTerms: String?
+    public var provider: TranscriptionProvider { transcriptionProvider ?? .pyannote }
     public init(speakerCount: Int? = nil, context: String = "", reference: String = "", participants: String? = nil,
                 aiCorrection: Bool? = nil, referenceExcerpts: [ReferenceExcerpt]? = nil) {
         self.speakerCount = speakerCount; self.context = context; self.reference = reference
@@ -14,6 +18,7 @@ public struct ConversionNotes: Codable, Sendable, Equatable {
     }
     public func validate() throws {
         if let speakerCount, speakerCount < 1 { throw LibraryFailure.invalidInput }
+        _ = try SonioxRequest.context(self)
     }
 }
 
@@ -141,6 +146,10 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
                      "- 녹음 날짜·시간: \(recordedAt.map { date.string(from: $0) } ?? "미확인")",
                      "- 시간대: \(Self.escape(timeZoneID))", "- 날짜 근거: \(Self.escape(dateSource))",
                      "- 녹음 길이: \(Self.timestamp(transcript.durationUs))",
+                     "- 전사 엔진: \(transcript.provenance.engine.title) · \(Self.escape(transcript.provenance.asrModel))",
+                     "- Run: \(Self.escape(transcript.runId))",
+                     "- 입력 음성 SHA256: \(transcript.provenance.sourceAudioSHA256 ?? "미기록")",
+                     "- 전사 문맥: \(input.provider == .soniox && input.sonioxContext == true ? "Soniox에 전송" : "미전송")",
                      "- 스크립트 생성: \(date.string(from: createdAt))", "",
                      "## 변환 전 입력 정보", "", "- 참여 화자 수: \(input.speakerCount.map(String.init) ?? "자동 (미입력)")",
                      "", "### 맥락", "", Self.escape(input.context.isEmpty ? "미입력" : input.context),

@@ -1,14 +1,15 @@
 import Foundation
 import Security
+import DamaCore
 
 public enum KeychainStore {
-    private static var query: [String: Any] {
+    private static func query(_ provider: TranscriptionProvider) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: "com.gazitofu.Dama.pyannote",
+         kSecAttrService as String: "com.gazitofu.Dama.\(provider.rawValue)",
          kSecAttrAccount as String: "personal-api-key"]
     }
-    public static func read() throws -> String? {
-        var q = query
+    public static func read(provider: TranscriptionProvider = .pyannote) throws -> String? {
+        var q = query(provider)
         q[kSecReturnData as String] = true
         q[kSecMatchLimit as String] = kSecMatchLimitOne
         var item: CFTypeRef?
@@ -18,7 +19,8 @@ public enum KeychainStore {
               let key = String(data: data, encoding: .utf8) else { throw ManagedFailure.missingKey }
         return key
     }
-    public static func save(_ key: String) throws {
+    public static func save(_ key: String, provider: TranscriptionProvider = .pyannote) throws {
+        let query = query(provider)
         guard !key.isEmpty, !key.contains("\n"), !key.contains("\r") else { throw ManagedFailure.missingKey }
         let value = [kSecValueData as String: Data(key.utf8)]
         let status = SecItemUpdate(query as CFDictionary, value as CFDictionary)
@@ -29,8 +31,8 @@ public enum KeychainStore {
             guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw ManagedFailure.missingKey }
         } else if status != errSecSuccess { throw ManagedFailure.missingKey }
     }
-    public static func delete() throws {
-        let status = SecItemDelete(query as CFDictionary)
+    public static func delete(provider: TranscriptionProvider = .pyannote) throws {
+        let status = SecItemDelete(query(provider) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else { throw ManagedFailure.missingKey }
     }
 }

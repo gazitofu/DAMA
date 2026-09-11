@@ -3,7 +3,7 @@ unit: library-workspace
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-18 분절만 reading-v4로 수정. 합성 영향18개·계약30·Debug PASS. 실제 C 표시2008→1527, 현재 테스트녹음1398→382, 원 Turn/단어/이슈 보존. /Applications/DAMA.app 0.1.5(6) 설치/실행·기존 Script 묶음 UI 확인. 재전사 불필요. AI/모델 변경 없음, 커밋 없음, 기존6혼합문서 보존. 다음은 분절 실사용 피드백."
+resume: "T-18 reading-v4/아이콘 0.1.5(6) 설치 확인 및 03e7957 커밋/승인된 GitHub push 완료. 사용자 후속 Soniox 선택 작업은 versions/soniox-provider/plan.md에서 진행. 기존6혼합문서 및 이 유닛 미완료 AC 보존."
 spec: notes/library-workspace/library-workspace.src.html
 created: 2026-09-10
 updated: 2026-09-11
