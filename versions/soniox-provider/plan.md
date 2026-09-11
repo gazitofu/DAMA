@@ -1,11 +1,11 @@
 ---
 unit: soniox-provider
 branch: work/m0-fixture-review
-status: building
+status: built
 decisions_resolved: true
 created: 2026-09-11
 updated: 2026-09-11
-resume: "fada176 구현 커밋을 GitHub main/work 브랜치에 push/원격 HEAD 대조 완료. 영향58개/계약30 및 Debug PASS, 0.2.0(7) 빌드 준비. 실행 앱 0.1.5가 녹음 중이라 설치/새 UI 확인 보류. 다음: 사용자 녹음 종료 확인 후 정상 종료→기존 앱 백업→새 앱 설치→선택/설정/버전 UI 확인."
+resume: ""
 ---
 
 ## 근거와 범위
@@ -22,7 +22,7 @@ resume: "fada176 구현 커밋을 GitHub main/work 브랜치에 push/원격 HEAD
 - [x] AC-02 Soniox 업로드→접수→poll→원문 저장→정규화→Script/Markdown, 합성 여정 검증.
 - [x] AC-03 401/402/429/5xx/네트워크/불명확 접수/재개 경로, 잘못된 ID 및 전송 동의 방어.
 - [x] AC-04 서브워드·문장 끝·A→B→A·null·시간 오류·confidence 독립 보존 검증.
-- [ ] AC-05 네이티브 앱 build 및 선택 UI 확인, 버전 표시, 로컬 설치. 실제 음성 전송·한국어 정확도는 미검증으로 명시.
+- [x] AC-05 네이티브 앱 build 및 선택 UI 확인, 버전 표시, 로컬 설치. 실제 음성 전송·한국어 정확도는 미검증으로 명시.
 - [x] AC-06 관련 코드만 커밋/push, 원격 HEAD 확인. 기존 혼합6문서 미포함.
 
 ## 검증 기록
@@ -34,3 +34,5 @@ resume: "fada176 구현 커밋을 GitHub main/work 브랜치에 push/원격 HEAD
 - `python3 scripts/validate_contracts.py`:30 PASS; `python3 scripts/check_contract_copy.py`:11991bytes SHA256 76e4b15a294ac6f2742551de2ea298475a4a33ef6942de7bbde8f09222a31fab. 최종 Debug arm64 build 명령은 기존 절대 캐시 경로/서명 정책 유지, 로그 `soniox-xcodebuild.log`.
 - CUA에서 설치된 0.1.5 앱의 진행 중 녹음 표시(14:59→19:08) 실측. 종료/교체하지 않았고 녹음 중단 여부를 비동기 질문했다. 새 UI 조작·Keychain 저장/실호출·실제 전사 정확도는 미검증, AC-05와 building 유지.
 - `fada17643a41d7eb11ae5652fb476475a7db846f` main/work/m0-fixture-review push 성공 및 `git ls-remote origin` 일치. 별도6혼합문서만 unstaged로 남음. 최종 빌드 Info.plist 0.2.0(7), 설치본 Info.plist 0.1.5 확인. 문서 상태 커밋은 별도이며 재빌드 사유 아님.
+- 2026-09-11 사용자 ‘앱 교체하자’ 승인 후 설치 완료. 착수 시 이미 녹음 종료되어 21:53.280 Speech 표시. 정상 Quit 첫 시도는 저장 보호로 취소, 이후 재시도 종료·pgrep 프로세스 없음 확인. 기존 앱은 ignored `.build/app-backups/DAMA-0.1.5-before-soniox-20260911.app`에 백업, 검증 빌드를 `/Applications/DAMA.app`에 ditto. 설치/빌드 dylib SHA256 b7c4d3d42470e3c27567ee768905e8d393811af3da0fa500254330ad3d1ba356 일치.
+- 설치본 재실행 CUA: 기존 Speech 21:53.280 재표시, 새 전사 엔진 pyannote→Soniox 선택·context OFF/용어 비활성·비교 ON/자동 교정 OFF 확인. 설정의 API 키 서비스 pyannote→Soniox 전환 확인, 키 입력/저장/삭제·음성 전송 없음. 기본 엔진 pyannote로 복원. 실제 화면 배치와 About DAMA `Version 0.2.0 (7)` 확인 후 정보창 닫음. 기존 혼합6문서 보존. 코드 변경·중복 빌드/테스트 없음, 정확도·실호출 미검증은 유지.
