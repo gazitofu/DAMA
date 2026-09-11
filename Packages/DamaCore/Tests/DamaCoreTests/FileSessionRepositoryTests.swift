@@ -227,6 +227,23 @@ final class FileSessionRepositoryTests: XCTestCase {
         XCTAssertEqual(committed.words[4].text, "네")
     }
 
+    func testASRSourceCandidateAndConfidenceCannotBeChangedByRevision() async throws {
+        let root = try temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = FileSessionRepository(rootURL: root)
+        _ = try await repository.importSyntheticTranscript(fixtureData())
+        let base = try await repository.load(sessionId: "session-fixture-001", revisionId: nil)
+        for field in 0..<3 {
+            var candidate = edited(base, revisionId: "revision-source-\(field)", savedAt: "2026-09-11T12:00:00Z")
+            if field == 0 { candidate.words[0].asrSpeakerLabel = "replacement" }
+            if field == 1 { candidate.words[0].asrConfidence = 0.5 }
+            if field == 2 { candidate.words[0].language = "en" }
+            let error = await repositoryError { try await repository.commitRevision(candidate) }
+            XCTAssertEqual(error?.code, .immutableEvidenceChanged)
+        }
+        let loaded = try await repository.load(sessionId: base.sessionId, revisionId: nil)
+        XCTAssertEqual(loaded.revision.id, base.revision.id)
+    }
     func testCorruptPointerRecoversLatestValidAndIgnoresMalformedCandidate() async throws {
         let root = try temporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }

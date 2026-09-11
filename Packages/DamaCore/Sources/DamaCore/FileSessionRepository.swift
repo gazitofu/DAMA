@@ -926,6 +926,7 @@ public actor FileSessionRepository: TranscriptRepository {
             $0.id == $1.id && $0.ordinal == $1.ordinal && $0.text == $1.text &&
                 $0.prefix == $1.prefix && $0.startUs == $1.startUs && $0.endUs == $1.endUs &&
                 $0.modelSpeakerId == $1.modelSpeakerId && $0.alignmentScore == $1.alignmentScore &&
+                $0.asrSpeakerLabel == $1.asrSpeakerLabel && $0.asrConfidence == $1.asrConfidence && $0.language == $1.language &&
                 $0.overlap == $1.overlap && $0.reviewIssueIds == $1.reviewIssueIds &&
                 $0.sourceIntervalIds == $1.sourceIntervalIds && $0.tokenKind == $1.tokenKind
         }
