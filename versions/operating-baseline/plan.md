@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "후속 착수1·2 검수/분절 진단 완료: versions/backend-audit/plan.md 및 notes/backend-audit/audit.md 참조. 다음은 F-01 녹음/추론 종료 안전성, F-02 읽기 종결 판정의 작은 구현. 본 유닛 built 유지, UI/학습 미착수."
+resume: "후속 검수/분절 진단 및 F-01/F-02 구현 완료: versions/backend-audit/plan.md, versions/backend-hardening/plan.md 참조. 최신 전달0.4.4(14). 다음은 F-03 읽기 snapshot/메인 I/O의 작은 구현. 본 유닛 built 유지, UI/학습 미착수."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
@@ -81,7 +81,7 @@ spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ss
 
 ## 다음 세션 착수 (2026-09-11 추가 요청)
 
-진행 갱신 (2026-09-11): 아래 순서1·2는 [backend-audit](../backend-audit/plan.md)에서 완료했다. [검수 결과](../../notes/backend-audit/audit.md)에 파일82개 검수 범위, 같은 원응답3경로 재구성, 분절 이유, 우선순위와 미검증을 기록했다. 다음 착수는 해당 결과의 F-01/F-02 작은 수정이며, 아래 UI/학습 요구와 본 유닛 built 범위는 그대로 유지한다.
+진행 갱신 (2026-09-12): 아래 순서1·2는 [backend-audit](../backend-audit/plan.md)에서 완료했다. [검수 결과](../../notes/backend-audit/audit.md)에 파일82개 검수 범위, 같은 원응답3경로 재구성, 분절 이유, 우선순위와 미검증을 기록했다. 후속 F-01/F-02는 [backend-hardening](../backend-hardening/plan.md)에서 구현·검증하고 0.4.4(14)를 전달했다. 다음 작은 구현은 F-03 읽기 snapshot/메인 I/O이며, 아래 UI/학습 요구와 본 유닛 built 범위는 그대로 유지한다.
 
 ### 상태와 입력
 

@@ -33,11 +33,13 @@ import XCTest
                 order.append("reply")
                 return result
             }
-            while release == nil { await Task.yield() }
+            let deadline = ContinuousClock.now + .seconds(2)
+            while release == nil && ContinuousClock.now < deadline { await Task.yield() }
+            guard let release else { task.cancel(); XCTFail("inference stop was skipped"); return }
             XCTAssertEqual(order, ["saved", "stopping"])
             XCTAssertTrue(lifecycle.shuttingDown)
             XCTAssertFalse(lifecycle.allowsLocalInference(phase: .idle, needsFinalization: false))
-            release?.resume()
+            release.resume()
             let result = await task.value
             XCTAssertEqual(result, saved)
             XCTAssertEqual(order, ["saved", "stopping", "stopped", "reply"])
