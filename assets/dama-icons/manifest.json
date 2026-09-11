@@ -1,0 +1,294 @@
+{
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128.png": {
+    "sha256": "353ab592de71495ea51429308337d802d86f1ae9c656c17a6a414796fdf9a64c",
+    "size": [
+      128,
+      128
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png": {
+    "sha256": "fe6d06db707a871d4712669f21c0205eaf46b285b9326e8eded2268bf93a2744",
+    "size": [
+      256,
+      256
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_16x16.png": {
+    "sha256": "e49106e39e8dd08e696acaf0ba8c8aacf9de75021dcc74d3345b317ba6be9472",
+    "size": [
+      16,
+      16
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_16x16@2x.png": {
+    "sha256": "62530f46ae94d82a2c4350aae49aa14060a5e0f471e0c39ee86758d596eb8e97",
+    "size": [
+      32,
+      32
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_256x256.png": {
+    "sha256": "fe6d06db707a871d4712669f21c0205eaf46b285b9326e8eded2268bf93a2744",
+    "size": [
+      256,
+      256
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_256x256@2x.png": {
+    "sha256": "f01914c57b2c1392153a263d05e5b6ab886b8cbf378b8578ac1103c1330b8da6",
+    "size": [
+      512,
+      512
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32.png": {
+    "sha256": "62530f46ae94d82a2c4350aae49aa14060a5e0f471e0c39ee86758d596eb8e97",
+    "size": [
+      32,
+      32
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_32x32@2x.png": {
+    "sha256": "0873f9a67141c1f941e1247177641dc73eae3c1e2872c4accd4e1023c615cc75",
+    "size": [
+      64,
+      64
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512.png": {
+    "sha256": "f01914c57b2c1392153a263d05e5b6ab886b8cbf378b8578ac1103c1330b8da6",
+    "size": [
+      512,
+      512
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512@2x.png": {
+    "sha256": "d834b93f6e482e297a07ceb9cff148b4415808b5e7ad52c71d0d5f59b670c0b1",
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGB"
+  },
+  "Resources/Assets.xcassets/DamaMenuIdle.imageset/dama-menubar-idle.png": {
+    "sha256": "3b5febb457b1b0f50e192445c27ba3af5c8ef249757165b90bad276e37295d76",
+    "size": [
+      22,
+      22
+    ],
+    "mode": "RGBA"
+  },
+  "Resources/Assets.xcassets/DamaMenuIdle.imageset/dama-menubar-idle@2x.png": {
+    "sha256": "7f0976cde238f68a64c97b546177e67c7313ef0afda60fc7de693f0b82642188",
+    "size": [
+      44,
+      44
+    ],
+    "mode": "RGBA"
+  },
+  "Resources/Assets.xcassets/DamaMenuRecording.imageset/dama-menubar-recording.png": {
+    "sha256": "1a4188d3bbeca271766ca0d383229ef275a1a93fcd1f97aef7ab1d62c741c21b",
+    "size": [
+      22,
+      22
+    ],
+    "mode": "RGBA"
+  },
+  "Resources/Assets.xcassets/DamaMenuRecording.imageset/dama-menubar-recording@2x.png": {
+    "sha256": "d27cc629e2b4d9fcb8cfa51b7b4e40139ff0ea7127efa4cc1c38e24d3c16597a",
+    "size": [
+      44,
+      44
+    ],
+    "mode": "RGBA"
+  },
+  "assets/dama-icons/app/DAMA.icns": {
+    "sha256": "904c0571d7dcc9b744651b2b7dcda35bfaf0b8a2144d39c32a41ba93ef30344d"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_128x128.png": {
+    "sha256": "353ab592de71495ea51429308337d802d86f1ae9c656c17a6a414796fdf9a64c",
+    "size": [
+      128,
+      128
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_128x128@2x.png": {
+    "sha256": "fe6d06db707a871d4712669f21c0205eaf46b285b9326e8eded2268bf93a2744",
+    "size": [
+      256,
+      256
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_16x16.png": {
+    "sha256": "e49106e39e8dd08e696acaf0ba8c8aacf9de75021dcc74d3345b317ba6be9472",
+    "size": [
+      16,
+      16
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_16x16@2x.png": {
+    "sha256": "62530f46ae94d82a2c4350aae49aa14060a5e0f471e0c39ee86758d596eb8e97",
+    "size": [
+      32,
+      32
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_256x256.png": {
+    "sha256": "fe6d06db707a871d4712669f21c0205eaf46b285b9326e8eded2268bf93a2744",
+    "size": [
+      256,
+      256
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_256x256@2x.png": {
+    "sha256": "f01914c57b2c1392153a263d05e5b6ab886b8cbf378b8578ac1103c1330b8da6",
+    "size": [
+      512,
+      512
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_32x32.png": {
+    "sha256": "62530f46ae94d82a2c4350aae49aa14060a5e0f471e0c39ee86758d596eb8e97",
+    "size": [
+      32,
+      32
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_32x32@2x.png": {
+    "sha256": "0873f9a67141c1f941e1247177641dc73eae3c1e2872c4accd4e1023c615cc75",
+    "size": [
+      64,
+      64
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_512x512.png": {
+    "sha256": "f01914c57b2c1392153a263d05e5b6ab886b8cbf378b8578ac1103c1330b8da6",
+    "size": [
+      512,
+      512
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/DAMA.iconset/icon_512x512@2x.png": {
+    "sha256": "d834b93f6e482e297a07ceb9cff148b4415808b5e7ad52c71d0d5f59b670c0b1",
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/dama-app-1024.png": {
+    "sha256": "d834b93f6e482e297a07ceb9cff148b4415808b5e7ad52c71d0d5f59b670c0b1",
+    "size": [
+      1024,
+      1024
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/dama-app-120.png": {
+    "sha256": "b58fde9f9d690163fa42e2a1e66ae7baf9a4324a323fd26e315967c3ec3230c4",
+    "size": [
+      120,
+      120
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/dama-app-180.png": {
+    "sha256": "2f0dd5ec6467a590f554ea683a59d291ca30136689e2b0ecfbfe3e88bc55db51",
+    "size": [
+      180,
+      180
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/dama-app-256.png": {
+    "sha256": "fe6d06db707a871d4712669f21c0205eaf46b285b9326e8eded2268bf93a2744",
+    "size": [
+      256,
+      256
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/dama-app-512.png": {
+    "sha256": "f01914c57b2c1392153a263d05e5b6ab886b8cbf378b8578ac1103c1330b8da6",
+    "size": [
+      512,
+      512
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/app/dama-app-60.png": {
+    "sha256": "ebe95b7f5cfb48e14fc483333ab4b9d860e0cbdcf47f6d4e6b7220eb15c3e3e7",
+    "size": [
+      60,
+      60
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/menubar/dama-menubar-idle.png": {
+    "sha256": "3b5febb457b1b0f50e192445c27ba3af5c8ef249757165b90bad276e37295d76",
+    "size": [
+      22,
+      22
+    ],
+    "mode": "RGBA"
+  },
+  "assets/dama-icons/menubar/dama-menubar-idle@2x.png": {
+    "sha256": "7f0976cde238f68a64c97b546177e67c7313ef0afda60fc7de693f0b82642188",
+    "size": [
+      44,
+      44
+    ],
+    "mode": "RGBA"
+  },
+  "assets/dama-icons/menubar/dama-menubar-recording.png": {
+    "sha256": "1a4188d3bbeca271766ca0d383229ef275a1a93fcd1f97aef7ab1d62c741c21b",
+    "size": [
+      22,
+      22
+    ],
+    "mode": "RGBA"
+  },
+  "assets/dama-icons/menubar/dama-menubar-recording@2x.png": {
+    "sha256": "d27cc629e2b4d9fcb8cfa51b7b4e40139ff0ea7127efa4cc1c38e24d3c16597a",
+    "size": [
+      44,
+      44
+    ],
+    "mode": "RGBA"
+  },
+  "assets/dama-icons/preview/dama-icons-preview.png": {
+    "sha256": "3d412a405ff98ac79a300d76e108ce72e311e8bdcc6ebad59f1cfcde669058a0",
+    "size": [
+      1000,
+      820
+    ],
+    "mode": "RGB"
+  },
+  "assets/dama-icons/source/dama-app.svg": {
+    "sha256": "6cbec820a5dbd4e092bc725ea302746cd171ffc2161326cb65c56bd9a960607a"
+  },
+  "assets/dama-icons/source/dama-menubar-idle.svg": {
+    "sha256": "68d0b84e3187b2cbc5d1f42782feaf1b14fd118a9866bcd608579b0efb7882a7"
+  },
+  "assets/dama-icons/source/dama-menubar-recording.svg": {
+    "sha256": "2c182f6e0ebf4b04b9d3e707ab256cfdf551ceef972126a585663ea39f1526b0"
+  }
+}

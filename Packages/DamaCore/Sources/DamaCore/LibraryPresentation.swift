@@ -1,10 +1,18 @@
 import Foundation
 
-/// Reading-only initial parameters, separately versioned from model normalization.
+/// Reading layout, separately versioned from model normalization.
 public enum ScriptReadingPolicy {
-    public static let algorithmVersion = "reading-v3"
-    public static let maximumGapUs: Int64 = 1_500_000
-    public static let maximumParagraphUs: Int64 = 30_000_000
+    public static let algorithmVersion = "reading-v4"
+
+    static func endsSentence(_ text: String) -> Bool {
+        let closers = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'”’)]}」』"))
+        let ending = text.trimmingCharacters(in: closers)
+        guard let last = ending.last else { return false }
+        if "?!。？！".contains(last) { return true }
+        // Ellipses and a bare number followed by a dot are not a clear sentence end.
+        guard last == ".", !ending.hasSuffix("..") else { return false }
+        return ending.dropLast().contains(where: \.isLetter)
+    }
 }
 
 /// Related warnings share a listening range; their original IDs and kinds remain available.
@@ -76,27 +84,28 @@ extension LibraryScript {
                 .map { $0.prefix + ($0.editedText ?? $0.text) }.joined()
         }
         let evidence = transcript.diarization + transcript.exclusiveDiarization
-        func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn, groupStart: Int64?) -> Bool {
+        let texts = Dictionary(uniqueKeysWithValues: transcript.turns.map { ($0.id, currentText($0)) })
+        func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn) -> Bool {
             guard !transcript.revision.humanEdited,
                   previous.kind == .speech, next.kind == .speech,
                   let speaker = previous.speakerId, speaker == next.speakerId,
                   displayName(previous) == displayName(next),
                   let start = previous.startUs, let end = previous.endUs,
                   let nextStart = next.startUs, let nextEnd = next.endUs,
-                  let groupStart,
-                  start <= end, end <= nextStart, nextStart <= nextEnd,
-                  nextStart - end <= ScriptReadingPolicy.maximumGapUs,
-                  nextEnd - groupStart <= ScriptReadingPolicy.maximumParagraphUs else { return false }
-            // A new/ending B remains a boundary, even without B text. Within one
-            // continuous overlap, A's adjacent words can share a paragraph and warning.
+                  start <= end, nextStart <= nextEnd, start <= nextStart, end <= nextEnd,
+                  !ScriptReadingPolicy.endsSentence(texts[previous.id] ?? "") else { return false }
+            // A warning inside either A turn does not create a new reading paragraph.
+            // Preserve a new B starting in the gap, even without returned B text/marker.
+            // An already overlapping B ending inside A does not interrupt A anew.
+            guard end < nextStart else { return true }
             return !evidence.contains {
-                $0.speakerId != speaker && $0.startUs < nextEnd && $0.endUs > start &&
-                !($0.startUs <= start && $0.endUs >= nextEnd)
+                $0.speakerId != speaker && $0.startUs >= end &&
+                $0.startUs < nextStart && $0.endUs > $0.startUs
             }
         }
         var groups: [[TranscriptTurn]] = []
         for turn in transcript.turns {
-            if let previous = groups.last?.last, mayJoin(previous, turn, groupStart: groups.last?.first?.startUs) {
+            if let previous = groups.last?.last, mayJoin(previous, turn) {
                 groups[groups.count - 1].append(turn)
             } else { groups.append([turn]) }
         }
@@ -106,7 +115,7 @@ extension LibraryScript {
             let ids = Set(group.flatMap(\.reviewIssueIds) + group.flatMap(\.wordIds).flatMap { words[$0]?.reviewIssueIds ?? [] })
             let issues = transcript.reviewIssues.filter { ids.contains($0.id) }
             attached.formUnion(issues.map(\.id))
-            let text = group.map(currentText).reduce("") { current, next in
+            let text = group.map { texts[$0.id] ?? "" }.reduce("") { current, next in
                 let needsSpace = !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
                 return current + (needsSpace ? " " : "") + next
             }

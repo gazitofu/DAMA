@@ -3,6 +3,14 @@ import XCTest
 @testable import DamaCore
 
 final class LibraryPresentationTests: XCTestCase {
+    func testExplicitSentenceEndDoesNotTreatEllipsisOrDecimalAsCompletion() {
+        for text in ["완료했습니다.", "완료했습니다.\"  ", "맞습니까?", "네!", "끝。"] {
+            XCTAssertTrue(ScriptReadingPolicy.endsSentence(text), text)
+        }
+        for text in ["회사는", "그리고...", "음…", "3.", "", " "] {
+            XCTAssertFalse(ScriptReadingPolicy.endsSentence(text), text)
+        }
+    }
     func testContinuousOverlapReadEditAndExportPreservesSpeakerTransitions() throws {
         let intervals: [[String: Any]] = [
             ["start": 0.0, "end": 1.5, "speaker": "A"],
@@ -35,24 +43,48 @@ final class LibraryPresentationTests: XCTestCase {
         let md = String(decoding: try loaded.markdown(), as: UTF8.self)
         XCTAssertTrue(md.contains("첫 겹말 수정 계속"))
         XCTAssertTrue(md.contains("overlapping\\_speech"))
-        // Ending B inside a neighboring A turn must restore the boundary.
+        // B ending inside A's word is not a new intervening turn. Keep its warning.
         var ended = model
         ended.diarization[1].endUs = 600_000
         let changed = try LibraryScript(transcript: ended, title: "종료 경계", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
-        XCTAssertEqual(changed.blocks()[0].turns.count, 1)
+        XCTAssertEqual(changed.blocks()[0].turns.count, 3)
+        XCTAssertFalse(changed.blocks()[0].reviewEvents.isEmpty)
     }
-    func testReadingParagraphLimitsAndLongPausePreserveAllWords() throws {
+    func testUnfinishedSentenceContinuesBeyondOldDurationAndPauseLimits() throws {
         let long = try script(Array(repeating: "A", count: 40))
         let blocks = long.blocks()
-        XCTAssertEqual(blocks.map { $0.turns.count }, [15, 15, 10])
-        XCTAssertTrue(blocks.allSatisfy { $0.endUs! - $0.startUs! <= 30_000_000 })
+        XCTAssertEqual(blocks.map { $0.turns.count }, [40])
+        XCTAssertEqual(blocks[0].endUs! - blocks[0].startUs!, 78_800_000)
         XCTAssertEqual(blocks.flatMap { $0.turns.flatMap(\.wordIds) }, long.transcript.words.map(\.id))
         var paused = try script(["A", "A"]).transcript
         paused.durationUs = 10_000_000
         paused.turns[1].startUs = 4_800_000; paused.turns[1].endUs = 5_600_000
         paused.words[1].startUs = 4_800_000; paused.words[1].endUs = 5_600_000
         let result = try LibraryScript(transcript: paused, title: "휴지", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
-        XCTAssertEqual(result.blocks().count, 2)
+        XCTAssertEqual(result.blocks().count, 1)
+        XCTAssertEqual(result.blocks()[0].endUs, 5_600_000)
+    }
+    func testSentenceEndAndSpeakerChangeDriveReadAndExportBoundaries() throws {
+        var value = try script(["A", "A", "A", "A", "B", "A"])
+        let texts = ["이번에", "검토할 회사는", "다마입니다.", "다음으로", "네", "설명하겠습니다."]
+        for i in texts.indices { try value.editText(value.transcript.turns[i].id, text: texts[i]) }
+        let blocks = value.blocks()
+        XCTAssertEqual(blocks.map(\.text), ["이번에 검토할 회사는 다마입니다.", "다음으로", "네", "설명하겠습니다."])
+        XCTAssertEqual(blocks.map { $0.turns.count }, [3, 1, 1, 1])
+        let loaded = try JSONDecoder().decode(LibraryScript.self, from: JSONEncoder().encode(value))
+        let markdown = String(decoding: try loaded.markdown(), as: UTF8.self)
+        XCTAssertTrue(markdown.contains("이번에 검토할 회사는 다마입니다\\."))
+        XCTAssertEqual(markdown.components(separatedBy: "### [").count - 1, 4)
+        XCTAssertEqual(loaded.blocks().flatMap { $0.turns.flatMap(\.wordIds) }, value.transcript.words.map(\.id))
+    }
+    func testSameSpeakerOverlappingWordTimesJoinWithoutChangingTiming() throws {
+        var model = try script(["A", "A"]).transcript
+        model.turns[1].startUs = 700_000; model.turns[1].endUs = 1_400_000
+        model.words[1].startUs = 700_000; model.words[1].endUs = 1_400_000
+        let value = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        XCTAssertEqual(value.blocks().count, 1)
+        XCTAssertEqual(value.blocks()[0].endUs, 1_400_000)
+        XCTAssertEqual(value.blocks()[0].turns.map(\.startUs), [0, 700_000])
     }
     func testReviewEventsCoalesceSharedRangesWithoutDroppingKindsOrUnknownTimes() {
         func issue(_ id: String, _ kind: IssueKind, _ start: Int64?, _ end: Int64?) -> ReviewIssue {

@@ -192,7 +192,7 @@ final class ContextCorrectionTests: XCTestCase {
         let loaded = try JSONDecoder().decode(LibraryScript.self, from: encoder.encode(script))
         XCTAssertEqual(loaded.correction?.edits.count, 2) // Old stored entries aren't erased.
         XCTAssertEqual(loaded.correction?.visibleEdits.count, 1)
-        XCTAssertEqual(loaded.blocks()[0].text, "확인")
+        XCTAssertEqual(loaded.blocks()[0].text, "확인  불확실")
         XCTAssertEqual(loaded.blocks().flatMap(\.openIssues).map(\.id), ["i-test"])
         XCTAssertEqual(try encoder.encode(loaded.transcript), original)
         let md = String(decoding: try loaded.markdown(), as: UTF8.self)
@@ -200,14 +200,14 @@ final class ContextCorrectionTests: XCTestCase {
         XCTAssertTrue(md.contains("원음 확인"))
         XCTAssertTrue(md.contains("invalid\\_timestamp"))
         script.showsOriginal = true
-        XCTAssertEqual(script.blocks()[0].text, "확인")
+        XCTAssertEqual(script.blocks()[0].text, "확인    불확실")
         XCTAssertEqual(script.originalText(for: first), "  확인  ")
         try script.editText(first.id, text: "  사람이 남긴 공백  ")
-        XCTAssertEqual(script.blocks()[0].text, "  사람이 남긴 공백  ")
+        XCTAssertEqual(script.blocks()[0].text, "  사람이 남긴 공백    불확실  ")
         model.words[0].editedText = "  예전 검수에서 남긴 공백  "
         model.words[0].timingOrigin = .inheritedUnaligned
         let legacy = try LibraryScript(transcript: model, title: "이전 검수", recordedAt: nil, dateSource: "합성", input: script.input)
-        XCTAssertEqual(legacy.blocks()[0].text, "  예전 검수에서 남긴 공백  ")
+        XCTAssertEqual(legacy.blocks()[0].text, "  예전 검수에서 남긴 공백    불확실  ")
     }
     func testChunkOwnershipCoverageMalformedReplyAndLegacyDecode() throws {
         let script = try makeScript((0..<250).map { "합성 발화 \($0)" })

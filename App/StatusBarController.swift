@@ -4,13 +4,23 @@ import DamaAudio
 import SwiftUI
 
 @MainActor final class StatusBarController: NSObject, NSMenuDelegate {
-    private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let menu = NSMenu()
     private let toggle = NSSwitch()
     private let label = NSTextField(labelWithString: "녹음 시작")
     private let workspace = RecordingWorkspace.shared
     private var subscriptions = Set<AnyCancellable>()
     private var mainWindow: NSWindow?
+    private let idleImage = StatusBarController.icon(named: "DamaMenuIdle", template: true)
+    private let recordingImage = StatusBarController.icon(named: "DamaMenuRecording", template: false)
+    private static func icon(named name: String, template: Bool) -> NSImage? {
+        guard let image = NSImage(named: name)?.copy() as? NSImage else { return nil }
+        // Display both states at 90% of the original 22pt canvas.
+        image.size = NSSize(width: 19.8, height: 19.8)
+        image.isTemplate = template
+        image.accessibilityDescription = template ? "DAMA, 녹음 대기" : "DAMA, 녹음 중"
+        return image
+    }
     private static var versionLabel: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "미확인"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "미확인"
@@ -42,11 +52,9 @@ import SwiftUI
     func menuWillOpen(_ menu: NSMenu) { update() }
     private func update(phase suppliedPhase: CapturePhase? = nil) {
         let phase = suppliedPhase ?? workspace.capture.phase, recording = phase == .recording
-        var image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: recording ? "DAMA 녹음 중" : "DAMA")
-        if recording { image = image?.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemRed])) }
-        image?.isTemplate = !recording
-        item.button?.image = image
-        item.button?.contentTintColor = recording ? .systemRed : nil
+        item.button?.image = recording ? recordingImage : idleImage
+        item.button?.contentTintColor = nil
+        item.button?.setAccessibilityLabel(recording ? "DAMA, 녹음 중" : "DAMA, 녹음 대기")
         item.button?.toolTip = Self.versionLabel + (recording ? " · 녹음 중" : "")
         toggle.state = recording ? .on : .off
         toggle.isEnabled = workspace.ready && (recording || !phase.busy) && !workspace.capture.needsFinalization
