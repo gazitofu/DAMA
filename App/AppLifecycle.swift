@@ -8,6 +8,8 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
         statusBar = StatusBarController()
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let lifecycle = RecordingWorkspace.shared.lifecycle
+        if lifecycle.shuttingDown { return .terminateLater }
         if CorrectionWorkspace.shared.busy {
             CorrectionWorkspace.shared.message = "AI 교정 중입니다. 완료를 기다리거나 ‘교정 중단’을 누른 뒤 종료해 주세요."
             return .terminateCancel
@@ -22,6 +24,7 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
             return .terminateCancel
         }
         let capture = RecordingWorkspace.shared.capture
+        var saveRecording = false
         if capture.phase.busy || capture.needsFinalization {
             guard capture.phase == .recording || capture.phase == .starting else { return .terminateCancel }
             let alert = NSAlert()
@@ -30,17 +33,20 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
             alert.addButton(withTitle: "계속 녹음")
             alert.addButton(withTitle: "녹음을 저장하고 종료")
             guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
-            Task {
-                let saved = await capture.stop()
-                sender.reply(toApplicationShouldTerminate: saved)
-            }
-            return .terminateLater
+            saveRecording = true
         }
         let processing = ProcessingWorkspace.shared
-        if processing.localInferenceActive {
+        if saveRecording || processing.localInferenceActive {
+            guard lifecycle.beginShutdown() else { return .terminateLater }
+            let shouldSave = saveRecording
             Task {
-                await processing.pauseAndWait()
-                sender.reply(toApplicationShouldTerminate: true)
+                let saved = await lifecycle.finishShutdown(saveRecording: {
+                    if shouldSave { return await capture.stop() }
+                    return true
+                }, pauseLocalInference: {
+                    await processing.pauseAndWait()
+                })
+                sender.reply(toApplicationShouldTerminate: saved)
             }
             return .terminateLater
         }

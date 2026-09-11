@@ -38,6 +38,7 @@ public struct QwenRunner: QwenRunning {
         do { _=try validate(Data(contentsOf:runtimeURL)) } catch { throw QwenFailure.runtimeUnavailable }
     }
     public func transcribe(audio: URL, work: URL, input: ConversionNotes, audioHash: String, durationUs: Int64) async throws -> Data {
+        try Task.checkCancellation()
         try FileManager.default.createDirectory(at:work,withIntermediateDirectories:true)
         let runtimeFile=work.appendingPathComponent("runtime.json")
         let runtimeData: Data
@@ -66,6 +67,7 @@ public struct QwenRunner: QwenRunning {
         let handle=try FileHandle(forWritingTo:log)
         defer { try? handle.close() }
         process.standardOutput=handle;process.standardError=handle
+        try Task.checkCancellation()
         try process.run()
         var lastProgress=Date(), previous: Data?
         do {
@@ -85,6 +87,9 @@ public struct QwenRunner: QwenRunning {
                 await Task.detached { try? await Task<Never,Never>.sleep(for:.milliseconds(50)) }.value
             }
             if process.isRunning { kill(process.processIdentifier,SIGKILL) }
+            // SIGKILL delivery is asynchronous. Do not report shutdown complete
+            // while the child still owns model memory or the checkpoint lock.
+            await Task.detached { process.waitUntilExit() }.value
             throw error
         }
         guard process.terminationStatus==0 else { throw QwenFailure.localInferenceFailed }

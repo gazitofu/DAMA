@@ -41,6 +41,18 @@ final class ProcessingWorkspace: ObservableObject {
     }
     private var processor: ManagedProcessor?
     private var task: Task<Void, Never>?
+    private var activeProvider: TranscriptionProvider?
+
+    private func admitsProcessing(_ provider: TranscriptionProvider) -> Bool {
+        let recording = RecordingWorkspace.shared
+        guard !recording.lifecycle.shuttingDown else { return false }
+        if provider == .qwen && !recording.lifecycle.allowsLocalInference(
+            phase: recording.capture.phase, needsFinalization: recording.capture.needsFinalization) {
+            message = "녹음 원본을 저장한 뒤 Qwen 비교 전사를 시작하거나 재개해 주세요."
+            return false
+        }
+        return true
+    }
 
     func start() {
         guard processor == nil else { return }
@@ -82,6 +94,7 @@ final class ProcessingWorkspace: ObservableObject {
     func reviewTransmission(_ record: AudioManifest, input original: ConversionNotes = ConversionNotes(), retranscribing: Bool = false) async {
         var input=original
         guard !busy, let processor, record.analysis != nil, !localOnly.contains(record.id) else { return }
+        guard admitsProcessing(input.provider) else { return }
         if input.provider == .qwen {
             guard qwenReady else { message="Qwen 로컬 엔진이 준비되지 않았습니다. 엔진 설정에서 설치된 환경을 연결해 주세요.";return }
             do { input.qwenDiarizationRunID=try await processor.reusableDiarization(sessionID:record.id,
@@ -94,7 +107,7 @@ final class ProcessingWorkspace: ObservableObject {
                 input.precisionSourceRunID = try await processor.reusableDiarization(sessionID: record.id, audioHash: record.analysis!.sha256, speakerCount: input.speakerCount)
             } catch { message = "기존 결과의 조건을 확인하지 못했습니다. 전송하지 않았습니다."; return }
         }
-        guard !busy else { return }
+        guard !busy, admitsProcessing(input.provider) else { return }
         if input.provider.usesSoniox && record.durationUs > SonioxRequest.maximumDurationUs {
             message = "Soniox는 300분 이하의 녹음을 지원합니다. 음성을 전송하지 않았습니다."; return
         }
@@ -163,7 +176,7 @@ final class ProcessingWorkspace: ObservableObject {
     }
 
     func resume(_ run: ManagedRun) {
-        guard !busy, let processor else { return }
+        guard !busy, let processor, admitsProcessing(run.provider) else { return }
         let combined = run.provider == .sonioxPrecision
         let p2Done = (run.precisionRunID ?? run.input?.precisionSourceRunID).map { id in runs.contains { $0.id == id && $0.stage == "readyForReview" } } ?? false
         let sonioxDone = (run.sonioxRunID ?? run.input?.sonioxSourceRunID).map { id in runs.contains { $0.id == id && $0.stage == "readyForReview" } } ?? false
@@ -184,13 +197,15 @@ final class ProcessingWorkspace: ObservableObject {
     }
     private func launch(sessionID: String, provider: TranscriptionProvider, needsKey: Bool = true,
                         needsSonioxKey: Bool = false, _ action: @escaping @Sendable (String, String) async throws -> ManagedRun) {
-        guard let processor else { return }
+        // Recheck after asynchronous preparation and the modal consent dialog.
+        guard !busy, let processor, admitsProcessing(provider) else { return }
         let key: String, sonioxKey: String
         do {
             key = needsKey ? try KeychainStore.read(provider: provider == .sonioxPrecision ? .pyannote : provider) ?? "" : ""
             sonioxKey = needsSonioxKey ? try KeychainStore.read(provider: .soniox) ?? "" : ""
         } catch { message = "키체인에서 API 키를 읽지 못했습니다. 녹음은 계속 사용할 수 있습니다."; return }
         busy = true; activeSessionID = sessionID; attemptStartedAt = Date(); message = nil
+        activeProvider = provider
         task = Task {
             let monitor = Task {
                 while !Task.isCancelled {
@@ -199,8 +214,9 @@ final class ProcessingWorkspace: ObservableObject {
                     try? await Task.sleep(for: .milliseconds(500))
                 }
             }
-            defer { monitor.cancel(); busy = false; activeSessionID = nil; attemptStartedAt = nil; task = nil }
+            defer { monitor.cancel(); busy = false; activeSessionID = nil; activeProvider = nil; attemptStartedAt = nil; task = nil }
             do {
+                try Task.checkCancellation()
                 let result = try await action(key, sonioxKey)
                 runs = (try? await processor.runs()) ?? runs
                 saveCompletedSources()
@@ -220,10 +236,15 @@ final class ProcessingWorkspace: ObservableObject {
 
     func pause() { task?.cancel() }
     var localInferenceActive: Bool {
-        guard busy, let id = activeSessionID else { return false }
-        return (run(for: id)?.provider ?? selectedProvider) == .qwen
+        busy && activeProvider == .qwen
+    }
+    func pauseLocalInferenceForRecording() {
+        guard localInferenceActive else { return }
+        task?.cancel()
+        message = "녹음을 우선해 Qwen 비교 전사를 중단합니다. 저장된 진행 상태에서 직접 재개할 수 있습니다."
     }
     func pauseAndWait() async {
+        guard localInferenceActive else { return }
         let running = task
         running?.cancel()
         await running?.value

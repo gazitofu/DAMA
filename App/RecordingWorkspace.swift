@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 final class RecordingWorkspace: ObservableObject {
     static let shared = RecordingWorkspace()
     let capture = MicrophoneCapture()
+    let lifecycle = RecordingLifecycle()
     @Published private(set) var records: [AudioManifest] = []
     @Published private(set) var working = false
     @Published private(set) var ready = false
@@ -34,7 +35,7 @@ final class RecordingWorkspace: ObservableObject {
     }
 
     func toggleRecord() {
-        guard ready, !capture.needsFinalization else { return }
+        guard ready, !capture.needsFinalization, !lifecycle.shuttingDown else { return }
         if !capture.phase.busy && !UserDefaults.standard.bool(forKey: "microphoneIntroductionSeen") {
             let alert = NSAlert()
             alert.messageText = "마이크로 대화를 녹음하고 원본을 이 Mac에 저장합니다."
@@ -45,6 +46,7 @@ final class RecordingWorkspace: ObservableObject {
             UserDefaults.standard.set(true, forKey: "microphoneIntroductionSeen")
         }
         LibraryWorkspace.shared.playback.stop()
+        if !capture.phase.busy { ProcessingWorkspace.shared.pauseLocalInferenceForRecording() }
         capture.toggle()
     }
 

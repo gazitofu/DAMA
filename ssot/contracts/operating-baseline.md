@@ -14,6 +14,8 @@
 
 새 선택의 기본값은 `sonioxPrecision`. 이전 사용자의 엔진 선택은 새 운영 선택 저장 키와 분리해 1회 초기화하며 이후 선택은 유지한다. 구 Run의 미기록 공급자는 pyannote로 해석한다. Qwen 설정·체크포인트·완료 비교 결과는 보존한다. 중단된 Qwen은 새 운영 전사를 막지 않지만 실행 중 작업은 동시에 시작하지 않는다. 운영·Qwen 경로의 자동 AI 교정은 OFF다.
 
+녹음 우선 실행/종료: 녹음 시작은 실행 중인 Qwen 작업에 취소를 요청한 뒤 즉시 진행한다. 녹음 준비·녹음·저장 중 또는 원본 저장이 미확정이면 Qwen 시작/재개를 차단한다. 종료 중에도 새 작업을 시작하지 않는다. 실행 provider는 현재 작업을 시작할 때 고정하며 메뉴 선택이나 이전 Run에서 추정하지 않는다. 앱 종료는 원본 저장과 Qwen 자식 프로세스 종료를 모두 기다리고, 원본 저장에 실패하면 앱을 남긴다. SIGINT에 응답하지 않는 소유 자식은 기존2초 유예 후 종료시키고 실제 종료를 확인한다. 체크포인트·완료 소스는 보존하며 자동 재개/새 API 제출은 하지 않는다. 로컬 취소는 서버 작업·과금 취소가 아니다.
+
 Precision-2 새 요청은 `transcription=false`, `exclusive=true`, `turnLevelConfidence=true`, `model=precision-2`. 실제 발화자 수를 아는 경우만 `numSpeakers`; 비우면 자동이다. 참석자 수를 대신 강제하지 않는다. API에는 범위 설정도 있지만 이 버전 UI는 정확한 수 또는 자동을 제공한다. Soniox는 자체 diarization을 항상 켜며 예상 수는 기본 문맥의 힌트다. [pyannote API](https://docs.pyannote.ai/api-reference/diarize), [Soniox context](https://soniox.com/docs/stt/concepts/context).
 
 ## 처리·보존
