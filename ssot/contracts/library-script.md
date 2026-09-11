@@ -25,6 +25,7 @@
 ## 재전사·라이브러리 삭제 (2026-09-10 사용자 추가 요청, T-15)
 
 - Speeches의 ‘재전사…’와 Scripts의 ‘재전사…’는 내부 보존 원음으로 새 ManagedRun을 생성한다. 기존 ‘변환 재개’는 같은 Run을 이어간다. 새로운 제출은 매번 음성 전송·비용·선택한 자동 교정 발췌를 확인받는다. 기존 local-only는 유지한다.
+- 2026-09-11 운영/실험 분리 후속: 결합 자식은 parent와 함께 관리하고, 중단된 Qwen 비교는 새 운영 전사를 막지 않는다. 나머지는 기존 제한을 유지한다.
 - 기존 Run이 모두 readyForReview/failed/partialResult/resultExpired/submissionUncertain일 때만 새 제출을 허용한다. 접수 불명 기록이 하나라도 있으면 중복 처리·과금 가능성을 확인창에 명시한다. 미완료/paused/unknownRemoteStatus Run은 새 제출로 우회하지 않는다.
 - 새 결과는 session의 active revision이 아닌 해당 runId의 model을 로드한다. 서로 다른 Run의 Script는 별도 파일이며 이름·문장 override를 자동 이식하지 않는다(INV-09). 기존 파일·원문·수정본·원음은 보존한다. 제목이 같아도 생성 시각과 목록 항목으로 각각 열 수 있다. 실행 상태와 로컬 저장 버튼은 최신 Run에 대응한다.
 - ‘삭제…’와 목록 우클릭의 ‘Speech 삭제…’/‘Script 삭제…’는 선택 폴더의 해당 파일 또는 `.dama-audio` 묶음을 macOS 휴지통으로 보낸다. 확인창 기본 버튼은 ‘취소’, 실행 버튼은 ‘휴지통으로 이동’. 연결 항목·내보낸 Markdown·내부 녹음/Run/LibraryRevisions/index는 남긴다. 내부 원음이 있으므로 Speech를 휴지통으로 보내도 Script의 재생·재전사가 가능하다. 완전 삭제/서버 삭제와 구별해 설명한다.
@@ -33,7 +34,7 @@
 
 ## Markdown 내보내기
 
-제품 내보내기는 `.md` 하나다. 코드의 기존 Core JSON/TXT exporter는 기존 계약 호환용으로 남지만 새 라이브러리 UI에서 노출하지 않는다.
+일반 스크립트 내보내기는 `.md`다. 2026-09-11 최종 운영안 승인으로 별도 평가 JSON(원문/입력/검수 기록/월 비용)을 추가하며 [운영 계약](operating-baseline.md)을 따른다. 코드의 기존 Core JSON/TXT exporter는 기존 계약 호환용으로 남지만 새 라이브러리 UI에서 노출하지 않는다.
 
 1. 수정 제목.
 2. 녹음 날짜·시각·offset·시간대·날짜 근거·녹음 길이·스크립트 생성일.
@@ -111,3 +112,7 @@
 - 앱이 참고 정보 전체 UTF8 SHA256+행번호로 termID를 만들고 프롬프트에 검증 가능한 terms 목록을 전달한다. 응답의 termID·원표기·표준표기·원 발화 범위를 다시 대조한다. 다른 입력/발화/주제의 대응, 위조 ID, 일반 참고 문서에서 표기가 등장한 사실만으로는 허용하지 않는다. 선택 참고 발췌는 모델의 후보 생성 자료이며 자동 용어 대응으로 파싱하지 않는다. 참고에서 대응/주제를 자동 추출하는 확대와 실제 어휘 정확도 평가는 후속이다.
 - 저장은 기존 CorrectionEdit의 Turn당1개 구조를 유지하며 optional `changes`, `unresolved`, `appliedText`를 추가한다. `applied`는 모든 수정 반영+미해결 없음일 때 true; 일부만 반영되면 false여도 `appliedText`를 표시한다. 새 레코드 로드 시 후보/반영 본문을 원문과 개별 수정으로 재구성해 일치 여부를 검증한다. 새 필드가 없는 이전 저장본은 기존 적용 판정을 유지하며, 기존 raw reply 로컬 재생 경로도 T-12 정책을 유지한다. 실제 CLI 어댑터는 새 필드가 빠진 응답을 거부한다.
 - UI와 Markdown은 부분 반영 본문·수정별 반영/보류·미해결을 보여 주며 source issue는 유지한다. 기존 원문 전환과 사람 수정 우선순위를 유지한다. 수동 선택은 현재 **원 Turn 전체** 범위이므로 버튼을 ‘전체 교정안 적용 / 전체 원문 유지’로 명시한다. 개별 수정 수동 선택 UI는 추가하지 않았다. 새 형식의 실제 모델 생성 성공·한국어 교정 품질은 합성 응답/가짜 CLI/빌드 결과로 대신 판정하지 않는다.
+
+## 운영 기본·검수 기록 (2026-09-11 최종안)
+
+[operating-baseline.md](operating-baseline.md)가 현행 운영·실험·승격 계약이다. optional `reviewRecords`는 전후 텍스트/화자 표시·원음/Turn 범위·원음 확인·오류/표본 유형·능동 시간을 담는다. 구 파일의 nil은 미기록이다. `meetingTerms`는 녹음별 Soniox/Qwen 공통 용어. `sonioxSourceRunID`/`precisionSourceRunID`는 결합 source Run이며 기존 Qwen source 필드는 유지한다. normalized v1의 optional asrSpeakerLabel, hybridSonioxPyannote, provider_disagreement 확장은 원본 Soniox 후보를 보존한다.
