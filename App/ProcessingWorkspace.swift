@@ -100,15 +100,9 @@ final class ProcessingWorkspace: ObservableObject {
     }
 
     func preparedInput(_ input: ConversionNotes) async throws -> ConversionNotes {
-        var selected = input
-        selected.transcriptionProvider = selectedProvider
-        selected.sonioxContext = selectedProvider.usesSoniox && sonioxContext
-        selected.sonioxTerms = selectedProvider.usesSoniox && sonioxContext ? input.meetingTerms : nil
-        selected.qwenTerms = selectedProvider == .qwen ? input.meetingTerms : nil
-        selected.qwenDiarizationRunID=nil
-        selected.sonioxSourceRunID=nil; selected.precisionSourceRunID=nil
+        let selected = input.forTranscription(selectedProvider, sonioxContext: sonioxContext)
         let notes = try await CorrectionWorkspace.shared.preparedInput(selected,
-            enabled: ![.qwen, .sonioxPrecision].contains(selectedProvider) && !comparison && CorrectionWorkspace.shared.automatic,
+            enabled: false,
             includeSonioxFolder: sonioxFolderContext, includeQwenFolder: qwenFolderContext)
         let prepared = selectedProvider.usesSoniox ? try SonioxRequest.prepare(notes, includeFolder: sonioxFolderContext) : notes
         try prepared.validate()

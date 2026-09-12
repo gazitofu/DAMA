@@ -28,6 +28,16 @@ public struct ConversionNotes: Codable, Sendable, Equatable {
         return provider.usesSoniox && sonioxContext == true ? "Soniox에 전송" : "미전송"
     }
     public var provider: TranscriptionProvider { transcriptionProvider ?? .pyannote }
+    /// Freeze the fields consumed by a new engine invocation; keep user notes intact.
+    public func forTranscription(_ provider: TranscriptionProvider, sonioxContext enabled: Bool) -> Self {
+        var result = self
+        result.transcriptionProvider = provider; result.sonioxContext = provider.usesSoniox && enabled
+        result.sonioxTerms = provider.usesSoniox && enabled ? meetingTerms : nil
+        result.qwenTerms = provider == .qwen ? meetingTerms : nil
+        result.qwenDiarizationRunID = nil; result.sonioxSourceRunID = nil; result.precisionSourceRunID = nil
+        result.aiCorrection = false
+        return result
+    }
     public init(speakerCount: Int? = nil, context: String = "", reference: String = "", participants: String? = nil,
                 aiCorrection: Bool? = nil, referenceExcerpts: [ReferenceExcerpt]? = nil) {
         self.speakerCount = speakerCount; self.context = context; self.reference = reference

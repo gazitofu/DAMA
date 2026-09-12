@@ -16,6 +16,13 @@
 - 조회는 현재 목록/현재 파일 해시, snapshot UUID 경로/해시/같은 Run·불변 transcript를 검증한다. 누락/손상은 오류이며 현재 내용을 대체해 보여 주지 않는다. snapshot은 수정 저장 API로 덮어쓸 수 없다. Markdown에는 결과 이름과 revision을 기재한다.
 - 제목/문단/AI는 저장 actor에서 최신 원문을 다시 확인하고 해당 필드만 병합한다. 현재 actor가 저장한 변화만 병합하며 알 수 없는 외부 바이트 변경, 다른 Run/원문, 같은 제목 필드 충돌은 거부한다. 제목과 본문을 별도 저장해도 서로의 수정을 되돌리지 않는다.
 
+## Speeches 소비 입력 표시 (2026-09-12 r5)
+
+- 새 전사 설정과 용어/참고는 Speeches 안에서 접어 둔다. Soniox의 기본 문맥 ON일 때 맥락·참석자·직접 참고·용어·폴더 선택을 보이고, OFF이면 숨긴다. Soniox 단독/OFF에는 사용하지 않는 화자 수 입력도 숨긴다. P2를 사용하는 운영/Qwen/pyannote 경로는 화자 수 제약 입력을 유지한다.
+- Qwen은 맥락·참석자·직접 참고·용어와 선택 발췌를 로컬 worker context로 보낸다. pyannote 통합 전사는 화자 수만 사용하므로 이외 참고 입력을 숨긴다. 기존 녹음에 저장된 숨긴 필드는 삭제하지 않는다.
+- 새 전환 입력은 `ConversionNotes.forTranscription`에서 엔진별 용어를 복사하고 source 재사용 ID를 초기화한다. 신규 변환의 자동 AI 보정은 OFF이며 Scripts의 수동 모달에서 실행한다. 기존 Run 재개는 당시 동의/입력/설정을 그대로 따른다.
+- 폴더 발췌 query에는 녹음 맥락·참석자·직접 참고와 회의 공통 용어를 포함한다. md/txt/깊이3/300항목/200KB·파일/상위3문단/8파일/총12,000자 기존 한도는 유지한다. Soniox는 7,500바이트 내에 포함된 발췌만 전송하며 확인창에 실제 JSON과 제외 이름을 표시한다. 연결 자체는 전송·학습이 아니다.
+
 사용자 2026-09-10 화면 확정 및 제목/Markdown 요청. 구현 정본은 `Packages/DamaCore/Sources/DamaCore/LibraryScript.swift`다. 기존 `transcript.v1.schema.json`·`DomainContracts.swift`·normalized 파일은 변경하지 않는다.
 
 - 파일 확장자 `.dama.json`, `format = dama-library-script-1`. 기존 normalized v1과 구분되는 envelope다.

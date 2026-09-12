@@ -4,6 +4,8 @@ public enum TranscriptionProvider: String, Codable, CaseIterable, Sendable {
     case pyannote, soniox, qwen, sonioxPrecision, precision
     public static var selectable: [Self] { [.sonioxPrecision, .soniox, .qwen, .pyannote] }
     public var usesSoniox: Bool { self == .soniox || self == .sonioxPrecision }
+    public func consumesContext(sonioxEnabled: Bool) -> Bool { self == .qwen || (usesSoniox && sonioxEnabled) }
+    public func consumesSpeakerCount(sonioxEnabled: Bool) -> Bool { self != .soniox || sonioxEnabled }
     public var title: String {
         switch self { case .pyannote: "pyannote + Whisper (비교)"; case .soniox: "Soniox 단독 (비교)"; case .qwen: "로컬 Qwen + Precision-2 (비교)"; case .sonioxPrecision: "Soniox + Precision-2 (운영)"; case .precision: "Precision-2 화자분리" }
     }

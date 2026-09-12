@@ -61,7 +61,6 @@ struct LibraryShell: View {
     @State private var edit: LibraryEdit?
     @State private var aiRequest: ScriptAIRequest?
     @State private var settings = false
-    @State private var terms = false
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -76,46 +75,6 @@ struct LibraryShell: View {
                 if workspace.busy { ProgressView().controlSize(.small); Text("불러오거나 저장하는 중").font(.caption) }
                 Button("설정", systemImage: "gearshape") { settings = true }
             }.padding(.horizontal, 20).frame(height: 48)
-            Divider()
-            VStack(alignment: .leading, spacing: 7) {
-                HStack(spacing: 16) {
-                    Picker("새 전사 엔진", selection: $processing.selectedProvider) {
-                        ForEach(TranscriptionProvider.selectable, id: \.self) { Text($0.title).tag($0) }
-                    }.frame(width: 260)
-                    if [.sonioxPrecision, .qwen].contains(processing.selectedProvider) { Text("AI 교정 OFF").font(.caption) }
-                    else { Toggle("엔진 비교 · 자동 교정 끔", isOn: $processing.comparison) }
-                    if processing.selectedProvider.usesSoniox {
-                        Toggle("기본 문맥 전송", isOn: $processing.sonioxContext)
-                        Button("용어…") { terms = true }.disabled(!processing.sonioxContext)
-                            .popover(isPresented: $terms) {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("회의 공통 용어 · Soniox/Qwen · 한 줄에 하나씩").font(.headline)
-                                    TextEditor(text: $workspace.meetingTerms).frame(width: 340, height: 140)
-                                    Text("맥락·참석자·예상 발화자 수와 함께 전송합니다. 폴더 발췌는 별도 선택하며, 전송 전에 전체 내용을 확인할 수 있습니다.").font(.caption).frame(width: 340)
-                                    Button("완료") { terms = false }
-                                }.padding(16)
-                            }
-                    }
-                    Spacer(minLength: 0)
-                }
-                if processing.selectedProvider.usesSoniox {
-                    HStack {
-                        Toggle("참고 폴더 발췌 추가", isOn: $processing.sonioxFolderContext).disabled(!processing.sonioxContext)
-                        Text("기본 문맥: 맥락·참석자·예상 인원·직접 입력 참고·용어. 폴더는 남은 용량 안에서 선택합니다.").font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                if processing.selectedProvider == .qwen {
-                    HStack {
-                        Text(processing.qwenReady ? "로컬 엔진 준비됨 · 한국어 · AI 교정 OFF" : "로컬 엔진 설치 필요").font(.caption)
-                        Button("엔진 연결…") { processing.chooseQwenRuntime() }
-                        Toggle("참고 폴더 로컬 입력",isOn:$processing.qwenFolderContext)
-                        TextField("회의 공통 용어",text:$workspace.meetingTerms).textFieldStyle(.roundedBorder).frame(maxWidth:280)
-                    }
-                    Text("전사·정렬은 이 Mac에서 처리합니다. 화자 분리는 Precision-2를 사용하며, 같은 오디오·인원 설정의 결과가 있으면 재사용합니다.").font(.caption).foregroundStyle(.secondary)
-                }
-                Text("새 변환·재전사에 적용합니다. 재개는 원래 엔진으로 계속하며, 이전 스크립트는 별도로 보존합니다.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }.padding(.horizontal, 20).padding(.vertical, 10).disabled(processing.busy || !workspace.canLeave)
             Divider()
             HStack(spacing: 0) {
                 sidebar.frame(width: 250)
@@ -244,8 +203,8 @@ struct LibraryShell: View {
                 }
             }
         } else if workspace.folder == .speeches {
-            if let speech = workspace.speech { speechDetail(speech) }
-            else { empty("녹음 파일이 없습니다.", message: "메뉴바에서 녹음을 시작하거나 이 폴더에 M4A·WAV 파일을 넣어 주세요.", action: nil) }
+            if let speech = workspace.speech { SpeechDetailView(speech: speech, workspace: workspace, settings: { settings = true }).id(speech.id) }
+            else { empty("아직 녹음이 없습니다.", message: "메뉴바에서 녹음을 시작하거나 이 폴더에 M4A·WAV 파일을 넣어 주세요.", action: nil) }
         } else if let file = workspace.displayedScript {
             ScriptReadingView(file: file, workspace: workspace,
                 rename: { file, block in beginEdit(LibraryEdit(file: file, kind: .speaker(block), value: block.name)) },
@@ -264,84 +223,6 @@ struct LibraryShell: View {
             Text(message).foregroundStyle(.secondary).multilineTextAlignment(.center)
             if let action { Button("폴더 선택…", action: action) }
         }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    private func speechDetail(_ speech: LibrarySpeech) -> some View {
-        let run = processing.run(for: speech.id)
-        return VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Speeches").font(.caption).foregroundStyle(.secondary)
-                Text(speech.title).font(.title)
-                Text("\(date(speech.recordedAt)) · \(LibraryScript.timestamp(speech.durationUs))").font(.callout).foregroundStyle(.secondary)
-                Text(speech.dateSource).font(.caption2).foregroundStyle(.secondary)
-            }.padding(32)
-            Divider()
-            if run != nil || processing.activeSessionID == speech.id || workspace.preparingSpeechID == speech.id {
-                ProcessingProgressCard(run: run, tracking: processing.activeSessionID == speech.id,
-                    preparing: workspace.preparingSpeechID == speech.id,
-                    startedAt: processing.activeSessionID == speech.id ? processing.attemptStartedAt : nil,
-                    scriptSaved: run.map { value in workspace.scripts.contains { $0.id == value.id } } ?? false)
-                    .padding(.horizontal, 32).padding(.vertical, 16)
-                if processing.activeSessionID == speech.id, run?.provider == .qwen {
-                    Button("로컬 전사 일시 정지", action: processing.pause)
-                        .padding(.horizontal, 32).padding(.bottom, 12)
-                }
-                Divider()
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("예상 발화자 수").fontWeight(.medium)
-                        TextField("자동", text: $workspace.speakerCount).textFieldStyle(.roundedBorder).frame(width: 150).accessibilityLabel("예상 발화자 수").disabled(!workspace.canLeave)
-                        Text(workspace.notesValid ? (processing.selectedProvider.usesSoniox ? "기본 문맥을 켜면 예상 인원을 Soniox에 힌트로 전송합니다 (1~15명). 인원을 강제하지 않습니다." : "입력한 인원을 pyannote 화자 수 제약으로 전달합니다. 비워 두면 자동 판단합니다.") : "1 이상의 정수를 입력해 주세요.")
-                            .font(.caption).foregroundStyle(workspace.notesValid ? Color.secondary : Color.red)
-                    }
-                    Text("실제로 말한 인원을 아는 경우에만 지정하세요. 운영 결합은 Precision-2 제약과 Soniox 힌트를 함께 사용합니다.").font(.caption).foregroundStyle(.secondary)
-                    noteField("맥락", text: $workspace.context, height: 90)
-                    noteField("참석자 · 한 줄에 이름과 소속/역할", text: $workspace.participants, height: 70)
-                    noteField("참고 정보", text: $workspace.reference, height: 80)
-                    Text("용어 표기를 지정하려면 ‘용어 | 주제 | 원표기 | 표준표기’를 한 줄씩 입력하세요. 맥락과 해당 발화에서 주제가 확인되는 경우에 적용합니다.")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Toggle("변환 후 문맥 자동 교정", isOn: Binding(get: { correction.automatic && !processing.comparison && ![.sonioxPrecision, .qwen].contains(processing.selectedProvider) }, set: { correction.automatic = $0 }))
-                        .disabled(processing.comparison || [.sonioxPrecision, .qwen].contains(processing.selectedProvider))
-                    HStack {
-                        Text(correction.referenceURL?.lastPathComponent ?? "참고 폴더 없음").font(.caption).foregroundStyle(.secondary)
-                        Button("참고 폴더 연결…", action: correction.chooseReferences).disabled(correction.busy)
-                        if correction.referenceURL != nil { Button("연결 해제", action: correction.disconnectReferences).disabled(correction.busy) }
-                    }
-                    Text("자동 교정 시 참석자·맥락·참고 정보를 활용합니다. 전송할 참고 발췌는 변환 확인창에서 볼 수 있습니다.").font(.caption).foregroundStyle(.secondary)
-                    if processing.localOnly.contains(speech.id) { Text("이 녹음은 로컬 저장만 하도록 설정되어 있습니다.").font(.callout) }
-                }.padding(32)
-            }
-            Divider()
-            HStack {
-                Button(workspace.notesDirty ? "정보 저장" : "정보 저장됨", action: workspace.saveNotes).disabled(!workspace.notesDirty || !workspace.notesValid || !workspace.canLeave)
-                Button("삭제…", systemImage: "trash") { workspace.deleteSpeech(speech) }.disabled(workspace.foldersLocked)
-                Spacer()
-                if workspace.folders[.scripts] == nil { Button("Scripts 폴더 선택…") { workspace.chooseFolder(.scripts) } }
-                if run != nil || workspace.completedScript(for: speech) != nil {
-                    Button("재전사…", action: workspace.retranscribeSpeech).disabled(!workspace.canRetranscribe(speech.id))
-                }
-                Button(conversionTitle(speech, run: run), action: workspace.convert)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!workspace.canLeave || !workspace.notesValid || processing.busy || workspace.folders[.scripts] == nil || processing.localOnly.contains(speech.id))
-            }.padding(24)
-        }
-    }
-    private func conversionTitle(_ speech: LibrarySpeech, run: ManagedRun?) -> String {
-        if processing.activeSessionID == speech.id { return "변환 중…" }
-        if workspace.preparingSpeechID == speech.id { return "오디오 준비 중…" }
-        if let run {
-            if run.stage == "readyForReview" { return workspace.scripts.contains { $0.id == run.id } ? "스크립트 열기" : "스크립트 저장" }
-            return processing.canResume(run) ? "변환 재개" : "처리 상태 확인"
-        }
-        return workspace.completedScript(for: speech) != nil ? "스크립트 열기" : "변환"
-    }
-    private func noteField(_ label: String, text: Binding<String>, height: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(label).fontWeight(.medium)
-            ExactTextEditor(text: text, label: label).frame(height: height)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.25)))
-        }.disabled(!workspace.canLeave)
     }
     private func beginEdit(_ item: LibraryEdit) { guard workspace.canLeave else { return }; workspace.editing = true; edit = item }
     private func date(_ date: Date?) -> String { date?.formatted(date: .numeric, time: .shortened) ?? "녹음 날짜 미확인" }

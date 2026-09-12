@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-04 화자/AI 모달·정보·버전·재생 연결, Core/audio29 및 Debug build PASS. T-05 Speeches 소비 입력/참조 경로, 이어 T-06 통합 native 합성 QA·전달. 실제 전달 앱은 아직0.4.7(17)."
+resume: "T-05 Speeches 소비 입력·참조 연결 완료, 관련18 및 Debug build PASS. T-06 통합 native 합성 QA·전체검사·버전 전달과 별도 화자/개인 지식 진단. 실제 전달 앱은 아직0.4.7(17)."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -60,6 +60,8 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - 폴더 선택만으로 전송하지 않는다. Soniox 기본 문맥 ON/폴더 OFF; Qwen 로컬 폴더 별도 선택. pyannote 통합 STT에서 소비하지 않는 맥락/참석자/용어/참고 입력 UI 숨김, 저장된 내용 삭제 없음.
 
 ## Follow-ups
+
+- T-05: 합성 md 발췌→Soniox 실제 payload builder/컨텍스트 OFF·폴더 OFF, QwenRunner 실제 프로세스 request→가짜 worker 소비 검증 및 전사/복구18 PASS(.build/check-logs/uiux-reading-t05.log). 발췌 구분자 […]를 기대값에 명시해 원문 전체와 구별. 실제 Qwen 모델/외부 ASR 품질 검증 아님. Speeches Debug build PASS.
 
 - T-03/T-04: 동일 NSTextView 읽기/편집, IME 상태를 본 debounce500ms, 문단 draft/버전 탐색 차단, 화자 모달/AI 참고 최종 확인 연결. 저장/읽기/AI 회귀29 PASS(.build/check-logs/uiux-reading-t04.log), Debug build PASS. 새 모달 catch 변수 shadowing 컴파일 오류 수정 후 통과. 실제 입력·배치 QA는 T-06에서 시행.
 

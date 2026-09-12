@@ -39,7 +39,12 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     var scriptFile: LibraryScriptFile? { scripts.first { $0.id == selectedScriptID } }
     var displayedScript: LibraryScriptFile? { historicalFile ?? scriptFile }
     var notesValid: Bool { speakerCount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (Int(speakerCount).map { $0 > 0 } == true) }
-    var notes: ConversionNotes { var value = ConversionNotes(speakerCount: Int(speakerCount), context: context, reference: reference, participants: participants.isEmpty ? nil : participants); value.meetingTerms = meetingTerms.isEmpty ? nil : meetingTerms; return value }
+    var notes: ConversionNotes {
+        var value = speech?.notes ?? ConversionNotes()
+        value.speakerCount = Int(speakerCount); value.context = context; value.reference = reference
+        value.participants = participants.isEmpty ? nil : participants; value.meetingTerms = meetingTerms.isEmpty ? nil : meetingTerms
+        return value
+    }
     var notesDirty: Bool { speech.map { $0.notes != notes } ?? false }
     var foldersLocked: Bool { !canLeave || notesDirty || ProcessingWorkspace.shared.busy || CorrectionWorkspace.shared.busy || RecordingWorkspace.shared.capture.phase.busy }
 

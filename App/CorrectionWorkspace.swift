@@ -59,7 +59,7 @@ import SwiftUI
     func preparedInput(_ input: ConversionNotes, enabled: Bool, includeSonioxFolder: Bool = false, includeQwenFolder: Bool = false) async throws -> ConversionNotes {
         var result = input; result.aiCorrection = enabled; result.referenceExcerpts = nil
         if enabled || (input.provider.usesSoniox && input.sonioxContext == true && includeSonioxFolder) || (input.provider == .qwen && includeQwenFolder), let referenceURL {
-            let excerpts = try await ReferenceFolder().excerpts(in: referenceURL, query: [input.participants ?? "", input.context, input.reference].joined(separator: "\n"))
+            let excerpts = try await ReferenceFolder().excerpts(in: referenceURL, query: [input.participants ?? "", input.context, input.reference, input.meetingTerms ?? ""].joined(separator: "\n"))
             result.referenceExcerpts = excerpts; preview = excerpts
         }
         return result
@@ -82,21 +82,6 @@ import SwiftUI
         let scroll = NSScrollView(frame: view.frame); scroll.hasVerticalScroller = true; scroll.documentView = view
         view.isVerticallyResizable = true; view.autoresizingMask = [.width]
         alert.accessoryView = scroll
-    }
-    func review(_ file: LibraryScriptFile) {
-        guard !busy, LibraryWorkspace.shared.canLeave else { return }
-        Task {
-            do {
-                let library = LibraryWorkspace.shared
-                let input = try await preparedInput(library.speeches.first { $0.id == file.script.transcript.sessionId }?.notes ?? file.script.input, enabled: true)
-                let alert = NSAlert(); alert.messageText = "문맥을 반영해 AI 교정할까요?"
-                alert.informativeText = "이 스크립트의 전사·참석자·맥락·아래 참고 발췌를 Codex CLI를 통해 OpenAI로 전송합니다. Codex 계정 사용량이 소모될 수 있습니다. 원음은 보내지 않으며 원문과 사용자 수정은 보존합니다."
-                Self.addPreview(to: alert, input: input)
-                alert.addButton(withTitle: "취소"); alert.addButton(withTitle: "AI 교정")
-                guard alert.runModal() == .alertSecondButtonReturn else { return }
-                enqueue(file, input: input)
-            } catch { message = "참고 폴더를 읽지 못했습니다. 다시 선택하거나 연결을 해제해 주세요. 전송하지 않았습니다." }
-        }
     }
     func enqueue(_ file: LibraryScriptFile, input: ConversionNotes) {
         guard input.aiCorrection == true, activeID != file.id, !queue.contains(where: { $0.0.id == file.id }) else { return }
