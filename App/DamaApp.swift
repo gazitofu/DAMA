@@ -1,4 +1,25 @@
+import AppKit
 import SwiftUI
+
+enum AppAppearance: String, CaseIterable {
+    case system, light, dark
+    static let preferenceKey = "appearance.mode"
+    var title: String {
+        switch self {
+        case .system: "시스템 설정"
+        case .light: "라이트"
+        case .dark: "다크"
+        }
+    }
+    @MainActor static func applySaved() {
+        let mode = Self(rawValue: UserDefaults.standard.string(forKey: preferenceKey) ?? "") ?? .system
+        switch mode {
+        case .system: NSApp.appearance = nil
+        case .light: NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark: NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
+}
 
 @main struct DamaApp: App {
     @NSApplicationDelegateAdaptor(DamaAppDelegate.self) private var delegate

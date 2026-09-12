@@ -230,6 +230,7 @@ struct LibraryShell: View {
 }
 
 struct LibrarySettings: View {
+    @AppStorage(AppAppearance.preferenceKey) private var appearance = AppAppearance.system.rawValue
     @ObservedObject var workspace: LibraryWorkspace
     @ObservedObject private var correction = CorrectionWorkspace.shared
     @Environment(\.dismiss) private var dismiss
@@ -238,6 +239,15 @@ struct LibrarySettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("DAMA 설정").font(.title2)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("화면 모드").font(.headline)
+                Picker("화면 모드", selection: $appearance) {
+                    ForEach(AppAppearance.allCases, id: \.rawValue) { mode in
+                        Text(mode.title).tag(mode.rawValue)
+                    }
+                }.pickerStyle(.segmented).labelsHidden()
+            }
+            Divider()
             ForEach(LibraryFolder.allCases) { kind in
                 HStack {
                     VStack(alignment: .leading) { Text(kind.rawValue).fontWeight(.medium); Text(workspace.folders[kind]?.path ?? "선택되지 않음").font(.caption).foregroundStyle(.secondary).lineLimit(2) }
@@ -262,6 +272,7 @@ struct LibrarySettings: View {
             Text("이 Mac에 설치·로그인된 Codex를 사용합니다. CLI 실행과 계정 접근은 앱 권한에 따라 제한될 수 있습니다.").font(.caption).foregroundStyle(.secondary)
             HStack { Spacer(); Button("닫기") { dismiss() }.keyboardShortcut(.cancelAction) }
         }.padding(24).frame(width: 470)
+            .onChange(of: appearance) { _, _ in AppAppearance.applySaved() }
             .sheet(isPresented: $costSettings) { OperatingCostSheet(workspace: workspace) }
     }
 }

@@ -5,6 +5,7 @@ import SwiftUI
 final class DamaAppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController?
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppAppearance.applySaved()
         statusBar = StatusBarController()
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

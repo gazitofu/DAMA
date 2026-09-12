@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "앱 반영 완료, 0.5.0(18) 설치/실행 확인. 게이트② 완성본 확인 대상. 후속은 notes/uiux-reading/speaker-context-diagnosis.md의 P2 시간 정렬 실험과 영구 개인 용어 프로필. native-qa.md에 합성 전송 사건·도구 제한·미측정 기록. main merge/push/학습/유료 실험 미승인 유지."
+resume: ""
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -40,6 +40,7 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - [x] AC-07 AI 추가 참고 모달: 열기/취소 외부 요청0·저장0, 최종 보정하기 입력 snapshot. 기존 성공본 유지, 버전 메뉴로 조회/내보내기.
 - [x] AC-08 Speeches r5 목록/입력/접기/변환 확인/진행·재개/결과 열기. 선택 엔진 소비 항목만 노출, 저장/실패/동의/불명확 접수 재제출 차단 유지. 합성 폴더→Soniox payload/Qwen 로컬 입력 소비 검증.
 - [x] AC-09 전체 check PASS, 실제 Mac 합성 여정 QA, 실제 사용자 원본 비변경 확인. 앱 버전 올림/설치·실행 Bundle 확인. 실제 ASR 정확도·학습·요금 비교는 미측정 표시.
+- [x] AC-10 설정 맨 위 화면 모드: 시스템 설정(기본)/라이트/다크. 앱의 창·본문·모달에 즉시 적용하며 선택을 재실행 후 복원. macOS 전체 화면 모드는 변경하지 않음. 사용자 누락 지적에 따른 소규모 수정으로 직접 반영하고 해당 여정만 검증.
 
 ## 작업 분해
 
@@ -51,6 +52,7 @@ spec: notes/uiux-reading/uiux-reading.src.html
 | T-04 | 화자·정보·재생·결과 메뉴/AI 참고 모달 | 동일 Run/다른 Run·읽기 전용·취소 여정 |
 | T-05 | Speeches 재배치·엔진별 실제 소비 입력·참조 진단 | 합성 파일→payload/로컬 요청, 상태·복구 여정 |
 | T-06 | 통합 QA·버전 전달·완료 상태, 별도 개선 진단 | 전체 check 및 설치된 실제 앱 |
+| T-07 | 설정의 화면 모드 선택·앱 공통 적용·선택 저장 | 앱 빌드, 실제 라이트/다크 전환·재실행 확인 |
 
 ## 결정 항목
 
@@ -61,6 +63,7 @@ spec: notes/uiux-reading/uiux-reading.src.html
 
 ## 완료 근거 (2026-09-13)
 
+- T-07: 사용자 설정 누락 지적을 직접 반영. UserDefaults 선택값 + NSApplication 공통 appearance, 시작 시 복원. `.build/check-logs/uiux-reading-appearance-build.log` Debug PASS. CUA로 라이트/다크 즉시 전환·라이트 본문·재실행 후 라이트 선택/화면 유지·시스템 모드 복귀 확인. About `0.5.1(19)` 실측, 설정 화면을 열어 전달. 데이터 경로 변경이 없어 Core 전수 검사는 반복하지 않음. 기존 dirty7만 남기고 커밋.
 - T-01~06 완료. [네이티브 QA](../../notes/uiux-reading/native-qa.md), [별도 화자·개인 지식 진단](../../notes/uiux-reading/speaker-context-diagnosis.md). 저장·이력·충돌·내보내기는 Core 검증, 입력/배치/화자/AI 모달·Speeches·재생은 실제 Mac 합성 검증으로 구분한다. 네이티브 저장 패널 완료와 물리 IME/작은 창/라이트·VoiceOver·장시간 성능은 미측정이다.
 - 최종 독립 scratch 전체검사 계약30/Swift170/Debug PASS, SKIP0: .build/check-logs/uiux-reading-final-clean/run-20260912T145840Z-iMQdTm. 최초 회귀와 재사용 scratch SIGBUS는 QA 기록에 보존.
 - 앱0.5.0(18) About 창 실측, 기존 운영 입력·완료 Run·Scripts 열림 확인. 실제 원본14파일 unchanged14/changed0/missing0. 기존 linker-signed 전달 방식 유지, main merge/push 없음.

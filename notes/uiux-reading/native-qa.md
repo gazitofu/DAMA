@@ -49,3 +49,9 @@ NSSavePanel/NSOpenPanel에서는 선택/저장 후 CUA가 `timeoutReached` 또�
 ## 미측정과 후속
 
 물리 한글 IME, 네이티브900×600/라이트 모드, VoiceOver 청취, 긴 전사 프레임 성능, 이번 UI를 통한 실제 AI 품질, 추가 학습, 경쟁 제품과 정확도·정상 비용 비교는 측정하지 않았다. 공개 입력 경로와 화자 진단은 [별도 제안](speaker-context-diagnosis.md)에 정리했다. 새 모델 정책·개인 프로필 UI·학습을 이 화면 승인에 포함해 실행하지 않는다.
+
+## 설정 화면 모드 보완 (2026-09-13 · 0.5.1/19)
+
+사용자가 설정의 라이트/다크 선택 누락을 지적했다. 기존에는 macOS 모드를 자동으로 따르는 동작만 있었다. 설정 상단에 시스템 설정(기본)/라이트/다크 선택을 추가하고 `appearance.mode`를 저장하며 앱 시작 때 복원한다. `NSApplication.appearance`로 SwiftUI와 native 텍스트/모달에 공통 적용하며 macOS 전체 설정은 바꾸지 않는다.
+
+`.build/check-logs/uiux-reading-appearance-build.log` Debug PASS, 기존 linker-signed 전달 방식 유지. CUA에서 라이트 설정과 실제 Script 본문, 다크 설정, 라이트 선택 후 정상 종료/재실행의 선택 및 밝은 화면 유지, 시스템 설정 복귀의 어두운 화면을 확인했다. 설정 하단 닫기까지 실제 화면에 보였다. About 창 `DAMA Version 0.5.1 (19)` 확인 후 설정 화면을 열어 두었다. 기존0.5.0은 `.build/backups/DAMA-0.5.0-18-before-appearance.app`에 보존했다. 이번 여정에는 전사/AI/녹음 실행·사용자 본문 수정·API 키 입력이 없다. 데이터 코드 변경이 없는 화면 설정 수정이라 Core 전수 검사는 반복하지 않았다. 위0.5.0 기록의 라이트 미측정은 이 여정에서 보완했으며 작은 창·VoiceOver 등 다른 축의 미측정은 유지한다.
