@@ -1,9 +1,9 @@
 ---
 unit: uiux-reading
 branch: work/m0-fixture-review
-status: building
+status: built
 decisions_resolved: true
-resume: "T-05 Speeches 소비 입력·참조 연결 완료, 관련18 및 Debug build PASS. T-06 통합 native 합성 QA·전체검사·버전 전달과 별도 화자/개인 지식 진단. 실제 전달 앱은 아직0.4.7(17)."
+resume: "앱 반영 완료, 0.5.0(18) 설치/실행 확인. 게이트② 완성본 확인 대상. 후속은 notes/uiux-reading/speaker-context-diagnosis.md의 P2 시간 정렬 실험과 영구 개인 용어 프로필. native-qa.md에 합성 전송 사건·도구 제한·미측정 기록. main merge/push/학습/유료 실험 미승인 유지."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -31,15 +31,15 @@ spec: notes/uiux-reading/uiux-reading.src.html
 
 ## 수용 기준
 
-- [ ] AC-01 기존 JSON 무이관 읽기, 모델 원문·시간·화자·marker 보존. 여러 Turn/빈 문자열/ABA·미배정·누락 경계/외부 변경 회귀. INV-01·06·09 및 설계 RC-01~03의 경계 유지.
-- [ ] AC-02 문단 전체 수정본이 화면·Markdown·버전에 동일. 원 Turn에 재분배하지 않고 AI 대상에서 제외, 읽기 전용 참고로 전달. 기존 사람이 수정한 Turn도 보호.
-- [ ] AC-03 AI 첫 성공 전/각 성공 snapshot 불변·해시 검증. 실패/취소는 완료 버전 없음; 중복 완료 중복 생성 없음. 현재 편집과 AI 완료 병합, 다른 Run/원문 교체 차단.
-- [ ] AC-04 같은 본문/같은 폭·글꼴로 수정→내용 변경 때 저장, 취소/Escape·빈 내용·멀티라인·IME 조합 안전. draft 중 탐색/다른 결과/화자/AI/내보내기 차단.
-- [ ] AC-05 제목 직접 입력, 조합 종료 후500ms 자동 저장/blur·Enter 즉시. 빈값/오류 draft 유지, 연속 입력 순서 보존. 과거 snapshot 읽기 전용.
-- [ ] AC-06 로고·화자 모달 3범위·주의 정보·다른 결과·본문과 재생 위치 연결. 검수 기록 입력/집계 UI 제거, 기존 기록 보존. 시간 Int64 µs·반열린 구간 유지; 고정 재생 경계 테스트.
-- [ ] AC-07 AI 추가 참고 모달: 열기/취소 외부 요청0·저장0, 최종 보정하기 입력 snapshot. 기존 성공본 유지, 버전 메뉴로 조회/내보내기.
-- [ ] AC-08 Speeches r5 목록/입력/접기/변환 확인/진행·재개/결과 열기. 선택 엔진 소비 항목만 노출, 저장/실패/동의/불명확 접수 재제출 차단 유지. 합성 폴더→Soniox payload/Qwen 로컬 입력 소비 검증.
-- [ ] AC-09 전체 check PASS, 실제 Mac 합성 여정 QA, 실제 사용자 원본 비변경 확인. 앱 버전 올림/설치·실행 Bundle 확인. 실제 ASR 정확도·학습·요금 비교는 미측정 표시.
+- [x] AC-01 기존 JSON 무이관 읽기, 모델 원문·시간·화자·marker 보존. 여러 Turn/빈 문자열/ABA·미배정·누락 경계/외부 변경 회귀. INV-01·06·09 및 설계 RC-01~03의 경계 유지.
+- [x] AC-02 문단 전체 수정본이 화면·Markdown·버전에 동일. 원 Turn에 재분배하지 않고 AI 대상에서 제외, 읽기 전용 참고로 전달. 기존 사람이 수정한 Turn도 보호.
+- [x] AC-03 AI 첫 성공 전/각 성공 snapshot 불변·해시 검증. 실패/취소는 완료 버전 없음; 중복 완료 중복 생성 없음. 현재 편집과 AI 완료 병합, 다른 Run/원문 교체 차단.
+- [x] AC-04 같은 본문/같은 폭·글꼴로 수정→내용 변경 때 저장, 취소/Escape·빈 내용·멀티라인·IME 조합 안전. draft 중 탐색/다른 결과/화자/AI/내보내기 차단.
+- [x] AC-05 제목 직접 입력, 조합 종료 후500ms 자동 저장/blur·Enter 즉시. 빈값/오류 draft 유지, 연속 입력 순서 보존. 과거 snapshot 읽기 전용.
+- [x] AC-06 로고·화자 모달 3범위·주의 정보·다른 결과·본문과 재생 위치 연결. 검수 기록 입력/집계 UI 제거, 기존 기록 보존. 시간 Int64 µs·반열린 구간 유지; 고정 재생 경계 테스트.
+- [x] AC-07 AI 추가 참고 모달: 열기/취소 외부 요청0·저장0, 최종 보정하기 입력 snapshot. 기존 성공본 유지, 버전 메뉴로 조회/내보내기.
+- [x] AC-08 Speeches r5 목록/입력/접기/변환 확인/진행·재개/결과 열기. 선택 엔진 소비 항목만 노출, 저장/실패/동의/불명확 접수 재제출 차단 유지. 합성 폴더→Soniox payload/Qwen 로컬 입력 소비 검증.
+- [x] AC-09 전체 check PASS, 실제 Mac 합성 여정 QA, 실제 사용자 원본 비변경 확인. 앱 버전 올림/설치·실행 Bundle 확인. 실제 ASR 정확도·학습·요금 비교는 미측정 표시.
 
 ## 작업 분해
 
@@ -58,6 +58,13 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - D-02 승인: 문단 전체 사람 수정본 + 순서 있는 원 Turn 집합. 불변 원문 fingerprint 및 저장 시 기준 revision/text 검증, AI/표시보다 우선.
 - 저장 구현: snapshot 자체와 현재 파일의 버전 목록을 분리하여 self-hash 순환 방지. snapshot 선저장 → 현재 목록 원자 저장; 중단 잔여 snapshot은 목록에 드러내지 않음.
 - 폴더 선택만으로 전송하지 않는다. Soniox 기본 문맥 ON/폴더 OFF; Qwen 로컬 폴더 별도 선택. pyannote 통합 STT에서 소비하지 않는 맥락/참석자/용어/참고 입력 UI 숨김, 저장된 내용 삭제 없음.
+
+## 완료 근거 (2026-09-13)
+
+- T-01~06 완료. [네이티브 QA](../../notes/uiux-reading/native-qa.md), [별도 화자·개인 지식 진단](../../notes/uiux-reading/speaker-context-diagnosis.md). 저장·이력·충돌·내보내기는 Core 검증, 입력/배치/화자/AI 모달·Speeches·재생은 실제 Mac 합성 검증으로 구분한다. 네이티브 저장 패널 완료와 물리 IME/작은 창/라이트·VoiceOver·장시간 성능은 미측정이다.
+- 최종 독립 scratch 전체검사 계약30/Swift170/Debug PASS, SKIP0: .build/check-logs/uiux-reading-final-clean/run-20260912T145840Z-iMQdTm. 최초 회귀와 재사용 scratch SIGBUS는 QA 기록에 보존.
+- 앱0.5.0(18) About 창 실측, 기존 운영 입력·완료 Run·Scripts 열림 확인. 실제 원본14파일 unchanged14/changed0/missing0. 기존 linker-signed 전달 방식 유지, main merge/push 없음.
+- 검증 중 닫기 의도와 달리 합성 무음30초가 외부 처리된 사건을 사용자에게 알림. QA 전용 모델 실행 차단 및 네트워크 권한 제거 후 AI 차단 확인. 비용 미확인; 성능 성과로 산입하지 않음.
 
 ## Follow-ups
 

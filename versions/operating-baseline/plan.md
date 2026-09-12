@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "Scripts r4/Speeches r5 사용자 승인 완료. versions/uiux-reading/plan.md에서 앱 반영 진행. 기존 앱0.4.7(17), 본 유닛 built 유지. 참조 입력 소비·미배정/개인 지식 개선 진단은 UI 구현과 분리. 타 트랙·학습·외부 호출 보류 유지."
+resume: "uiux-reading 앱 반영 완료: 0.5.0(18) 설치/실행, versions/uiux-reading/plan.md built. 후속은 notes/uiux-reading/speaker-context-diagnosis.md의 화자 시간 정렬·영구 개인 용어 프로필 제안. native-qa.md의 합성 전송 사건/미측정 확인. 본 유닛 built 및 타 트랙 보류 유지."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
