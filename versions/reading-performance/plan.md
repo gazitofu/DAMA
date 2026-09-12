@@ -3,7 +3,7 @@ unit: reading-performance
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-01 저장 snapshot/캐시 영향12건 PASS. T-02 UI 소비·재생 관찰·평가 export 이동."
+resume: "T-01/T-02 구현 및 저장·평가 영향13건 PASS. T-03 실제 저장본 계측·전체 테스트·앱 빌드/QA/0.4.5(15) 전달."
 spec: "사용자 2026-09-12 이어서 진행 승인; notes/backend-audit/audit.md F-03; ssot/design/02·04 및 ssot/contracts/library-script.md"
 ---
 
@@ -19,7 +19,7 @@ spec: "사용자 2026-09-12 이어서 진행 승인; notes/backend-audit/audit.m
 - [x] AC-01 FolderLibraryStore에서 검증한 파일 bytes와 SHA256을 묶고 불변 ScriptReadingSnapshot을 생성한다. 같은 URL/hash는 재사용, bytes가 바뀌면 revisionID가 같아도 재생성. 현재 목록 밖 cache는 정리하며 다른 Run/파일을 혼용하지 않는다.
 - [ ] AC-02 UI가 snapshot blocks/검수 사건을 소비하고 재생은 playingID/message 변경만 관찰한다. 위치 tick이 전체 LibraryShell 갱신을 유발하지 않는다. 문단 내용·시간·화자·이슈·순서는 기존 blocks()/Markdown과 동일 (INV-01·06·08·09).
 - [x] AC-03 사람 대사/이름·수동 문단·AI 교정 병합·원문 보기·외부 변경/새로고침·재열기에서 최신 내용 반영. stale hash 저장·export 거부 유지. 캐시 재사용/무효화 검사는 깨뜨린 조건에서 실패 확인.
-- [ ] AC-04 평가 JSON의 검증·hash·encoding·write를 저장 actor로 이동. 월 비용은 클릭 시 snapshot, security scope는 await 종료까지 유지. 내부 경로·Script·Speech 덮어쓰기 차단, 실패 시 원본/기존 출력 보존을 합성 임시 파일로 검증.
+- [x] AC-04 평가 JSON의 검증·hash·encoding·write를 저장 actor로 이동. 월 비용은 클릭 시 snapshot, security scope는 await 종료까지 유지. 내부 경로·Script·Speech 덮어쓰기 차단, 실패 시 원본/기존 출력 보존을 합성 임시 파일로 검증.
 - [ ] AC-05 같은 실제 저장 Script를 사용해 최적화 빌드의 계산/재사용 비용을 동일 조건에서 기록하고 원본 hash·표시/Markdown 동일성 확인. 전체 테스트·계약·Debug 통과, 앱0.4.5(15) 로컬 전달 및 실제 긴 Script 열기/재생·편집창/내보내기 확인. 실마이크·AI 실행/정확도는 미측정으로 구분.
 
 ## 작업
@@ -39,3 +39,4 @@ spec: "사용자 2026-09-12 이어서 진행 승인; notes/backend-audit/audit.m
 
 - T-01 ReadingSnapshot2/LibraryJourney5/ContextAudio5, **12건 PASS** (`.build/check-logs/reading-performance-storage-approved.log`). 최초 검사는 manifest 홈 캐시 sandbox 거부로 실패, 승인된 외부 실행 사용. 같은 경로의 URL 표현 차이로 저장 직후 cache miss가 발생해 표준화 path 키로 수정; AI 이름 합성은 사람 이름 override가 없는 화자로 고쳐 우선순위와 분리했다.
 - 해시 확인을 잠시 제거한 역뮤테이션은2건 중1건의5개 assertion에서 실패/예외0 (`reading-performance-cache-mutation.log`). 실제 코드 복원 후12건 재통과. 계약30 및 canonical Swift 사본12,200bytes 동일 확인. 실제 모델/API·마이크 실행 없음.
+- T-02: UI는 불변 blocks/검수 사건/인원 집계와 playingID/message 구독을 사용. 평가 내보내기를 FolderLibraryStore로 이동하고 클릭 시 비용/보호 경로를 고정했다. 저장·교정·평가 영향 **13건 PASS** (`reading-performance-storage-approved.log`). 정상 export bytes/비용 동일, stale source/잘못된 비용/내부 경로/Script/Speech/symlink 차단과 기존 출력 보존 확인. 중간 실패는 테스트 JSON 키 순서의 비결정성으로, sortedKeys로 같은 전체 Turn 필드 검사를 유지했다 (`reading-performance-projection-order-failure.log`). 앱 컴파일·실물은 T-03에서 확인한다.

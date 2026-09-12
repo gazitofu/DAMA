@@ -197,7 +197,9 @@ struct LibraryShell: View {
     @ObservedObject private var recording = RecordingWorkspace.shared
     @ObservedObject private var capture = RecordingWorkspace.shared.capture
     @ObservedObject private var correction = CorrectionWorkspace.shared
-    @ObservedObject private var playback = LibraryWorkspace.shared.playback
+    // Playback position ticks do not invalidate the entire transcript view.
+    @State private var playingID: String?
+    @State private var playbackMessage: String?
     @State private var edit: LibraryEdit?
     @State private var settings = false
     @State private var terms = false
@@ -260,18 +262,20 @@ struct LibraryShell: View {
                 Divider()
                 detail.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            if let message = workspace.message ?? correction.message ?? playback.message ?? processing.message ?? capture.message ?? recording.message {
+            if let message = workspace.message ?? correction.message ?? playbackMessage ?? processing.message ?? capture.message ?? recording.message {
                 Divider()
                 HStack(alignment: .top) {
                     Text(message).font(.callout).textSelection(.enabled)
                     Spacer()
-                    Button("닫기") { workspace.message = nil; correction.message = nil; playback.message = nil; processing.message = nil; recording.message = nil }
+                    Button("닫기") { workspace.message = nil; correction.message = nil; workspace.playback.message = nil; processing.message = nil; recording.message = nil }
                 }.padding(12).background(Color(nsColor: .controlBackgroundColor))
             }
         }
         .frame(minWidth: 900, minHeight: 600)
         .background(LibraryWindowGuard(workspace: workspace))
         .onAppear { workspace.start() }
+        .onReceive(workspace.playback.$playingID.removeDuplicates()) { playingID = $0 }
+        .onReceive(workspace.playback.$message.removeDuplicates()) { playbackMessage = $0 }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             if !workspace.notesDirty { workspace.refresh() }
         }
@@ -484,10 +488,10 @@ struct LibraryShell: View {
                     }.padding(.bottom, 12)
                     Text(file.script.reviewSummary).font(.caption).foregroundStyle(.secondary)
                     Text("경고가 없는 구간도 미검수입니다. 문제 구간과 무작위 정상 표본을 함께 확인하세요.").font(.caption).foregroundStyle(.secondary).padding(.bottom, 12)
-                    DisclosureGroup("검수 사건 \(ScriptReviewEvent.forListening(file.script.transcript.reviewIssues.filter { $0.status == .open }).count)개") {
+                    DisclosureGroup("검수 사건 \(file.reading.reviewEvents.count)개") {
                         ScrollView {
                             LazyVStack(alignment: .leading, spacing: 12) {
-                                ForEach(ScriptReviewEvent.forListening(file.script.transcript.reviewIssues.filter { $0.status == .open })) { event in
+                                ForEach(file.reading.reviewEvents) { event in
                                     HStack(alignment: .top) {
                                         Button("\(LibraryScript.timestamp(event.startUs)) 원음") { workspace.play(event, file: file) }
                                             .disabled(capture.phase.busy || event.startUs == nil || event.endUs == nil)
@@ -514,8 +518,8 @@ struct LibraryShell: View {
                         }.frame(maxHeight: 200)
                     }.padding(.bottom, 18)
                     correctionHeader(file).padding(.bottom, 18)
-                    Text(file.script.speakerCountSummary)
-                        .font(.callout).foregroundStyle(file.script.speakerCountMismatch ? Color.orange : Color.secondary)
+                    Text(file.reading.speakerCountSummary)
+                        .font(.callout).foregroundStyle(file.reading.speakerCountMismatch ? Color.orange : Color.secondary)
                     Text(file.script.speakerCountApplication).font(.caption).foregroundStyle(.secondary).padding(.bottom, 18)
                     DisclosureGroup("녹음·변환 정보") {
                         VStack(alignment: .leading, spacing: 8) {
@@ -534,17 +538,17 @@ struct LibraryShell: View {
                             Text("참고 정보: \(file.script.input.reference.isEmpty ? "미입력" : file.script.input.reference)")
                         }.font(.callout).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 12)
                     }.padding(.bottom, 18)
-                    ForEach(file.script.blocks()) { block in
+                    ForEach(file.reading.blocks) { block in
                         ScriptBlockRow(block: block,
                             rename: { beginEdit(LibraryEdit(file: file, kind: .speaker(block), value: block.name)) },
                             editText: { beginEdit(LibraryEdit(file: file, kind: .text(block), value: block.text)) },
                             editParagraphs: { beginEdit(LibraryEdit(file: file, kind: .paragraphs(block), value: "")) },
                             review: { beginEdit(LibraryEdit(file: file, kind: .review(block), value: "")) },
                             play: { workspace.play(block, file: file) },
-                            playing: playback.playingID == file.id + ":" + block.id,
+                            playing: playingID == file.id + ":" + block.id,
                             canPlay: !capture.phase.busy && block.startUs != nil && block.endUs != nil,
                             playEvent: { workspace.play($0, file: file) },
-                            playingEventID: block.reviewEvents.first { playback.playingID == file.id + ":event:" + $0.id }?.id,
+                            playingEventID: block.reviewEvents.first { playingID == file.id + ":event:" + $0.id }?.id,
                             corrections: file.script.correction?.visibleEdits.filter { block.turnIDs.contains($0.turnID) } ?? [],
                             resolvedTurnIDs: Set(file.script.turnTexts.keys),
                             resolveCorrection: { edit, apply in workspace.resolveCorrection(edit, apply: apply, file: file) })

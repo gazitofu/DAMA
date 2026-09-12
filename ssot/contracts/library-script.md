@@ -14,6 +14,13 @@
 - 문장 override는 모델 단어를 덮어쓰지 않고, 새 단어 시간을 추정하지 않는다. 모델 원문 보기는 word.text로, baseline 표시에는 기존 word.editedText를 존중한다.
 - 저장은 내부 `LibraryRevisions/<revisionID>.dama.json` 기록 후 외부 활성 파일을 atomic 쓰기한다. 읽었을 때의 SHA256과 다르면 기존 외부 편집을 덮지 않고 실패한다. 중복 Run ID 파일이 있는 폴더는 임의 하나를 택하지 않고 오류를 표시한다.
 
+## 읽기 계산·파일 I/O (2026-09-12)
+
+- `LibraryScriptFile`은 같은 파일 bytes의 해시·검증된 Script·불변 `ScriptReadingSnapshot`을 함께 보관한다. 저장 actor에서 blocks()/검수 사건을 계산하고 UI는 결과를 재사용한다. 메모리 파생물이며 `.dama.json`에 직렬화하지 않는다. reading-v6 정책과 Markdown 내용은 그대로다.
+- 새로고침은 파일을 읽어 실제 bytes 해시를 비교한다. 표준화 경로/해시가 모두 같을 때만 디코딩·검증·읽기 계산을 재사용한다. revisionID가 같아도 bytes가 다르면 새로 검증·계산한다. 사람 대사/이름·문단 경계·AI 교정·원문 보기·검수 이력은 해당 Script bytes에 포함되므로 함께 무효화된다. 성공한 폴더 조회 때 목록 밖 캐시를 비운다. 중복 ID·손상 파일·symlink 검사를 우회하지 않는다.
+- 화면은 재생 ID/안내 메시지만 구독한다. 약30ms 위치 갱신은 전체 Script 화면을 다시 계산하는 구독이 아니다. 재생 범위/정지/녹음 우선 규칙은 유지한다.
+- 평가 JSON은 선택 시 Script와 월 비용을 고정하고 저장 actor에서 목적지·원본 해시 검증, encoding, atomic 쓰기를 수행한다. 보안 범위 접근은 완료까지 유지한다. 내부 저장소·`.dama.json`·알려진 Speech/묶음 안·symlink 대상에는 내보내지 않는다. 자동 전송은 없다.
+
 ## 2026-09-11 승인 후속: 기본 문맥·화자 힌트·문단 조정
 
 - 새 Soniox 입력의 `sonioxSpeakerCountHint: Int?`는 사용자의 예상 발화자 수를 실제로 전송하는 snapshot이다. 기본 문맥 OFF/미입력은 nil. 과거 Run의 nil에는 전송 주장을 붙이지 않는다. 기존 speakerCount는 예상 인원으로 재사용하며 인원 일치/불일치는 검수 안내다.

@@ -194,6 +194,21 @@ public actor FolderLibraryStore {
         try TranscriptExporter().write(file.script.markdown(), to: destination)
     }
 
+    public func exportEvaluation(_ file: LibraryScriptFile, cost: MonthlyOperatingCost,
+                                 protectedSpeechURLs: [URL], to destination: URL) async throws {
+        try safe(destination); try safe(file.url)
+        try await FileSessionRepository(rootURL: root).validateExportDestination(destination)
+        let path = destination.standardizedFileURL.path
+        guard destination.pathExtension.lowercased() == "json",
+              !destination.lastPathComponent.lowercased().hasSuffix(".dama.json"),
+              !protectedSpeechURLs.contains(where: {
+                  let source = $0.standardizedFileURL.resolvingSymlinksInPath().path
+                  return path == source || path.hasPrefix(source + "/")
+              }),
+              try AudioFiles.hash(file.url) == file.hash else { throw LibraryFailure.changedFile }
+        try TranscriptExporter().write(file.script.evaluationData(cost: cost), to: destination)
+    }
+
     private func validateDeletion(_ url: URL, in folder: URL) throws {
         guard !scanning else { throw LibraryFailure.invalidInput }
         try safe(url)

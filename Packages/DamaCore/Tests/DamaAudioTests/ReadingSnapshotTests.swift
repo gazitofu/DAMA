@@ -17,11 +17,12 @@ final class ReadingSnapshotTests: XCTestCase {
 
     private func assertProjection(_ file: LibraryScriptFile, line: UInt = #line) throws {
         let expected = file.script.blocks(), actual = file.reading.blocks
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         XCTAssertEqual(actual.map(\.text), expected.map(\.text), line: line)
         XCTAssertEqual(actual.map(\.name), expected.map(\.name), line: line)
         XCTAssertEqual(actual.map(\.colorIndex), expected.map(\.colorIndex), line: line)
         XCTAssertEqual(actual.map(\.edited), expected.map(\.edited), line: line)
-        XCTAssertEqual(try JSONEncoder().encode(actual.map(\.turns)), try JSONEncoder().encode(expected.map(\.turns)), line: line)
+        XCTAssertEqual(try encoder.encode(actual.map(\.turns)), try encoder.encode(expected.map(\.turns)), line: line)
         XCTAssertEqual(actual.map { $0.issues.map(\.id) }, expected.map { $0.issues.map(\.id) }, line: line)
         XCTAssertEqual(file.reading.reviewEvents.map { $0.issues.map(\.id) },
                        ScriptReviewEvent.forListening(file.script.transcript.reviewIssues.filter { $0.status == .open }).map { $0.issues.map(\.id) }, line: line)
@@ -106,5 +107,41 @@ final class ReadingSnapshotTests: XCTestCase {
         let markdown = folder.appendingPathComponent("current.md")
         try await store.exportMarkdown(originalView, to: markdown)
         XCTAssertEqual(try Data(contentsOf: markdown), try originalView.script.markdown())
+    }
+
+    func testEvaluationExportKeepsBytesCostAndDestinationGuards() async throws {
+        let (folder, store, script) = try setup(), url = folder.appendingPathComponent("script.dama.json")
+        let file = try await store.saveScript(script, to: url, expectedHash: nil)
+        let source = try Data(contentsOf: url), destination = folder.appendingPathComponent("evaluation.json")
+        var cost = MonthlyOperatingCost(); cost.actualBilledUSD = 0; cost.evidence = "합성 비용 기록"
+        try await store.exportEvaluation(file, cost: cost, protectedSpeechURLs: [], to: destination)
+        let exported = try Data(contentsOf: destination)
+        XCTAssertEqual(exported, try script.evaluationData(cost: cost))
+        XCTAssertEqual(try Data(contentsOf: url), source)
+
+        let speech = folder.appendingPathComponent("protected.json")
+        try Data("preserved speech".utf8).write(to: speech)
+        let alias = folder.appendingPathComponent("alias.json")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: destination)
+        for target in [url, speech, alias, folder.appendingPathComponent("internal/blocked.json")] {
+            do {
+                try await store.exportEvaluation(file, cost: cost, protectedSpeechURLs: [speech], to: target)
+                XCTFail("protected destination accepted")
+            } catch {}
+        }
+        XCTAssertEqual(try Data(contentsOf: url), source)
+        XCTAssertEqual(try Data(contentsOf: speech), Data("preserved speech".utf8))
+        XCTAssertEqual(try Data(contentsOf: destination), exported)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("internal/blocked.json").path))
+
+        cost.actualBilledUSD = -1
+        do { try await store.exportEvaluation(file, cost: cost, protectedSpeechURLs: [], to: destination); XCTFail("invalid cost") }
+        catch LibraryFailure.invalidInput {}
+        XCTAssertEqual(try Data(contentsOf: destination), exported)
+        try Data("external source edit".utf8).write(to: url)
+        do { try await store.exportEvaluation(file, cost: MonthlyOperatingCost(), protectedSpeechURLs: [], to: destination); XCTFail("stale source") }
+        catch LibraryFailure.changedFile {}
+        XCTAssertEqual(try Data(contentsOf: destination), exported)
+        XCTAssertEqual(try Data(contentsOf: url), Data("external source edit".utf8))
     }
 }

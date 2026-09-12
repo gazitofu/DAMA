@@ -373,7 +373,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         UserDefaults.standard.set(try JSONEncoder().encode(cost), forKey: "evaluation.monthlyCost")
     }
     func exportEvaluation() {
-        guard canLeave, let file = scriptFile, let root else { return }
+        guard canLeave, let file = scriptFile, let store else { return }
+        let cost = monthlyCost, protectedSpeechURLs = speeches.map(\.fileURL)
         let panel = NSSavePanel(); panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "DAMA-evaluation-" + file.id + ".json"
         panel.message = "원문·수정 이력·문맥·검수 표본과 수동 입력한 월 비용을 저장합니다. 자동 외부 전송은 없습니다."
@@ -384,11 +385,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             let scoped = destination.startAccessingSecurityScopedResource()
             defer { if scoped { destination.stopAccessingSecurityScopedResource() } }
             do {
-                try await FileSessionRepository(rootURL: root).validateExportDestination(destination)
-                guard !destination.lastPathComponent.hasSuffix(".dama.json"),
-                      !speeches.contains(where: { $0.fileURL == destination }),
-                      try AudioFiles.hash(file.url) == file.hash else { throw LibraryFailure.changedFile }
-                try TranscriptExporter().write(file.script.evaluationData(cost: monthlyCost), to: destination)
+                try await store.exportEvaluation(file, cost: cost, protectedSpeechURLs: protectedSpeechURLs, to: destination)
                 message = "평가 JSON을 저장했습니다. 정확도와 미측정 비용을 자동 추정하지 않습니다."
             } catch { message = "평가 파일을 저장하지 못했습니다. 원본 파일과 저장 위치를 확인해 주세요." }
         }
