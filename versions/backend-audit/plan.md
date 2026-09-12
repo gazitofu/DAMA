@@ -3,7 +3,7 @@ unit: backend-audit
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "검수·분절 진단 완료. F-01/F-02는 versions/backend-hardening/plan.md에서 구현·검증하고 0.4.4(14) 전달 완료. 다음 작은 구현은 F-03 읽기 snapshot/메인 I/O. UI/학습 미착수."
+resume: "검수·분절 진단 및 F-01/F-02/F-03 완료. versions/backend-hardening/plan.md, versions/reading-performance/plan.md 참조. 최신 전달0.4.5(15). 다음은 F-04 파일별 실패 격리/F-07 검사 실행 경로. UI/학습 미착수."
 spec: "사용자 2026-09-11 재개 요청; versions/operating-baseline/plan.md 다음 세션 착수 1·2; ssot/design/02·03·04 및 ssot/contracts"
 ---
 
@@ -44,6 +44,7 @@ spec: "사용자 2026-09-11 재개 요청; versions/operating-baseline/plan.md �
 
 ## Follow-ups
 
+- 2026-09-12: F-03은 [reading-performance](../reading-performance/plan.md)에서 완료,0.4.5(15) 로컬 전달. 동일 표시/실제 Markdown bytes 보존, 전체155건 PASS. 첫 전체 실행 signal11과 저장 뒤 CUA 시간 초과의 한계도 해당 plan에 기록했다.
 - 2026-09-12: F-01 녹음/추론 종료 안전성 및 F-02 공통 누적 문장 종결은 [backend-hardening](../backend-hardening/plan.md)에서 완료, DAMA0.4.4(14) 로컬 전달. 전체152건 PASS, 같은 원응답 보존 및 실제 Markdown 내보내기 검증. 본 문서의 2026-09-11 수치는 수정 전 진단 기록으로 유지한다.
 - 진단에서 확인한 결함 수정은 아래 결과를 입력으로 별도 작은 구현 단위로 진행한다.
 - UI/UX 시안은 /spec 화면 확인 후. Qwen 학습은 Mac-only 독립 유닛이며 이번 착수 대상이 아니다.
