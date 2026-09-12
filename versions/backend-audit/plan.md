@@ -3,7 +3,7 @@ unit: backend-audit
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "검수·분절 진단 및 F-01/F-02/F-03/F-04/F-06/F-07 완료, 최신 전달0.4.7(17). UI/UX r4 게이트① 사용자 승인 완료: notes/uiux-reading/uiux-reading.src.html closed, tone 편입. 제목 직접 입력/자동 저장 추가, r3 전체 및 AI 버전 D-01/문단 수정본 D-02 확정. 다음은 /plan uiux-reading, 같은 결정 재확인 없음. 화자 우선권 비교·F-05 Mac-only 학습은 별도 후속. 앱 UI 구현/학습 미착수."
+resume: "검수·분절 진단 및 F-01/F-02/F-03/F-04/F-06/F-07 완료, 최신 전달0.4.7(17). Scripts r4의 제목 자동 저장·본문 직접 편집·화자·AI 버전 D-01/문단 수정본 D-02 승인과 tone 유지. 사용자 Speeches 누락 지적에 따라 같은 uiux-reading 스펙을 r5로 보완: Speeches 목록·입력·변환 확인·진행/복구·결과 이동을 조작 가능하게 추가. r5 게이트①는 Speeches만 open, Scripts는 별도 closed. 추가 화면 확인 후 /plan uiux-reading, 기존 결정 재확인 없음. 화자 우선권·F-05 Mac-only 학습은 별도 후속. 앱 UI 구현/학습 미착수."
 spec: "사용자 2026-09-11 재개 요청; versions/operating-baseline/plan.md 다음 세션 착수 1·2; ssot/design/02·03·04 및 ssot/contracts"
 ---
 
@@ -50,3 +50,5 @@ spec: "사용자 2026-09-11 재개 요청; versions/operating-baseline/plan.md �
 - 2026-09-12: F-01 녹음/추론 종료 안전성 및 F-02 공통 누적 문장 종결은 [backend-hardening](../backend-hardening/plan.md)에서 완료, DAMA0.4.4(14) 로컬 전달. 전체152건 PASS, 같은 원응답 보존 및 실제 Markdown 내보내기 검증. 본 문서의 2026-09-11 수치는 수정 전 진단 기록으로 유지한다.
 - 진단에서 확인한 결함 수정은 아래 결과를 입력으로 별도 작은 구현 단위로 진행한다.
 - UI/UX 시안은 /spec 화면 확인 후. Qwen 학습은 Mac-only 독립 유닛이며 이번 착수 대상이 아니다.
+
+- 2026-09-12 r5: Speeches 시안 누락을 보완했다. Scripts r4 승인과 tone을 유지하고 새 Speeches 목록·입력·변환/복구·Scripts 연결 화면만 추가 게이트 대상으로 둔다. 상세 근거와 CUA 합성 검증은 [UI/UX 진단](../../notes/uiux-reading/audit.md). 본 backend 유닛의 built·AC를 새 UI 구현 완료로 해석하지 않는다.

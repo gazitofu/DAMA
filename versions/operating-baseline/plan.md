@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "백엔드 F-01/F-02/F-03/F-04/F-06/F-07 완료, 최신 앱0.4.7(17). UI/UX r4 게이트① 승인 완료: notes/uiux-reading/uiux-reading.src.html closed, ssot/tone/uiux-reading.md adopted. 제목 직접 입력/자동 저장, 본문 수정→저장과 r3 전체, D-01/D-02 확정. 다음은 /plan uiux-reading, 승인된 결정 재확인 없음. 화자 우선권 비교·F-05 Mac-only 학습은 후속. 앱 UI 구현/학습 미착수, 본 유닛 built 유지."
+resume: "백엔드 F-01/F-02/F-03/F-04/F-06/F-07 완료, 최신 앱0.4.7(17). Scripts r4 승인/tone 유지: 제목 자동 저장·본문 수정→저장·화자·AI 및 D-01/D-02 확정. 사용자 Speeches 누락 지적에 r5 시안 보완: 목록·입력·전송 확인·진행/복구·결과 이동. 게이트①는 Speeches만 open, Scripts는 별도 closed 유지. 추가 화면 확인 후 /plan uiux-reading, 기존 승인 재확인 없음. 화자 우선권·F-05 Mac-only 학습은 후속. 앱 UI 구현/학습 미착수, 본 유닛 built 유지."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
@@ -80,6 +80,8 @@ spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ss
 - 마지막 status 실측: `work/m0-fixture-review`, 사용자/다른 트랙 혼합7문서만 기존 변경으로 남긴다. 앱 코드·신규 계약·본 plan은 이 작업 커밋에 포함. 원격 push 없음.
 
 ## 다음 세션 착수 (2026-09-11 추가 요청)
+
+최신 UI 갱신 (2026-09-12 r5): 사용자가 Speeches를 확인할 수 없다고 지적했다. r4에서는 해당 탭이 안내만 띄우고 실제 화면을 생략했다. [같은 스펙](../../notes/uiux-reading/uiux-reading.html)을 r5로 보완해 녹음 목록·입력·변환 확인·진행/재개·결과 저장·Scripts 이동과 예외 상태를 조작 가능하게 추가했다. Scripts r4의 승인/톤/D-01/D-02는 유지하며 게이트①는 새 Speeches 화면만 확인 대상으로 연다. 아래 r4 기록의 즉시 /plan 착수 안내는 이 추가 확인 순서로 갱신한다. 네이티브 앱/계약을 수정한 것이 아니며 운영 built와 기존 보류는 유지한다.
 
 UI 진행 갱신 (2026-09-12 r4 확정): [진단](../../notes/uiux-reading/audit.md)과 r1~r3를 거쳐 [r4 확정 스펙](../../notes/uiux-reading/uiux-reading.html)의 게이트①를 닫았다. 사용자는 제목을 원 자리에서 입력/자동 저장하도록 추가하고 나머지 r3 전체를 승인했다. 제목에는 별도 저장/모달/탭이 없으며 본문은 기존 지시대로 같은 본문에서 수정 후 같은 버튼의 저장을 누른다. 로고·화자 모달·검수 기록 UI 제거·AI 참고/최종 실행/버전 조회와 D-01/D-02가 확정됐다. tone 편입 완료, 다음은 `/plan uiux-reading`에서 하위 호환 저장/읽기/AI 입력/내보내기 작업을 구체화한다. 승인된 화면·저장 방향은 다시 묻지 않는다. 안정 구간 P2 우선/불일치 경고72단어 중 미배정0의 r2 진단과 미배정662개의 원인별 우선권 비교 후속은 유지한다. 원본14파일/8Script를 보존하며 실제 앱0.4.7(17)과 본 운영 유닛 built는 유지한다.
 
