@@ -18,17 +18,8 @@ public enum SonioxPrecisionNormalizer {
             Speaker(id: "\(runID)-p2-\($0.offset)", providerId: $0.element, displayName: "화자 \($0.offset + 1)")
         }
         let mapping = Dictionary(uniqueKeysWithValues: speakers.map { ($0.providerId, $0.id) })
-        func intervals(_ values: [PyannoteDiarizationDTO], _ prefix: String) throws -> [DiarizationInterval] {
-            try values.enumerated().map { i, x in
-                guard x.start.isFinite, x.end.isFinite, x.start >= 0, x.end > x.start,
-                      x.end * 1e6 <= Double(durationUs), let speaker = mapping[x.speaker] else {
-                    throw ManagedNormalizationError.invalidIntervals
-                }
-                return DiarizationInterval(id: "\(prefix)\(i)", startUs: Int64((x.start * 1e6).rounded()),
-                    endUs: Int64((x.end * 1e6).rounded()), speakerId: speaker, confidence: x.confidence)
-            }
-        }
-        let regular = try intervals(output.diarization, "d"), exclusive = try intervals(exclusiveSource, "e")
+        let regular = try P2TimeEvidence.intervals(output.diarization, prefix: "d", mapping: mapping, durationUs: durationUs)
+        let exclusive = try P2TimeEvidence.intervals(exclusiveSource, prefix: "e", mapping: mapping, durationUs: durationUs)
         let originalLabels = Dictionary(uniqueKeysWithValues: source.speakers.map { ($0.id, $0.providerId) })
         var issues: [ReviewIssue] = []
         func flag(_ kind: IssueKind, _ s: Int64?, _ e: Int64?, _ ids: [String], _ evidence: [String]) -> String {
@@ -47,32 +38,16 @@ public enum SonioxPrecisionNormalizer {
                     flag(.ambiguous_speaker, w.startUs, w.endUs, [w.id], [])]
                 return w
             }
-            let matches = regular.filter { max(s, $0.startUs) < min(e, $0.endUs) }
-            let candidates = exclusive.filter { max(s, $0.startUs) < min(e, $0.endUs) }
-            let evidence = (matches + candidates).map(\.id)
-            w.sourceIntervalIds = evidence
-            w.overlap = matches.enumerated().contains { i, a in matches.dropFirst(i + 1).contains { b in
-                a.speakerId != b.speakerId && max(s, a.startUs, b.startUs) < min(e, a.endUs, b.endUs)
-            } }
-            let boundary = Set((matches + candidates).map(\.speakerId)).count > 1
-            var scores: [(String, Double)] = []
-            for speaker in Set(candidates.map(\.speakerId)) {
-                var total: Int64 = 0, edge = s
-                for d in candidates.filter({ $0.speakerId == speaker }).sorted(by: { $0.startUs < $1.startUs }) {
-                    let a = max(s, d.startUs, edge), b = min(e, d.endUs)
-                    if b > a { total += b - a; edge = b }
-                }
-                scores.append((speaker, Double(total) / Double(e - s)))
-            }
-            scores.sort { $0.1 == $1.1 ? $0.0 < $1.0 : $0.1 > $1.1 }
-            w.modelSpeakerId = scores.first?.0; w.alignmentScore = scores.first?.1
+            let evidence = P2TimeEvidence.token(startUs: s, endUs: e, regular: regular, exclusive: exclusive)
+            w.sourceIntervalIds = evidence.sourceIDs; w.overlap = evidence.overlap
+            w.modelSpeakerId = evidence.best?.speakerID; w.alignmentScore = evidence.best?.coverage
             // Existing provisional coverage threshold, not an accuracy probability.
-            if !w.overlap && !boundary && (scores.first?.1 ?? 0) >= 0.60 {
-                w.speakerId = scores.first?.0; w.assignmentSource = .reconciled
+            if !w.overlap && !evidence.boundary && (evidence.best?.coverage ?? 0) >= 0.60 {
+                w.speakerId = evidence.best?.speakerID; w.assignmentSource = .reconciled
             }
-            if w.speakerId == nil { w.reviewIssueIds.append(flag(.ambiguous_speaker, s, e, [w.id], evidence)) }
-            if boundary { w.reviewIssueIds.append(flag(.boundary_conflict, s, e, [w.id], evidence)) }
-            if w.overlap { w.reviewIssueIds.append(flag(.overlapping_speech, s, e, [w.id], evidence)) }
+            if w.speakerId == nil { w.reviewIssueIds.append(flag(.ambiguous_speaker, s, e, [w.id], evidence.sourceIDs)) }
+            if evidence.boundary { w.reviewIssueIds.append(flag(.boundary_conflict, s, e, [w.id], evidence.sourceIDs)) }
+            if w.overlap { w.reviewIssueIds.append(flag(.overlapping_speech, s, e, [w.id], evidence.sourceIDs)) }
             return w
         }
         // Compare changes in the two timelines, not literal IDs or global cluster identity.
@@ -91,10 +66,7 @@ public enum SonioxPrecisionNormalizer {
         }
         var markers: [TranscriptTurn] = []
         for d in regular {
-            let matching = words.indices.filter { i in
-                guard words[i].tokenKind == .lexical, let s = words[i].startUs, let e = words[i].endUs else { return false }
-                return max(s, d.startUs) < min(e, d.endUs)
-            }
+            let matching = P2TimeEvidence.matchingWordIndices(words, interval: d, lexicalOnly: true)
             if matching.isEmpty {
                 let issue = flag(.missing_speech, d.startUs, d.endUs, [], [d.id])
                 markers.append(TranscriptTurn(id: "m\(markers.count)", kind: .missingSpeech, startUs: d.startUs,

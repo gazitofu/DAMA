@@ -3,7 +3,7 @@ unit: normalization-evidence
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-01 baseline 고정/영향17건 PASS. T-02 순수 P2 시간 근거 추출부터."
+resume: "T-02 추출 완료/영향20건·합성21개·실제3경로 동일성 PASS. T-03 전체 검사와 0.4.7(17) 전달부터."
 spec: "사용자 2026-09-12 이어서 요청; backend-audit F-06; design00 하이브리드 채택, design02·03·04 및 normalized/operating-baseline 계약"
 ---
 
@@ -22,15 +22,15 @@ spec: "사용자 2026-09-12 이어서 요청; backend-audit F-06; design00 하�
 
 ## 수용 기준
 
-- [ ] AC-01 수정 전 합성 공통 fixture의 세 경로 normalized 전체 필드/배열 순서 canonical SHA256 및 읽기/Markdown을 고정. overlap/boundary/점유율 union·동점/0.60·nil/0길이/역행·짧은 B·marker·confidence map·warning/중단을 포함한다(INV-01·06·08·09, RC-01~09·11~14). exclusive 자체 겹침처럼 전체 계약이 거부하는 입력은 순수 근거 함수의 별도 단위 검사로 검증한다.
+- [x] AC-01 수정 전 합성 공통 fixture의 세 경로 normalized 전체 필드/배열 순서 canonical SHA256 및 읽기/Markdown을 고정. overlap/boundary/점유율 union·동점/0.60·nil/0길이/역행·짧은 B·marker·confidence map·warning/중단을 포함한다(INV-01·06·08·09, RC-01~09·11~14). exclusive 자체 겹침처럼 전체 계약이 거부하는 입력은 순수 근거 함수의 별도 단위 검사로 검증한다.
 - [ ] AC-02 추출 후 golden 동일, 틀린 시간/화자/이슈 및 marker 변형은 검사 실패, JSON 키 순서만 다른 대조는 통과. 기존 정규화·읽기 및 전체 회귀 유지. 새 측정 자의 자기 검증 포함.
-- [ ] AC-03 같은 실제 Soniox 단독/결합/Qwen 저장 원응답3경로를 전후 재구성해 저장 모델과 canonical bytes 동일. 입력14파일 hash, 읽기 문단·순서·Markdown 내용 동일. 실행 시간은 정확도/속도 개선 수치로 환산하지 않는다.
+- [x] AC-03 같은 실제 Soniox 단독/결합/Qwen 저장 원응답3경로를 전후 재구성해 저장 모델과 canonical bytes 동일. 입력14파일 hash, 읽기 문단·순서·Markdown 내용 동일. 실행 시간은 정확도/속도 개선 수치로 환산하지 않는다.
 - [ ] AC-04 전체/계약/Swift 왕복/Debug 빌드 통과. 0.4.7(17) 버전 동시 증가·기존 앱 백업·로컬 전달/실제 실행과 원래8Script 확인. 실마이크·추론/API·청취 정답·학습 미측정 구분.
 
 ## 작업
 
 - T-01 완료: 합성 fixture/golden·실제 baseline·검사 자기 검증, 소스 변경 전 고정.
-- T-02 공통 시간 근거 추출·경로 연결·동일성/회귀 검증.
+- T-02 완료: 공통 시간 근거 추출·경로 연결·동일성/영향 회귀 검증.
 - T-03 전체 검사·0.4.7(17) 전달·AC/상태 기록.
 
 ## 종료·후속
@@ -43,3 +43,6 @@ spec: "사용자 2026-09-12 이어서 요청; backend-audit F-06; design00 하�
 - T-01: 기존 normalizer 코드로 공통 합성7사례 × Soniox 단독/결합/Qwen = **21개 결과**의 normalized canonical bytes/전체 읽기 필드/Markdown SHA256을 `fixtures/normalization-goldens.synthetic.json`에 고정. 생성 도구는 새 출력만 허용하고 테스트는 기대값을 갱신하지 않는다. 안정된 session/run/시각/Script revision·timezone 사용.
 - 영향 **17건 PASS** (15:10 KST, `.build/check-logs/normalization-evidence-baseline-tests.log`), 계약30 PASS. 같은 JSON의 키 순서만 바꾼 대조는 같은 지문, 시간1µs/모델 후보/이슈 severity/누락 marker 제거는 다른 지문임을 확인했다. Swift6 최적화 capture 컴파일은 repo cache 사용, SwiftPM은 승인된 sandbox 밖 실행. 초기 생성기 인자 순서 컴파일 오류는 수정/별도 로그 보존.
 - 실제 baseline `.build/diagnostics/normalization-evidence/reading-before.json`: 저장 원응답3경로를 재구성해 기존 embedded normalized와 canonical bytes 일치, 동일P2·원음 및 입력14파일 SHA256 검증. diagnostic에 normalized/전체 읽기 필드/Markdown 지문을 추가했다. 원문은 Git이나 도구 stdout으로 내보내지 않는다.
+- T-02: 내부 `P2TimeEvidence`로 interval 변환·토큰 시간 근거·matching word index만 이동. 배정/이슈/marker 생성은 각 호출부에 보존했다. Qwen의 overlapping_speech 근거는 regular ID만, 결합은 regular+exclusive ID이며 이 차이와 이슈 순서를 유지한다. Soniox 단독/Managed·schema·알고리즘 버전 변경 없음.
+- 영향 **20건 PASS** (15:26 KST, `.build/check-logs/normalization-evidence-refactor-tests.log`): 고정21결과 전체 동일, 순수 근거3검사 추가. 중복/내포 interval union0.6/0.4, 다른 화자 동시 겹침과 접점 분리, source order/반올림/confidence map/nil, 잘못된 interval 거부, B0.8>A0.2 및 동점A우선,0.60/0.599 경계, lexical eligibility 차이를 검증했다.
+- `.build/diagnostics/normalization-evidence/reading-after.json` 및 `comparison.json`: 실제3경로 raw 재구성=저장 모델, 전후 normalized/전체 읽기/Markdown 지문·나머지 의미 필드 모두 일치. 전체 block434/1274/1094, 입력14파일 SHA256 불변. 비교기는 읽기 지문 변조를 검출하고 시각·실행시간만 다른 대조는 통과했다. 실행시간 개선율은 측정하지 않았다.

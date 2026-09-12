@@ -45,18 +45,8 @@ public enum QwenNormalizer {
         let labels = Set((output.diarization + exclusiveSource).map(\.speaker)).sorted()
         let speakers = labels.enumerated().map { Speaker(id: "\(runID)-speaker-\($0.offset)", providerId: $0.element, displayName: "화자 \($0.offset+1)") }
         let mapping = Dictionary(uniqueKeysWithValues: speakers.map { ($0.providerId,$0.id) })
-        func intervals(_ source: [PyannoteDiarizationDTO], prefix: String) throws -> [DiarizationInterval] {
-            try source.enumerated().map { i,x in
-                guard x.start.isFinite, x.end.isFinite, x.start >= 0, x.end > x.start,
-                      x.end*1e6 <= Double(durationUs), let speaker = mapping[x.speaker] else {
-                    throw ManagedNormalizationError.invalidIntervals
-                }
-                return DiarizationInterval(id: "\(prefix)\(i)",startUs: Int64((x.start*1e6).rounded()),
-                    endUs: Int64((x.end*1e6).rounded()),speakerId: speaker,confidence: x.confidence)
-            }
-        }
-        let regular = try intervals(output.diarization,prefix: "d")
-        let exclusive = try intervals(exclusiveSource,prefix: "e")
+        let regular = try P2TimeEvidence.intervals(output.diarization, prefix: "d", mapping: mapping, durationUs: durationUs)
+        let exclusive = try P2TimeEvidence.intervals(exclusiveSource, prefix: "e", mapping: mapping, durationUs: durationUs)
         var issues: [ReviewIssue] = []
         func issue(_ kind: IssueKind, _ start: Int64?, _ end: Int64?, _ words: [String], _ sources: [String]) -> String {
             let id = "i\(issues.count)"
@@ -70,38 +60,21 @@ public enum QwenNormalizer {
             var s = x.startUs, e = x.endUs
             if let a=s,let b=e,a >= 0,a < b,b <= durationUs,a >= previousStart { previousStart = a }
             else { s=nil; e=nil }
-            let matches = regular.filter { d in s.map { max($0,d.startUs) < min(e!,d.endUs) } ?? false }
-            let candidates = exclusive.filter { d in s.map { max($0,d.startUs) < min(e!,d.endUs) } ?? false }
-            let overlap = matches.enumerated().contains { n,a in matches.dropFirst(n+1).contains { b in
-                a.speakerId != b.speakerId && max(s!,a.startUs,b.startUs) < min(e!,a.endUs,b.endUs)
-            } }
-            var scores: [(String, Double)] = []
-            if let s,let e {
-                for speaker in Set(candidates.map(\.speakerId)) {
-                    var total: Int64=0, edge=s
-                    for d in candidates.filter({ $0.speakerId==speaker }).sorted(by: {$0.startUs<$1.startUs}) {
-                        let a=max(s,d.startUs,edge),b=min(e,d.endUs)
-                        if b>a { total += b-a; edge=b }
-                    }
-                    scores.append((speaker,Double(total)/Double(e-s)))
-                }
-            }
-            scores.sort { $0.1 == $1.1 ? $0.0 < $1.0 : $0.1 > $1.1 }
-            let boundary = Set((matches+candidates).map(\.speakerId)).count>1
-            let speaker: String? = !overlap && !boundary && (scores.first?.1 ?? 0)>=0.60 ? scores.first?.0 : nil
+            let evidence = P2TimeEvidence.token(startUs: s, endUs: e, regular: regular, exclusive: exclusive)
+            let speaker: String? = !evidence.overlap && !evidence.boundary && (evidence.best?.coverage ?? 0)>=0.60 ? evidence.best?.speakerID : nil
             var flags: [String]=[]
             if s == nil { flags.append(issue(.invalid_timestamp,nil,nil,[id],[])) }
-            if speaker == nil { flags.append(issue(.ambiguous_speaker,s,e,[id],(matches+candidates).map(\.id))) }
-            if overlap { flags.append(issue(.overlapping_speech,s,e,[id],matches.map(\.id))) }
-            if boundary { flags.append(issue(.boundary_conflict,s,e,[id],(matches+candidates).map(\.id))) }
+            if speaker == nil { flags.append(issue(.ambiguous_speaker,s,e,[id],evidence.sourceIDs)) }
+            if evidence.overlap { flags.append(issue(.overlapping_speech,s,e,[id],evidence.regularMatches.map(\.id))) }
+            if evidence.boundary { flags.append(issue(.boundary_conflict,s,e,[id],evidence.sourceIDs)) }
             return TranscriptWord(id:id,ordinal:i,text:x.text,editedText:nil,prefix:"",startUs:s,endUs:e,
-                modelSpeakerId:scores.first?.0,speakerId:speaker,assignmentSource:speaker == nil ? .unknown : .reconciled,
-                alignmentScore:scores.first?.1,overlap:overlap,reviewIssueIds:flags,
-                sourceIntervalIds:(matches+candidates).map(\.id),timingOrigin:s == nil ? .none : .model,tokenKind:.lexical)
+                modelSpeakerId:evidence.best?.speakerID,speakerId:speaker,assignmentSource:speaker == nil ? .unknown : .reconciled,
+                alignmentScore:evidence.best?.coverage,overlap:evidence.overlap,reviewIssueIds:flags,
+                sourceIntervalIds:evidence.sourceIDs,timingOrigin:s == nil ? .none : .model,tokenKind:.lexical)
         }
         var markers: [TranscriptTurn]=[]
         for d in regular {
-            let matching=words.indices.filter { i in words[i].startUs.map { max($0,d.startUs)<min(words[i].endUs!,d.endUs) } ?? false }
+            let matching = P2TimeEvidence.matchingWordIndices(words, interval: d, lexicalOnly: false)
             if matching.isEmpty {
                 let flag=issue(.missing_speech,d.startUs,d.endUs,[],[d.id])
                 markers.append(TranscriptTurn(id:"m\(markers.count)",kind:.missingSpeech,startUs:d.startUs,endUs:d.endUs,
