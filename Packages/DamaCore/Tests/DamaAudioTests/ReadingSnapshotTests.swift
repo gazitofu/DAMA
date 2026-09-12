@@ -64,7 +64,7 @@ final class ReadingSnapshotTests: XCTestCase {
         do { _ = try await store.scripts(in: folder); XCTFail("duplicate") } catch LibraryFailure.invalidScript {}
         try FileManager.default.removeItem(at: duplicate)
         try Data("invalid".utf8).write(to: url)
-        do { _ = try await store.scripts(in: folder); XCTFail("malformed") } catch is DecodingError {}
+        do { _ = try await store.scripts(in: folder); XCTFail("malformed") } catch LibraryFailure.invalidScript {}
         try JSONEncoder().encode(external).write(to: url)
         let other = folder.appendingPathComponent("Other")
         try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)

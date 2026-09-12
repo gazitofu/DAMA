@@ -120,6 +120,12 @@
 - 저장은 기존 CorrectionEdit의 Turn당1개 구조를 유지하며 optional `changes`, `unresolved`, `appliedText`를 추가한다. `applied`는 모든 수정 반영+미해결 없음일 때 true; 일부만 반영되면 false여도 `appliedText`를 표시한다. 새 레코드 로드 시 후보/반영 본문을 원문과 개별 수정으로 재구성해 일치 여부를 검증한다. 새 필드가 없는 이전 저장본은 기존 적용 판정을 유지하며, 기존 raw reply 로컬 재생 경로도 T-12 정책을 유지한다. 실제 CLI 어댑터는 새 필드가 빠진 응답을 거부한다.
 - UI와 Markdown은 부분 반영 본문·수정별 반영/보류·미해결을 보여 주며 source issue는 유지한다. 기존 원문 전환과 사람 수정 우선순위를 유지한다. 수동 선택은 현재 **원 Turn 전체** 범위이므로 버튼을 ‘전체 교정안 적용 / 전체 원문 유지’로 명시한다. 개별 수정 수동 선택 UI는 추가하지 않았다. 새 형식의 실제 모델 생성 성공·한국어 교정 품질은 합성 응답/가짜 CLI/빌드 결과로 대신 판정하지 않는다.
 
+## 로컬 파일별 조회 실패 (2026-09-12)
+
+- Speeches/Scripts 조회는 정상 항목과 파일별 오류를 함께 반환한다. 심볼릭 링크·손상·중복 ID 파일은 목록에서 제외하고 경로와 이유를 표시한다. 중복 ID는 어느 파일도 임의로 선택하지 않는다. 폴더 자체를 읽지 못하면 해당 이전 목록을 유지하며 다른 폴더 조회는 계속한다.
+- 정상 Script 생성·교정은 무관한 손상 파일 때문에 중단하지 않는다. 대상 ID 중복, 대상 원문 변경, stale hash 저장·export 차단은 유지한다. 오류 파일은 삭제·자동 복구하거나 캐시의 이전 내용으로 대신 표시하지 않는다.
+- 처리 이력 조회도 파일별로 격리하지만 실행·재사용은 해당 녹음의 이력이 완전해야 한다. 손상·누락·unsafe·중복·알 수 없는 Run 상태가 있으면 해당 녹음의 제출·재개를 차단한다. 정상 타 녹음은 사용할 수 있다. 접수 불명 상태를 초기화하지 않으며 기존 명시적 재전사 동의 정책을 유지한다.
+
 ## 운영 기본·검수 기록 (2026-09-11 최종안)
 
 [operating-baseline.md](operating-baseline.md)가 현행 운영·실험·승격 계약이다. optional `reviewRecords`는 전후 텍스트/화자 표시·원음/Turn 범위·원음 확인·오류/표본 유형·능동 시간을 담는다. 구 파일의 nil은 미기록이다. `meetingTerms`는 녹음별 Soniox/Qwen 공통 용어. `sonioxSourceRunID`/`precisionSourceRunID`는 결합 source Run이며 기존 Qwen source 필드는 유지한다. normalized v1의 optional asrSpeakerLabel, hybridSonioxPyannote, provider_disagreement 확장은 원본 Soniox 후보를 보존한다.

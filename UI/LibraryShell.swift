@@ -262,6 +262,23 @@ struct LibraryShell: View {
                 Divider()
                 detail.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            let issues = LibraryFolder.allCases.flatMap { workspace.scanIssues[$0] ?? [] } + processing.scanIssues
+            if !issues.isEmpty {
+                Divider()
+                DisclosureGroup("읽지 못한 파일·폴더 \(issues.count)개") {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(issues) { issue in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(issue.url.path).textSelection(.enabled)
+                                    Text(issue.reason.message).foregroundStyle(.secondary)
+                                    if issue.sessionID != nil { Text("이 녹음은 처리 이력을 확인할 때까지 제출·재개가 보류됩니다.").foregroundStyle(.secondary) }
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }.font(.caption)
+                    }.frame(maxHeight: 140)
+                }.padding(12)
+            }
             if let message = workspace.message ?? correction.message ?? playbackMessage ?? processing.message ?? capture.message ?? recording.message {
                 Divider()
                 HStack(alignment: .top) {

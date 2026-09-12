@@ -64,7 +64,9 @@ public actor ManagedProcessor {
     private func persist(_ run: ManagedRun) throws {
         let directory = try directory(run)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try JSONEncoder().encode(run).write(to: directory.appendingPathComponent("state.json"), options: .atomic)
+        let file = directory.appendingPathComponent("state.json")
+        guard file.resolvingSymlinksInPath().path == file.path else { throw ManagedFailure.unsafePath }
+        try JSONEncoder().encode(run).write(to: file, options: .atomic)
     }
     private func immutable(_ data: Data, to url: URL) throws {
         guard url.resolvingSymlinksInPath().path == url.path else { throw ManagedFailure.unsafePath }
@@ -78,29 +80,75 @@ public actor ManagedProcessor {
         }
     }
     public func runs(recover: Bool = false) throws -> [ManagedRun] {
+        let scan = try scanRuns(recover: recover)
+        guard scan.issues.isEmpty else { throw ManagedFailure.localStorage }
+        return scan.items
+    }
+
+    /// Partial results are for display. Executing/reusing a run requires its complete session history.
+    public func scanRuns(recover: Bool = false) throws -> FileScanResult<ManagedRun> {
         let sessions = root.appendingPathComponent("Sessions")
-        guard FileManager.default.fileExists(atPath: sessions.path) else { return [] }
-        var result: [ManagedRun] = []
+        guard sessions.resolvingSymlinksInPath().path == sessions.path else { throw ManagedFailure.unsafePath }
+        guard FileManager.default.fileExists(atPath: sessions.path) else { return FileScanResult() }
+        var result: [ManagedRun] = [], issues: [FileScanIssue] = []
         for session in try FileManager.default.contentsOfDirectory(at: sessions, includingPropertiesForKeys: nil) {
+            try Task.checkCancellation()
             guard UUID(uuidString: session.lastPathComponent) != nil else { continue }
-            let runs = try AudioFiles.session(session.lastPathComponent, root: root).appendingPathComponent("runs")
-            guard FileManager.default.fileExists(atPath: runs.path) else { continue }
-            for directory in try FileManager.default.contentsOfDirectory(at: runs, includingPropertiesForKeys: nil) {
-                guard UUID(uuidString: directory.lastPathComponent) != nil else { continue }
-                let file = directory.appendingPathComponent("state.json").standardizedFileURL
-                guard file.resolvingSymlinksInPath().path == file.path else { throw ManagedFailure.unsafePath }
-                guard FileManager.default.fileExists(atPath: file.path) else { continue }
-                var run = try JSONDecoder().decode(ManagedRun.self, from: Data(contentsOf: file))
-                guard run.id == directory.lastPathComponent, run.sessionID == session.lastPathComponent else { throw ManagedFailure.unsafePath }
-                if recover && !active && ((run.stage == "submitting" && run.jobID == nil) ||
-                    (run.stage == "uploadSubmitting" && run.uploadedFileID == nil)) {
-                    run.stage = "submissionUncertain"
-                    try persist(run)
+            let sessionID = session.lastPathComponent
+            do {
+                let runs = try AudioFiles.session(sessionID, root: root).appendingPathComponent("runs")
+                guard runs.resolvingSymlinksInPath().path == runs.path else { throw ManagedFailure.unsafePath }
+                guard FileManager.default.fileExists(atPath: runs.path) else { continue }
+                for directory in try FileManager.default.contentsOfDirectory(at: runs, includingPropertiesForKeys: nil) {
+                    guard UUID(uuidString: directory.lastPathComponent) != nil else { continue }
+                    let file = directory.appendingPathComponent("state.json").standardizedFileURL
+                    do {
+                        guard file.resolvingSymlinksInPath().path == file.path else { throw ManagedFailure.unsafePath }
+                        let run = try JSONDecoder().decode(ManagedRun.self, from: Data(contentsOf: file))
+                        guard run.id == directory.lastPathComponent, run.sessionID == sessionID else { throw ManagedFailure.unsafePath }
+                        try run.input?.validate()
+                        guard Self.knownStages.contains(run.stage) else { throw ManagedFailure.localStorage }
+                        result.append(run)
+                    } catch {
+                        issues.append(FileScanIssue(url: file, reason: error as? ManagedFailure == .unsafePath ? .unsafePath : .unreadable,
+                                                    sessionID: sessionID, itemID: directory.lastPathComponent))
+                    }
                 }
-                result.append(run)
+            } catch is CancellationError { throw CancellationError() }
+            catch {
+                issues.append(FileScanIssue(url: session, reason: (error as? ManagedFailure == .unsafePath || error as? AudioFailure == .unsafePath) ? .unsafePath : .unreadable, sessionID: sessionID))
             }
         }
-        return result.sorted { $0.creationDate == $1.creationDate ? $0.id > $1.id : $0.creationDate > $1.creationDate }
+        let duplicates = Set(Dictionary(grouping: result, by: \.id).filter { $0.value.count > 1 }.keys)
+        var valid: [ManagedRun] = []
+        for var run in result {
+            try Task.checkCancellation()
+            let file = try directory(run).appendingPathComponent("state.json")
+            if duplicates.contains(run.id) {
+                issues.append(FileScanIssue(url: file, reason: .duplicateIdentity, sessionID: run.sessionID, itemID: run.id))
+                continue
+            }
+            if recover && !active && ((run.stage == "submitting" && run.jobID == nil) ||
+                (run.stage == "uploadSubmitting" && run.uploadedFileID == nil)) {
+                run.stage = "submissionUncertain"
+                do { try persist(run) }
+                catch { issues.append(FileScanIssue(url: file, sessionID: run.sessionID, itemID: run.id)); continue }
+            }
+            valid.append(run)
+        }
+        return FileScanResult(items: valid.sorted { $0.creationDate == $1.creationDate ? $0.id > $1.id : $0.creationDate > $1.creationDate },
+                              issues: issues.sorted { $0.id < $1.id })
+    }
+    private static let knownStages: Set<String> = [
+        "queued", "uploading", "uploadSubmitting", "uploaded", "submitting", "submissionUncertain",
+        "waitingForCredentials", "waitingForBilling", "waitingForNetwork", "remotePending",
+        "unknownRemoteStatus", "resultExpired", "normalizing", "localTranscribing", "paused",
+        "readyForReview", "failed", "partialResult"
+    ]
+    private func runsForSession(_ sessionID: String, recover: Bool = false) throws -> [ManagedRun] {
+        let scan = try scanRuns(recover: recover)
+        guard !scan.issues.contains(where: { $0.sessionID == sessionID }) else { throw ManagedFailure.localStorage }
+        return scan.items.filter { $0.sessionID == sessionID }
     }
     public func isLocalOnly(_ sessionID: String) throws -> Bool {
         let file = try AudioFiles.session(sessionID, root: root).appendingPathComponent("audio/never-upload.json")
@@ -109,7 +157,7 @@ public actor ManagedProcessor {
     }
 
     public func reusableDiarization(sessionID: String, audioHash: String, speakerCount: Int?) throws -> String? {
-        for run in try runs() where run.sessionID==sessionID && [.pyannote, .qwen, .precision].contains(run.provider) && run.stage=="readyForReview" && run.sourceAudioSHA256==audioHash {
+        for run in try runsForSession(sessionID) where [.pyannote, .qwen, .precision].contains(run.provider) && run.stage=="readyForReview" && run.sourceAudioSHA256==audioHash {
             let dir=try directory(run)
             guard let data=try? Data(contentsOf:dir.appendingPathComponent("request.json")),
                   let request=try JSONSerialization.jsonObject(with:data) as? [String:Any],
@@ -126,7 +174,7 @@ public actor ManagedProcessor {
     }
     public func reusableSoniox(sessionID: String, audioHash: String, input: ConversionNotes) throws -> String? {
         let wanted = try SonioxRequest.context(input)
-        for run in try runs() where run.sessionID == sessionID && run.provider == .soniox &&
+        for run in try runsForSession(sessionID) where run.provider == .soniox &&
             run.stage == "readyForReview" && run.sourceAudioSHA256 == audioHash {
             let dir = try directory(run)
             guard let data = try? Data(contentsOf: dir.appendingPathComponent("request.json")),
@@ -143,7 +191,7 @@ public actor ManagedProcessor {
         return nil
     }
     public func setLocalOnly(_ sessionID: String) throws {
-        guard !active, try !runs().contains(where: { $0.sessionID == sessionID }) else { throw ManagedFailure.busy }
+        guard !active, try runsForSession(sessionID).isEmpty else { throw ManagedFailure.busy }
         let file = try AudioFiles.session(sessionID, root: root).appendingPathComponent("audio/never-upload.json")
         try immutable(Data("{\"neverUpload\":true}".utf8), to: file)
     }
@@ -152,7 +200,7 @@ public actor ManagedProcessor {
         try input.validate()
         guard confirmed, try !isLocalOnly(sessionID) else { throw ManagedFailure.consentRequired }
         guard !active else { throw ManagedFailure.busy }
-        let previous = try runs(recover: true).filter { $0.sessionID == sessionID && $0.parentRunID == nil && (input.provider == .qwen || $0.provider != .qwen) }
+        let previous = try runsForSession(sessionID, recover: true).filter { $0.parentRunID == nil && (input.provider == .qwen || $0.provider != .qwen) }
         guard previous.isEmpty || (retranscribing && previous.allSatisfy(\.canRetranscribe)) else { throw ManagedFailure.existingRun }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -163,7 +211,9 @@ public actor ManagedProcessor {
     }
     public func resume(_ id: String, key: String, sonioxKey: String = "") async throws -> ManagedRun {
         guard !active else { throw ManagedFailure.busy }
-        guard let run = try runs(recover: true).first(where: { $0.id == id }),
+        let scan = try scanRuns(recover: true)
+        guard let run = scan.items.first(where: { $0.id == id }),
+              !scan.issues.contains(where: { $0.sessionID == run.sessionID }),
               !["submissionUncertain", "readyForReview", "failed", "partialResult", "resultExpired", "unknownRemoteStatus"].contains(run.stage)
         else { throw ManagedFailure.existingRun }
         return try await execute(run, key: key, sonioxKey: sonioxKey)
@@ -201,7 +251,7 @@ public actor ManagedProcessor {
             if run.provider == .qwen,let sourceID=run.input?.qwenDiarizationRunID,
                !FileManager.default.fileExists(atPath:rawURL.path) {
                 guard try reusableDiarization(sessionID:run.sessionID,audioHash:analysis.sha256,speakerCount:run.input?.speakerCount)==sourceID,
-                      let source=try runs().first(where:{$0.id==sourceID}) else { throw ManagedFailure.sourceChanged }
+                      let source=try runsForSession(run.sessionID).first(where:{$0.id==sourceID}) else { throw ManagedFailure.sourceChanged }
                 let bytes=try Data(contentsOf:directory(source).appendingPathComponent("raw/pyannote-response.json"))
                 try immutable(bytes,to:rawURL)
                 run.jobID=source.jobID;run.remoteStatus="succeeded (reused)";try persist(run)
@@ -344,7 +394,7 @@ public actor ManagedProcessor {
         guard let analysis = audio.analysis, var input = run.input else { throw ManagedFailure.sourceChanged }
         let dir = try directory(run), repository = FileSessionRepository(rootURL: root)
         func source(_ id: String, provider: TranscriptionProvider) throws -> ManagedRun {
-            guard let result = try runs().first(where: { $0.id == id }), result.sessionID == run.sessionID,
+            guard let result = try runsForSession(run.sessionID).first(where: { $0.id == id }), result.sessionID == run.sessionID,
                   result.provider == provider || (provider == .precision && [.pyannote, .qwen].contains(result.provider)),
                   result.sourceAudioSHA256 == nil || result.sourceAudioSHA256 == analysis.sha256 else { throw ManagedFailure.sourceChanged }
             return result

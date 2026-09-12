@@ -8,6 +8,8 @@ import SwiftUI
 final class ProcessingWorkspace: ObservableObject {
     static let shared = ProcessingWorkspace()
     @Published private(set) var runs: [ManagedRun] = []
+    @Published private(set) var scanIssues: [FileScanIssue] = []
+    @Published private(set) var runHistoryAvailable = false
     @Published private(set) var localOnly: Set<String> = []
     @Published private(set) var busy = false
     @Published private(set) var activeSessionID: String?
@@ -61,7 +63,7 @@ final class ProcessingWorkspace: ObservableObject {
             self.processor = processor
             Task {
                 do {
-                    runs = try await processor.runs(recover: true)
+                    await refreshRuns(recover: true)
                     let records = try await AudioLibrary(root: AudioFiles.root()).list()
                     for record in records where try await processor.isLocalOnly(record.id) { localOnly.insert(record.id) }
                 } catch { message = "처리 상태를 불러오지 못했습니다. 자동으로 작업을 다시 제출하지 않습니다." }
@@ -71,8 +73,30 @@ final class ProcessingWorkspace: ObservableObject {
 
     func run(for id: String) -> ManagedRun? { runs.first { $0.sessionID == id && $0.parentRunID == nil } }
 
+    func refresh() {
+        guard !busy else { return }
+        Task { await refreshRuns(recover: true) }
+    }
+
+    private func refreshRuns(recover: Bool = false) async {
+        guard let processor else { return }
+        do {
+            let scan = try await processor.scanRuns(recover: recover)
+            runs = scan.items; scanIssues = scan.issues; runHistoryAvailable = true
+        } catch is CancellationError {
+            // A cancelled status monitor must not mark a healthy history as unavailable.
+        } catch {
+            runHistoryAvailable = false
+            message = "처리 이력을 읽지 못해 제출·재개를 보류했습니다. 기존 목록은 유지됩니다."
+        }
+    }
+
+    private func historyAllowsProcessing(_ sessionID: String) -> Bool {
+        runHistoryAvailable && !scanIssues.contains { $0.sessionID == sessionID }
+    }
+
     func canRetranscribe(_ sessionID: String) -> Bool {
-        !busy && !localOnly.contains(sessionID) && runs.filter { $0.sessionID == sessionID && $0.parentRunID == nil && (selectedProvider == .qwen || $0.provider != .qwen) }.allSatisfy(\.canRetranscribe)
+        !busy && historyAllowsProcessing(sessionID) && !localOnly.contains(sessionID) && runs.filter { $0.sessionID == sessionID && $0.parentRunID == nil && (selectedProvider == .qwen || $0.provider != .qwen) }.allSatisfy(\.canRetranscribe)
     }
 
     func preparedInput(_ input: ConversionNotes) async throws -> ConversionNotes {
@@ -94,6 +118,10 @@ final class ProcessingWorkspace: ObservableObject {
     func reviewTransmission(_ record: AudioManifest, input original: ConversionNotes = ConversionNotes(), retranscribing: Bool = false) async {
         var input=original
         guard !busy, let processor, record.analysis != nil, !localOnly.contains(record.id) else { return }
+        await refreshRuns(recover: true)
+        guard historyAllowsProcessing(record.id) else {
+            message = "이 녹음의 처리 이력을 확인할 수 없어 전송을 보류했습니다. 읽지 못한 파일을 확인해 주세요."; return
+        }
         guard admitsProcessing(input.provider) else { return }
         if input.provider == .qwen {
             guard qwenReady else { message="Qwen 로컬 엔진이 준비되지 않았습니다. 엔진 설정에서 설치된 환경을 연결해 주세요.";return }
@@ -198,7 +226,7 @@ final class ProcessingWorkspace: ObservableObject {
     private func launch(sessionID: String, provider: TranscriptionProvider, needsKey: Bool = true,
                         needsSonioxKey: Bool = false, _ action: @escaping @Sendable (String, String) async throws -> ManagedRun) {
         // Recheck after asynchronous preparation and the modal consent dialog.
-        guard !busy, let processor, admitsProcessing(provider) else { return }
+        guard !busy, let processor, historyAllowsProcessing(sessionID), admitsProcessing(provider) else { return }
         let key: String, sonioxKey: String
         do {
             key = needsKey ? try KeychainStore.read(provider: provider == .sonioxPrecision ? .pyannote : provider) ?? "" : ""
@@ -209,7 +237,7 @@ final class ProcessingWorkspace: ObservableObject {
         task = Task {
             let monitor = Task {
                 while !Task.isCancelled {
-                    runs = (try? await processor.runs()) ?? runs
+                    await refreshRuns()
                     saveCompletedSources()
                     try? await Task.sleep(for: .milliseconds(500))
                 }
@@ -218,7 +246,7 @@ final class ProcessingWorkspace: ObservableObject {
             do {
                 try Task.checkCancellation()
                 let result = try await action(key, sonioxKey)
-                runs = (try? await processor.runs()) ?? runs
+                await refreshRuns()
                 saveCompletedSources()
                 if result.stage == "readyForReview" {
                     message = "전사 완료 · 검수 전. 결과의 화자와 원문을 확인해 주세요."

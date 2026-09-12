@@ -64,50 +64,66 @@ public actor FolderLibraryStore {
         guard url.isFileURL, url.standardizedFileURL.path == url.resolvingSymlinksInPath().path else { throw LibraryFailure.unsafePath }
     }
     public func speeches(in folder: URL) async throws -> [LibrarySpeech] {
+        let scan = try await scanSpeeches(in: folder)
+        guard scan.issues.isEmpty else { throw LibraryFailure.invalidInput }
+        return scan.items
+    }
+    public func scanSpeeches(in folder: URL) async throws -> FileScanResult<LibrarySpeech> {
         guard !scanning else { throw LibraryFailure.invalidInput }
         scanning = true; defer { scanning = false }
         let folder = folder.standardizedFileURL.resolvingSymlinksInPath()
-        var index = try readIndex(), found: [LibrarySpeech] = []
+        var index = try readIndex(), found: [LibrarySpeech] = [], issues: [FileScanIssue] = []
         let files = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.creationDateKey, .isRegularFileKey], options: [.skipsHiddenFiles])
         for url in files where ["m4a", "wav", "dama-audio"].contains(url.pathExtension.lowercased()) {
             try Task.checkCancellation()
-            try safe(url)
-            let isBundle = url.pathExtension == "dama-audio"
-            let hashURL = isBundle ? url.appendingPathComponent("capture-manifest.json") : url
-            try safe(hashURL)
-            let hash = try AudioFiles.hash(hashURL)
-            if let known = index.first(where: { $0.fileURL == url && $0.sourceHash == hash }) { found.append(known); continue }
-            let audio: AudioManifest
-            if isBundle {
-                let bytes = try Data(contentsOf: hashURL)
-                audio = try JSONDecoder().decode(AudioManifest.self, from: bytes)
-                guard UUID(uuidString: audio.id) != nil, !audio.sources.isEmpty else { throw LibraryFailure.invalidInput }
-                for source in audio.sources {
-                    guard source.filename == URL(fileURLWithPath: source.filename).lastPathComponent else { throw LibraryFailure.unsafePath }
-                    let file = url.appendingPathComponent("source").appendingPathComponent(source.filename)
-                    try safe(file)
-                    guard try AudioFiles.hash(file) == source.sha256 else { throw LibraryFailure.changedFile }
-                }
-                let destination = try AudioFiles.session(audio.id, root: root).appendingPathComponent("audio")
-                if !FileManager.default.fileExists(atPath: destination.path) {
-                    try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    try FileManager.default.copyItem(at: url, to: destination)
+            do {
+                try safe(url)
+                let isBundle = url.pathExtension == "dama-audio"
+                let hashURL = isBundle ? url.appendingPathComponent("capture-manifest.json") : url
+                try safe(hashURL)
+                let hash = try AudioFiles.hash(hashURL)
+                if let known = index.first(where: { $0.fileURL == url && $0.sourceHash == hash }) { found.append(known); continue }
+                let audio: AudioManifest
+                if isBundle {
+                    let bytes = try Data(contentsOf: hashURL)
+                    audio = try JSONDecoder().decode(AudioManifest.self, from: bytes)
+                    guard UUID(uuidString: audio.id) != nil, !audio.sources.isEmpty else { throw LibraryFailure.invalidInput }
+                    for source in audio.sources {
+                        guard source.filename == URL(fileURLWithPath: source.filename).lastPathComponent else { throw LibraryFailure.unsafePath }
+                        let file = url.appendingPathComponent("source").appendingPathComponent(source.filename)
+                        try safe(file)
+                        guard try AudioFiles.hash(file) == source.sha256 else { throw LibraryFailure.changedFile }
+                    }
+                    let destination = try AudioFiles.session(audio.id, root: root).appendingPathComponent("audio")
+                    if !FileManager.default.fileExists(atPath: destination.path) {
+                        try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+                        try FileManager.default.copyItem(at: url, to: destination)
+                    } else {
+                        let current = try JSONDecoder().decode(AudioManifest.self, from: Data(contentsOf: destination.appendingPathComponent("capture-manifest.json")))
+                        guard current.sources.map(\.sha256) == audio.sources.map(\.sha256) else { throw LibraryFailure.changedFile }
+                    }
                 } else {
-                    let current = try JSONDecoder().decode(AudioManifest.self, from: Data(contentsOf: destination.appendingPathComponent("capture-manifest.json")))
-                    guard current.sources.map(\.sha256) == audio.sources.map(\.sha256) else { throw LibraryFailure.changedFile }
+                    // Reject malformed audio before import creates an internal session on every refresh.
+                    _ = try AudioFiles.inspect(url)
+                    audio = try await AudioLibrary(root: root).importFile(url)
                 }
-            } else { audio = try await AudioLibrary(root: root).importFile(url) }
-            let created = isBundle ? audio.createdAt : try url.resourceValues(forKeys: [.creationDateKey]).creationDate
-            let entry = LibrarySpeech(id: audio.id, fileURL: url, sourceHash: hash, title: audio.title,
-                recordedAt: created, dateSource: isBundle ? "DAMA 녹음 시작 시각" : "원본 파일 생성 시각 (실제 녹음 시각과 다를 수 있음)",
-                durationUs: audio.durationUs, notes: ConversionNotes())
-            // Re-read after await so another saved note cannot be overwritten by an older index snapshot.
-            index = try readIndex(); index.append(entry); try writeIndex(index); found.append(entry)
+                let created = isBundle ? audio.createdAt : try url.resourceValues(forKeys: [.creationDateKey]).creationDate
+                let entry = LibrarySpeech(id: audio.id, fileURL: url, sourceHash: hash, title: audio.title,
+                    recordedAt: created, dateSource: isBundle ? "DAMA 녹음 시작 시각" : "원본 파일 생성 시각 (실제 녹음 시각과 다를 수 있음)",
+                    durationUs: audio.durationUs, notes: ConversionNotes())
+                // Re-read after await so another saved note cannot be overwritten by an older index snapshot.
+                index = try readIndex(); index.append(entry); try writeIndex(index); found.append(entry)
+            } catch is CancellationError { throw CancellationError() }
+            catch { issues.append(Self.issue(url, error: error)) }
         }
-        return found.sorted {
+        let duplicateIDs = Set(Dictionary(grouping: found, by: \.id).filter { $0.value.count > 1 }.keys)
+        for entry in found where duplicateIDs.contains(entry.id) {
+            issues.append(FileScanIssue(url: entry.fileURL, reason: .duplicateIdentity))
+        }
+        return FileScanResult(items: found.filter { !duplicateIDs.contains($0.id) }.sorted {
             let a = $0.recordedAt ?? .distantPast, b = $1.recordedAt ?? .distantPast
             return a == b ? $0.id < $1.id : a > b
-        }
+        }, issues: issues.sorted { $0.id < $1.id })
     }
     public func saveNotes(_ notes: ConversionNotes, speechID: String) throws {
         try notes.validate()
@@ -131,27 +147,53 @@ public actor FolderLibraryStore {
         try FileManager.default.moveItem(at: temp, to: destination)
     }
     public func scripts(in folder: URL) throws -> [LibraryScriptFile] {
+        let scan = try scanScripts(in: folder)
+        guard scan.issues.isEmpty else { throw LibraryFailure.invalidScript }
+        return scan.items
+    }
+    public func scanScripts(in folder: URL) throws -> FileScanResult<LibraryScriptFile> {
         let urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
-        var result: [LibraryScriptFile] = []
+        var result: [LibraryScriptFile] = [], issues: [FileScanIssue] = []
         for url in urls where url.lastPathComponent.hasSuffix(".dama.json") {
-            try safe(url)
-            // Read once: the hash and displayed value must describe the same bytes.
-            let bytes = try Data(contentsOf: url), hash = Self.hash(bytes)
-            if let cached = scriptCache[url.standardizedFileURL.path], cached.hash == hash { result.append(cached) }
-            else {
-                let script = try JSONDecoder().decode(LibraryScript.self, from: bytes)
-                try script.validate()
-                result.append(LibraryScriptFile(url: url, hash: hash, script: script))
-            }
+            try Task.checkCancellation()
+            do {
+                try safe(url)
+                // Read once: the hash and displayed value must describe the same bytes.
+                let bytes = try Data(contentsOf: url), hash = Self.hash(bytes)
+                if let cached = scriptCache[url.standardizedFileURL.path], cached.hash == hash { result.append(cached) }
+                else {
+                    let script = try JSONDecoder().decode(LibraryScript.self, from: bytes)
+                    try script.validate()
+                    result.append(LibraryScriptFile(url: url, hash: hash, script: script))
+                }
+            } catch is CancellationError { throw CancellationError() }
+            catch { issues.append(Self.issue(url, error: error)) }
         }
-        guard Set(result.map(\.id)).count == result.count else { throw LibraryFailure.invalidScript }
-        // Keep only this successfully scanned folder, including after external removals.
+        let duplicateIDs = Set(Dictionary(grouping: result, by: \.id).filter { $0.value.count > 1 }.keys)
+        for file in result where duplicateIDs.contains(file.id) {
+            issues.append(FileScanIssue(url: file.url, reason: .duplicateIdentity, itemID: file.id))
+        }
+        result.removeAll { duplicateIDs.contains($0.id) }
+        // Only current, validated, unambiguous files remain cached.
         scriptCache = Dictionary(uniqueKeysWithValues: result.map { ($0.url.standardizedFileURL.path, $0) })
-        return result.sorted { $0.script.createdAt == $1.script.createdAt ? $0.id < $1.id : $0.script.createdAt > $1.script.createdAt }
+        return FileScanResult(items: result.sorted { $0.script.createdAt == $1.script.createdAt ? $0.id < $1.id : $0.script.createdAt > $1.script.createdAt },
+                              issues: issues.sorted { $0.id < $1.id })
+    }
+    private static func issue(_ url: URL, error: Error) -> FileScanIssue {
+        let reason: FileScanIssue.Reason
+        switch error {
+        case LibraryFailure.unsafePath: reason = .unsafePath
+        case LibraryFailure.changedFile: reason = .changedFile
+        default: reason = .unreadable
+        }
+        return FileScanIssue(url: url, reason: reason)
     }
     public func createScript(_ document: TranscriptDocument, speech: LibrarySpeech, input: ConversionNotes, in folder: URL) throws -> LibraryScriptFile {
         // Resume from existing saved file, never replace a user's edited result.
-        if let existing = try scripts(in: folder).first(where: { $0.script.transcript.runId == document.runId }) { return existing }
+        let scan = try scanScripts(in: folder)
+        // A duplicate identity must be resolved before creating another copy.
+        guard !scan.issues.contains(where: { $0.itemID == document.runId }) else { throw LibraryFailure.invalidScript }
+        if let existing = scan.items.first(where: { $0.script.transcript.runId == document.runId }) { return existing }
         let script = try LibraryScript(transcript: document, title: speech.title, recordedAt: speech.recordedAt,
             dateSource: speech.dateSource, input: input)
         let url = folder.appendingPathComponent(UUID().uuidString + ".dama.json")
@@ -177,7 +219,7 @@ public actor FolderLibraryStore {
     }
     public func saveCorrection(_ correction: ScriptCorrection, for source: LibraryScriptFile) throws -> LibraryScriptFile {
         let path = source.url.standardizedFileURL.resolvingSymlinksInPath().path
-        guard let latest = try scripts(in: source.url.deletingLastPathComponent()).first(where: {
+        guard let latest = try scanScripts(in: source.url.deletingLastPathComponent()).items.first(where: {
             $0.id == source.id && $0.url.standardizedFileURL.resolvingSymlinksInPath().path == path
         }) else { throw LibraryFailure.changedFile }
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]

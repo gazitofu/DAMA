@@ -13,6 +13,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published private(set) var folders: [LibraryFolder: URL] = [:]
     @Published private(set) var speeches: [LibrarySpeech] = []
     @Published private(set) var scripts: [LibraryScriptFile] = []
+    @Published private(set) var scanIssues: [LibraryFolder: [FileScanIssue]] = [:]
     @Published private(set) var selectedSpeechID: String?
     @Published private(set) var selectedScriptID: String?
     @Published var speakerCount = ""
@@ -112,6 +113,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             if let old = folders[kind], let i = scoped.firstIndex(of: old) { scoped.remove(at: i).stopAccessingSecurityScopedResource() }
             if accessed { scoped.append(url) }
             folders[kind] = url; folder = kind
+            scanIssues[kind] = []
             if kind == .speeches { speeches = []; selectedSpeechID = nil }
             else { scripts = []; selectedScriptID = nil }
             refresh()
@@ -125,20 +127,27 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     }
     func refresh() {
         guard canLeave, let store else { return }
+        ProcessingWorkspace.shared.refresh()
         busy = true
         Task {
             defer { busy = false }
             do {
                 try await persistNotes()
                 if let url = folders[.speeches] {
-                    speeches = try await store.speeches(in: url)
-                    if !speeches.contains(where: { $0.id == selectedSpeechID }) { setSpeech(speeches.first?.id) }
+                    do {
+                        let scan = try await store.scanSpeeches(in: url)
+                        speeches = scan.items; scanIssues[.speeches] = scan.issues
+                        if !speeches.contains(where: { $0.id == selectedSpeechID }) { setSpeech(speeches.first?.id) }
+                    } catch { scanIssues[.speeches] = [FileScanIssue(url: url)] }
                 }
-                if let url = folders[.scripts] {
-                    scripts = try await store.scripts(in: url)
+            } catch { message = "입력 정보를 저장하지 못해 Speeches 갱신을 보류했습니다. 입력값과 기존 목록은 유지됩니다." }
+            if let url = folders[.scripts] {
+                do {
+                    let scan = try await store.scanScripts(in: url)
+                    scripts = scan.items; scanIssues[.scripts] = scan.issues
                     if !scripts.contains(where: { $0.id == selectedScriptID }) { selectedScriptID = scripts.first?.id }
-                }
-            } catch { message = "파일 목록을 읽지 못했습니다. 폴더 접근 권한·파일 형식·변경 여부를 확인해 주세요. 이전 목록은 유지됩니다." }
+                } catch { scanIssues[.scripts] = [FileScanIssue(url: url)] }
+            }
         }
     }
     private func setSpeech(_ id: String?) {
@@ -281,7 +290,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 guard let speech = try await store.storedSpeech(run.sessionID) else { throw LibraryFailure.missingFile }
                 let document = try await FileSessionRepository(rootURL: root).loadModel(sessionId: run.sessionID, runId: run.id)
                 let result = try await store.createScript(document, speech: speech, input: run.input ?? speech.notes, in: destination)
-                scripts = try await store.scripts(in: destination)
+                let scan = try await store.scanScripts(in: destination)
+                scripts = scan.items; scanIssues[.scripts] = scan.issues
                 if !select {
                     var saved = Set(UserDefaults.standard.stringArray(forKey: "library.savedSourceRuns") ?? [])
                     saved.insert(run.id); UserDefaults.standard.set(Array(saved), forKey: "library.savedSourceRuns")

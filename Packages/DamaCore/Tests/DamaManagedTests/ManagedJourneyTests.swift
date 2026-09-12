@@ -7,6 +7,96 @@ import XCTest
 @testable import DamaManaged
 
 final class ManagedJourneyTests: XCTestCase {
+    private func stateURL(_ run: ManagedRun, root: URL) throws -> URL {
+        let file = root.appendingPathComponent("Sessions/\(run.sessionID)/runs/\(run.id)/state.json")
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        return file
+    }
+
+    func testDamagedOtherSessionDoesNotHideOrBlockHealthyResume() async throws {
+        let root = try root(), record = try await recording(root)
+        let fake = FakeTransport(final: try fixture())
+        let processor = ManagedProcessor(root: root, transport: fake, sleep: { _ in })
+        let waiting = try await processor.begin(sessionID: record.id, confirmed: true, key: "")
+        let broken = ManagedRun(id: UUID().uuidString, sessionID: UUID().uuidString,
+                                createdAt: "2026-09-12T00:00:00Z", consent: true, stage: "submitting")
+        let badFile = try stateURL(broken, root: root), badBytes = Data("bad state".utf8)
+        try badBytes.write(to: badFile)
+        let scan = try await processor.scanRuns(recover: true)
+        XCTAssertEqual(scan.items.map(\.id), [waiting.id]); XCTAssertEqual(scan.issues.map(\.sessionID), [broken.sessionID])
+        do { _ = try await processor.begin(sessionID: broken.sessionID, confirmed: true, key: "test-only", retranscribing: true); XCTFail("broken history") } catch ManagedFailure.localStorage {}
+        do { _ = try await processor.reusableDiarization(sessionID: broken.sessionID, audioHash: "unused", speakerCount: nil); XCTFail("broken reuse") } catch ManagedFailure.localStorage {}
+        do { try await processor.setLocalOnly(broken.sessionID); XCTFail("must not rewrite unknown upload history") } catch ManagedFailure.localStorage {}
+        let resumed = try await processor.resume(waiting.id, key: "test-only")
+        XCTAssertEqual(resumed.stage, "readyForReview")
+        let calls = await fake.calls
+        XCTAssertEqual(calls.filter { $0 == "POST /v1/diarize" }.count, 1)
+        XCTAssertEqual(try Data(contentsOf: badFile), badBytes)
+    }
+
+    func testMissingSymlinkIdentityAndUnknownStateBlockOnlyAffectedSession() async throws {
+        for damage in ["missing", "symlink", "identity", "unknownStage"] {
+            let root = try root(), record = try await recording(root)
+            let fake = FakeTransport(final: try fixture())
+            let processor = ManagedProcessor(root: root, transport: fake, sleep: { _ in })
+            let waiting = try await processor.begin(sessionID: record.id, confirmed: true, key: "")
+            var damaged = ManagedRun(id: UUID().uuidString, sessionID: record.id,
+                                     createdAt: "2026-09-12T00:00:00Z", consent: true, stage: "submitting")
+            let file = try stateURL(damaged, root: root)
+            switch damage {
+            case "symlink":
+                let target = root.appendingPathComponent("untouched.json")
+                try JSONEncoder().encode(damaged).write(to: target)
+                try FileManager.default.createSymbolicLink(at: file, withDestinationURL: target)
+            case "identity":
+                damaged = ManagedRun(id: UUID().uuidString, sessionID: record.id, createdAt: damaged.createdAt, consent: true, stage: "queued")
+                try JSONEncoder().encode(damaged).write(to: file)
+            case "unknownStage":
+                damaged.stage = "unrecognized"; try JSONEncoder().encode(damaged).write(to: file)
+            default: break
+            }
+            let before = try? Data(contentsOf: file)
+            let scan = try await processor.scanRuns(recover: true)
+            XCTAssertEqual(scan.items.map(\.id), [waiting.id], damage)
+            XCTAssertEqual(scan.issues.map(\.sessionID), [record.id], damage)
+            do { _ = try await processor.resume(waiting.id, key: "test-only"); XCTFail("affected resume: \(damage)") } catch ManagedFailure.existingRun {}
+            do { _ = try await processor.begin(sessionID: record.id, confirmed: true, key: "test-only", retranscribing: true); XCTFail("affected begin: \(damage)") } catch ManagedFailure.localStorage {}
+            do { _ = try await processor.reusableSoniox(sessionID: record.id, audioHash: "unused", input: ConversionNotes()); XCTFail("affected reuse: \(damage)") } catch ManagedFailure.localStorage {}
+            let calls = await fake.calls; XCTAssertTrue(calls.isEmpty, damage)
+            XCTAssertEqual(try? Data(contentsOf: file), before, damage)
+        }
+    }
+
+    func testDuplicateRunIDsAndUncertainRecoveryNeverAutomaticallyPost() async throws {
+        let root = try root(), fake = FakeTransport(final: try fixture())
+        let processor = ManagedProcessor(root: root, transport: fake, sleep: { _ in })
+        let duplicateID = UUID().uuidString
+        var files: [URL] = []
+        for _ in 0..<2 {
+            let run = ManagedRun(id: duplicateID, sessionID: UUID().uuidString, createdAt: "2026-09-12T00:00:00Z", consent: true, stage: "submitting")
+            let file = try stateURL(run, root: root); files.append(file)
+            try JSONEncoder().encode(run).write(to: file)
+        }
+        let before = try files.map { try Data(contentsOf: $0) }
+        let duplicateScan = try await processor.scanRuns(recover: true)
+        XCTAssertTrue(duplicateScan.items.isEmpty)
+        XCTAssertEqual(duplicateScan.issues.filter { $0.reason == .duplicateIdentity }.count, 2)
+        XCTAssertEqual(try files.map { try Data(contentsOf: $0) }, before)
+        do { _ = try await processor.resume(duplicateID, key: "test-only"); XCTFail("ambiguous run") } catch ManagedFailure.existingRun {}
+        for stage in ["submitting", "uploadSubmitting"] {
+            let run = ManagedRun(id: UUID().uuidString, sessionID: UUID().uuidString, createdAt: "2026-09-12T00:00:00Z", consent: true, stage: stage, attemptID: "synthetic-attempt")
+            let file = try stateURL(run, root: root)
+            try JSONEncoder().encode(run).write(to: file)
+            let recovered = try await processor.scanRuns(recover: true)
+            let item = try XCTUnwrap(recovered.items.first { $0.id == run.id })
+            XCTAssertEqual(item.stage, "submissionUncertain"); XCTAssertEqual(item.attemptID, "synthetic-attempt")
+            XCTAssertEqual(try JSONDecoder().decode(ManagedRun.self, from: Data(contentsOf: file)).stage, "submissionUncertain")
+            do { _ = try await processor.resume(run.id, key: "test-only"); XCTFail("uncertain resume") } catch ManagedFailure.existingRun {}
+            do { _ = try await processor.begin(sessionID: run.sessionID, confirmed: true, key: "test-only"); XCTFail("uncertain default begin") } catch ManagedFailure.existingRun {}
+        }
+        let calls = await fake.calls; XCTAssertTrue(calls.isEmpty)
+    }
+
     func testRetranscriptionCreatesIndependentScriptAndTrashPreservesConnectedData() async throws {
         let base = try root(), root = base.appendingPathComponent("internal")
         let speeches = base.appendingPathComponent("Speeches"), scripts = base.appendingPathComponent("Scripts")
