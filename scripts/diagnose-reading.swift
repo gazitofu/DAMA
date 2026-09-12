@@ -62,9 +62,19 @@ import CryptoKit
         try require(blocks.flatMap(\.turnIDs) == t.turns.map(\.id), "turn-order-preservation")
         try require(blocks.flatMap { $0.turns.flatMap(\.wordIds) } == t.words.map(\.id), "source-word-order")
         let speech = blocks.filter(\.isSpeech)
+        struct Projection: Encodable {
+            let turns: [TranscriptTurn], issues: [ReviewIssue]
+            let text: String, name: String, colorIndex: Int?, edited: Bool
+        }
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let projection = try encoder.encode(blocks.map {
+            Projection(turns: $0.turns, issues: $0.issues, text: $0.text, name: $0.name, colorIndex: $0.colorIndex, edited: $0.edited)
+        })
         var issueCounts: [String: Int] = [:]
         for issue in t.reviewIssues { issueCounts[issue.kind.rawValue, default: 0] += 1 }
         return ["runID": t.runId, "algorithm": t.provenance.algorithmVersion,
+            "normalizedSHA256": hash(try NormalizedTranscriptCodec.encode(t)),
+            "readingSHA256": hash(projection), "markdownSHA256": hash(Data(md.utf8)),
             "readingPolicy": ScriptReadingPolicy.algorithmVersion, "durationUs": t.durationUs,
             "words": t.words.count, "lexical": t.words.filter { $0.tokenKind == .lexical }.count,
             "punctuation": t.words.filter { $0.tokenKind == .punctuation }.count,

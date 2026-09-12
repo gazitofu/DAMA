@@ -1,0 +1,54 @@
+{
+  "synthetic": true,
+  "durationUs": 3000000,
+  "cases": [
+    {
+      "id": "short-b-missing-punctuation",
+      "tokens": [
+        {"text":"조건을", "start_ms":100, "end_ms":800, "speaker":"one", "confidence":0.91},
+        {"text":".", "start_ms":1000, "end_ms":1100, "speaker":"one"},
+        {"text":" 검토하고", "start_ms":1300, "end_ms":1900, "speaker":"one"},
+        {"text":" 네", "start_ms":2100, "end_ms":2300, "speaker":"two"},
+        {"text":" 네", "start_ms":2400, "end_ms":2600, "speaker":"one"}
+      ],
+      "regular": [{"speaker":"A","start":0,"end":1,"confidence":{"A":91,"B":14}}, {"speaker":"B","start":1,"end":1.2}, {"speaker":"A","start":1.2,"end":2}, {"speaker":"B","start":2,"end":2.4}, {"speaker":"A","start":2.4,"end":3}],
+      "warning": "synthetic partial warning",
+      "captureInterrupted": true
+    },
+    {
+      "id": "coverage-threshold-and-tie",
+      "tokens": [{"text":"동점", "start_ms":0,"end_ms":1000,"speaker":"one"}, {"text":" 문턱", "start_ms":1000,"end_ms":2000,"speaker":"one"}, {"text":" 미달", "start_ms":2000,"end_ms":3000,"speaker":"one"}],
+      "regular": [{"speaker":"B","start":0.5,"end":1}, {"speaker":"A","start":0,"end":0.5}, {"speaker":"A","start":1,"end":1.6}, {"speaker":"A","start":2,"end":2.599}],
+      "exclusive": [{"speaker":"B","start":0.5,"end":1}, {"speaker":"A","start":0,"end":0.5}, {"speaker":"A","start":1,"end":1.6}, {"speaker":"A","start":2,"end":2.599}]
+    },
+    {
+      "id": "overlap-boundary-and-unrepresented",
+      "tokens": [{"text":"겹말", "start_ms":100,"end_ms":500,"speaker":"one"}, {"text":" 경계", "start_ms":800,"end_ms":1200,"speaker":"one"}, {"text":" 없음", "start_ms":2100,"end_ms":2300,"speaker":null}],
+      "regular": [{"speaker":"B","start":0.2,"end":0.4}, {"speaker":"A","start":0,"end":1}, {"speaker":"B","start":1,"end":2}, {"speaker":"C","start":2.5,"end":3}],
+      "exclusive": [{"speaker":"A","start":0,"end":1}, {"speaker":"B","start":1,"end":2}, {"speaker":"C","start":2.5,"end":3}]
+    },
+    {
+      "id": "invalid-zero-reversed-and-uncovered",
+      "tokens": [{"text":"첫", "start_ms":1000,"end_ms":1200,"speaker":"one"}, {"text":" 역행", "start_ms":100,"end_ms":200,"speaker":"one"}, {"text":".", "start_ms":1200,"end_ms":1200,"speaker":"one"}, {"text":" 미정렬", "start_ms":null,"end_ms":null,"speaker":"one"}, {"text":" 음수", "start_ms":-1,"end_ms":20,"speaker":"one"}, {"text":" 범위 밖", "start_ms":2900,"end_ms":3100,"speaker":"one"}, {"text":" 끝", "start_ms":2200,"end_ms":2400,"speaker":null}],
+      "regular": [{"speaker":"A","start":0,"end":2}],
+      "exclusive": [{"speaker":"A","start":0,"end":2}]
+    },
+    {
+      "id": "union-order-and-fractional-microseconds",
+      "tokens": [{"text":"합집합", "start_ms":0,"end_ms":1000,"speaker":"one"}, {"text":" 접점", "start_ms":1000,"end_ms":1300,"speaker":"two"}, {"text":" 끝", "start_ms":1400,"end_ms":1600,"speaker":"one"}],
+      "regular": [{"speaker":"A","start":0.2000006,"end":0.8000006}, {"speaker":"A","start":0,"end":1}, {"speaker":"B","start":1,"end":1.3}, {"speaker":"A","start":1.3,"end":3}],
+      "exclusive": [{"speaker":"A","start":0.4,"end":0.8}, {"speaker":"A","start":0,"end":0.4}, {"speaker":"B","start":1,"end":1.3}, {"speaker":"A","start":1.3,"end":3}]
+    },
+    {
+      "id": "dominant-later-label",
+      "tokens": [{"text":"주요 화자", "start_ms":0,"end_ms":1000,"speaker":"one"}],
+      "regular": [{"speaker":"A","start":0,"end":0.2}, {"speaker":"B","start":0.2,"end":1}],
+      "exclusive": [{"speaker":"A","start":0,"end":0.2}, {"speaker":"B","start":0.2,"end":1}]
+    },
+    {
+      "id": "missing-short-b",
+      "tokens": [{"text":"조건을", "start_ms":100,"end_ms":800,"speaker":"one"}, {"text":" 검토하고", "start_ms":1300,"end_ms":1900,"speaker":"one"}],
+      "regular": [{"speaker":"A","start":0,"end":1}, {"speaker":"B","start":1,"end":1.2}, {"speaker":"A","start":1.2,"end":3}]
+    }
+  ]
+}
