@@ -63,6 +63,7 @@ spec: notes/uiux-reading/uiux-reading.src.html
 
 ## 완료 근거 (2026-09-13)
 
+- 사용자 ‘일단 UI는 모두 확인’으로 로컬 앱 완성본 게이트② 확인 완료. 후속 요청은 AI 보정 전 Soniox+P2의 미배정·과분절 해결 방안 진단이며, UI 재설계/main merge/push/출시 승인과 구분한다.
 - T-07: 사용자 설정 누락 지적을 직접 반영. UserDefaults 선택값 + NSApplication 공통 appearance, 시작 시 복원. `.build/check-logs/uiux-reading-appearance-build.log` Debug PASS. CUA로 라이트/다크 즉시 전환·라이트 본문·재실행 후 라이트 선택/화면 유지·시스템 모드 복귀 확인. About `0.5.1(19)` 실측, 설정 화면을 열어 전달. 데이터 경로 변경이 없어 Core 전수 검사는 반복하지 않음. 기존 dirty7만 남기고 커밋.
 - T-01~06 완료. [네이티브 QA](../../notes/uiux-reading/native-qa.md), [별도 화자·개인 지식 진단](../../notes/uiux-reading/speaker-context-diagnosis.md). 저장·이력·충돌·내보내기는 Core 검증, 입력/배치/화자/AI 모달·Speeches·재생은 실제 Mac 합성 검증으로 구분한다. 네이티브 저장 패널 완료와 물리 IME/작은 창/라이트·VoiceOver·장시간 성능은 미측정이다.
 - 최종 독립 scratch 전체검사 계약30/Swift170/Debug PASS, SKIP0: .build/check-logs/uiux-reading-final-clean/run-20260912T145840Z-iMQdTm. 최초 회귀와 재사용 scratch SIGBUS는 QA 기록에 보존.
@@ -79,6 +80,6 @@ spec: notes/uiux-reading/uiux-reading.src.html
 
 - T-01 검증: LibraryPresentationTests/ContextCorrectionTests 22/22 PASS, .build/check-logs/uiux-reading-t01.log. 원문 fingerprint·그룹 고정·빈 문자열·AI 보호·legacy/손상 입력. 테스트 Markdown 기대값의 점 escaping을 기존 exporter 계약과 일치시킨 뒤 통과. 실제 UI 미측정.
 
-- 별도 진단: 실제 미배정 원인과 P2/exclusive·시간 정렬 후보, 수동 수정시간/E1/E2/정상 요금 평가; 자동 추정·새 유료 호출 없음.
+- 별도 진단(2026-09-13): [현행 파일 재측정/오프라인 결합 비교](../../notes/uiux-reading/speaker-context-diagnosis.md). 최신 결합657토큰 미배정, 발화문단1,207. 원 Soniox 텍스트/시간 동일, 최신 통합과 P2 exclusive502구간 동일. 최대 교집합 후보 B는273/892로 감소하나 귀속 정확도 미검증. 토큰 단위 보완과 E1/E2 청취 비교가 다음 단계이며 앱 정책은 유지. 현재 원본55파일 비변경, 새 유료 호출/AI 보정 없음.
 - 개인 용어·별칭·인물/조직 배경 지식과 참조 발췌의 현재 소비/한계, Qwen 컨텍스트와 실제 학습의 구분. 개인 프로필 UI/모델 fine-tuning은 이번 화면 승인과 분리.
-- 게이트②: 완성본 확인. main merge/remote push/출시 승인과 별개인 로컬 앱 전달.
+- 게이트②: 2026-09-13 사용자 완성본 확인 완료. main merge/remote push/출시 승인과 별개인 로컬 앱 전달.
