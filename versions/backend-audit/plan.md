@@ -3,7 +3,7 @@ unit: backend-audit
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "검수·분절 진단 및 F-01/F-02/F-03/F-04/F-06/F-07 완료, 최신 전달0.4.7(17). operating-baseline 순서4의 UI/UX 진단·시안r1 완료: notes/uiux-reading/audit.md 및 uiux-reading.src.html. 화면 확인 후 전용 plan으로 구현. F-05는 Mac-only 학습 선행, 앱 UI 구현/학습 미착수."
+resume: "검수·분절 진단 및 F-01/F-02/F-03/F-04/F-06/F-07 완료, 최신 전달0.4.7(17). operating-baseline 순서4 UI/UX r1 회신을 r2에 반영: notes/uiux-reading/audit.md 및 uiux-reading.src.html. 로고/이름 모달/본문 편집/검수 기록 UI 제거/AI 참고·버전 조회의 수정 화면·D-01 확인 후 전용 plan. 미배정 원인별 화자 우선권 비교는 별도 후속, F-05 Mac-only 학습 선행. 앱 UI 구현/학습 미착수."
 spec: "사용자 2026-09-11 재개 요청; versions/operating-baseline/plan.md 다음 세션 착수 1·2; ssot/design/02·03·04 및 ssot/contracts"
 ---
 
