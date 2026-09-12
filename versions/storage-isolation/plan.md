@@ -1,9 +1,9 @@
 ---
 unit: storage-isolation
 branch: work/m0-fixture-review
-status: building
+status: built
 decisions_resolved: true
-resume: "T-02 전체160/계약30/Swift 왕복/Debug PASS, crash 비교 완료. T-03 전달·최종 상태 기록."
+resume: ""
 spec: "사용자 2026-09-12 이어서 진행 요청; notes/backend-audit/audit.md F-04/F-07; design00 하이브리드 채택 및 design02·03·04, library-script/operating-baseline 계약"
 ---
 
@@ -22,17 +22,17 @@ spec: "사용자 2026-09-12 이어서 진행 요청; notes/backend-audit/audit.m
 
 ## 수용 기준
 
-- [ ] AC-01 합성 임시 폴더의 정상+손상 Speech/Script, 중복 ID, symlink, 외부 bytes 변경을 파일별 격리. 정상 생성/교정/재열기, stale hash 거부와 원본 보존 검증.
-- [ ] AC-02 Run 상태의 손상/missing/symlink/중복을 표시하면서 정상 타 session 조회·재개 가능. 영향 session 제출·재개·재사용 차단, submissionUncertain 복구 후 자동 POST0 검증.
-- [ ] AC-03 앱에서 파일별 실패를 확인할 수 있고 정상 항목을 계속 열 수 있다. 폴더 자체 오류는 기존 목록 유지, 입력 저장 실패는 사람 입력 유지. 실제 정상 Script8본 및 hash14본 보존.
-- [ ] AC-04 check.sh의 독립 scratch 선택·실행별 성공/실패 로그 보존 검증. 계약/전체 테스트/Debug 빌드 실행과 signal11 진단 범위 기록. skip/실패를 성공으로 간주하지 않는다.
-- [ ] AC-05 0.4.6(16) Debug/Release 버전 동시 증가, 이전 앱 정상 종료·백업·설치 후 실제 실행 버전과 Script 열기 확인. 마이크/새 모델/API/정확도 미측정 구분.
+- [x] AC-01 합성 임시 폴더의 정상+손상 Speech/Script, 중복 ID, symlink, 외부 bytes 변경을 파일별 격리. 정상 생성/교정/재열기, stale hash 거부와 원본 보존 검증.
+- [x] AC-02 Run 상태의 손상/missing/symlink/중복을 표시하면서 정상 타 session 조회·재개 가능. 영향 session 제출·재개·재사용 차단, submissionUncertain 복구 후 자동 POST0 검증.
+- [x] AC-03 앱에서 파일별 실패를 확인할 수 있고 정상 항목을 계속 열 수 있다. 폴더 자체 오류는 기존 목록 유지, 입력 저장 실패는 사람 입력 유지. 실제 정상 Script8본 및 hash14본 보존.
+- [x] AC-04 check.sh의 독립 scratch 선택·실행별 성공/실패 로그 보존 검증. 계약/전체 테스트/Debug 빌드 실행과 signal11 진단 범위 기록. skip/실패를 성공으로 간주하지 않는다.
+- [x] AC-05 0.4.6(16) Debug/Release 버전 동시 증가, 이전 앱 정상 종료·백업·설치 후 실제 실행 버전과 Script 열기 확인. 마이크/새 모델/API/정확도 미측정 구분.
 
 ## 작업
 
 - T-01 완료 `1b295dd`: 조회 결과·저장/처리 실패 격리, 합성 회귀, 앱 연결. 실물 QA는 T-03.
-- T-02 완료: 검사 실행 경로·실패 로그 보존, crash 비교·전체 검사.
-- T-03 앱 QA·0.4.6(16) 전달, AC/상태 정리.
+- T-02 완료 `4c1f16f`: 검사 실행 경로·실패 로그 보존, crash 비교·전체 검사.
+- T-03 완료: 앱 QA·0.4.6(16) 전달, AC/상태 정리.
 
 ## 종료·후속
 
@@ -52,3 +52,12 @@ spec: "사용자 2026-09-12 이어서 진행 요청; notes/backend-audit/audit.m
 - 보존된 과거 crash5개 비교: ConversionNotes 복사, ScriptCorrection? retain/validate, CodexCorrectionTests, URL.isFileURL에서 각각 발생. 같은 현상이라고 통합하거나 메모리 안전 원인을 확정하지 않았다.
 - **재빌드 없이 동일 단일 테스트 비교**: `xcrun xctest -XCTest DamaManagedTests.ManagedJourneyTests/testRetranscriptionCreatesIndependentScriptAndTrashPreservesConnectedData <bundle>` 실행. 기존 `.build/reading-performance` 바이너리 SHA256 `51eedd66…55acf`는 exit139/SIGSEGV 재현. 원래·재현 crash 모두 `URL.isFileURL → FolderLibraryStore.safe → trashScript`, invalid address0x1e. 새 crash `xctest-2026-09-12-141731.ips`; ignored `storage-isolation-old-binary-replay.log` 보존.
 - 같은0.4.5 package 코드의 기존 독립 `.build/reading-performance-final` 바이너리 SHA256 `5ddb264c…d4cf`는 동일 단일 테스트1건 PASS(0.081초), `storage-isolation-clean-binary-replay.log`. 이는 전체 테스트 순서 없이 실패 산출물에서 충돌한다는 증거이며, 빌드 산출물 차이와 연관된 범위로 좁혔다. 구체적인 incremental compiler/ABI/cache 결함은 미확정. 새 경로 PASS로 이전 FAIL을 지우거나 자동 재시도해서 성공으로 표기하지 않는다.
+
+### T-03 실물·전달 (2026-09-12)
+
+- 실제 Mac, Xcode26.6(17F113)/Apple Swift6.3.3. Debug/Release 버전0.4.6(16) 동시 증가. 전체 검사 후 앱의 canResume도 session 이력 차단을 반영했음을 확인했고, 미사용 processor binding 경고를 정리한 앱 부분만 재빌드 PASS (`.build/check-logs/storage-isolation-final-app.log`). 기존 deployment target/AppIntents 경고 유지. Release 빌드·공증은 미측정.
+- 기존0.4.5(15) 정상 종료/프로세스 종료 확인, `.build/backups/DAMA-0.4.5-15-before-storage-isolation.app`에 실행 파일·debug dylib byte-equal 백업 후 `/Applications/DAMA.app` 설치. 최종 실행 About **DAMA Version0.4.6(16)** 확인, 기존 adhoc/linker-signed 유지. final 앱 binaries는 빌드와 byte-equal.
+- CUA 실물 QA: ignored 임시 폴더의 합성 정상1개+중복2개+손상1개. 정상 대사3개를 열고 중복/손상은 **‘읽지 못한 파일·폴더3개’**에 각각 경로와 이유 표시 확인. 실제 사용자 파일을 손상시키지 않았다. 외부 API·모델 실행 없이 화면·AX와 합성 데이터 회귀를 검증했다.
+- 원래 `/Users/gazitofu/DAMA/Scripts`로 복원 후 재실행: **Script8개, 파일 조회 오류0, 검수 기록1건/원음 확인0건, 사건259개**. 실제 원본/사람 수정/원응답/분석 음원 **14파일 SHA256 불변**, 기존 Script 집합8개 동일. `.build/diagnostics/storage-isolation/verify-delivery.py`/`delivery-verification.json` 검산.
+- 폴더 전체 접근 실패/입력 저장 실패 때 이전 값 유지와 다른 폴더 계속 조회는 앱 연결 코드 검토, 손상 index에서도 정상 Script 조회는 합성 테스트로 확인. 실제 계정의 폴더 권한을 훼손하는 실기기 실험은 하지 않았다.
+- 마이크·새 전사/AI 교정·원음 청취 정답·한국어 정확도·학습·Release 실행은 미측정. 이 유닛은 저장 실패 격리와 검사 증거 개선 완료이며 signal11 근본 원인 해결·품질 승격 선언이 아니다. 원격 push 없음, 최종 타 소유 dirty7만 유지.

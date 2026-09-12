@@ -226,7 +226,7 @@ final class ProcessingWorkspace: ObservableObject {
     private func launch(sessionID: String, provider: TranscriptionProvider, needsKey: Bool = true,
                         needsSonioxKey: Bool = false, _ action: @escaping @Sendable (String, String) async throws -> ManagedRun) {
         // Recheck after asynchronous preparation and the modal consent dialog.
-        guard !busy, let processor, historyAllowsProcessing(sessionID), admitsProcessing(provider) else { return }
+        guard !busy, processor != nil, historyAllowsProcessing(sessionID), admitsProcessing(provider) else { return }
         let key: String, sonioxKey: String
         do {
             key = needsKey ? try KeychainStore.read(provider: provider == .sonioxPrecision ? .pyannote : provider) ?? "" : ""
@@ -300,7 +300,7 @@ final class ProcessingWorkspace: ObservableObject {
         }
     }
     func canResume(_ run: ManagedRun) -> Bool {
-        !busy && ["queued", "uploading", "uploaded", "remotePending", "normalizing", "localTranscribing", "waitingForCredentials", "waitingForBilling", "waitingForNetwork", "paused"].contains(run.stage)
+        !busy && historyAllowsProcessing(run.sessionID) && ["queued", "uploading", "uploaded", "remotePending", "normalizing", "localTranscribing", "waitingForCredentials", "waitingForBilling", "waitingForNetwork", "paused"].contains(run.stage)
     }
 }
 

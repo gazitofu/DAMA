@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "후속 검수/분절 진단 및 F-01/F-02/F-03 완료: versions/backend-audit/plan.md, versions/backend-hardening/plan.md, versions/reading-performance/plan.md 참조. 최신 전달0.4.5(15). 다음은 F-04 파일별 실패 격리/F-07 검사 실행 경로. 본 유닛 built 유지, UI/학습 미착수."
+resume: "후속 검수/분절 진단 및 F-01/F-02/F-03/F-04/F-07 완료. versions/backend-audit, backend-hardening, reading-performance, storage-isolation/plan.md 참조. 최신 전달0.4.6(16). 다음은 F-06 공통 근거 계산의 동일성 검증·추출. F-05는 Mac-only 학습 선행. 본 유닛 built 유지, UI 재설계/학습 미착수."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
@@ -81,7 +81,7 @@ spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ss
 
 ## 다음 세션 착수 (2026-09-11 추가 요청)
 
-진행 갱신 (2026-09-12): 아래 순서1·2는 [backend-audit](../backend-audit/plan.md)에서 완료했다. [검수 결과](../../notes/backend-audit/audit.md)에 파일82개 검수 범위, 같은 원응답3경로 재구성, 분절 이유, 우선순위와 미검증을 기록했다. F-01/F-02는 [backend-hardening](../backend-hardening/plan.md), F-03 읽기 snapshot/메인 I/O는 [reading-performance](../reading-performance/plan.md)에서 완료, 최신0.4.5(15)를 전달했다. 다음 작은 구현은 F-04 파일별 실패 격리/F-07 검사 실행 경로이며, 아래 UI/학습 요구와 본 유닛 built 범위는 그대로 유지한다.
+진행 갱신 (2026-09-12): 아래 순서1·2는 [backend-audit](../backend-audit/plan.md)에서 완료했다. [검수 결과](../../notes/backend-audit/audit.md)에 파일82개 검수 범위, 같은 원응답3경로 재구성, 분절 이유, 우선순위와 미검증을 기록했다. F-01/F-02는 [backend-hardening](../backend-hardening/plan.md), F-03은 [reading-performance](../reading-performance/plan.md), F-04 파일별 격리/F-07 검사 경로·실패 증거는 [storage-isolation](../storage-isolation/plan.md)에서 완료, 최신0.4.6(16)를 전달했다. 전체160/계약30/Debug PASS, 원본14파일 불변. 과거 signal11은 실패 바이너리 단독 재현/동일 코드 독립 빌드 통과로 범위를 좁혔으며 근본 원인은 미확정이다. 다음은 F-06 공통 근거 계산의 동일성 검증·추출, F-05 runtime 고정은 Mac-only 학습 선행이다. 아래 UI/학습 요구와 본 유닛 built 범위는 유지한다.
 
 ### 상태와 입력
 

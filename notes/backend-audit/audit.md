@@ -53,6 +53,8 @@ P1은 다음 기능 확장 전 수정·검증할 항목, P2는 순차 정리할 
 
 ### F-04 · P2 · 손상 파일 하나가 정상 목록·새 저장까지 막음
 
+후속 완료 (2026-09-12): [storage-isolation](../../versions/storage-isolation/plan.md),0.4.6(16). 파일별 실패 표시/정상 파일 조회, 중복 ID 전부 제외, 해당 session의 불완전한 이력 제출 차단을 구현·검증했다. 아래는 발견 당시 근거다.
+
 **정적 오류 전파 확인.** [FolderLibraryStore.swift](../../Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift) L124 scripts는 각 파일 decode/validate 실패를 전체 throw로 올린다. createScript/saveCorrection도 전체 scripts 조회에 의존한다. LibraryWorkspace.refresh L126은 Speeches→Scripts를 하나의 do에서 실행해 잘못된 음성 하나가 Scripts 갱신도 막을 수 있다. 첫 실행에는 유지할 이전 목록도 없다.
 
 [ManagedProcessor.swift](../../Packages/DamaCore/Sources/DamaManaged/ManagedProcessor.swift) L80 runs도 모든 session의 state를 읽다 한 파일에서 실패하면 전체 조회에 실패하며 begin/resume/reusable이 이 조회에 의존한다. 이 동작은 안전한 차단이지만 영향 범위가 넓다. 파일별 오류 목록과 정상 항목을 함께 반환하도록 분리하되, 손상 Run의 접수 여부를 임의로 초기화하거나 재제출하면 안 된다. 합성 임시 폴더의 정상+손상 파일, 중복 ID, symlink, stale hash, 접수 불명 복구 검증을 다음 구현에 포함한다. 이번에 실제 사용자 파일을 손상시키지 않았다.
@@ -70,6 +72,8 @@ P1은 다음 기능 확장 전 수정·검증할 항목, P2는 순차 정리할 
 추출 전에 세 경로 raw→normalized golden을 고정하고 전후 byte/semantic 동일성을 검사한다. 정책/임계값을 변경하는 실험과 단순 코드 이동은 별도 작업이다.
 
 ### F-07 · P2 · 기존 SwiftPM scratch에서 전체 검사 충돌
+
+후속 완료 (2026-09-12): [storage-isolation](../../versions/storage-isolation/plan.md). check.sh 기본 독립 scratch·명시 경로 선택·실행별 실패 로그 보존, 전체160 PASS. 보존 실패 바이너리는 단일 테스트도 signal11 재현, 같은0.4.5 코드 독립 빌드 바이너리는 동일 테스트 PASS. 빌드 산출물 차이로 진단 범위를 좁혔으며 구체적인 컴파일러/캐시 결함은 미확정이다. 아래 당시 FAIL 기록은 보존한다.
 
 check.sh가 재사용한 `.build/swiftpm`에서 ContextAudioTests 시작 직후 signal11이 재현됐다. 새 `.build/backend-audit-clean`에서는 전체145건이 통과했다. 새 경로 성공만으로 캐시 손상이 원인이라고 단정하지 않는다. 실행 스크립트에 독립 scratch 경로 선택·실패 로그 보존을 제공할 후속이 필요하다. 이번 check.sh 전체 결과는 FAIL로 남긴다.
 
