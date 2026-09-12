@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "후속 검수/분절 진단 및 F-01/F-02/F-03/F-04/F-06/F-07 완료. versions/normalization-evidence/plan.md 및 이전 후속 유닛 참조. 최신 전달0.4.7(17). 다음은 순서4의 UI/UX 실물 여정·시안 /spec. F-05는 Mac-only 학습 선행. 본 유닛 built 유지, UI 재설계/학습 미착수."
+resume: "백엔드 F-01/F-02/F-03/F-04/F-06/F-07 완료, 최신 앱0.4.7(17). 순서4 UI/UX 진단과 수정 시안r1 완료: notes/uiux-reading/audit.md, uiux-reading.src.html의 열린 화면 확인 2축. 배치·원구간 선택 편집 확인 후 전용 plan으로 구현. 앱 UI 구현/학습 미착수, F-05는 Mac-only 학습 선행. 본 유닛 built 유지."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
@@ -80,6 +80,8 @@ spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ss
 - 마지막 status 실측: `work/m0-fixture-review`, 사용자/다른 트랙 혼합7문서만 기존 변경으로 남긴다. 앱 코드·신규 계약·본 plan은 이 작업 커밋에 포함. 원격 push 없음.
 
 ## 다음 세션 착수 (2026-09-11 추가 요청)
+
+UI 진행 갱신 (2026-09-12 후속): 사용자 ‘UI/UX 진단부터 먼저, 그 다음 수정’에 따라 [진단](../../notes/uiux-reading/audit.md)과 [조작 시안](../../notes/uiux-reading/uiux-reading.html)을 작성했다. 본문 앞 정보 과밀, 실제 한 문단의21개 원구간 입력칸, 재생/사건과 본문 위치 연결 부족을 우선 수정 대상으로 정했다. HTML 시안의 배치·원구간 선택 편집 방식 확인 대기이며 앱 코드/저장 데이터는 변경하지 않았다. 원본14파일/8Script 불변, 현재 앱0.4.7(17). `/spec` 화면 확인 후 전용 plan으로 구현하고 본 운영 유닛 built는 유지한다.
 
 진행 갱신 (2026-09-12): 아래 순서1·2는 [backend-audit](../backend-audit/plan.md)에서 완료했다. [검수 결과](../../notes/backend-audit/audit.md)에 파일82개 검수 범위, 같은 원응답3경로 재구성, 분절 이유, 우선순위와 미검증을 기록했다. F-01/F-02는 [backend-hardening](../backend-hardening/plan.md), F-03은 [reading-performance](../reading-performance/plan.md), F-04 파일별 격리/F-07 검사 경로·실패 증거는 [storage-isolation](../storage-isolation/plan.md), F-06 공통 시간 근거 추출은 [normalization-evidence](../normalization-evidence/plan.md)에서 완료, 최신0.4.7(17)를 전달했다. 전체165/계약30/Debug PASS, 수정 전 합성21개·실제3경로 normalized/읽기/Markdown 동일 및 원본14파일 불변. 과거 signal11은 실패 바이너리 단독 재현/동일 코드 독립 빌드 통과로 범위를 좁혔으며 근본 원인은 미확정이다. 다음은 순서4의 UI/UX 실물 여정·시안 /spec, F-05 runtime 고정은 Mac-only 학습 선행이다. 아래 UI/학습 요구와 본 유닛 built 범위는 유지한다.
 

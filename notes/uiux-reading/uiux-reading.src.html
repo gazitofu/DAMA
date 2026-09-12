@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DAMA · UI/UX 진단과 수정 시안</title>
+<style>
+/*__FONTS__*/
+
+/* ══════════ 토큰 (ssot 디자인 시스템 정본 값 그대로. 임의 수정 금지) ══════════ */
+:root{
+  /* 지면 */
+  --paper:#FFFFFF; --paper-2:#F7F7F7; --paper-3:#EDEDED;
+  /* 잉크 */
+  --ink:#1A1A1A; --ink-2:#4A4A4A; --ink-3:#6A6A6A;
+  /* 선 */
+  --hair:#DDDDDD;
+  /* 포인트 6색 (apricot 은 본문 #태그 밑줄 전용) */
+  --rose:#FF4D79; --lilac:#8A4BFF; --sky:#1E8AFF; --lemon:#FFF056; --sage:#29C06E; --apricot:#FFC24D;
+  /* 소프트 14% */
+  --rose-soft:#FFE6EC; --lilac-soft:#EFE6FF; --sky-soft:#DFEFFF; --lemon-soft:#FFFDE7; --sage-soft:#E1F6EB; --apricot-soft:#FFF6E6;
+  /* 틴트 8% */
+  --rose-tint:#FFF1F4; --lilac-tint:#F6F1FF; --sky-tint:#EDF6FF; --lemon-tint:#FFFEF1; --sage-tint:#EEFAF3; --apricot-tint:#FFFAF1;
+  /* 스크림 (이미지 위 텍스트 받침) */
+  --scrim:rgba(34,28,22,.62);
+  /* 내비 모션 공통 이징 */
+  --ease-nav:cubic-bezier(.22,1,.36,1);
+  /* 폰트 */
+  --serif:'KoPub Batang',serif;
+  --sans:'KoPub Dotum',-apple-system,'Apple SD Gothic Neo',sans-serif;
+  --num:'Fraunces',Georgia,serif;
+  --w-num:400; --w-num-strong:600;
+  /* 선 굵기 */
+  --lw:0.5px; --lw-strong:1px;
+  /* 라운딩 */
+  --r:3px;
+  /* 여백 자리 */
+  --sp-page:24px; --sp-block:24px; --sp-el:12px;
+  --sp-sec-above:48px; --sp-sec-head:24px; --sp-sec-body:32px;
+  --sp-grid:24px; --sp-grid-tight:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;font-weight:300;line-height:1.8;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+img{max-width:100%;display:block}
+
+/* ── 라인 아이콘 (Phosphor, 잉크색 단색 에셋) ── */
+.ic{display:inline-block;width:22px;height:22px;background:var(--m) center/contain no-repeat;flex:0 0 auto}
+.ic.inv{--m:url('assets/icons-a/add-inv.svg')}
+.ic-home{--m:url('assets/icons-a/home.svg')}
+.ic-chat{--m:url('assets/icons-a/chat.svg')}
+.ic-tools{--m:url('assets/icons-a/tools.svg')}
+.ic-world{--m:url('assets/icons-a/world.svg')}
+.ic-lounge{--m:url('assets/icons-a/lounge.svg')}
+.ic-add{--m:url('assets/icons-a/add.svg')}
+.ic-player{--m:url('assets/icons-a/player.svg')}
+.ic-turn{--m:url('assets/icons-a/turn.svg')}
+
+.col{max-width:920px;margin:0 auto;padding:0 24px}
+
+/* ── 문서 헤더 ── */
+header.doc{padding:64px 0 40px;border-bottom:var(--lw-strong) solid var(--ink)}
+.doc .date{font-family:var(--num);font-weight:var(--w-num-strong);font-size:64px;line-height:.95;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.doc .meta{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-top:10px;letter-spacing:.03em}
+.doc h1{font-family:var(--serif);font-weight:700;font-size:30px;line-height:1.35;margin-top:22px;letter-spacing:-.01em}
+.doc .sub{margin-top:12px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.hl{background:linear-gradient(transparent 60%, var(--lemon) 60%);font-weight:500;color:var(--ink)}
+code{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;background:var(--paper-2);padding:1px 5px}
+
+/* ── 00 판정 블록 (헤더 바로 아래 · 사용자가 답할 것만 · 열림/닫힘 2상태) ── */
+.verdict{margin-top:28px;border:var(--lw-strong) solid var(--ink);background:var(--paper)}
+.verdict .vh{display:flex;align-items:baseline;gap:12px;padding:14px 20px;border-bottom:var(--lw) solid var(--ink);background:var(--paper-2)}
+.verdict .vh h2{font-family:var(--serif);font-size:18px;font-weight:700}
+.verdict .vh .cnt{font-family:var(--num);font-size:13px;color:var(--ink-3)}
+.verdict .vh .stamp{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--lemon);padding:2px 8px}
+.verdict[data-state="open"] .stamp{display:none}
+.verdict .vb{padding:6px 20px 18px}
+.vitem{padding:14px 0;border-bottom:var(--lw) solid var(--hair)}
+.vitem:last-child{border-bottom:0}
+.vitem .vt{display:flex;gap:10px;align-items:baseline;font-weight:700;font-size:14.5px}
+.vitem .vt .id{font-family:var(--num);font-weight:400;color:var(--ink-3);font-size:13px;min-width:44px;flex:0 0 auto}
+.vitem .vq{margin:6px 0 0 54px;color:var(--ink-2);font-size:13.5px;max-width:66ch}
+.vitem .vq b{color:var(--ink)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 54px}
+.opts label{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer;user-select:none;line-height:1.4}
+.opts label:has(input:checked){background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.opts label code{color:inherit}
+.opts label:has(input:checked) code{background:rgba(255,255,255,.18)}
+.opts input{position:absolute;opacity:0;width:0;height:0}
+.memo{margin:8px 0 0 54px}
+.memo input{font-family:var(--sans);font-weight:300;font-size:13.5px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--hair);background:none;padding:6px 2px;width:100%;outline:none;border-radius:0}
+.memo input:focus{border-bottom-color:var(--ink)}
+.memo input::placeholder{color:var(--ink-3)}
+.vfoot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 20px;border-top:var(--lw-strong) solid var(--ink);background:var(--paper-2)}
+.vfoot .ok{font-size:12.5px;color:var(--ink-3)}
+.verdict pre.md{margin:0;padding:14px 20px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6;color:var(--ink-2);background:var(--paper);border-top:var(--lw) solid var(--hair);white-space:pre-wrap;user-select:all}
+.verdict[data-state="closed"] .opts,.verdict[data-state="closed"] .memo,.verdict[data-state="closed"] .vfoot,.verdict[data-state="closed"] pre.md{display:none}
+
+/* ── 문서 내비 ── */
+.tabs{position:sticky;top:0;z-index:40;background:var(--paper);border-bottom:var(--lw) solid var(--hair)}
+.tabs .row{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;padding:0 24px;max-width:920px;margin:0 auto}
+.tabs .row::-webkit-scrollbar{display:none}
+.tabs a{text-decoration:none;font-family:var(--sans);font-size:13.5px;font-weight:700;color:var(--ink-3);padding:14px 0 12px;white-space:nowrap}
+.tabs a:hover{color:var(--ink)}
+
+/* ── 섹션 문법 ── */
+section.sec{padding-top:88px}
+.sec>.rule{border-top:var(--lw-strong) solid var(--ink);padding-top:20px;display:flex;align-items:baseline;gap:14px}
+.sec>.rule .no{font-family:var(--num);font-weight:var(--w-num);font-size:15px;color:var(--ink-3)}
+.sec>.rule h2{font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.01em}
+.sec .intro{margin-top:14px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.sec p:not([class]){margin-top:14px;max-width:66ch}
+.sec h3{font-family:var(--sans);font-weight:700;font-size:15px;margin-top:46px;padding-top:12px;border-top:var(--lw) solid var(--ink)}
+.sec h4{font-family:var(--serif);font-weight:700;font-size:15.5px;margin-top:22px}
+.note{margin-top:12px;font-size:12.5px;color:var(--ink-3);max-width:66ch}
+
+/* ── 리스트 (병렬 항목은 본문·표 셀 어디서든 한 항목 한 줄 · 가운뎃점 연결 금지) ── */
+.sec ol,.sec ul{margin:10px 0 0;padding-left:1.6em;max-width:66ch}
+.sec li{margin-top:5px;padding-left:.2em}
+.sec li::marker{font-family:var(--num);color:var(--ink-3);font-size:13px}
+td ol,td ul{margin:0;padding-left:1.5em;max-width:none}
+td li{margin-top:3px}
+td li:first-child{margin-top:0}
+.sec td p:not([class]){margin-top:6px;max-width:none}
+.sec td p:not([class]):first-child{margin-top:0}
+.then{display:block;margin-top:6px}
+
+/* ── 표 (2차원 데이터만 · 셀 안 병렬 항목은 리스트) ── */
+.twrap{overflow-x:auto;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.65}
+th{text-align:left;font-weight:700;font-size:12px;color:var(--ink-3);background:var(--paper-2);padding:8px 12px;border-bottom:var(--lw) solid var(--ink);white-space:nowrap}
+td{padding:10px 12px;border-bottom:var(--lw) solid var(--hair);vertical-align:top;font-weight:300}
+td strong,td b{font-weight:700}
+td.num,.tnum{font-family:var(--num);font-weight:var(--w-num);font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap}
+
+/* ── 각주 (본문에는 번호만 · 정보는 최하단 · 클릭 팝오버. 저자는 span.fn 으로 근거를 쓰고 빌드가 번호를 단다) ── */
+sup.fn{font-family:var(--num);font-size:11px;line-height:0;vertical-align:super;margin-left:1px}
+sup.fn a{color:var(--sky);text-decoration:none;padding:0 2px;border-radius:2px;cursor:pointer}
+sup.fn a:hover,sup.fn a.open{background:var(--sky-soft)}
+.pop{position:absolute;z-index:50;max-width:400px;min-width:220px;padding:10px 12px 11px;background:var(--paper);border:var(--lw) solid var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.10);font-size:12.5px;line-height:1.65;color:var(--ink-2);font-weight:300}
+.pop .pn{font-family:var(--num);color:var(--ink-3);margin-right:6px}
+.pop::after{content:'';position:absolute;left:10px;bottom:-6px;width:10px;height:10px;background:var(--paper);border-right:var(--lw) solid var(--ink);border-bottom:var(--lw) solid var(--ink);transform:rotate(45deg)}
+.pop.below::after{bottom:auto;top:-6px;transform:rotate(225deg)}
+.fnlist{margin-top:14px;padding-left:0;list-style:none;font-size:12.5px;color:var(--ink-2);line-height:1.65;max-width:72ch}
+.fnlist li{display:flex;gap:10px;padding:5px 0;border-bottom:var(--lw) solid var(--hair)}
+.fnlist li:target{background:var(--sky-soft)}
+.fnlist .n{font-family:var(--num);color:var(--ink-3);min-width:22px;flex:0 0 auto}
+.fnlist .t{flex:1 1 auto}
+.fnlist .back{margin-left:6px;color:var(--sky);text-decoration:none;flex:0 0 auto}
+details.audit{margin-top:28px;border-top:var(--lw) solid var(--hair);padding-top:10px}
+details.audit summary{cursor:pointer;font-size:12.5px;color:var(--ink-3);font-weight:500}
+details.audit .body{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.65}
+details.audit table{font-size:12.5px}
+
+/* ── 데모 프레임과 스펙 ── */
+.stage{display:flex;flex-wrap:wrap;gap:24px;margin-top:20px;align-items:flex-start}
+.frame{width:400px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);flex:0 0 auto}
+.frame .fbody{padding:20px 18px 24px}
+.spec{flex:1 1 260px;min-width:240px;font-size:13px}
+.spec dt{font-weight:700;font-size:12.5px;margin-top:12px}
+.spec dd{color:var(--ink-2);margin-top:2px;line-height:1.65}
+
+/* ── 컴포넌트 (디자인 시스템 정본 발췌) ── */
+.btn{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:14px;line-height:1;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.fill{background:var(--ink);color:var(--paper);border:var(--lw) solid var(--ink);height:44px;padding:0 22px}
+.btn.line{background:var(--paper);color:var(--ink);border:var(--lw) solid var(--ink);height:40px;padding:0 18px}
+.btn.soft{background:var(--paper-2);color:var(--ink);border:0;height:40px;padding:0 18px}
+.btn.sm{height:34px;padding:0 14px;font-size:13px}
+.btn.text{background:none;border:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;height:auto;padding:4px 2px;font-weight:500}
+.btn:disabled{background:var(--paper-3);border-color:var(--paper-3);color:var(--ink-3);cursor:default}
+.btn:not(:disabled):active{transform:translateY(1px)}
+.btnrow{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.chip.sel{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.htag{display:inline-block;font-size:12px;font-weight:500;color:var(--ink-2);line-height:1.5;padding:0 2px;background:linear-gradient(transparent 62%, var(--lemon) 62%)}
+.in-line{font-family:var(--sans);font-weight:300;font-size:16px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--ink-3);background:none;padding:7px 2px;width:100%;outline:none;border-radius:0}
+.in-line:focus{border-bottom:var(--lw-strong) solid var(--ink)}
+.in-line::placeholder{color:var(--ink-3)}
+.in-area{font-family:var(--sans);font-weight:300;font-size:14.5px;color:var(--ink);background:var(--paper-2);border:var(--lw) solid transparent;border-radius:var(--r);padding:12px 14px;width:100%;outline:none;line-height:1.7;resize:vertical}
+.in-area:focus{border-color:var(--ink)}
+.in-area::placeholder{color:var(--ink-3)}
+.in-label{display:block;font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:6px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:var(--lw) solid var(--hair);font-size:13px}
+.kv .k{color:var(--ink-3);font-weight:500}
+.kv .v{font-weight:500;color:var(--ink)}
+.stat{display:inline-flex;align-items:center;gap:5px;font-family:var(--num);font-weight:var(--w-num);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.stat .ic{width:14px;height:14px;opacity:.72}
+.sechead h4{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.01em}
+.sechead .sub{font-size:13px;color:var(--ink-2);margin-top:4px}
+
+/* ── 폰 프레임 (모바일 프로토타입) ── */
+.phone{width:390px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;position:relative;overflow:hidden}
+.phone .pbody{padding:18px 20px 120px}
+.pdock{position:absolute;left:0;right:0;bottom:0;height:118px;pointer-events:none;background:linear-gradient(to top, var(--paper) 0%, var(--paper) 34%, rgba(255,255,255,0) 100%);display:flex;align-items:flex-end}
+.pdock .icons{width:100%;display:flex;justify-content:space-around;align-items:center;padding:0 10px 18px}
+.pdock .icons .ic{opacity:.38}
+.pdock .icons .ic.on{opacity:1}
+
+/* ── 데스크탑 조합 목업 ── */
+.mock{border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;overflow:hidden}
+.mock .mkhead{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:var(--lw) solid var(--hair)}
+.mock .mkhead .lg{height:16px;width:auto;display:block}
+.mock .mkhead nav{display:flex;gap:20px;font-size:14px;font-weight:700}
+.mock .mkhead nav span{color:var(--ink-3)}
+.mock .mkhead nav span.on{color:var(--ink)}
+.mock .mkhead .util{display:flex;gap:14px;align-items:center;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.mock .mkbody{padding:26px 24px 34px}
+
+/* ── 데스크탑 실척 스테이지 (맥북 뷰포트 1440x820 을 가로폭에 맞춰 비율 그대로 축소.
+     내부는 1440px 고정 가상 뷰포트라 실서비스 데스크탑 레이아웃이 그대로 재현된다.
+     문서 본문 col(920px)보다 넓게 브레이크아웃해 화면 가로폭을 최대로 쓴다) ── */
+.deskwrap{width:calc(100vw - 48px);max-width:1440px;margin:20px auto 0;margin-left:calc(50% - min(50vw - 24px, 720px))}
+.deskstage{position:relative;width:100%;aspect-ratio:1440/820;border:var(--lw) solid var(--ink);background:var(--paper);overflow:hidden}
+.deskvp{position:absolute;left:0;top:0;width:1440px;height:820px;transform-origin:0 0;transform:scale(var(--ds,1));overflow-y:auto;overscroll-behavior:contain}
+.deskcap{font-size:12.5px;color:var(--ink-3);margin-top:10px;font-weight:500}
+
+/* 상태 세그 (프로토타입 상태 전환 컨트롤) */
+.segrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.seg{height:32px;padding:0 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center}
+.seg.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+
+@media (max-width:760px){
+  .col{padding:0 18px}
+  header.doc{padding:44px 0 30px}
+  .doc .date{font-size:46px}
+  .doc h1{font-size:23px}
+  .sec>.rule h2{font-size:19px}
+  .vitem .vq,.opts,.memo{margin-left:0}
+  .pop{max-width:calc(100vw - 36px)}
+}
+.diagnosis-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px}.diagnosis-grid article{background:var(--paper-2);padding:22px}.diagnosis-grid p{font-size:14px;margin:10px 0!important}.diagnosis-grid strong{font-size:13px}.preview-tools{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:24px;font:12px -apple-system,sans-serif}.preview-tools>span{margin-right:auto}.preview-tools select,.preview-tools button{padding:6px 9px;background:white;border:1px solid #ccc;border-radius:5px}.prototype{--surface:#fff;--side:#f5f5f6;--fg:#242528;--muted:#6a6d72;--line:#e4e5e8;--select:#eef3fb;--accent:#3267bd;--warning:#84651a;--warn-bg:#fff9e9;position:relative;width:min(1280px,calc(100vw - 48px));margin:22px 0 0 50%;transform:translateX(-50%);height:min(710px,calc(100vh - 88px));min-height:480px;border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 52px #00000012;background:var(--surface);color:var(--fg);display:grid;grid-template-columns:220px minmax(0,1fr);overflow:hidden;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;word-break:keep-all}.prototype.dark{--surface:#202124;--side:#191a1d;--fg:#e9eaed;--muted:#a4a8af;--line:#373a41;--select:#28354a;--accent:#8ab4f8;--warning:#e6c36e;--warn-bg:#353025}.prototype [hidden]{display:none!important}.prototype button,.prototype select,.prototype textarea,.prototype input{font:inherit;color:inherit}.prototype button{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 10px;line-height:1.4}.prototype button:hover{background:var(--select)}.prototype button:focus-visible,.prototype summary:focus-visible,.prototype [tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.prototype button:disabled{opacity:.42;cursor:default}.prototype .primary{background:var(--accent);color:var(--surface);border-color:var(--accent)}.library{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:24px 14px}.brand{font-size:19px;letter-spacing:1px;padding:0 8px 26px}.folder-tabs{display:flex;gap:4px}.folder-tabs button{flex:1;font-size:12px;background:transparent;border:0}.folder-tabs .on{background:var(--surface);font-weight:600}.list-title{padding:30px 7px 10px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between}.file-row{text-align:left!important;padding:13px!important;background:var(--surface)!important}.file-row b{font-size:13px;display:block}.file-row span,.file-row small{display:block;color:var(--muted);font-size:11px;margin-top:4px}.library-bottom{margin-top:auto;padding:12px 7px 0;border-top:1px solid var(--line);font-size:12px}.library-bottom span{color:var(--muted);font-size:11px}.reader{display:flex;min-width:0;flex-direction:column;overflow:hidden}.reader-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:21px 28px 16px;border-bottom:1px solid var(--line)}.reader-head h2{font:600 20px/1.3 -apple-system,sans-serif}.reader-head p{margin-top:7px;font-size:11px;color:var(--muted)}.reader-head p>span{margin:0 4px}.reader-head button{font-size:12px;white-space:nowrap}.reader-tools{display:flex;align-items:center;gap:6px;padding:10px 22px;border-bottom:1px solid var(--line)}.reader-tools button,.reader-tools summary{font-size:12px}.grow{flex:1}.result-menu{position:relative}.result-menu summary{cursor:pointer;padding:6px;border-radius:5px;list-style:none}.result-menu>div{position:absolute;right:0;top:34px;z-index:5;background:var(--surface);border:1px solid var(--line);padding:6px;border-radius:8px;width:265px;box-shadow:0 12px 30px #0002}.result-menu button{display:block;border:0;width:100%;text-align:left}.reader-content{flex:1;position:relative;min-height:0;display:flex;overflow:hidden}.transcript{min-width:0;flex:1;overflow:auto;padding:10px 26px 42px;scroll-behavior:smooth}.utterance{margin:8px auto;padding:16px 16px 14px;border:1px solid transparent;border-radius:7px;max-width:800px;position:relative;cursor:pointer}.utterance.selected{background:var(--select);border-color:var(--accent)}.utterance .line-head{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:7px}.utterance .name{font-weight:600;color:var(--fg)}.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#4680c2}.dot.b{background:#8b779e}.dot.unknown{background:var(--muted)}.utterance p{font-size:16px;line-height:1.75;max-width:none;margin:0!important}.utterance .warning{color:var(--warning);border:0;padding:1px 5px;background:var(--warn-bg);font-size:11px}.line-head time{margin-left:auto;font-variant-numeric:tabular-nums;font-size:11px}.utterance.missing p{font-size:13px;color:var(--muted)}.row-actions{display:none;gap:6px;margin-top:12px}.selected .row-actions{display:flex;flex-wrap:wrap}.row-actions button{font-size:11px;padding:4px 8px}.edited-note{font-size:10px;color:var(--muted);margin-top:6px}.inspector{flex:0 0 300px;min-width:0;background:var(--side);border-left:1px solid var(--line);overflow:auto}.inspector-head{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--side);padding:14px 18px;border-bottom:1px solid var(--line)}.inspector-head button{border:0;background:transparent;font-size:20px;padding:0 5px}.inspector-body{padding:18px;font-size:12px}.inspector-body p{margin:0 0 18px!important;font-size:12px;color:var(--muted);line-height:1.6}.inspector-body h4{margin:18px 0 6px;font:600 13px -apple-system,sans-serif}.event{display:block;text-align:left;width:100%;margin:10px 0;padding:12px!important}.event b,.event small{display:block}.event small{margin-top:4px;color:var(--muted)}.player{height:72px;flex-shrink:0;border-top:1px solid var(--line);padding:13px 22px;display:flex;gap:18px;align-items:center;background:var(--surface)}.player-target small,.player-target b{display:block}.player-target small{font-size:10px;color:var(--muted);margin-bottom:3px}.player-target b{font-size:11px;font-weight:500;font-variant-numeric:tabular-nums}.player>button{font-size:12px}.progress-group{flex:1;min-width:40px}.track{height:3px;background:var(--line);overflow:hidden;border-radius:8px}.track>div{width:0;height:100%;background:var(--accent)}.progress-group span{font-size:10px;float:right;margin-top:4px;color:var(--muted);font-variant-numeric:tabular-nums}#banner{background:var(--warn-bg);color:var(--warning);font-size:12px;padding:10px 24px}.edit-overlay{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:#0005;padding:18px}.edit-dialog{background:var(--surface);box-shadow:0 24px 60px #0003;border:1px solid var(--line);border-radius:12px;width:600px;max-height:100%;display:flex;flex-direction:column}.edit-dialog>header{padding:18px 24px;display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}.edit-dialog header small{color:var(--muted);font-size:11px}.edit-dialog header h3{font:600 18px -apple-system,sans-serif;border:0;margin:3px 0 0;padding:0}.edit-dialog header button{border:0;font-size:22px}.editor-body{overflow:auto;padding:22px 24px}.field-label{display:block;font-size:12px;color:var(--muted);margin:0 0 10px!important}.token-line{padding:14px;border:1px solid var(--line);border-radius:6px;line-height:2.1;font-size:16px}.token-line button{border:0;border-radius:3px;background:transparent;padding:1px 0;white-space:pre-wrap;font-size:16px}.token-line button.current{background:var(--select);box-shadow:0 2px 0 var(--accent)}.segment-nav{display:flex;justify-content:space-between;align-items:center;margin:12px 0 20px}.segment-nav button{font-size:11px}.segment-nav span{font-size:11px;color:var(--muted)}#segment-time{float:right;font-variant-numeric:tabular-nums}.prototype textarea{width:100%;resize:vertical;min-height:100px;background:var(--surface);border:1px solid var(--accent);border-radius:6px;padding:12px;margin-bottom:18px;line-height:1.7}.prototype textarea:focus{outline:2px solid var(--select)}#paragraph-preview{padding:12px 14px;background:var(--side);border-radius:6px;margin:0!important;font-size:15px;white-space:pre-wrap}.hint{font-size:11px;color:var(--muted);margin:10px 0 18px!important}.review-options{font-size:12px;border-top:1px solid var(--line);padding-top:12px}.review-options summary{cursor:pointer;margin-bottom:12px}.review-options label{display:block;margin:10px 0}.review-options select,.review-options input[type=text]{padding:4px 7px;border:1px solid var(--line);background:var(--surface);border-radius:4px}.edit-dialog>footer{display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--line);padding:14px 24px}.edit-error{padding:12px;background:var(--warn-bg);color:var(--warning);margin-top:12px;font-size:12px}.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+@media(max-width:1080px){.prototype{grid-template-columns:185px minmax(0,1fr)}.inspector{position:absolute;right:0;top:0;bottom:0;width:300px;box-shadow:-10px 0 28px #0002;z-index:4}.reader-head{padding:16px}.reader-tools{padding:9px 12px;flex-wrap:wrap}.transcript{padding:8px 10px 30px}.player{gap:10px;padding:12px}.reader-head p{max-width:300px}.player-target b{font-size:10px}}
+@media(max-width:700px){.diagnosis-grid{grid-template-columns:1fr}.prototype{grid-template-columns:1fr;height:680px}.library{display:none}.reader-head h2{font-size:17px}.reader-head p{font-size:10px}.player-target{display:none}.edit-dialog{width:100%}.preview-tools{gap:8px}}
+
+</style>
+</head>
+<body>
+<header class="doc"><div class="col"><div class="date">09.12</div><div class="meta">DAMA · UI/UX 진단 후 첫 수정안 · r1 · 화면 확인 전</div><h1>읽는 자리에서,<br>듣고 고치기.</h1><p class="sub">본문을 먼저 보여 주고, 선택한 구간의 원음·수정·검수 근거를 가까이 둡니다. 0.4.7 실물 진단을 바탕으로 만든 네이티브 앱 수정 시안입니다.</p></div></header>
+<div class="col"><section class="verdict" id="s-verdict" data-unit="uiux-reading" data-round="r1" data-gate="①" data-state="open"><div class="vh"><h2>수정할 화면 확인</h2><span class="cnt">배치와 편집 방식 · 2축</span><span class="stamp">확정 전</span></div><div class="vb">
+<div class="vitem" data-k="①"><div class="vt"><span class="id">①</span>본문 중심 배치와 구간 이동</div><p class="vq">전사 설정은 Speeches에 두고, Scripts는 제목·본문·고정 재생 막대를 중심으로 구성합니다. 검수와 정보는 옆에서 열며 경고 표식은 본문에 남깁니다.</p><div class="opts"><label><input type="radio" name="axis1" value="시안대로 확정" checked>시안대로 확정</label><label><input type="radio" name="axis1" value="배치 수정">배치 수정</label></div><div class="memo"><input type="text" placeholder="수정할 위치와 내용"></div></div>
+<div class="vitem" data-k="②"><div class="vt"><span class="id">②</span>문단을 보며 원구간 하나씩 편집</div><p class="vq">큰 입력칸을 수십 개 펼치던 방식을 없앱니다. 문단 안에서 원구간을 고르고 입력칸 하나로 수정합니다. <b>문단 전체 자유 편집은 별도 설계</b>가 필요하므로 첫 묶음에는 포함하지 않습니다. 원문·시간·화자와 저장 구조는 보존합니다.</p><div class="opts"><label><input type="radio" name="axis2" value="원구간 선택 편집으로 진행" checked>원구간 선택 편집으로 진행</label><label><input type="radio" name="axis2" value="자유 문단 편집부터 재설계">자유 문단 편집부터 재설계</label></div><div class="memo"><input type="text" placeholder="편집 방식에 대한 의견"></div></div></div><div class="vfoot"><button class="btn fill sm" data-act="copy">의견 복사</button><button class="btn line sm" data-act="reset">초기화</button><span class="ok">아래 시안을 조작한 뒤 채팅에서 확인해 주세요.</span></div><pre class="md"></pre></section></div>
+<nav class="tabs" aria-label="문서 목차"><div class="row"><a href="#s-dir">진단</a><a href="#s-screen">조작 시안</a><a href="#s-policy">동작</a><a href="#s-spec">규격·문구</a><a href="#s-impact">수정 범위</a><a href="#s-fn">근거</a></div></nav>
+<div class="col">
+<section class="sec" id="s-dir"><div class="rule"><span class="no">01</span><h2>색보다 먼저, 작업의 연결을 고칩니다</h2></div><p class="intro">실제 앱에서 본문 진입, 문단 편집, 재생, 결과 전환, 표시 이름 변경을 확인했습니다. 저장 데이터는 수정하지 않았습니다.<span class="fn">2026-09-12 CUA · DAMA 0.4.7(17), HEAD63bd0ca. 상세 재현·미측정은 notes/uiux-reading/audit.md. 원음 표본의 정답·수정시간은 측정하지 않음.</span></p>
+<div class="diagnosis-grid"><article><b>01 · 본문 앞의 정보 과밀</b><p>새 전사 설정과 모델·검수 안내가 읽기를 먼저 가로막습니다.</p><strong>제목 두 줄 + 필요할 때 여는 보조 영역</strong></article><article><b>02 · 편집창의 조각 입력</b><p>실제 한 문단이 편집창에서 21개의 큰 입력칸으로 풀립니다.</p><strong>문단 미리보기 + 선택한 원구간 한 칸</strong></article><article><b>03 · 원음과 본문 위치의 단절</b><p>사건을 재생해도 관련 문단은 별도로 찾아야 합니다.</p><strong>사건 선택 → 문단 이동 → 원음·수정</strong></article></div>
+<p class="note">21개는 선택한 1.950~5.490초 결합 문단의 원 Turn 수입니다. 평균값이나 모든 회의의 수치가 아닙니다. TIRO 공식 데모의 간결한 제목/메타정보와 보조 패널 분리를 참고했습니다.<span class="fn">https://tiro.ooo/ko/ · 2026-09-12 공개 데모 브라우저 확인. 로그인 제품의 편집/재생 기능·정확도는 검증하지 않음.</span></p></section>
+<section class="sec" id="s-screen"><div class="rule"><span class="no">02</span><h2>읽기 → 원음 → 수정 → 저장</h2></div><p class="intro">행을 선택하고 <b>수정</b>을 눌러 보세요. 검수 목록에서 본문으로 이동하거나, 오른쪽 정보 영역을 열 수 있습니다.</p>
+<div class="preview-tools"><span>조작 가능한 제안 시안 · 합성 대화</span><label>화면 <select id="appearance"><option value="light">라이트</option><option value="dark">다크</option></select></label><label>상태 <select id="scenario"><option value="normal">정상</option><option value="recording">녹음 중</option><option value="read-error">파일 읽기 오류</option><option value="empty">기록 없음</option><option value="save-error">저장 실패</option></select></label><button id="reset-demo">시안 초기화</button></div>
+<p class="note">대화·시간·건수는 화면 설명용 합성 데이터입니다. 재생 버튼은 시간 표시만 움직이며 실제 음성·API·사용자 파일을 사용하지 않습니다. 시안의 수정은 이 페이지 메모리에만 남고 새로고침하면 초기화됩니다.</p>
+<div class="prototype" id="prototype">
+<aside class="library"><div class="brand">◉ <b>DAMA</b></div><div class="folder-tabs"><button class="on" id="scripts-tab">Scripts</button><button id="speeches-tab">Speeches</button></div><div class="list-title">최근 스크립트 <small>최신순</small></div><button class="file-row active" id="demo-file"><b>제품 검토 회의</b><span>9월 12일 · 12분 40초</span><small>Soniox + Precision-2</small></button><div class="library-bottom">저장 위치: Scripts<br><span>로컬에 보존됨</span></div></aside>
+<main class="reader"><header class="reader-head"><div><h2>제품 검토 회의</h2><p>9월 12일 오후 2:00 <span>·</span> 12분 40초 <span>·</span> <span id="engine-title">Soniox + Precision-2</span></p></div><button id="export-demo">내보내기 ↗</button></header><div class="reader-tools"><button id="review-toggle" aria-expanded="false">⚑ 검수 4</button><button id="previous-event" aria-label="이전 확인 구간">↑</button><button id="next-event">다음 확인 구간 ↓</button><span class="grow"></span><button id="information-toggle" aria-expanded="false">정보 ⓘ</button><details class="result-menu"><summary>다른 결과 보기 ▾</summary><div><button data-result="Soniox + Precision-2">Soniox + Precision-2 · 오후 2:18</button><button data-result="Soniox">Soniox · 오후 2:15</button></div></details></div><div id="banner" role="status" hidden></div><div class="reader-content" id="reader-content"><div class="transcript" id="transcript" aria-label="스크립트 본문"></div><aside class="inspector" id="inspector" hidden><div class="inspector-head"><b id="inspector-title">검수</b><button id="close-inspector" aria-label="보조 영역 닫기">×</button></div><div class="inspector-body" id="inspector-body"></div></aside></div><footer class="player"><div class="player-target"><small id="play-label">선택한 문단</small><b id="play-range">00:18.000 – 00:21.000</b></div><button id="play-toggle" aria-label="선택 구간 재생">▶</button><div class="progress-group"><div class="track"><div id="progress"></div></div><span id="play-time">00:18.000</span></div><button id="locate-current">현재 문단 ↑</button></footer></main>
+<div class="edit-overlay" id="edit-overlay" hidden><section class="edit-dialog" role="dialog" aria-modal="true" aria-labelledby="edit-title"><header><div><small>선택한 문단</small><h3 id="edit-title">대사 수정</h3></div><button id="close-editor" aria-label="편집 취소">×</button></header><div class="editor-body"><p class="field-label">문단 안에서 수정할 원구간을 선택하세요</p><div class="token-line" id="token-line"></div><div class="segment-nav"><button id="previous-segment">← 이전 구간</button><span id="segment-count"></span><button id="next-segment">다음 구간 →</button></div><label class="field-label" for="segment-text">선택 구간 <span id="segment-time"></span></label><textarea id="segment-text" rows="3"></textarea><p class="field-label">수정 미리보기</p><p id="paragraph-preview"></p><p class="hint">모델 원문은 보존됩니다. 시간은 재정렬하지 않습니다.</p><button id="editor-play">문단 원음 재생·정지</button><details style="margin:12px 0;font-size:12px"><summary>모델 원문 보기</summary><p id="model-original"></p></details><details class="review-options"><summary>검수 기록 · 원음 미확인</summary><label><input type="checkbox" id="audio-checked"> 기록할 전체 범위를 원음으로 확인함</label><label>오류 유형 <select id="review-error"><option>미분류 / 아직 판단 못함</option>오류 없음</option>텍스트 오류</option>화자 오류</option></select></label><label>표본 유형 <select><option>일반 검수</option>문제 구간</option>무작위 정상 표본</option></select></label><label>검수 메모 <input type="text" placeholder="용어·숫자·부정·조건 등"></label><button id="timer-toggle">능동 시간 측정 시작</button><span id="active-time"> 미측정</span></details><div class="edit-error" id="edit-error" role="alert" hidden></div></div><footer><button id="cancel-editor">취소</button><button class="primary" id="save-editor">수정 저장</button></footer></section></div>
+</div></section>
+<section class="sec" id="s-policy"><div class="rule"><span class="no">03</span><h2>확정할 동작</h2></div>
+<h3>읽기와 보조 정보</h3><ul><li>Scripts 상단은 제목, 녹음 날짜/길이/현재 엔진, 내보내기. Run ID·모델 세부·원본/교정·인원·참고 입력은 정보 영역으로 이동합니다.</li><li>기본은 inspector 닫힘. 검수와 정보는 하나의 영역을 교대로 열며, 닫아도 원문과 경고 배지는 그대로입니다. 검수 건수는 이슈의 자동 해소/정답 판정이 아닙니다.</li><li>행 클릭은 선택. 선택된 행에 수정/표시 이름/문단/검수 기록을 노출하고 키보드 포커스에서도 같은 조작에 접근합니다. 경고 배지·화자명은 hover 없이 보입니다.</li><li>Speeches의 녹음·변환·동의·재개·보존 동작은 유지합니다. Scripts의 재전사·삭제는 정보 영역의 명시적 명령으로 옮기고 기존 확인창/차단 조건을 유지합니다.</li><li>‘다른 결과 보기’는 기존 단일 결과 전환입니다. 동시에 양쪽을 보는 비교나 같은 시간 자동 연결로 표시하지 않습니다. 저장 중/편집 중에는 기존 canLeave 차단을 유지합니다.</li></ul>
+<h3>원구간 선택 편집</h3><ol><li>선택한 ScriptBlock의 원 Turn들을 순서대로 문단 안에 표시합니다. 각 원구간은 원 Turn ID와 연결하며, 첫 구간이 초기 선택입니다. 구두점·0길이·빈 대사도 선택할 수 있습니다.</li><li>선택한 원구간 하나를 입력칸에 표시합니다. 입력은 draft에 즉시 반영하고 문단 미리보기를 갱신합니다. 이전/다음 구간은 첫/마지막에서 비활성화하고 자동 순환하지 않습니다.</li><li>저장할 때 변경한 Turn에만 기존 editText를 적용하고 기존 recordReview/saveScript/expectedHash 경로를 사용합니다. 원 normalized·시간·화자 ID·marker·다른 Run은 불변입니다.</li><li>검수 기록은 기본 접힘. 원음 확인 기본 false, 오류/표본 기본 unclassified, 메모 빈값, 능동 시간 nil을 유지합니다. ‘오류 없음’은 원음 확인 전 저장 불가. 표시 이름 범위는 현행 전체 기본과 대상 수 확인을 유지합니다.</li><li>저장 중 중복 저장·닫기·파일 전환을 차단합니다. 성공한 뒤 닫고 같은 대상의 표시를 갱신합니다. 실패하면 입력과 선택 구간을 유지하고 오류를 표시합니다. 취소/Escape는 draft만 버리고 파일을 쓰지 않습니다.</li></ol><p class="note">문단의 통합 문자열을 한 Turn에 몰아넣거나 임의로 쪼개 저장하지 않습니다. 자유 문단 편집 선택 시 저장 계약/분절/이력/Markdown을 다시 설계한 뒤 해당 축을 확인받습니다.<span class="fn">ssot/contracts/library-script.md 연속 발화 표시 및 사람 수정 우선; UI/LibraryShell.swift LibraryEditSheet.save; LibraryWorkspace.saveScript. 기존 turnTexts/recordReview 구조 재사용.</span></p>
+<h3>재생과 사건 이동</h3><ul><li>고정 막대는 선택된 행/사건의 시간 범위, 실제 positionUs, 재생/정지, 현재 문단 이동을 표시합니다. 선택 변경 시 기존 재생을 정지하고 대상을 바꿉니다. 자동 재생은 하지 않습니다.</li><li>일반 행은 기존 범위 재생, 사건은 기존 ±2초 context, 0길이는 기존 앞뒤2초와 안내를 유지합니다. 원 시간은 바꾸지 않습니다. seek·속도·반복·일시정지 재개는 첫 묶음에 포함하지 않습니다.</li><li>검수 사건 선택은 기존 근거와 연결된 첫 문단으로 이동합니다. 동일 사건이 여러 문단에 걸치면 inspector에 연결 구간 목록을 보여 각각 이동할 수 있게 합니다. 근거 연결이 없는 사건은 ‘본문 연결을 확인할 수 없습니다’로 남기고 가까운 화자로 채우지 않습니다.</li><li>사건 순서는 기존 reviewEvents 배열을 유지합니다. 다음/이전은 끝에서 멈추고 마지막/첫 상태를 표시합니다. 시간 nil이면 이동 가능한 텍스트 근거는 보여도 재생은 비활성입니다.</li><li>재생 tick은 하단 소형 뷰에서만 관찰합니다. 전체 reading snapshot 재계산은 추가하지 않습니다. 녹음 시작 시 재생 정지, 녹음 중 재생 비활성, 종료 시 대상 범위 유효성 재확인.</li></ul>
+<div class="twrap"><table><tr><th>상태</th><th>표시</th><th>가능한 조작</th></tr><tr><td>정상</td><td>본문·미해결 배지·선택 범위</td><td>선택/편집/재생/검수/내보내기</td></tr><tr><td>기록 없음</td><td>아직 스크립트가 없습니다.</td><td>Speeches로 이동. 편집/재생/내보내기 비활성</td></tr><tr><td>일부 파일 읽기 실패</td><td>일부 파일을 읽지 못했습니다.</td><td>정상 목록 유지, 오류 상세/다시 읽기. 손상 파일 삭제/자동 복구 없음</td></tr><tr><td>녹음 중</td><td>녹음 중에는 재생할 수 없습니다.</td><td>본문 읽기 가능. 재생 차단 유지</td></tr><tr><td>저장 실패</td><td>입력한 내용은 유지됩니다.</td><td>draft 유지, 오류 확인 후 다시 저장/취소. 기존 충돌 검사는 완화하지 않음</td></tr></table></div></section>
+<section class="sec" id="s-spec"><div class="rule"><span class="no">04</span><h2>규격과 문구</h2></div><p>네이티브 기본1180×760pt, 최소900×600pt는 현행 값입니다. 아래 변경 값은 <b>신규 후보</b>이며 사용성 개선을 실측한 수치가 아닙니다.<span class="fn">App/DamaApp.swift 기본 크기; UI/LibraryShell.swift 최소 크기/본문17pt·행간7pt. 시안 수치는 사용자 확인과 실제 앱 QA 이후 채택.</span></p>
+<div class="twrap"><table><tr><th>영역</th><th>후보 값/상태</th></tr><tr><td>본문</td><td>시스템 서체16pt, 행간6pt, 중앙 본문 최대800pt. 다크/라이트 시스템 의미색, 배경은 중립색</td></tr><tr><td>목록 / inspector</td><td>목록220pt, inspector300pt. 창 폭1080pt 미만은 본문 위 overlay로 열기. 키보드/닫기 접근 유지</td></tr><tr><td>상단 / 재생</td><td>제목 영역76pt, 도구44pt, 재생72pt. 첫 본문이 스크롤 없이 보이도록 상단 고정 정보 제한</td></tr><tr><td>본문 행</td><td>상하12pt, 이름/시작시간12pt. 화자색은 점/이름 옆 표식에 사용. 선택은 배경+테두리+접근성 상태로 표시</td></tr><tr><td>편집</td><td>폭600pt 후보, 화면 가용 높이 안에서 본문 스크롤. 하단 저장/취소 고정. 선택 원구간 입력100pt 이상, 빈 구간도 표시</td></tr><tr><td>키보드</td><td>Tab으로 행/조작 접근, Enter 선택/명시적 수정, Escape 닫기/취소, 편집 저장 Cmd-Return, 기존 Cmd-Shift-E 유지. 녹음 단축키 신설 없음</td></tr></table></div>
+<h3>변경/추가 문구</h3><ul><li>기존 ‘같은 원음 결과 비교’ → ‘다른 결과 보기’. 기존 ‘화자 이름 변경’ → ‘표시 이름 변경’.</li><li>‘선택한 문단’, ‘선택한 사건’, ‘현재 문단’, ‘선택 구간 재생’, ‘재생 정지’, ‘이전 확인 구간’, ‘다음 확인 구간’, ‘마지막 확인 구간입니다’, ‘첫 확인 구간입니다’.</li><li>‘문단 안에서 수정할 원구간을 선택하세요’, ‘선택 구간’, ‘이전 구간’, ‘다음 구간’, ‘수정 미리보기’, ‘수정 저장’, ‘취소’.</li><li>‘검수 기록 · 원음 미확인’, ‘본문 연결을 확인할 수 없습니다’, ‘시간을 확인할 수 없어 재생할 수 없습니다’, ‘연결된 구간’.</li></ul>
+<h3>보존할 경고 의미</h3><div class="twrap"><table><tr><th>경계</th><th>표시 문구</th></tr><tr><td>화자 미확정</td><td>화자가 미확정이거나 후보가 비슷합니다.</td></tr><tr><td>겹말</td><td>여러 화자의 음성 구간이 겹칩니다. 원음으로 확인해 주세요.</td></tr><tr><td>누락 의심</td><td>[음성 감지 / 전사 누락 의심]</td></tr><tr><td>화자 전환</td><td>단어 시간이 화자 전환 경계에 걸쳐 있습니다.</td></tr><tr><td>녹음 중단</td><td>녹음이 중단되어 이후 구간이 녹음되지 않았을 수 있습니다.</td></tr><tr><td>결과 만료</td><td>서버 결과를 가져오지 못했습니다. 원본은 보존되어 있습니다.<br>원본 존재를 확인한 경우에만 후반 문장 표시. 없으면 ‘이 Mac에서 원본을 찾을 수 없습니다.’</td></tr></table></div><p class="note">나머지 공급자 불일치/시간/부분 결과의 현행 문구와 원본·사람 수정 우선 안내는 유지하며, 현행 문구: 음성에서 감지된 화자가 스크립트에 나타나지 않습니다. / 발화 길이가 없거나 시간이 불확실합니다. 앞뒤 원음으로 확인해 주세요. / 공급자의 화자 점수가 낮아 확인이 필요합니다. / 일부 전사 결과를 받지 못했습니다. / 두 제공자의 화자 구분이 일치하지 않습니다. 원 후보와 원음을 확인해 주세요. 컨펌 후 tone에 편입합니다.</p>
+</section>
+<section class="sec" id="s-impact"><div class="rule"><span class="no">05</span><h2>수정 경계와 검산</h2></div><h3>재사용</h3><ul><li>normalized 모델·P2TimeEvidence·reading-v6 snapshot·ScriptBlock·reviewEvents·화자/시간/marker 불변식.</li><li>LibraryWorkspace 저장/충돌/재개/전송 동의/내보내기, turnTexts/turnNames/paragraphBreaks/reviewRecords.</li><li>SegmentPlayback play/stop/listeningRange/positionUs, 녹음 우선 차단과 기존 파일별 실패 격리.</li></ul><h3>변경</h3><ul><li>UI/LibraryShell.swift 배치·행 선택·정보/검수 영역·편집 시트 구성. App/DamaApp.swift 창/명시적 키보드 조작.</li><li>표시 문구2종과 새 navigation 상태. model/provenance/원문 export 내용은 이 화면 변경으로 바꾸지 않음.</li></ul><h3>신규</h3><ul><li>선택 행/사건/inspector UI 상태, 근거로 연결된 block 인덱스, 선택 원구간 draft 제어.</li><li>재생 상태를 관찰하는 고정 막대. polling tick이 본문 전체 계산으로 전파되지 않도록 분리.</li></ul><h3>검산과 종료</h3><ol><li>동일 저장3경로에서 normalized/문단/Markdown 지문 및 입력14파일 불변. 사람 편집은 합성 사본으로 저장→재열기→Markdown을 대조.</li><li>원구간21개 재현에서 입력칸1개, 구간 전환 시 draft 유지, 취소0쓰기, 저장 실패 draft 유지. 서로 다른 B/미확정/누락 경계로의 자동 병합0.</li><li>검수 사건의 연결 문단/다음·이전/끝 상태, 시간 nil·0길이·녹음 중 차단 검증. 재생 실시간 표시는 네이티브 실제 실행에서 확인.</li><li>900×600과1180×760, 라이트/다크, Tab·Return·Escape·Cmd-Return·내보내기와 VoiceOver 실물. 배지 의미를 색 없이 읽을 수 있어야 함.</li><li>필수 여정과 영향 회귀를 한 번에 확인한 뒤 종료. 정확도·모델 학습·속도 개선율·음성 정답은 안 잼.</li></ol><p class="note">비범위: 자유 문단 편집, 새 ASR/화자 귀속 정책, 자동 전송, 학습, 동기화 비교, 검색, seek/속도/반복, 배포.</p></section>
+<section class="sec" id="s-fn"><div class="rule"><span class="no">주</span><h2>근거</h2></div><!--__FOOTNOTES__--><details class="audit"><summary>참조 근거와 검증 범위</summary><div class="body">홈 CLAUDE.md · Vault/appdev/CLAUDE.md · repo CLAUDE.md/AGENTS 지시 · README/프로젝트 _index의 드리프트 구분 · spec/plan 커맨드 · 공통10종(목적·모호성·범위·게이트·측정·부정·재실측·소비처·위임산출물·파괴쓰기) 및 공유트리·수치·미디어·워치독·리뷰종료 규율 · doc-template README/template · design00/01, 기존 채택02/03/04/06 · API verified · library-script/operating-baseline 계약 · tone2종 · operating-baseline/normalization-evidence 상태 · LibraryShell/DamaApp/LibraryWorkspace/SegmentPlayback 활성 코드 · CUA 실물 진단 · TIRO 공식 공개 페이지. 이 문서는 수정 제안이며 앱 코드·tone·데이터 계약 변경 승인 상태가 아닙니다.</div></details><p class="note">r1 (2026.09.12) UI/UX 진단 후 첫 시안. 화면/편집방식 확인 대기.</p></section><div style="height:100px"></div></div>
+
+<script>
+// 00 판정 블록: 고른 선택지·메모로 MD 회신을 만든다 (data-state="open" 일 때만)
+(function(){
+  const v = document.getElementById('s-verdict');
+  if (!v || v.dataset.state !== 'open') return;
+  const md = v.querySelector('pre.md'), ok = v.querySelector('.ok');
+  const items = [...v.querySelectorAll('.vitem')];
+  const d = new Date();
+  const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  function build(){
+    const L = ['## ' + v.dataset.unit + ' 스펙 ' + v.dataset.round + ' · 게이트 ' + v.dataset.gate + ' 회신 (' + date + ')', ''];
+    items.forEach(it => {
+      const k = it.dataset.k;
+      const sel = it.querySelector('input[type=radio]:checked');
+      const memoEl = it.querySelector('input[type=text]');
+      const memo = memoEl ? memoEl.value.trim() : '';
+      const title = it.querySelector('.vt').textContent.replace(k, '').trim();
+      L.push('- ' + k + ' ' + title + ': ' + (sel ? sel.value : '(미선택)') + (memo ? ' · ' + memo : ''));
+    });
+    md.textContent = L.join('\n');
+  }
+  v.addEventListener('input', build);
+  v.querySelector('[data-act=copy]').onclick = async () => {
+    build();
+    try { await navigator.clipboard.writeText(md.textContent); ok.textContent = '복사됨.'; }
+    catch { const r = document.createRange(); r.selectNodeContents(md); const s = getSelection(); s.removeAllRanges(); s.addRange(r); ok.textContent = '클립보드 권한 없음. 선택된 텍스트를 복사하면 된다.'; }
+  };
+  v.querySelector('[data-act=reset]').onclick = () => {
+    items.forEach(it => { const r = it.querySelector('input[type=radio]'); if (r) r.checked = true; const m = it.querySelector('input[type=text]'); if (m) m.value = ''; });
+    build(); ok.textContent = '초기화됨.';
+  };
+  build();
+})();
+
+// 각주 팝오버: 번호 클릭 → 마커 우상단에 상자. 바깥 클릭·ESC·재클릭·스크롤에 닫힌다
+(function(){
+  let pop = null, cur = null;
+  function close(){ if (pop) pop.remove(); pop = null; if (cur) cur.classList.remove('open'); cur = null; }
+  document.querySelectorAll('sup.fn a[data-fn]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    if (cur === a) { close(); return; }
+    close();
+    const src = document.getElementById('fn-' + a.dataset.fn);
+    if (!src) return;
+    const t = src.querySelector('.t');
+    pop = document.createElement('div'); pop.className = 'pop';
+    pop.innerHTML = '<span class="pn">' + a.dataset.fn + '</span>' + (t ? t.innerHTML : src.innerHTML);
+    document.body.appendChild(pop);
+    const r = a.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = r.left + scrollX - 8, top = r.top + scrollY - ph - 10, below = false;
+    if (left + pw > scrollX + innerWidth - 12) left = scrollX + innerWidth - 12 - pw;
+    if (left < scrollX + 12) left = scrollX + 12;
+    if (r.top - ph - 10 < 8) { top = r.bottom + scrollY + 10; below = true; }
+    pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.classList.toggle('below', below);
+    cur = a; a.classList.add('open');
+  }));
+  document.addEventListener('click', e => { if (pop && !pop.contains(e.target) && !e.target.closest('sup.fn')) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  addEventListener('scroll', () => { if (pop) close(); }, {passive:true});
+})();
+
+// 데스크탑 실척 스테이지: 컨테이너 폭 / 1440 비율로 가상 뷰포트를 축소한다
+(function(){
+  const fit = () => document.querySelectorAll('.deskstage').forEach(st => {
+    st.querySelectorAll(':scope > .deskvp').forEach(vp => vp.style.setProperty('--ds', st.clientWidth / 1440));
+  });
+  addEventListener('resize', fit);
+  addEventListener('DOMContentLoaded', fit);
+  fit();
+})();
+</script>
+
+<script>
+(() => {
+ const $=id=>document.getElementById(id);
+ const initial=[
+  {name:'화자 A',start:18,end:21,parts:['계약',' 조건을',' 먼저',' 확인','하','겠습니다.'],issue:null},
+  {name:'화자 B',start:21.2,end:21.5,parts:['네.'],issue:'화자 전환 경계를 확인해 주세요.'},
+  {name:'화자 A',start:21.8,end:26,parts:['일정은 다음 주에 다시 논의하겠습니다.'],issue:null},
+  {name:'화자 미확정',start:26.4,end:27,parts:['그 부분은'],issue:'화자가 미확정이거나 후보가 비슷합니다.'},
+  {name:'화자 B',start:27.1,end:28,parts:['[음성 감지 / 전사 누락 의심]'],issue:'음성은 감지되었지만 전사가 누락되었을 수 있습니다.',missing:true},
+  {name:'화자 A',start:28.2,end:31.5,parts:['원음을 듣고 발화자를 확인하겠습니다.'],issue:'여러 화자의 음성 구간이 겹칩니다. 원음으로 확인해 주세요.'}
+ ];
+ let rows=structuredClone(initial),selected=0,eventIndex=-1,mode='',draft=null,segment=0,playing=false,tick=null,position=18,activeTimer=null,activeSeconds=0;
+ const stamp=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${(n%60).toFixed(3).padStart(6,'0')}`;
+ const eventRows=()=>rows.map((r,i)=>r.issue?i:-1).filter(i=>i>=0);
+ function say(text){$('banner').hidden=!text;$('banner').textContent=text;}
+ function stop(){playing=false;clearInterval(tick);$('play-toggle').textContent='▶';$('play-toggle').setAttribute('aria-label','선택 구간 재생');}
+ function player(){const r=rows[selected];$('play-range').textContent=`${stamp(r.start)} – ${stamp(r.end)}`;$('play-time').textContent=stamp(position);$('progress').style.width=`${Math.max(0,Math.min(100,(position-r.start)/(r.end-r.start)*100))}%`;$('play-toggle').disabled=['recording','empty'].includes($('scenario').value);}
+ function render(){const list=$('transcript');list.replaceChildren();if($('scenario').value==='empty'){list.innerHTML='<div class="empty-state">아직 스크립트가 없습니다.<br>Speeches에서 녹음을 선택해 주세요.</div>';player();return;}
+ rows.forEach((r,i)=>{const node=document.createElement('article');node.className=`utterance ${selected===i?'selected':''} ${r.missing?'missing':''}`;node.id=`row-${i}`;node.tabIndex=0;node.setAttribute('aria-label',`${r.name} ${stamp(r.start)} 문단 선택`);node.setAttribute('aria-current',String(i===selected));
+ const head=document.createElement('div');head.className='line-head';const dot=document.createElement('span');dot.className='dot '+(r.name==='화자 B'?'b':r.name==='화자 미확정'?'unknown':'');const name=document.createElement('span');name.className='name';name.textContent=r.name;head.append(dot,name);
+ if(r.issue){const warn=document.createElement('button');warn.className='warning';warn.textContent=r.missing?'⚑ 누락 의심':'⚑ 확인 필요';warn.setAttribute('aria-label',r.issue);warn.onclick=e=>{e.stopPropagation();select(i);inspector('review');};head.append(warn);}
+ const time=document.createElement('time');time.textContent=stamp(r.start);head.append(time);const text=document.createElement('p');text.textContent=r.parts.join('');node.append(head,text);
+ if(r.edited){const note=document.createElement('div');note.className='edited-note';note.textContent='사용자 수정 · 시간 재정렬 안 됨';node.append(note);}
+ const actions=document.createElement('div');actions.className='row-actions';for(const [title,fn] of [['원음 재생',()=>play()],...(!r.missing?[['수정',()=>openEditor()]]:[]),['표시 이름',()=>inspector('name')],['검수 기록',()=>inspector('review')]]){const b=document.createElement('button');b.textContent=title;b.onclick=e=>{e.stopPropagation();fn();};if(title==='원음 재생')b.disabled=$('scenario').value==='recording';actions.append(b);}node.append(actions);
+ node.onclick=()=>select(i);node.onkeydown=e=>{if(e.key==='Enter'&&e.target===node){e.preventDefault();select(i);}};list.append(node);});player();}
+ function select(i,locate=false){stop();selected=i;position=rows[i].start;render();if(locate)$(`row-${i}`).scrollIntoView({block:'center',behavior:'smooth'});}
+ function inspector(next){mode=next;$('inspector').hidden=!next;$('review-toggle').setAttribute('aria-expanded',String(next==='review'));$('information-toggle').setAttribute('aria-expanded',String(next==='info'));if(!next)return;
+ $('inspector-title').textContent=next==='review'?'검수':next==='name'?'표시 이름 변경':'녹음·변환 정보';const body=$('inspector-body');body.replaceChildren();
+ if(next==='review'){body.innerHTML='<p>경고가 없는 구간도 미검수입니다. 사건을 선택하면 관련 문단으로 이동합니다.</p>';eventRows().forEach((rowIndex,j)=>{const b=document.createElement('button');b.className='event';const title=document.createElement('b');title.textContent=`${j+1}. ${stamp(rows[rowIndex].start)} · ${rows[rowIndex].name}`;const detail=document.createElement('small');detail.textContent=rows[rowIndex].issue;b.append(title,detail);b.onclick=()=>{eventIndex=j;select(rowIndex,true);say('선택한 사건의 연결 문단입니다. 원음으로 확인해 주세요.');};body.append(b);});}
+ else if(next==='name'){body.innerHTML='<p>표시 이름은 원래 화자 ID와 구분해 저장합니다. 적용 범위와 대상 수를 확인합니다.</p><label>표시 이름 <input id="name-input" type="text"></label><h4>적용 범위</h4><label><input type="radio" name="name-scope" value="one"> 이 부분만 바꾸기</label><br><label><input type="radio" name="name-scope" value="from"> 이 부분부터 바꾸기</label><br><label><input type="radio" name="name-scope" value="all" checked> 전체 바꾸기</label><p id="scope-count"></p><button id="apply-name">시안에 이름 반영</button>';$('name-input').value=rows[selected].name;const old=rows[selected].name;const update=()=>{$('scope-count').textContent=`${body.querySelector('input[name=name-scope]:checked').value==='one'?1:rows.filter((r,i)=>r.name===old&&(body.querySelector('input[name=name-scope]:checked').value==='all'||i>=selected)).length}개 표시 문단에 적용됩니다. (합성 시안)`;};body.querySelectorAll('input[type=radio]').forEach(r=>r.onchange=update);update();$('apply-name').onclick=()=>{const val=$('name-input').value.trim();if(!val)return;const scope=body.querySelector('input[name=name-scope]:checked').value;rows.forEach((r,i)=>{if(scope==='one'?i===selected:r.name===old&&(scope==='all'||i>=selected))r.name=val;});render();inspector('');};}
+ else{body.innerHTML='<h4>현재 결과</h4><p>'+ $('engine-title').textContent +'</p>'+($('scenario').value==='read-error'?'<h4>읽지 못한 파일</h4><p>sample-corrupt.dama.json · 데이터 형식을 확인해 주세요. (합성 오류 예시)</p>':'')+'<h4>녹음</h4><p>9월 12일 오후 2:00 · 12분 40초</p><h4>검수</h4><p>원음 확인 0건 · 수정 시간 미측정<br>인원 일치만으로 정확도를 보장하지 않습니다.</p><details><summary>모델·처리 근거</summary><p>전사: Soniox<br>화자 분리: Precision-2<br>문단 표시: reading-v6</p></details><h4>AI 교정</h4><p>AI 교정 OFF<br>새 교정은 전송할 내용을 확인한 뒤 실행합니다.</p><h4>추가 작업</h4><p>재전사·삭제·평가 내보내기는 기존 확인 절차를 유지합니다. 이 시안에서는 실행하지 않습니다.</p>';}
+ }
+ function play(){if(['recording','empty'].includes($('scenario').value))return;if(playing){stop();return;}position=rows[selected].start;playing=true;$('play-toggle').textContent='■';$('play-toggle').setAttribute('aria-label','재생 정지');tick=setInterval(()=>{position+=.1;if(position>=rows[selected].end){position=rows[selected].end;stop();}player();},100);}
+ function openEditor(){if(rows[selected].missing)return;stop();draft=[...rows[selected].parts];segment=0;$('model-original').textContent=initial[selected].parts.join('');$('editor-play').disabled=$('scenario').value==='recording';$('edit-overlay').hidden=false;$('edit-error').hidden=true;$('audio-checked').checked=false;$('review-error').selectedIndex=0;activeSeconds=0;$('active-time').textContent=' 미측정';renderSegments();$('segment-text').focus();}
+ function renderSegments(){const line=$('token-line');line.replaceChildren();draft.forEach((value,i)=>{const b=document.createElement('button');b.textContent=value||'〔빈 구간〕';b.className=i===segment?'current':'';b.setAttribute('aria-label',`원구간 ${i+1}: ${value||'빈 구간'}`);b.onclick=()=>{segment=i;renderSegments();$('segment-text').focus();};line.append(b);});$('segment-count').textContent=`${segment+1} / ${draft.length}`;$('segment-text').value=draft[segment];$('segment-time').textContent=stamp(rows[selected].start+segment*.1);$('previous-segment').disabled=segment===0;$('next-segment').disabled=segment===draft.length-1;$('paragraph-preview').textContent=draft.join('');}
+ function closeEditor(){stop();clearInterval(activeTimer);activeTimer=null;$('timer-toggle').textContent='능동 시간 측정 시작';draft=null;$('edit-overlay').hidden=true;$(`row-${selected}`)?.focus({preventScroll:true});}
+ $('segment-text').oninput=()=>{draft[segment]=$('segment-text').value;$('paragraph-preview').textContent=draft.join('');const b=$('token-line').children[segment];b.textContent=draft[segment]||'〔빈 구간〕';};
+ $('previous-segment').onclick=()=>{segment--;renderSegments();};$('next-segment').onclick=()=>{segment++;renderSegments();};
+ $('save-editor').onclick=()=>{if($('scenario').value==='save-error'){showError('수정을 저장하지 못했습니다. 외부 파일 변경 또는 폴더 권한을 확인해 주세요. 입력한 내용은 유지됩니다.');return;}if($('review-error').selectedIndex===1&&!$('audio-checked').checked){showError('오류 없음으로 기록하려면 전체 범위를 원음으로 확인해 주세요.');return;}rows[selected].edited=rows[selected].parts.join('')!==draft.join('');rows[selected].parts=[...draft];closeEditor();render();say('수정 저장됨 · 시안의 합성 대화에만 반영했습니다.');};
+ function showError(message){$('edit-error').textContent=message;$('edit-error').hidden=false;}
+ $('cancel-editor').onclick=closeEditor;$('close-editor').onclick=closeEditor;$('edit-overlay').onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();closeEditor();}if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();$('save-editor').click();}if(e.key==='Tab'){const controls=[...$('edit-dialog')?.querySelectorAll('button,input,textarea,select')||$('edit-overlay').querySelectorAll('button,input,textarea,select')].filter(el=>!el.disabled&&el.getClientRects().length);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};
+ $('timer-toggle').onclick=()=>{if(activeTimer){clearInterval(activeTimer);activeTimer=null;$('timer-toggle').textContent='능동 시간 측정 시작';}else{$('timer-toggle').textContent='시간 측정 일시 정지';activeTimer=setInterval(()=>{$('active-time').textContent=` ${++activeSeconds}초`;},1000);}};
+ $('editor-play').onclick=play;$('play-toggle').onclick=play;$('locate-current').onclick=()=>$(`row-${selected}`)?.scrollIntoView({block:'center',behavior:'smooth'});$('review-toggle').onclick=()=>inspector(mode==='review'?'':'review');$('information-toggle').onclick=()=>inspector(mode==='info'?'':'info');$('close-inspector').onclick=()=>inspector('');$('previous-event').onclick=()=>{if(eventIndex<=0){say('첫 확인 구간입니다.');return;}eventIndex--;select(eventRows()[eventIndex],true);inspector('review');};$('next-event').onclick=()=>{const events=eventRows();if(eventIndex>=events.length-1){say('마지막 확인 구간입니다.');return;}eventIndex++;select(events[eventIndex],true);inspector('review');};
+ $('appearance').onchange=()=>{$('prototype').classList.toggle('dark',$('appearance').value==='dark');};$('scenario').onchange=()=>{stop();if(!$('edit-overlay').hidden)closeEditor();say({recording:'녹음 중에는 재생할 수 없습니다. 재생음이 다시 녹음될 수 있습니다.','read-error':'일부 파일을 읽지 못했습니다. 정상 스크립트는 계속 사용할 수 있습니다. 오류 상세는 정보에서 확인합니다.',empty:'',normal:'','save-error':'저장 실패 시안: 대사를 수정하고 저장을 눌러 보세요.'}[$('scenario').value]);$('export-demo').disabled=$('scenario').value==='empty';$('review-toggle').disabled=$('scenario').value==='empty';$('next-event').disabled=$('scenario').value==='empty';$('previous-event').disabled=$('scenario').value==='empty';render();};
+ $('reset-demo').onclick=()=>{stop();closeEditor();rows=structuredClone(initial);selected=0;position=18;eventIndex=-1;$('scenario').value='normal';$('scenario').onchange();$('engine-title').textContent='Soniox + Precision-2';inspector('');render();};$('speeches-tab').onclick=()=>say('Speeches의 녹음·변환·전송 확인 흐름은 유지합니다. 이번 시안은 Scripts 수정 화면입니다.');$('scripts-tab').onclick=()=>say('');$('demo-file').onclick=()=>select(0,true);$('export-demo').onclick=()=>say('실제 앱에서는 현재 스크립트의 Markdown 저장 위치를 선택합니다. 시안은 파일을 만들지 않습니다.');
+ document.querySelectorAll('[data-result]').forEach(b=>b.onclick=()=>{$('engine-title').textContent=b.dataset.result;b.closest('details').open=false;select(0);say('선택한 결과로 전환합니다. 이 시안에서는 같은 합성 대화로 배치를 확인합니다.');});
+ render();
+})();
+
+</script>
+</body>
+</html>
