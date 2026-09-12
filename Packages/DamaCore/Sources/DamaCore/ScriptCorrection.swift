@@ -29,6 +29,7 @@ public struct CorrectionEdit: Codable, Sendable, Equatable {
 public struct ScriptCorrection: Codable, Sendable {
     public enum State: String, Codable, Sendable { case running, completed, failed }
     public var state: State
+    public var id: String?
     public let engine: String
     public let startedAt: Date
     public var completedAt: Date?
@@ -40,9 +41,10 @@ public struct ScriptCorrection: Codable, Sendable {
     public var totalChunks = 0
     public var visibleEdits: [CorrectionEdit] { edits.filter { !$0.isDisplayOnly } }
     public init(input: ConversionNotes, engine: String, state: State = .running) {
-        self.input = input; self.engine = engine; self.state = state; startedAt = Date()
+        self.input = input; self.engine = engine; self.state = state; startedAt = Date(); id = UUID().uuidString
     }
     public func validate(transcript: TranscriptDocument) throws {
+        if let id, UUID(uuidString: id) == nil { throw LibraryFailure.invalidScript }
         let ids = Set(transcript.turns.filter { $0.kind == .speech }.map(\.id))
         guard Set(edits.map(\.turnID)).count == edits.count,
               Set(edits.map(\.turnID)).isSubset(of: ids),

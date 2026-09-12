@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-01 완료(문단/AI pure22 PASS). T-02 직렬 필드 저장·AI 버전 구현. 실제 앱은 아직0.4.7(17)."
+resume: "T-01 완료22 PASS, T-02 완료15 PASS. T-03 제목/본문 native 직접 편집 연결. 실제 앱은 아직0.4.7(17)."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -60,6 +60,8 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - 폴더 선택만으로 전송하지 않는다. Soniox 기본 문맥 ON/폴더 OFF; Qwen 로컬 폴더 별도 선택. pyannote 통합 STT에서 소비하지 않는 맥락/참석자/용어/참고 입력 UI 숨김, 저장된 내용 삭제 없음.
 
 ## Follow-ups
+
+- T-02 검증: ScriptVersionTests/ContextAudioTests/LibraryJourneyTests/ReadingSnapshotTests 15/15 PASS, .build/check-logs/uiux-reading-t02.log. 제목·문단·AI 병합, 원문 교체/외부 바이트/stale 제목 차단, immutable snapshot/중복 완료/실패/손상/과거 Markdown. 외부 API 없음.
 
 - T-01 검증: LibraryPresentationTests/ContextCorrectionTests 22/22 PASS, .build/check-logs/uiux-reading-t01.log. 원문 fingerprint·그룹 고정·빈 문자열·AI 보호·legacy/손상 입력. 테스트 Markdown 기대값의 점 escaping을 기존 exporter 계약과 일치시킨 뒤 통과. 실제 UI 미측정.
 

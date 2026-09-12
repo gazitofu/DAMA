@@ -67,6 +67,9 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     public var paragraphBreaks: [String: Bool]?
     public var reviewRecords: [ScriptReviewRecord]?
     public var paragraphEdits: [ScriptParagraphEdit]?
+    public var versions: [ScriptVersion]?
+    /// Set only in immutable historical snapshots. The active file has no snapshot label.
+    public var snapshotTitle: String?
 
     public init(transcript: TranscriptDocument, title: String, recordedAt: Date?, dateSource: String,
                 timeZoneID: String = TimeZone.current.identifier, input: ConversionNotes,
@@ -93,6 +96,13 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
               turnNames.values.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
         else { throw LibraryFailure.invalidScript }
         try validateParagraphEdits()
+        if let versions {
+            guard snapshotTitle == nil, versions.map(\.number) == Array(0..<versions.count),
+                  Set(versions.map(\.id)).count == versions.count,
+                  Set(versions.filter { $0.number > 0 }.map(\.correctionID)).count == max(0, versions.count - 1)
+            else { throw LibraryFailure.invalidScript }
+            for version in versions { try version.validate() }
+        }
         for record in reviewRecords ?? [] {
             guard UUID(uuidString: record.id) != nil,
                   record.audioSHA256 == transcript.provenance.sourceAudioSHA256,
@@ -176,6 +186,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
         date.timeZone = TimeZone(identifier: timeZoneID) ?? TimeZone(secondsFromGMT: 0)
         date.dateFormat = "yyyy-MM-dd HH:mm:ss XXX"
         var lines = ["# \(Self.escape(title))", "", "## 녹음 정보", "",
+                     "- 결과: \(Self.escape(snapshotTitle ?? "현재 결과")) · revision \(revisionID)",
                      "- 녹음 날짜·시간: \(recordedAt.map { date.string(from: $0) } ?? "미확인")",
                      "- 시간대: \(Self.escape(timeZoneID))", "- 날짜 근거: \(Self.escape(dateSource))",
                      "- 녹음 길이: \(Self.timestamp(transcript.durationUs))",

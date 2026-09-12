@@ -8,6 +8,14 @@
 - 사람이 소유한 문단·기존 turnTexts·legacy editedText/수정 revision은 AI 편집 대상에서 제외한다. 가까운 사람 문단은 `humanParagraphs`의 전체 텍스트/원 ID 집합으로 읽기 전용 제공한다. AI 응답은 대상 ID만 허용한다. source 텍스트/시간/화자/이슈와 기존 검수 기록은 보존한다.
 - 새 일반 편집은 검수 완료·학습 정답 기록을 자동 생성하지 않는다. 과거 reviewRecords를 삭제하지 않는다. 아래 과거 UI·원 Turn 편집 설명 중 충돌하는 부분은 본 절과 확정 r4 스펙이 우선한다.
 
+## AI 결과 버전·필드 저장 (2026-09-12 승인 · D-01)
+
+- 현재 파일에 optional `versions` 목록(revisionID/SHA256/number/correctionID/createdAt). number0은 첫 기록 가능한 성공 직전 결과, 1부터 각 성공 결과다. 기존에 기록하지 않은 과거 결과는 만들어 내지 않는다. 당시 제목/사람 수정/AI/입력/원문을 snapshot에 고정한다.
+- 새 ScriptCorrection은 optional UUID `id`를 만든다. 구 id 없는 결과는 읽기/병합 가능하지만 과거 이력으로 추정 승격하지 않는다. 같은 성공 ID는 목록에 한 번만 추가한다. 실패/취소/진행 중은 완료 버전 없음, 기존 성공 결과 교체 없음.
+- snapshot은 `LibraryRevisions`에 별도 UUID로 선저장한다. snapshotTitle을 기록하고 versions를 비워 self-hash/순환 참조를 피한다. 현재 파일의 목록은 snapshot 실제 바이트 SHA256을 참조한 뒤 원자 저장한다. 도중 실패로 남은 파일은 메뉴에 드러내지 않는다.
+- 조회는 현재 목록/현재 파일 해시, snapshot UUID 경로/해시/같은 Run·불변 transcript를 검증한다. 누락/손상은 오류이며 현재 내용을 대체해 보여 주지 않는다. snapshot은 수정 저장 API로 덮어쓸 수 없다. Markdown에는 결과 이름과 revision을 기재한다.
+- 제목/문단/AI는 저장 actor에서 최신 원문을 다시 확인하고 해당 필드만 병합한다. 현재 actor가 저장한 변화만 병합하며 알 수 없는 외부 바이트 변경, 다른 Run/원문, 같은 제목 필드 충돌은 거부한다. 제목과 본문을 별도 저장해도 서로의 수정을 되돌리지 않는다.
+
 사용자 2026-09-10 화면 확정 및 제목/Markdown 요청. 구현 정본은 `Packages/DamaCore/Sources/DamaCore/LibraryScript.swift`다. 기존 `transcript.v1.schema.json`·`DomainContracts.swift`·normalized 파일은 변경하지 않는다.
 
 - 파일 확장자 `.dama.json`, `format = dama-library-script-1`. 기존 normalized v1과 구분되는 envelope다.

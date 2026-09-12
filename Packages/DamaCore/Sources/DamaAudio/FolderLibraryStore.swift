@@ -201,14 +201,15 @@ public actor FolderLibraryStore {
     }
     public func saveScript(_ script: LibraryScript, to url: URL, expectedHash: String?) throws -> LibraryScriptFile {
         try safe(url); try script.validate()
+        guard script.snapshotTitle == nil, !url.standardizedFileURL.path.hasPrefix(revisionFolder.path + "/") else { throw LibraryFailure.unsafePath }
         if let expectedHash {
             guard try AudioFiles.hash(url) == expectedHash else { throw LibraryFailure.changedFile }
         } else if FileManager.default.fileExists(atPath: url.path) { throw LibraryFailure.changedFile }
-        let bytes = try JSONEncoder().encode(script)
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let bytes = try encoder.encode(script)
         // Immutable local revisions precede the replaceable external active file.
-        let history = root.appendingPathComponent("LibraryRevisions").appendingPathComponent(script.revisionID + ".dama.json")
-        try FileManager.default.createDirectory(at: history.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if !FileManager.default.fileExists(atPath: history.path) { try bytes.write(to: history, options: .withoutOverwriting) }
+        _ = try writeRevision(script, bytes: bytes)
+        if let expectedHash { guard try AudioFiles.hash(url) == expectedHash else { throw LibraryFailure.changedFile } }
         try bytes.write(to: url, options: .atomic)
         let result = LibraryScriptFile(url: url, hash: Self.hash(bytes), script: script)
         scriptCache[url.standardizedFileURL.path] = result
@@ -217,16 +218,97 @@ public actor FolderLibraryStore {
     private static func hash(_ bytes: Data) -> String {
         SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
-    public func saveCorrection(_ correction: ScriptCorrection, for source: LibraryScriptFile) throws -> LibraryScriptFile {
-        let path = source.url.standardizedFileURL.resolvingSymlinksInPath().path
-        guard let latest = try scanScripts(in: source.url.deletingLastPathComponent()).items.first(where: {
-            $0.id == source.id && $0.url.standardizedFileURL.resolvingSymlinksInPath().path == path
-        }) else { throw LibraryFailure.changedFile }
-        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
-        guard try encoder.encode(latest.script.transcript) == encoder.encode(source.script.transcript) else { throw LibraryFailure.changedFile }
-        var candidate = latest.script
-        candidate.correction = correction; candidate.revisionID = UUID().uuidString
+    private var revisionFolder: URL { root.appendingPathComponent("LibraryRevisions") }
+    private func revisionURL(_ id: String) throws -> URL {
+        guard UUID(uuidString: id) != nil else { throw LibraryFailure.unsafePath }
+        let url = revisionFolder.appendingPathComponent(id + ".dama.json")
+        try safe(url); return url
+    }
+    private func writeRevision(_ script: LibraryScript, bytes: Data) throws -> Data {
+        let url = try revisionURL(script.revisionID)
+        try FileManager.default.createDirectory(at: revisionFolder, withIntermediateDirectories: true)
+        if FileManager.default.fileExists(atPath: url.path) {
+            let previous = try Data(contentsOf: url)
+            let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+            guard try encoder.encode(JSONDecoder().decode(LibraryScript.self, from: previous)) == bytes else {
+                throw LibraryFailure.changedFile
+            }
+            return previous
+        }
+        try bytes.write(to: url, options: .withoutOverwriting)
+        return bytes
+    }
+    /// Merge only changes committed by this actor (or the exact caller bytes). Unknown external edits fail closed.
+    private func latestForMerge(_ source: LibraryScriptFile) throws -> LibraryScriptFile {
+        try safe(source.url)
+        guard source.script.snapshotTitle == nil, !source.url.path.hasPrefix(revisionFolder.path + "/") else { throw LibraryFailure.unsafePath }
+        let bytes = try Data(contentsOf: source.url), hash = Self.hash(bytes)
+        guard hash == source.hash || scriptCache[source.url.standardizedFileURL.path]?.hash == hash else { throw LibraryFailure.changedFile }
+        let latest = try JSONDecoder().decode(LibraryScript.self, from: bytes)
+        try latest.validate()
+        guard latest.id == source.id, latest.snapshotTitle == nil,
+              try latest.sourceFingerprint() == source.script.sourceFingerprint() else { throw LibraryFailure.changedFile }
+        return LibraryScriptFile(url: source.url, hash: hash, script: latest)
+    }
+    public func saveTitle(_ title: String, for source: LibraryScriptFile) throws -> LibraryScriptFile {
+        let latest = try latestForMerge(source)
+        guard latest.script.title == source.script.title || latest.script.title == title else { throw LibraryFailure.changedFile }
+        guard latest.script.title != title else { return latest }
+        var candidate = latest.script; try candidate.renameTitle(title)
         return try saveScript(candidate, to: latest.url, expectedHash: latest.hash)
+    }
+    public func saveParagraph(_ block: ScriptBlock, text: String, for source: LibraryScriptFile) throws -> LibraryScriptFile {
+        let latest = try latestForMerge(source)
+        var candidate = latest.script; try candidate.editParagraph(block, text: text)
+        guard candidate.revisionID != latest.script.revisionID else { return latest }
+        return try saveScript(candidate, to: latest.url, expectedHash: latest.hash)
+    }
+    public func saveCorrection(_ correction: ScriptCorrection, for source: LibraryScriptFile) throws -> LibraryScriptFile {
+        let latest = try latestForMerge(source)
+        try correction.validate(transcript: latest.script.transcript)
+        var candidate = latest.script
+        if correction.state == .completed {
+            // Legacy results remain readable, but only new, identified completions create history.
+            if let completionID = correction.id {
+                if (candidate.versions ?? []).contains(where: { $0.number > 0 && $0.correctionID == completionID }) { return latest }
+                var versions = candidate.versions ?? []
+                if versions.isEmpty {
+                    var before = candidate
+                    if before.correction?.state != .completed { before.correction = nil }
+                    versions.append(try snapshot(before, number: 0, completionID: completionID, date: correction.startedAt))
+                }
+                candidate.correction = correction; candidate.showsOriginal = nil
+                versions.append(try snapshot(candidate, number: versions.count, completionID: completionID, date: correction.completedAt ?? correction.startedAt))
+                candidate.versions = versions
+            } else { candidate.correction = correction }
+        } else {
+            // A later failed/cancelled attempt cannot erase a completed result.
+            if candidate.correction?.state == .completed { return latest }
+            candidate.correction = correction
+        }
+        candidate.revisionID = UUID().uuidString
+        return try saveScript(candidate, to: latest.url, expectedHash: latest.hash)
+    }
+    private func snapshot(_ source: LibraryScript, number: Int, completionID: String, date: Date) throws -> ScriptVersion {
+        var snapshot = source; snapshot.revisionID = UUID().uuidString; snapshot.versions = nil
+        snapshot.snapshotTitle = number == 0 ? "AI 보정 전" : "AI 보정 \(number)"
+        try snapshot.validate()
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        let bytes = try writeRevision(snapshot, bytes: encoder.encode(snapshot))
+        return ScriptVersion(revisionID: snapshot.revisionID, sha256: Self.hash(bytes), number: number,
+            correctionID: completionID, createdAt: date)
+    }
+    public func readVersion(_ version: ScriptVersion, for current: LibraryScriptFile) throws -> LibraryScriptFile {
+        try version.validate()
+        guard current.script.snapshotTitle == nil, current.script.versions?.contains(version) == true,
+              try AudioFiles.hash(current.url) == current.hash else { throw LibraryFailure.changedFile }
+        let url = try revisionURL(version.revisionID), bytes = try Data(contentsOf: url)
+        guard Self.hash(bytes) == version.sha256 else { throw LibraryFailure.changedFile }
+        let script = try JSONDecoder().decode(LibraryScript.self, from: bytes)
+        try script.validate()
+        guard script.id == current.id, script.revisionID == version.revisionID, script.snapshotTitle == version.title,
+              try script.sourceFingerprint() == current.script.sourceFingerprint() else { throw LibraryFailure.invalidScript }
+        return LibraryScriptFile(url: url, hash: version.sha256, script: script)
     }
     public func exportMarkdown(_ file: LibraryScriptFile, to destination: URL) throws {
         try safe(destination)
