@@ -1,9 +1,9 @@
 ---
 unit: soniox-p2-alignment
 branch: work/m0-fixture-review
-status: ready-to-build
+status: building
 decisions_resolved: true
-resume: "T-01: 기존 v2 기본값을 보존하고 명시적 비교용 timeline/word 정책을 구현한다. T-02 합성·실제 저장 응답 검증 후 T-03 현재 Scripts에 새 비교본2개만 추가해 기존 앱에서 확인한다."
+resume: "T-01 Core timeline/word 구현 및 16개 관련 회귀 PASS. T-02 실제 저장 v2 재구성 일치 확인 후 새 비교본2개 생성/검증. T-03 현재 Scripts에 추가하고 기존 앱에서 확인한다."
 spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·02·04 및 notes/uiux-reading/speaker-context-diagnosis.md"
 ---
 
@@ -29,10 +29,10 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·
 
 ## 수용 기준
 
-- [ ] AC-01 Soniox text/prefix/ordinal/token kind/원시간/ASR confidence/언어/asrSpeakerLabel byte-value 보존. 기존 v2 결과/기본값 불변. INV-01·02·08·09.
-- [ ] AC-02 A `soniox-p2-timeline-v3`: 양수 시간 최대 교집합, 정확한 동률/후보 없음 null. 0길이는 반열린 exclusive 구간의 유일한 포함 시점 후보. 겹말·경계 경고는 유지하되 일괄 null 금지. 닫는 문장부호는 앞 원문 발화에 붙임. 외부 설계 coverage0.60 제거는 비교 전용 사용자 승인.
-- [ ] AC-03 B `soniox-p2-word-v3`: A에 같은 어절 조각의 단일 P2 근거 공유를 추가. 여러 exclusive 화자/다른 화자 끼어들기/역행·누락 시간은 공동 배정 불가. 화자별 연속 원 Turn으로 구성해 P2 화자 전환을 중심으로 본문 분할. 원 토큰을 자르거나 새 텍스트/시간을 발명하지 않음.
-- [ ] AC-04 A→짧은 B→A 및 B 전사 누락 장벽, 동률·무근거·겹말·부호·0길이·한국어 부분 토큰·구간 경계·시간 역행 회귀. RC-01~06/INV-06. confidence map·정렬 score·사람 확인 분리. 오류/누락 의심 근거 재계산.
+- [x] AC-01 Soniox text/prefix/ordinal/token kind/원시간/ASR confidence/언어/asrSpeakerLabel byte-value 보존. 기존 v2 결과/기본값 불변. INV-01·02·08·09.
+- [x] AC-02 A `soniox-p2-timeline-v3`: 양수 시간 최대 교집합, 정확한 동률/후보 없음 null. 0길이는 반열린 exclusive 구간의 유일한 포함 시점 후보. 겹말·경계 경고는 유지하되 일괄 null 금지. 닫는 문장부호는 앞 원문 발화에 붙임. 외부 설계 coverage0.60 제거는 비교 전용 사용자 승인.
+- [x] AC-03 B `soniox-p2-word-v3`: A에 같은 어절 조각의 단일 P2 근거 공유를 추가. 여러 exclusive 화자/다른 화자 끼어들기/역행·누락 시간은 공동 배정 불가. 화자별 연속 원 Turn으로 구성해 P2 화자 전환을 중심으로 본문 분할. 원 토큰을 자르거나 새 텍스트/시간을 발명하지 않음.
+- [x] AC-04 A→짧은 B→A 및 B 전사 누락 장벽, 동률·무근거·겹말·부호·0길이·한국어 부분 토큰·구간 경계·시간 역행 회귀. RC-01~06/INV-06. confidence map·정렬 score·사람 확인 분리. 오류/누락 의심 근거 재계산.
 - [ ] AC-05 실제 최신 저장 결합과 소스 해시 재검사, 두 비교본의 전체6,016토큰 보존/새 Run ID/전체 Script 및 export validate/원본 보존. 미배정/문단은 정답률로 표현하지 않음. AI 보정 OFF.
 - [ ] AC-06 검증된 비교본2개를 현재 Scripts에 추가, 실제 앱에서 A/B 선택·원문 표시·연결된 원음 재생 경로 확인. 현재 원본 파일 해시 비변경. 청취 정답/E1/E2/수정시간은 사용자 비교 단계로 표시.
 
@@ -57,5 +57,6 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·
 
 ## Follow-ups
 
+- T-01: 관련16개(신규9+기존v2/읽기7) PASS, `.build/check-logs/soniox-p2-alignment-core-retry.log`. 최초 manifest가 홈 캐시를 써서 sandbox 차단된 기록은 core.log에 보존; 환경 변수로 repo 캐시 지정 및 승인된 외부 실행으로 검사. 경계 시점 start포함을 의도적으로 제외하는 역뮤테이션에서 고정 검사1개 FAIL(단정1), 복원 후 PASS. 기존 v2 테스트 기대값 변경/삭제 없음.
 - 사용자 원음 판정 후 채택 정책을 새 변환 기본값으로 연결. 필요하면 남은 lexical 시간 불일치에 별도 음성 정렬기를 비교.
 - AI 문맥 후보정은 다음 단계. 원문/화자/시간/사람 수정 보존 및 녹음별 전송 확인 계약 유지.
