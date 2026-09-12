@@ -84,6 +84,9 @@ import SwiftUI
         alert.accessoryView = scroll
     }
     func enqueue(_ file: LibraryScriptFile, input: ConversionNotes) {
+        guard AudioFiles.uiFixtureFolder == nil else {
+            message = "합성 UI 검증에서는 AI 실행과 외부 전송을 차단합니다."; return
+        }
         guard input.aiCorrection == true, activeID != file.id, !queue.contains(where: { $0.0.id == file.id }) else { return }
         queue.append((file, input)); runNext()
     }

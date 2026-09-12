@@ -31,6 +31,7 @@ public actor FolderLibraryStore {
     private let trash: @Sendable (URL) throws -> Void
     private var scanning = false
     private var scriptCache: [String: LibraryScriptFile] = [:]
+    private var committedScriptHashes: [String: String] = [:]
     public init(root: URL, trash: @escaping @Sendable (URL) throws -> Void = {
         try FileManager.default.trashItem(at: $0, resultingItemURL: nil)
     }) { self.root = root.standardizedFileURL; self.trash = trash }
@@ -213,6 +214,7 @@ public actor FolderLibraryStore {
         try bytes.write(to: url, options: .atomic)
         let result = LibraryScriptFile(url: url, hash: Self.hash(bytes), script: script)
         scriptCache[url.standardizedFileURL.path] = result
+        committedScriptHashes[url.standardizedFileURL.path] = result.hash
         return result
     }
     private static func hash(_ bytes: Data) -> String {
@@ -243,7 +245,10 @@ public actor FolderLibraryStore {
         try safe(source.url)
         guard source.script.snapshotTitle == nil, !source.url.path.hasPrefix(revisionFolder.path + "/") else { throw LibraryFailure.unsafePath }
         let bytes = try Data(contentsOf: source.url), hash = Self.hash(bytes)
-        guard hash == source.hash || scriptCache[source.url.standardizedFileURL.path]?.hash == hash else { throw LibraryFailure.changedFile }
+        guard hash == source.hash || committedScriptHashes[source.url.standardizedFileURL.path] == hash else { throw LibraryFailure.changedFile }
+        let scan = try scanScripts(in: source.url.deletingLastPathComponent())
+        guard scan.items.contains(where: { $0.id == source.id && $0.url.standardizedFileURL == source.url.standardizedFileURL && $0.hash == hash })
+        else { throw LibraryFailure.changedFile }
         let latest = try JSONDecoder().decode(LibraryScript.self, from: bytes)
         try latest.validate()
         guard latest.id == source.id, latest.snapshotTitle == nil,

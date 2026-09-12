@@ -219,6 +219,9 @@ final class ProcessingWorkspace: ObservableObject {
     }
     private func launch(sessionID: String, provider: TranscriptionProvider, needsKey: Bool = true,
                         needsSonioxKey: Bool = false, _ action: @escaping @Sendable (String, String) async throws -> ManagedRun) {
+        guard AudioFiles.uiFixtureFolder == nil else {
+            message = "합성 UI 검증에서는 모델 실행과 외부 전송을 차단합니다."; return
+        }
         // Recheck after asynchronous preparation and the modal consent dialog.
         guard !busy, processor != nil, historyAllowsProcessing(sessionID), admitsProcessing(provider) else { return }
         let key: String, sonioxKey: String

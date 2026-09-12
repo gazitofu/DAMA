@@ -42,8 +42,24 @@ public struct AudioManifest: Codable, Sendable, Identifiable {
 }
 
 public enum AudioFiles {
+    /// An explicitly named, separately signed QA app may use synthetic temporary libraries.
+    /// The delivered bundle and Release builds never activate this path.
+    public static let uiFixtureFolder: URL? = {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        guard Bundle.main.bundleIdentifier == "com.gazitofu.Dama.ReadingQA",
+              let index = args.firstIndex(of: "--reading-fixture-root"), args.indices.contains(index + 1) else { return nil }
+        let url = URL(fileURLWithPath: args[index + 1]).standardizedFileURL
+        guard (url.path.hasPrefix("/private/tmp/dama-reading-qa-") || url.path.hasPrefix("/tmp/dama-reading-qa-")),
+              url.resolvingSymlinksInPath().path == url.path else { return nil }
+        return url
+        #else
+        return nil
+        #endif
+    }()
     public static func root() throws -> URL {
-        try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+        if let uiFixtureFolder { return uiFixtureFolder.appendingPathComponent("internal") }
+        return try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
                                     appropriateFor: nil, create: true)
             .appendingPathComponent("com.gazitofu.Dama", isDirectory: true)
     }

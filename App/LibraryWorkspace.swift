@@ -52,6 +52,10 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         guard !started else { return }; started = true
         do {
             let root = try AudioFiles.root(); self.root = root; store = FolderLibraryStore(root: root)
+            if let fixture = AudioFiles.uiFixtureFolder {
+                for kind in LibraryFolder.allCases { folders[kind] = fixture.appendingPathComponent(kind.rawValue) }
+                folder = .scripts; refresh(); return
+            }
             for folder in LibraryFolder.allCases {
                 guard let data = UserDefaults.standard.data(forKey: "library.folder.\(folder.rawValue)") else { continue }
                 do {

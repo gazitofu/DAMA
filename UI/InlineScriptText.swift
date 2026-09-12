@@ -37,8 +37,11 @@ struct InlineScriptText: NSViewRepresentable {
         view.setAccessibilityLabel(label); view.singleLine = title
         view.commit = commit; view.cancelDraft = cancel
         view.activated = activated
-        if view.string != text && !view.hasMarkedText() { view.string = text }
-        view.isEditable = editable; view.isSelectable = true
+        view.compositionChanged = { [weak coordinator = context.coordinator, weak view] in
+            guard let view else { return }; coordinator?.reportChange(view)
+        }
+        view.synchronize(text: text, editable: editable)
+        view.isSelectable = true
         if focus && !view.focusRequested {
             view.focusRequested = true
             DispatchQueue.main.async { [weak view] in
@@ -54,11 +57,14 @@ struct InlineScriptText: NSViewRepresentable {
         layout.ensureLayout(for: container)
         return CGSize(width: width, height: max(title ? 34 : 27, ceil(layout.usedRect(for: container).height)))
     }
-    final class Coordinator: NSObject, NSTextViewDelegate {
+    @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: InlineScriptText
         init(_ parent: InlineScriptText) { self.parent = parent }
         func textDidChange(_ notification: Notification) {
             guard let view = notification.object as? NSTextView else { return }
+            reportChange(view)
+        }
+        func reportChange(_ view: NSTextView) {
             parent.text = view.string; parent.changed(view.hasMarkedText())
             view.invalidateIntrinsicContentSize()
         }
@@ -75,18 +81,41 @@ final class ScriptTextView: NSTextView {
     var commit: () -> Void = {}
     var cancelDraft: () -> Void = {}
     var activated: () -> Void = {}
+    var compositionChanged: () -> Void = {}
+    private var synchronizing = false
+    func synchronize(text: String, editable: Bool) {
+        synchronizing = true
+        // Cancellation must discard the marked draft before restoring the saved paragraph.
+        if !editable && hasMarkedText() { unmarkText() }
+        if string != text && !hasMarkedText() { string = text }
+        isEditable = editable
+        synchronizing = false
+    }
+    override func setMarkedText(_ string: Any, selectedRange: NSRange, replacementRange: NSRange) {
+        super.setMarkedText(string, selectedRange: selectedRange, replacementRange: replacementRange)
+        if !synchronizing { compositionChanged() }
+    }
+    override func unmarkText() {
+        super.unmarkText()
+        if !synchronizing { compositionChanged() }
+    }
     override func mouseDown(with event: NSEvent) { activated(); super.mouseDown(with: event) }
     override func keyDown(with event: NSEvent) {
-        if !hasMarkedText() {
-            if event.keyCode == 53 { cancelDraft(); return }
-            if (event.keyCode == 36 || event.keyCode == 76) && (singleLine || event.modifierFlags.contains(.command)) { commit(); return }
-        }
+        if handleCommand(keyCode: event.keyCode, flags: event.modifierFlags) { return }
         super.keyDown(with: event)
+    }
+    func handleCommand(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
+        if !hasMarkedText() {
+            if keyCode == 53 { cancelDraft(); return true }
+            if (keyCode == 36 || keyCode == 76) && (singleLine || flags.contains(.command)) { commit(); return true }
+        }
+        return false
     }
     override func paste(_ sender: Any?) { pasteAsPlainText(sender) }
     override func insertText(_ insertString: Any, replacementRange: NSRange) {
         if singleLine, let string = insertString as? String {
             super.insertText(string.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " "), replacementRange: replacementRange)
         } else { super.insertText(insertString, replacementRange: replacementRange) }
+        if !synchronizing { compositionChanged() }
     }
 }

@@ -72,6 +72,8 @@ final class ScriptVersionTests: XCTestCase {
         var external = renamed.script; try external.renameTitle("외부 수정")
         try JSONEncoder().encode(external).write(to: renamed.url, options: .atomic)
         let bytes = try Data(contentsOf: renamed.url)
+        _ = try await store.scanScripts(in: folder)
+        // Reading an external revision does not make it a locally committed merge base.
         do { _ = try await store.saveTitle("앱의 이전 draft", for: renamed); XCTFail("foreign bytes") }
         catch { XCTAssertTrue(error is LibraryFailure) }
         do { _ = try await store.saveCorrection(failed, for: first); XCTFail("foreign bytes") }

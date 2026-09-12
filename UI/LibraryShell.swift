@@ -66,6 +66,7 @@ struct LibraryShell: View {
             HStack {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)).resizable().frame(width: 28, height: 28).accessibilityHidden(true)
                 Text("DAMA").font(.headline)
+                if AudioFiles.uiFixtureFolder != nil { Text("합성 UI 검증").font(.caption).foregroundStyle(.orange) }
                 Spacer()
                 if correction.busy {
                     Text("AI 교정 중").font(.caption).foregroundStyle(.secondary)
@@ -178,7 +179,7 @@ struct LibraryShell: View {
                 HStack {
                     Button { workspace.selectFolder(kind) } label: {
                         Label(kind.rawValue, systemImage: "folder").frame(maxWidth: .infinity, alignment: .leading).padding(10)
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.plain).disabled(!workspace.canLeave)
                     Menu {
                         Button("폴더 선택…") { workspace.chooseFolder(kind) }.disabled(workspace.foldersLocked)
                         Button("Finder에서 열기") { workspace.revealFolder(kind) }.disabled(workspace.folders[kind] == nil)
