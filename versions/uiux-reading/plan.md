@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-03 제목/본문 동일 native NSTextView와 직렬 자동 저장 연결, Debug build PASS. T-04 화자/AI 모달·정보·버전·재생 통합 뒤 합성 native 여정 QA. 실제 전달 앱은 아직0.4.7(17)."
+resume: "T-04 화자/AI 모달·정보·버전·재생 연결, Core/audio29 및 Debug build PASS. T-05 Speeches 소비 입력/참조 경로, 이어 T-06 통합 native 합성 QA·전달. 실제 전달 앱은 아직0.4.7(17)."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -60,6 +60,8 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - 폴더 선택만으로 전송하지 않는다. Soniox 기본 문맥 ON/폴더 OFF; Qwen 로컬 폴더 별도 선택. pyannote 통합 STT에서 소비하지 않는 맥락/참석자/용어/참고 입력 UI 숨김, 저장된 내용 삭제 없음.
 
 ## Follow-ups
+
+- T-03/T-04: 동일 NSTextView 읽기/편집, IME 상태를 본 debounce500ms, 문단 draft/버전 탐색 차단, 화자 모달/AI 참고 최종 확인 연결. 저장/읽기/AI 회귀29 PASS(.build/check-logs/uiux-reading-t04.log), Debug build PASS. 새 모달 catch 변수 shadowing 컴파일 오류 수정 후 통과. 실제 입력·배치 QA는 T-06에서 시행.
 
 - T-02 검증: ScriptVersionTests/ContextAudioTests/LibraryJourneyTests/ReadingSnapshotTests 15/15 PASS, .build/check-logs/uiux-reading-t02.log. 제목·문단·AI 병합, 원문 교체/외부 바이트/stale 제목 차단, immutable snapshot/중복 완료/실패/손상/과거 Markdown. 외부 API 없음.
 

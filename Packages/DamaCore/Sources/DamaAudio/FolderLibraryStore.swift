@@ -257,6 +257,9 @@ public actor FolderLibraryStore {
         var candidate = latest.script; try candidate.renameTitle(title)
         return try saveScript(candidate, to: latest.url, expectedHash: latest.hash)
     }
+    public func validateCurrent(_ source: LibraryScriptFile) throws {
+        guard try latestForMerge(source).hash == source.hash else { throw LibraryFailure.changedFile }
+    }
     public func saveParagraph(_ block: ScriptBlock, text: String, for source: LibraryScriptFile) throws -> LibraryScriptFile {
         let latest = try latestForMerge(source)
         var candidate = latest.script; try candidate.editParagraph(block, text: text)

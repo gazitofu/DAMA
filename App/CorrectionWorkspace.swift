@@ -117,6 +117,7 @@ import SwiftUI
                     var source = file.script; source.correction = nil; source.showsOriginal = nil
                     return try ContextCorrection.chunks(source)
                 }.value
+                guard !chunks.isEmpty else { throw LibraryFailure.invalidInput }
                 total = chunks.count; correction.totalChunks = total
                 if !hasPreviousResult { try await LibraryWorkspace.shared.storeCorrection(correction, file: file) }
                 var conflicts = Set<String>()
@@ -137,12 +138,12 @@ import SwiftUI
                 for id in conflicts { correction.speakerNames.removeValue(forKey: id); correction.nameEvidence.removeValue(forKey: id) }
                 correction.state = .completed; correction.completedAt = Date()
                 try await LibraryWorkspace.shared.storeCorrection(correction, file: file)
-                message = "문맥 교정을 저장했습니다. 불확실한 부분은 원문과 노란 표시로 남겼습니다."
+                message = "AI 보정 결과를 저장했습니다. 다른 결과 보기에서 이전 버전을 확인할 수 있습니다."
             } catch {
                 correction.state = .failed; correction.edits = []; correction.speakerNames = [:]; correction.nameEvidence = [:]
                 if !hasPreviousResult { try? await LibraryWorkspace.shared.storeCorrection(correction, file: file) }
-                message = Task.isCancelled ? "교정을 중단했습니다. 원문과 사용자 수정은 유지됩니다." :
-                    "AI 교정을 완료하지 못했습니다. 원문은 사용할 수 있습니다. Codex 설치·로그인·앱 접근 권한 또는 연결을 확인한 뒤 AI 교정을 다시 실행하세요. 자동 재호출하지 않습니다."
+                message = Task.isCancelled ? "AI 보정을 취소했습니다. 기존 결과는 유지됩니다." :
+                    "AI 보정을 완료하지 못했습니다. 기존 결과는 유지됩니다. Codex 설치·로그인·앱 접근 권한 또는 연결을 확인해 주세요."
             }
         }
     }

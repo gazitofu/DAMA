@@ -1,0 +1,147 @@
+import DamaAudio
+import DamaCore
+import SwiftUI
+
+struct SpeakerNameSheet: View {
+    let edit: LibraryEdit
+    @ObservedObject var workspace: LibraryWorkspace
+    @Environment(\.dismiss) private var dismiss
+    @State private var value: String
+    @State private var scope: SpeakerNameScope
+    @State private var error: String?
+    private var block: ScriptBlock { switch edit.kind { case let .speaker(block): block } }
+    init(edit: LibraryEdit, workspace: LibraryWorkspace) {
+        self.edit = edit; self.workspace = workspace
+        switch edit.kind {
+        case let .speaker(block):
+            _scope = State(initialValue: block.turns[0].speakerId == nil ? .one : .all)
+            _value = State(initialValue: block.name == "화자 미확정" ? "" : block.name)
+        }
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("화자 이름 변경").font(.title2)
+            TextField("표시 이름", text: $value).textFieldStyle(.roundedBorder).accessibilityLabel("표시 이름")
+            Picker("적용 범위", selection: $scope) {
+                Text("이 부분만").tag(SpeakerNameScope.one)
+                if block.turns[0].speakerId != nil {
+                    Text("이 부분부터").tag(SpeakerNameScope.from)
+                    Text("전체").tag(SpeakerNameScope.all)
+                }
+            }.pickerStyle(.radioGroup)
+            Text("대상 원구간 \(edit.file.script.affectedTurns(in: block, scope: scope).count)개").font(.caption)
+            Text(block.turns[0].speakerId == nil ? "미배정 화자는 선택한 부분만 바꿀 수 있습니다." : "원래 화자 ID는 보존됩니다.").font(.caption).foregroundStyle(.secondary)
+            if let error { Text(error).foregroundStyle(.red).font(.caption) }
+            HStack {
+                Spacer()
+                Button("취소") { dismiss() }.keyboardShortcut(.cancelAction).disabled(workspace.busy)
+                Button("이름 변경") {
+                    Task {
+                        do {
+                            var candidate = edit.file.script
+                            try candidate.rename(block, name: value, scope: scope)
+                            try await workspace.saveScript(candidate, original: edit.file)
+                            dismiss()
+                        } catch { self.error = "이름을 저장하지 못했습니다. 입력한 내용은 유지됩니다." }
+                    }
+                }.keyboardShortcut(.defaultAction).disabled(workspace.busy || value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }.padding(24).frame(width: 430).interactiveDismissDisabled()
+    }
+}
+
+struct ScriptAIRequest: Identifiable {
+    let id = UUID()
+    let file: LibraryScriptFile
+    func chunks() throws -> [CorrectionChunk] {
+        var source = file.script; source.correction = nil; source.showsOriginal = nil
+        return try ContextCorrection.chunks(source)
+    }
+}
+
+struct CorrectionInputSheet: View {
+    let request: ScriptAIRequest
+    @ObservedObject var workspace: LibraryWorkspace
+    @ObservedObject private var correction = CorrectionWorkspace.shared
+    @Environment(\.dismiss) private var dismiss
+    @State private var input: ConversionNotes?
+    @State private var excerpts: [ReferenceExcerpt] = []
+    @State private var included = Set<String>()
+    @State private var extra = ""
+    @State private var error: String?
+    @State private var preparing = true
+    @State private var submitting = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("AI 검수/보정").font(.title2)
+                Text(request.file.script.title).font(.headline)
+                Text("현재 결과의 원문을 보정합니다. 사용자 수정은 보존됩니다.").font(.caption).foregroundStyle(.secondary)
+            }.padding(24)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if preparing { ProgressView("참고 내용 확인 중…") }
+                    if let input {
+                        DisclosureGroup("기존 참석자·맥락·참고 내용") {
+                            Text([input.participants ?? "", input.context, input.reference, input.meetingTerms ?? ""].filter { !$0.isEmpty }.joined(separator: "\n\n")).font(.callout).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    Text("추가 참고 내용 (선택)").font(.headline)
+                    ExactTextEditor(text: $extra, label: "추가 참고 내용").frame(height: 120)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.25)))
+                    Text("이번 보정에만 사용됩니다.").font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Text(correction.referenceURL?.lastPathComponent ?? "참고 폴더 없음").font(.caption)
+                        Spacer(); Button("참고 폴더 선택", action: correction.chooseReferences).disabled(submitting || preparing)
+                    }
+                    if excerpts.isEmpty { Text("선택한 참고 파일이 없습니다.").font(.caption).foregroundStyle(.secondary) }
+                    ForEach(excerpts, id: \.name) { excerpt in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Toggle(excerpt.name, isOn: Binding(get: { included.contains(excerpt.name) }, set: { if $0 { included.insert(excerpt.name) } else { included.remove(excerpt.name) } }))
+                            DisclosureGroup("보낼 발췌 보기") { Text(excerpt.text).font(.caption).textSelection(.enabled) }
+                        }
+                    }
+                    if let error { Text(error).font(.callout).foregroundStyle(.red) }
+                }.padding(24)
+            }.frame(minHeight: 220, maxHeight: 330).disabled(submitting)
+            Divider()
+            VStack(alignment: .leading, spacing: 14) {
+                Text("이 스크립트의 전사·참석자·맥락·참고 내용을 OpenAI로 전송합니다. 계정 사용량이 소모될 수 있습니다. 원음은 보내지 않습니다.").font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Spacer(); Button("취소") { dismiss() }.keyboardShortcut(.cancelAction).disabled(submitting)
+                    Button("보정하기", action: submit).buttonStyle(.borderedProminent).disabled(preparing || submitting || input == nil || correction.busy)
+                }
+            }.padding(24)
+        }.frame(width: 550).interactiveDismissDisabled()
+            .task { await prepare() }
+            .onChange(of: correction.referenceURL) { _, _ in Task { await prepare() } }
+    }
+    private func prepare() async {
+        preparing = true; input = nil; error = nil
+        defer { preparing = false }
+        do {
+            let base = workspace.speeches.first { $0.id == request.file.script.transcript.sessionId }?.notes ?? request.file.script.input
+            let prepared = try await correction.preparedInput(base, enabled: true)
+            guard !(try request.chunks()).isEmpty else {
+                error = "모든 본문을 사용자가 수정하여 보정할 원문이 없습니다."; return
+            }
+            input = prepared; excerpts = prepared.referenceExcerpts ?? []; included = Set(excerpts.map(\.name))
+        } catch { self.error = "참고 내용을 읽지 못했습니다. 폴더 접근을 확인한 뒤 다시 선택해 주세요. 전송하지 않았습니다." }
+    }
+    private func submit() {
+        guard var input else { return }
+        input.referenceExcerpts = excerpts.filter { included.contains($0.name) }
+        if !extra.isEmpty { input.reference += (input.reference.isEmpty ? "" : "\n\n") + "추가 참고 내용\n" + extra }
+        submitting = true; error = nil
+        Task {
+            defer { submitting = false }
+            do {
+                try await workspace.validateCorrectionSource(request.file)
+                // Enforce the actual complete prompt budget before the first external request.
+                for chunk in try request.chunks() { _ = try ContextCorrection.prompt(chunk: chunk, input: input) }
+                correction.enqueue(request.file, input: input); dismiss()
+            } catch { self.error = "현재 파일 또는 참고 입력을 확인하지 못했습니다. 전송하지 않았습니다. 입력한 내용은 유지됩니다." }
+        }
+    }
+}

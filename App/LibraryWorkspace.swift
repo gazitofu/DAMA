@@ -148,7 +148,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 do {
                     let scan = try await store.scanScripts(in: url)
                     scripts = scan.items; scanIssues[.scripts] = scan.issues
-                    if !scripts.contains(where: { $0.id == selectedScriptID }) { selectedScriptID = scripts.first?.id }
+                    if !scripts.contains(where: { $0.id == selectedScriptID }) { historicalFile = nil; selectedScriptID = scripts.first?.id }
                 } catch { scanIssues[.scripts] = [FileScanIssue(url: url)] }
             }
         }
@@ -310,7 +310,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                     saved.insert(run.id); UserDefaults.standard.set(Array(saved), forKey: "library.savedSourceRuns")
                 }
                 savingRunIDs.remove(run.id)
-                if select && canLeave && !notesDirty { selectedScriptID = result.id; folder = .scripts }
+                if select && canLeave && !notesDirty { historicalFile = nil; selectedScriptID = result.id; folder = .scripts }
                 message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요."
                 if result.script.correction == nil, run.input?.aiCorrection == true {
                     CorrectionWorkspace.shared.enqueue(result, input: run.input!)
@@ -343,6 +343,10 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         // Re-read and merge only the AI layer. Concurrent manual edits remain authoritative.
         let result = try await store.saveCorrection(correction, for: file)
         if let i = scripts.firstIndex(where: { $0.id == result.id }) { scripts[i] = result }
+    }
+    func validateCorrectionSource(_ file: LibraryScriptFile) async throws {
+        guard historicalFile == nil, let store else { throw LibraryFailure.invalidInput }
+        try await store.validateCurrent(file)
     }
     func toggleOriginal(_ file: LibraryScriptFile) {
         guard canLeave else { return }

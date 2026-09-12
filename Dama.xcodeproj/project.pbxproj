@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		100000000000000000000022 = {isa = PBXBuildFile; fileRef = 200000000000000000000022; };
 		100000000000000000000019 = {isa = PBXBuildFile; fileRef = 200000000000000000000019; };
 		100000000000000000000020 = {isa = PBXBuildFile; fileRef = 200000000000000000000020; };
 		100000000000000000000021 = {isa = PBXBuildFile; fileRef = 200000000000000000000021; };
@@ -31,6 +32,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		200000000000000000000022 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptModalSheets.swift; sourceTree = "<group>"; };
 		200000000000000000000019 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptEditingSession.swift; sourceTree = "<group>"; };
 		200000000000000000000020 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineScriptText.swift; sourceTree = "<group>"; };
 		200000000000000000000021 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReadingView.swift; sourceTree = "<group>"; };
@@ -96,6 +98,7 @@
 		400000000000000000000003 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				200000000000000000000022,
 				200000000000000000000020,
 				200000000000000000000021,
 				200000000000000000000016,
@@ -225,6 +228,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000022,
 				100000000000000000000019,
 				100000000000000000000020,
 				100000000000000000000021,

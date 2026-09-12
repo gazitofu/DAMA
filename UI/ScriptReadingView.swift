@@ -74,6 +74,7 @@ struct ScriptReadingView: View {
                             workspace.play(block, file: shown)
                         }.disabled(capture.phase.busy || workspace.editing || workspace.titlePending)
                         PlaybackPositionLabel(playback: workspace.playback)
+                        if playingID != nil { Button("현재 문단") { scroll.scrollTo(selectedBlock?.id, anchor: .center) } }
                     }
                     Spacer()
                     if capture.phase.busy { Text("녹음 중에는 재생할 수 없습니다.").font(.caption).foregroundStyle(.secondary) }
@@ -89,6 +90,12 @@ struct ScriptReadingView: View {
         }
         .onChange(of: file.hash) { _, _ in editor.receive(file) }
         .onReceive(workspace.playback.$playingID.removeDuplicates()) { playingID = $0 }
+        .onReceive(workspace.playback.$positionUs) { position in
+            guard playingID != nil, editor.block == nil,
+                  let active = blocks.first(where: { ($0.startUs ?? .max) <= position && ($0.endUs ?? 0) > position }),
+                  selected != active.id else { return }
+            selected = active.id
+        }
         .onDisappear { workspace.playback.stop() }
     }
     private var currentLabel: String {
