@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "2026-09-13 UI 완성본 사용자 확인 완료, 앱0.5.1(19)/uiux-reading built 유지. 현안은 Soniox+P2 미배정·과분절: notes/uiux-reading/speaker-context-diagnosis.md의 2026-09-13 재측정과 오프라인 비교를 먼저 읽는다. 같은 exclusive502구간/동일 Soniox 원문에서 결합 정책 때문에 미배정657, 최대 교집합 후보273; 정확도는 미검증. 다음은 말 조각·부호 정렬 후보와 원음 E1/E2 비교이며 운영 정책은 아직 변경하지 않음. 개인 용어 프로필은 후속. 본 유닛 built 및 타 트랙 보류 유지."
+resume: "2026-09-13 규칙 완화 승인 후 versions/soniox-p2-alignment/plan.md built. Scripts에 실제 비교 A(P2 시간표)/B(P2 화자별 원문) 추가, 최종 B 표시. 동일 Soniox6,016토큰 보존, 미배정657→A71/B23; 발화문단1,207→655/418. 사용자 원음 판정 후 채택 정책을 새 변환 기본값으로 연결한다. 현재 앱0.5.1(19)/운영v2 유지, AI 후보정은 다음 단계. 실제 재생은 CUA 오류로 미측정, 경로/WAV 해시는 검증. 상세 진단·남은 부호 분절은 notes/uiux-reading/speaker-context-diagnosis.md 및 새 plan 참조. 타 트랙 보류 유지."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
@@ -80,6 +80,8 @@ spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ss
 - 마지막 status 실측: `work/m0-fixture-review`, 사용자/다른 트랙 혼합7문서만 기존 변경으로 남긴다. 앱 코드·신규 계약·본 plan은 이 작업 커밋에 포함. 원격 push 없음.
 
 ## 다음 세션 착수 (2026-09-11 추가 요청)
+
+비교본 전달 갱신 (2026-09-13): 사용자의 규칙 완화/결과 확인 승인에 따라 [soniox-p2-alignment](../soniox-p2-alignment/plan.md) 구현·검증 완료. 현재 Scripts의 비교 A/B는 새 Run으로 추가했고 원본은 유지했다. 사용자에게 B를 열어 전달, 운영 기본값 승격과 AI 후보정은 결과 판정 다음 단계다.
 
 최신 진단 갱신 (2026-09-13): 사용자가 UI 모두 확인 후 AI 보정 전 STT 결합 품질 해결 방안을 요청했다. [화자·결합 진단](../../notes/uiux-reading/speaker-context-diagnosis.md)의 2026-09-13 절에 현재Script4개·최신 결합본/소스/통합 비교와 실제 읽기 코드의 오프라인 실험을 기록했다. 원본55개 보존, 외부 호출/운영 코드 변경 없음. 아래 UI 스펙 확인 요청은 완료된 과거 기록이며 재승인을 요구하지 않는다.
 

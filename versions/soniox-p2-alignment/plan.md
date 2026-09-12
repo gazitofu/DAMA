@@ -1,9 +1,9 @@
 ---
 unit: soniox-p2-alignment
 branch: work/m0-fixture-review
-status: building
+status: built
 decisions_resolved: true
-resume: "T-01 Core timeline/word 구현 및 16개 관련 회귀 PASS. T-02 실제 저장 v2 재구성 일치 확인 후 새 비교본2개 생성/검증. T-03 현재 Scripts에 추가하고 기존 앱에서 확인한다."
+resume: ""
 spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·02·04 및 notes/uiux-reading/speaker-context-diagnosis.md"
 ---
 
@@ -33,8 +33,8 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·
 - [x] AC-02 A `soniox-p2-timeline-v3`: 양수 시간 최대 교집합, 정확한 동률/후보 없음 null. 0길이는 반열린 exclusive 구간의 유일한 포함 시점 후보. 겹말·경계 경고는 유지하되 일괄 null 금지. 닫는 문장부호는 앞 원문 발화에 붙임. 외부 설계 coverage0.60 제거는 비교 전용 사용자 승인.
 - [x] AC-03 B `soniox-p2-word-v3`: A에 같은 어절 조각의 단일 P2 근거 공유를 추가. 여러 exclusive 화자/다른 화자 끼어들기/역행·누락 시간은 공동 배정 불가. 화자별 연속 원 Turn으로 구성해 P2 화자 전환을 중심으로 본문 분할. 원 토큰을 자르거나 새 텍스트/시간을 발명하지 않음.
 - [x] AC-04 A→짧은 B→A 및 B 전사 누락 장벽, 동률·무근거·겹말·부호·0길이·한국어 부분 토큰·구간 경계·시간 역행 회귀. RC-01~06/INV-06. confidence map·정렬 score·사람 확인 분리. 오류/누락 의심 근거 재계산.
-- [ ] AC-05 실제 최신 저장 결합과 소스 해시 재검사, 두 비교본의 전체6,016토큰 보존/새 Run ID/전체 Script 및 export validate/원본 보존. 미배정/문단은 정답률로 표현하지 않음. AI 보정 OFF.
-- [ ] AC-06 검증된 비교본2개를 현재 Scripts에 추가, 실제 앱에서 A/B 선택·원문 표시·연결된 원음 재생 경로 확인. 현재 원본 파일 해시 비변경. 청취 정답/E1/E2/수정시간은 사용자 비교 단계로 표시.
+- [x] AC-05 실제 최신 저장 결합과 소스 해시 재검사, 두 비교본의 전체6,016토큰 보존/새 Run ID/전체 Script 및 export validate/원본 보존. 미배정/문단은 정답률로 표현하지 않음. AI 보정 OFF.
+- [x] AC-06 검증된 비교본2개를 현재 Scripts에 추가, 실제 앱에서 A/B 선택·원문 표시·연결된 원음 재생 경로 확인. 현재 원본 파일 해시 비변경. 청취 정답/E1/E2/수정시간은 사용자 비교 단계로 표시. **경로와 WAV 일치 확인이며 실제 재생 성공은 미측정**(아래 QA 한계).
 
 ## 시간·수치 계약
 
@@ -58,5 +58,12 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·
 ## Follow-ups
 
 - T-01: 관련16개(신규9+기존v2/읽기7) PASS, `.build/check-logs/soniox-p2-alignment-core-retry.log`. 최초 manifest가 홈 캐시를 써서 sandbox 차단된 기록은 core.log에 보존; 환경 변수로 repo 캐시 지정 및 승인된 외부 실행으로 검사. 경계 시점 start포함을 의도적으로 제외하는 역뮤테이션에서 고정 검사1개 FAIL(단정1), 복원 후 PASS. 기존 v2 테스트 기대값 변경/삭제 없음.
+- T-02/T-03 완료: `scripts/CompareSonioxPrecision.swift`를 DamaCore에 링크하여 실제 v2를 양쪽 raw에서 재구성해 완전 일치 검증 후 생성. `.build/diagnostics/soniox-p2-alignment/preview-r1/manifest.json`에 원본8개 해시·입력 Run·새 Run·산출물 해시. `.dama.json`2개, source 하위 raw/request/원본 snapshot/normalized/Markdown 보존. 최종 제목만 현재 앱에서 짧게 저장해 화면 겹침을 피했고 title/revisionID 외 변경 없음 검증. 생성기도 같은 짧은 제목으로 갱신/재컴파일.
+- 측정(동일6,016토큰): 현재 미배정657/lexical412/발화문단1,207 → A71/44/655 → B23/13/418. 누락 의심 marker72는 두 후보 모두 유지. 문장부호만 있는 문단은 현재267/A74/B57로 아직 남음. `LibraryScript.validate`/codec/Markdown 및 Draft2020-12 JSON Schema2개 PASS. 정확도 청취 결과가 아님.
+- 최종 backpressure 계약30/Swift179/Debug PASS, SKIP0. `.build/check-logs/soniox-p2-alignment-final/run-20260912T161755Z-QbezLo`; scratch `run-20260912T160116Z-OI0Nzz` 재사용. CLI 마지막 제목 변경은 해당 실행 파일 재컴파일과 앱 실제 제목 저장/동등성으로 검증했으며 전체 검사는 반복하지 않음.
+- 현재 `/Users/gazitofu/DAMA/Scripts`에 A `84420BCA-5F8F-477C-B3B4-A438783056D5.dama.json`, B `870BD136-53B9-4D0E-828F-F092DF9AF306.dama.json`만 추가. 사전 원본Script4개 unchanged4, 입력8개 unchanged8, 후보2개 준비본=설치본. 배치 스크립트는 `.withoutOverwriting`에 해당하는 exclusive create와 사전/사후 해시를 사용했으며 작업 폴더 밖 추가 쓰기 권한 승인 후 실행.
+- 실제 앱0.5.1(19)에서 목록 새로고침→A 본문→B 본문→제목 자동 저장→A/B 재선택 확인, 최종 B를 열어 전달. `sessionId`가 기존 분석 WAV를 가리키고 해시가 같음을 검증. **원음 듣기 AX 클릭은 AXError.failure, 좌표 대체는 noWindowsAvailable로 실제 재생 성공 미측정**. 앱 재생 결함으로 단정하지 않으며 청취 검증으로 산입하지 않음. 원문/음성/AI 외부 호출 및 키 접근 없음.
+- 같은 엔진·같은 분 생성본은 현재 ‘다른 결과 보기’ 메뉴에 같은 표시가 나온다. 이번 비교는 서로 다른 제목이 보이는 Scripts 목록에서 A/B를 선택한다. 신규 UI 수정은 하지 않음.
 - 사용자 원음 판정 후 채택 정책을 새 변환 기본값으로 연결. 필요하면 남은 lexical 시간 불일치에 별도 음성 정렬기를 비교.
+- 부호만 남는 문단은 원시간 역행/다른 화자·누락 장벽/부호 종류별로 원인을 추가 확인할 보완 대상. 원음을 대조하지 않은 상태에서 장벽을 일괄 제거하거나 원시간을 고치지 않음.
 - AI 문맥 후보정은 다음 단계. 원문/화자/시간/사람 수정 보존 및 녹음별 전송 확인 계약 유지.
