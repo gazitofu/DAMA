@@ -139,6 +139,7 @@ extension LibraryScript {
     }
 
     public mutating func setParagraphBreak(before turnID: String, split: Bool?) throws {
+        guard !(paragraphEdits ?? []).contains(where: { $0.turnIDs.contains(turnID) }) else { throw LibraryFailure.invalidInput }
         guard let turn = transcript.turns.first(where: { $0.id == turnID }), turn.kind == .speech,
               split != false || canJoinParagraph(before: turnID) else { throw LibraryFailure.invalidInput }
         if paragraphBreaks == nil { paragraphBreaks = [:] }
@@ -156,6 +157,9 @@ extension LibraryScript {
     }
 
     public func blocks() -> [ScriptBlock] {
+        // Freeze the exact source membership of human paragraphs, independent of punctuation/AI.
+        let owners = Dictionary((paragraphEdits ?? []).flatMap { edit in edit.turnIDs.map { ($0, edit.id) } }, uniquingKeysWith: { a, _ in a })
+        let edits = Dictionary((paragraphEdits ?? []).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         let words = Dictionary(uniqueKeysWithValues: transcript.words.map { ($0.id, $0) })
         var base = self; base.turnNames = [:]
         var names: [String: String] = [:], colors: [String: Int] = [:]
@@ -182,6 +186,7 @@ extension LibraryScript {
         }
         func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn, accumulated: String) -> Bool {
             guard canJoin(previous, next, previousName: displayName(previous), nextName: displayName(next)) else { return false }
+            if owners[previous.id] != nil || owners[next.id] != nil { return owners[previous.id] == owners[next.id] }
             if let split = paragraphBreaks?[next.id] { return !split }
             return ScriptReadingPolicy.continuesReadingSentence(accumulated, with: texts[next.id] ?? "")
         }
@@ -201,15 +206,16 @@ extension LibraryScript {
             let ids = Set(group.flatMap(\.reviewIssueIds) + group.flatMap(\.wordIds).flatMap { words[$0]?.reviewIssueIds ?? [] })
             let issues = ids.compactMap { issueIndex[$0] }.sorted { $0.0 < $1.0 }.map(\.1)
             attached.formUnion(issues.map(\.id))
-            let text = groupTexts[groupIndex]
+            let paragraph = owners[group[0].id].flatMap { edits[$0] }
+            let text = paragraph?.text ?? groupTexts[groupIndex]
             // Trim only the reading paragraph. Keep source tokens and user-authored spacing intact.
-            let hasHumanText = transcript.revision.humanEdited || group.contains {
+            let hasHumanText = paragraph != nil || transcript.revision.humanEdited || group.contains {
                 turnTexts[$0.id] != nil || $0.wordIds.contains { words[$0]?.editedText != nil }
             }
             let displayText = hasHumanText ? text : text.trimmingCharacters(in: .whitespacesAndNewlines)
             result.append(ScriptBlock(turns: group, name: displayName(group[0]), text: displayText,
                 colorIndex: group[0].speakerId.flatMap { colors[$0] }, issues: issues,
-                edited: group.contains { turnTexts[$0.id] != nil }))
+                edited: paragraph != nil || group.contains { turnTexts[$0.id] != nil }))
         }
         // Session/interval-level events without turn references must remain reachable.
         for issue in transcript.reviewIssues where !attached.contains(issue.id) && !result.isEmpty {

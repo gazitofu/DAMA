@@ -155,6 +155,58 @@ final class LibraryPresentationTests: XCTestCase {
             audioSHA256: String(repeating: "a", count: 64), synthetic: true, createdAt: "2026-09-10T00:00:00Z")
         return try LibraryScript(transcript: model, title: "합성 묶음", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
     }
+    func testHumanParagraphRoundTripFreezesMembershipAndExcludesAI() throws {
+        var value = try script()
+        let source = try value.sourceFingerprint(), first = value.blocks()[0]
+        try value.editParagraph(first, text: "  사람이 확정한 문장.\n다음 줄  ")
+        XCTAssertTrue(value.turnTexts.isEmpty)
+        XCTAssertNil(value.reviewRecords)
+        XCTAssertEqual(value.blocks().map(\.turnIDs), [first.turnIDs, [value.transcript.turns[3].id], [value.transcript.turns[4].id]])
+        XCTAssertEqual(value.blocks()[0].text, "  사람이 확정한 문장.\n다음 줄  ")
+        var ai = ScriptCorrection(input: value.input, engine: "synthetic", state: .completed)
+        ai.edits = first.turns.map { .init(turnID: $0.id, original: value.text(for: $0), text: "AI 변경.", reason: "synthetic", applied: true) }
+        value.correction = ai
+        XCTAssertEqual(value.blocks()[0].text, "  사람이 확정한 문장.\n다음 줄  ")
+        let loaded = try JSONDecoder().decode(LibraryScript.self, from: JSONEncoder().encode(value))
+        try loaded.validate()
+        XCTAssertEqual(try loaded.sourceFingerprint(), source)
+        XCTAssertTrue(String(decoding: try loaded.markdown(), as: UTF8.self).contains("  사람이 확정한 문장\\.\n다음 줄  "))
+        let chunk = try XCTUnwrap(ContextCorrection.chunks(loaded).first)
+        XCTAssertEqual(chunk.turns.map(\.id), Array(value.transcript.turns.dropFirst(3)).map(\.id))
+        XCTAssertEqual(chunk.humanParagraphs?.first?.turnIDs, first.turnIDs)
+        XCTAssertEqual(chunk.humanParagraphs?.first?.text, value.blocks()[0].text)
+        XCTAssertThrowsError(try value.editText(first.id, text: "재분배 금지"))
+        XCTAssertThrowsError(try value.setParagraphBreak(before: first.turnIDs[1], split: true))
+        try value.editParagraph(value.blocks()[0], text: "")
+        XCTAssertEqual(value.blocks()[0].text, "")
+        XCTAssertEqual(value.blocks()[0].turnIDs, first.turnIDs)
+        let revision = value.revisionID
+        try value.editParagraph(value.blocks()[0], text: "")
+        XCTAssertEqual(value.revisionID, revision)
+    }
+    func testParagraphBindingRejectsChangedTextReorderedAndCrossSpeakerIDs() throws {
+        var value = try script()
+        let block = value.blocks()[0]
+        try value.editText(block.id, text: "동시에 수정됨")
+        XCTAssertThrowsError(try value.editParagraph(block, text: "오래된 화면"))
+        try value.editParagraph(value.blocks()[0], text: "확정")
+        let bytes = try JSONEncoder().encode(value)
+        for key in ["order", "speaker", "source"] {
+            var json = try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
+            var edits = json["paragraphEdits"] as! [[String: Any]]
+            if key == "order" { edits[0]["turnIDs"] = Array(block.turnIDs.reversed()) }
+            if key == "speaker" { edits[0]["turnIDs"] = value.transcript.turns.map(\.id) }
+            if key == "source" { edits[0]["sourceSHA256"] = String(repeating: "0", count: 64) }
+            json["paragraphEdits"] = edits
+            let invalid = try JSONDecoder().decode(LibraryScript.self, from: JSONSerialization.data(withJSONObject: json))
+            XCTAssertThrowsError(try invalid.validate(), key)
+        }
+        var legacy = try script()
+        try legacy.editText(legacy.transcript.turns[0].id, text: "이전 사람이 수정한 내용")
+        let chunk = try XCTUnwrap(ContextCorrection.chunks(legacy).first)
+        XCTAssertFalse(chunk.turns.map(\.id).contains(legacy.transcript.turns[0].id))
+        XCTAssertEqual(chunk.humanParagraphs?.first?.text, "이전 사람이 수정한 내용")
+    }
     func testGroupedReadEditRenameRoundtripAndMarkdownJourney() throws {
         var script = try script()
         XCTAssertEqual(script.transcript.turns.count, 5)

@@ -1,5 +1,13 @@
 # LibraryScript · DAMA 라이브러리 편집 파일
 
+## uiux-reading 문단 직접 편집 (2026-09-12 승인 · D-02)
+
+- optional `paragraphEdits` = UUID, 순서 있는 `turnIDs`, 정렬 JSON으로 계산한 불변 transcript의 `sourceSHA256`, 편집 시작 `baseRevisionID`/`baseTextSHA256`, 사람 입력 전체 `text`. 기존 JSON은 필드 없이 읽는다.
+- 원래 읽기 문단 전체만 편집한다. ID는 연속된 speech Turn이며 기존 같은 화자·시간·누락 장벽 검사를 통과해야 한다. 여러 수정본의 ID 중복, 원문 fingerprint 불일치, 순서 변경은 파일 오류다. 빈 문자열/공백/개행도 사람 입력 그대로 보존한다.
+- 수정한 문단은 원 ID 집합을 고정하여 구두점·AI·표시 이름 변경으로 다른 문단과 합쳐지지 않는다. 화면과 Markdown은 같은 blocks()의 사람 문단 전체를 사용한다. 원 Turn 텍스트에 재분배하거나 첫 Turn에 몰아 쓰지 않는다. 개별 Turn 수정/분절 변경으로 이 레이어를 우회하지 않는다.
+- 사람이 소유한 문단·기존 turnTexts·legacy editedText/수정 revision은 AI 편집 대상에서 제외한다. 가까운 사람 문단은 `humanParagraphs`의 전체 텍스트/원 ID 집합으로 읽기 전용 제공한다. AI 응답은 대상 ID만 허용한다. source 텍스트/시간/화자/이슈와 기존 검수 기록은 보존한다.
+- 새 일반 편집은 검수 완료·학습 정답 기록을 자동 생성하지 않는다. 과거 reviewRecords를 삭제하지 않는다. 아래 과거 UI·원 Turn 편집 설명 중 충돌하는 부분은 본 절과 확정 r4 스펙이 우선한다.
+
 사용자 2026-09-10 화면 확정 및 제목/Markdown 요청. 구현 정본은 `Packages/DamaCore/Sources/DamaCore/LibraryScript.swift`다. 기존 `transcript.v1.schema.json`·`DomainContracts.swift`·normalized 파일은 변경하지 않는다.
 
 - 파일 확장자 `.dama.json`, `format = dama-library-script-1`. 기존 normalized v1과 구분되는 envelope다.

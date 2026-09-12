@@ -66,6 +66,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     /// Boundary before an existing Turn: true = split, false = join if identity/evidence permits.
     public var paragraphBreaks: [String: Bool]?
     public var reviewRecords: [ScriptReviewRecord]?
+    public var paragraphEdits: [ScriptParagraphEdit]?
 
     public init(transcript: TranscriptDocument, title: String, recordedAt: Date?, dateSource: String,
                 timeZoneID: String = TimeZone.current.identifier, input: ConversionNotes,
@@ -91,6 +92,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
               Set((paragraphBreaks ?? [:]).keys).isSubset(of: ids),
               turnNames.values.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
         else { throw LibraryFailure.invalidScript }
+        try validateParagraphEdits()
         for record in reviewRecords ?? [] {
             guard UUID(uuidString: record.id) != nil,
                   record.audioSHA256 == transcript.provenance.sourceAudioSHA256,
@@ -154,6 +156,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
         revisionID = UUID().uuidString
     }
     public mutating func editText(_ turnID: String, text: String) throws {
+        guard !(paragraphEdits ?? []).contains(where: { $0.turnIDs.contains(turnID) }) else { throw LibraryFailure.invalidInput }
         guard transcript.turns.contains(where: { $0.id == turnID && $0.kind == .speech }) else { throw LibraryFailure.invalidInput }
         turnTexts[turnID] = text; revisionID = UUID().uuidString
     }

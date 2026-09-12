@@ -63,6 +63,15 @@ public struct CorrectionChunk: Codable, Sendable {
     public let turns: [CorrectionTurn]
     public let contextBefore: [CorrectionTurn]
     public let contextAfter: [CorrectionTurn]
+    public var humanParagraphs: [CorrectionHumanParagraph]? = nil
+}
+public struct CorrectionHumanParagraph: Codable, Sendable {
+    public let turnIDs: [String]
+    public let speakerID: String?
+    public let name: String
+    public let startUs: Int64?
+    public let endUs: Int64?
+    public let text: String
 }
 public struct CorrectionReply: Codable, Sendable {
     public struct Turn: Codable, Sendable {
@@ -84,10 +93,20 @@ public struct CorrectionReply: Codable, Sendable {
 }
 
 public enum ContextCorrection {
-    public static let version = "context-correction-3"
+    public static let version = "context-correction-4"
     /// Limits bound resources; they are not measured accuracy thresholds.
     public static func chunks(_ script: LibraryScript) throws -> [CorrectionChunk] {
-        let turns = script.transcript.turns.filter { $0.kind == .speech }.map {
+        try script.validate()
+        let owned = script.humanOwnedTurnIDs
+        let paragraphOwned = Set((script.paragraphEdits ?? []).flatMap(\.turnIDs))
+        let humanParagraphs = script.blocks().filter { !paragraphOwned.isDisjoint(with: $0.turnIDs) }.map {
+            CorrectionHumanParagraph(turnIDs: $0.turnIDs, speakerID: $0.turns[0].speakerId,
+                name: $0.name, startUs: $0.startUs, endUs: $0.endUs, text: $0.text)
+        } + script.transcript.turns.filter { owned.contains($0.id) && !paragraphOwned.contains($0.id) && $0.kind == .speech }.map {
+            CorrectionHumanParagraph(turnIDs: [$0.id], speakerID: $0.speakerId, name: script.name(for: $0),
+                startUs: $0.startUs, endUs: $0.endUs, text: script.text(for: $0))
+        }
+        let turns = script.transcript.turns.filter { $0.kind == .speech && !owned.contains($0.id) }.map {
             CorrectionTurn(id: $0.id, speakerID: $0.speakerId, startUs: $0.startUs, endUs: $0.endUs, text: script.text(for: $0))
         }
         guard turns.allSatisfy({ $0.text.count <= 16_000 }) else { throw LibraryFailure.invalidInput }
@@ -109,7 +128,13 @@ public enum ContextCorrection {
             let after = turns[range.upperBound..<min(turns.count, range.upperBound + 10)].filter {
                 guard let lastTime, let start = $0.startUs else { return false }; return start - lastTime <= 20_000_000
             }
-            return CorrectionChunk(turns: Array(turns[range]), contextBefore: before, contextAfter: after)
+            let human = humanParagraphs.filter {
+                guard let firstTime, let lastTime, let start = $0.startUs, let end = $0.endUs else { return false }
+                return !(start > lastTime && start - lastTime > 20_000_000) &&
+                    !(end < firstTime && firstTime - end > 20_000_000)
+            }
+            return CorrectionChunk(turns: Array(turns[range]), contextBefore: before, contextAfter: after,
+                humanParagraphs: human.isEmpty ? nil : human)
         }
     }
     public static func prompt(chunk: CorrectionChunk, input: ConversionNotes) throws -> Data {
@@ -122,6 +147,7 @@ public enum ContextCorrection {
         요약·윤문·말투 변경·필러 삭제·반복 삭제·발화 추가/합치기/분리 금지. 숫자·단위·부정·조건·추정/확정의 강도를 그대로 유지한다.
         참석자/맥락/참고 자료는 표기와 용어의 근거이지 실제 발언의 사실을 대체하는 정답이 아니다.
         chunk.turns의 모든 id를 입력 순서 그대로 정확히 한 번씩 반환한다. contextBefore/After는 읽기 전용이고 반환하지 않는다.
+        humanParagraphs는 사람이 확정한 문단 전체다. 읽기 전용 참고로만 사용하고 고치거나 반환하지 않는다. turnIDs에 텍스트를 재분배하지 않는다.
         경계를 넘어 텍스트를 이동하지 않는다. certain=true는 뜻을 바꾸지 않는 확실한 교정에만 사용한다.
         불확실하면 원문을 유지하고 certain=false, reason에 짧은 한국어 확인 이유를 쓴다. 문제 없는 원문은 true와 빈 reason.
         앞뒤 공백만 다른 것은 교정하지 않는다. 내용을 바꾸는 후보에는 reason에 변경 내용과 입력에서 확인한 근거를 쓴다.
