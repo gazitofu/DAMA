@@ -1,4 +1,5 @@
 import DamaCore
+import CryptoKit
 import Foundation
 
 public struct LibrarySpeech: Codable, Sendable, Identifiable {
@@ -16,6 +17,12 @@ public struct LibraryScriptFile: Sendable, Identifiable {
     public let url: URL
     public let hash: String
     public let script: LibraryScript
+    public let reading: ScriptReadingSnapshot
+
+    init(url: URL, hash: String, script: LibraryScript) {
+        self.url = url; self.hash = hash; self.script = script
+        reading = ScriptReadingSnapshot(script: script)
+    }
 }
 
 /// File I/O stays outside MainActor. All caller URLs remain security-scoped for the operation.
@@ -23,6 +30,7 @@ public actor FolderLibraryStore {
     private let root: URL
     private let trash: @Sendable (URL) throws -> Void
     private var scanning = false
+    private var scriptCache: [String: LibraryScriptFile] = [:]
     public init(root: URL, trash: @escaping @Sendable (URL) throws -> Void = {
         try FileManager.default.trashItem(at: $0, resultingItemURL: nil)
     }) { self.root = root.standardizedFileURL; self.trash = trash }
@@ -127,11 +135,18 @@ public actor FolderLibraryStore {
         var result: [LibraryScriptFile] = []
         for url in urls where url.lastPathComponent.hasSuffix(".dama.json") {
             try safe(url)
-            let script = try JSONDecoder().decode(LibraryScript.self, from: Data(contentsOf: url))
-            try script.validate()
-            result.append(LibraryScriptFile(url: url, hash: try AudioFiles.hash(url), script: script))
+            // Read once: the hash and displayed value must describe the same bytes.
+            let bytes = try Data(contentsOf: url), hash = Self.hash(bytes)
+            if let cached = scriptCache[url.standardizedFileURL.path], cached.hash == hash { result.append(cached) }
+            else {
+                let script = try JSONDecoder().decode(LibraryScript.self, from: bytes)
+                try script.validate()
+                result.append(LibraryScriptFile(url: url, hash: hash, script: script))
+            }
         }
         guard Set(result.map(\.id)).count == result.count else { throw LibraryFailure.invalidScript }
+        // Keep only this successfully scanned folder, including after external removals.
+        scriptCache = Dictionary(uniqueKeysWithValues: result.map { ($0.url.standardizedFileURL.path, $0) })
         return result.sorted { $0.script.createdAt == $1.script.createdAt ? $0.id < $1.id : $0.script.createdAt > $1.script.createdAt }
     }
     public func createScript(_ document: TranscriptDocument, speech: LibrarySpeech, input: ConversionNotes, in folder: URL) throws -> LibraryScriptFile {
@@ -153,7 +168,12 @@ public actor FolderLibraryStore {
         try FileManager.default.createDirectory(at: history.deletingLastPathComponent(), withIntermediateDirectories: true)
         if !FileManager.default.fileExists(atPath: history.path) { try bytes.write(to: history, options: .withoutOverwriting) }
         try bytes.write(to: url, options: .atomic)
-        return LibraryScriptFile(url: url, hash: try AudioFiles.hash(url), script: script)
+        let result = LibraryScriptFile(url: url, hash: Self.hash(bytes), script: script)
+        scriptCache[url.standardizedFileURL.path] = result
+        return result
+    }
+    private static func hash(_ bytes: Data) -> String {
+        SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
     public func saveCorrection(_ correction: ScriptCorrection, for source: LibraryScriptFile) throws -> LibraryScriptFile {
         let path = source.url.standardizedFileURL.resolvingSymlinksInPath().path
@@ -186,6 +206,7 @@ public actor FolderLibraryStore {
         guard file.url.lastPathComponent.hasSuffix(".dama.json"),
               try AudioFiles.hash(file.url) == file.hash else { throw LibraryFailure.changedFile }
         try trash(file.url)
+        scriptCache.removeValue(forKey: file.url.standardizedFileURL.path)
     }
     public func trashSpeech(_ speech: LibrarySpeech, in folder: URL) throws {
         try validateDeletion(speech.fileURL, in: folder)

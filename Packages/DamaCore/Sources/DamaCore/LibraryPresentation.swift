@@ -1,5 +1,21 @@
 import Foundation
 
+/// In-memory derived values for one immutable, validated Script file.
+/// The storage layer binds this to the exact file bytes, including all display overrides.
+public final class ScriptReadingSnapshot: Sendable {
+    public let blocks: [ScriptBlock]
+    public let reviewEvents: [ScriptReviewEvent]
+    public let speakerCountSummary: String
+    public let speakerCountMismatch: Bool
+
+    public init(script: LibraryScript) {
+        blocks = script.blocks()
+        reviewEvents = ScriptReviewEvent.forListening(script.transcript.reviewIssues.filter { $0.status == .open })
+        speakerCountSummary = script.speakerCountSummary
+        speakerCountMismatch = script.speakerCountMismatch
+    }
+}
+
 /// Reading layout, separately versioned from model normalization.
 public enum ScriptReadingPolicy {
     public static let algorithmVersion = "reading-v6"
