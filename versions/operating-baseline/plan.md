@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "백엔드 F-01/F-02/F-03/F-04/F-06/F-07 완료, 최신 앱0.4.7(17). Scripts r4 승인/tone 유지: 제목 자동 저장·본문 수정→저장·화자·AI 및 D-01/D-02 확정. 사용자 Speeches 누락 지적에 r5 시안 보완: 목록·입력·전송 확인·진행/복구·결과 이동. 게이트①는 Speeches만 open, Scripts는 별도 closed 유지. 추가 화면 확인 후 /plan uiux-reading, 기존 승인 재확인 없음. 화자 우선권·F-05 Mac-only 학습은 후속. 앱 UI 구현/학습 미착수, 본 유닛 built 유지."
+resume: "Scripts r4/Speeches r5 사용자 승인 완료. versions/uiux-reading/plan.md에서 앱 반영 진행. 기존 앱0.4.7(17), 본 유닛 built 유지. 참조 입력 소비·미배정/개인 지식 개선 진단은 UI 구현과 분리. 타 트랙·학습·외부 호출 보류 유지."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 

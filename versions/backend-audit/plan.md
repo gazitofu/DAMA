@@ -3,7 +3,7 @@ unit: backend-audit
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "검수·분절 진단 및 F-01/F-02/F-03/F-04/F-06/F-07 완료, 최신 전달0.4.7(17). Scripts r4의 제목 자동 저장·본문 직접 편집·화자·AI 버전 D-01/문단 수정본 D-02 승인과 tone 유지. 사용자 Speeches 누락 지적에 따라 같은 uiux-reading 스펙을 r5로 보완: Speeches 목록·입력·변환 확인·진행/복구·결과 이동을 조작 가능하게 추가. r5 게이트①는 Speeches만 open, Scripts는 별도 closed. 추가 화면 확인 후 /plan uiux-reading, 기존 결정 재확인 없음. 화자 우선권·F-05 Mac-only 학습은 별도 후속. 앱 UI 구현/학습 미착수."
+resume: "Scripts r4/Speeches r5 사용자 승인 완료. versions/uiux-reading/plan.md에서 앱 반영 진행. 기존 앱0.4.7(17), 본 유닛 built 유지. 참조 입력 소비·미배정/개인 지식 개선 진단은 UI 구현과 분리. 타 트랙·학습·외부 호출 보류 유지."
 spec: "사용자 2026-09-11 재개 요청; versions/operating-baseline/plan.md 다음 세션 착수 1·2; ssot/design/02·03·04 및 ssot/contracts"
 ---
 
