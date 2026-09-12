@@ -3,7 +3,7 @@ unit: backend-audit
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "검수·분절 진단 및 F-01/F-02/F-03/F-04/F-07 완료. versions/backend-hardening/plan.md, versions/reading-performance/plan.md, versions/storage-isolation/plan.md 참조. 최신 전달0.4.6(16). 다음은 F-06 공통 근거 계산 동일성 검증·추출. F-05는 학습 선행, UI 재설계/학습 미착수."
+resume: "검수·분절 진단 및 F-01/F-02/F-03/F-04/F-06/F-07 완료. versions/normalization-evidence/plan.md 및 이전 후속 유닛 참조. 최신 전달0.4.7(17). 다음은 operating-baseline 순서4의 UI/UX 실물 여정·시안 /spec. F-05는 Mac-only 학습 선행, UI 재설계/학습 미착수."
 spec: "사용자 2026-09-11 재개 요청; versions/operating-baseline/plan.md 다음 세션 착수 1·2; ssot/design/02·03·04 및 ssot/contracts"
 ---
 
@@ -44,6 +44,7 @@ spec: "사용자 2026-09-11 재개 요청; versions/operating-baseline/plan.md �
 
 ## Follow-ups
 
+- 2026-09-12: F-06은 [normalization-evidence](../normalization-evidence/plan.md)에서 완료,0.4.7(17) 전달. P2 순수 시간 근거만 공통화하고 경로별 정책·알고리즘 버전 유지. 수정 전 합성21개/실제3경로 normalized·읽기·Markdown 동일, 입력14파일 불변, 전체165/계약30/Debug PASS. 다음은 operating-baseline 순서4의 UI/UX 실물 여정 및 /spec 화면 확인이며 F-05 runtime 고정은 Mac-only 학습 선행으로 유지한다.
 - 2026-09-12: F-04/F-07은 [storage-isolation](../storage-isolation/plan.md)에서 완료,0.4.6(16) 전달. 파일별 오류/정상 목록과 영향 session 제출 차단, 전체160/계약30/Debug PASS, 실제 합성 폴더 오류 표시·원래8Script 복원/14파일 보존 확인. 실패 바이너리의 단일 테스트 signal11 재현과 같은 코드 독립 빌드 PASS를 구분하며 근본 원인 미확정 유지.
 - 2026-09-12: F-03은 [reading-performance](../reading-performance/plan.md)에서 완료,0.4.5(15) 로컬 전달. 동일 표시/실제 Markdown bytes 보존, 전체155건 PASS. 첫 전체 실행 signal11과 저장 뒤 CUA 시간 초과의 한계도 해당 plan에 기록했다.
 - 2026-09-12: F-01 녹음/추론 종료 안전성 및 F-02 공통 누적 문장 종결은 [backend-hardening](../backend-hardening/plan.md)에서 완료, DAMA0.4.4(14) 로컬 전달. 전체152건 PASS, 같은 원응답 보존 및 실제 Markdown 내보내기 검증. 본 문서의 2026-09-11 수치는 수정 전 진단 기록으로 유지한다.

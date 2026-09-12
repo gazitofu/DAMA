@@ -67,6 +67,8 @@ P1은 다음 기능 확장 전 수정·검증할 항목, P2는 순차 정리할 
 
 ### F-06 · P2 · Qwen/결합 normalizer의 공통 근거 계산 중복
 
+후속 완료 (2026-09-12): [normalization-evidence](../../versions/normalization-evidence/plan.md),0.4.7(17). 내부 `P2TimeEvidence`로 interval 변환·겹침/coverage union/경계 근거·matching word index만 추출했다. 배정·경고의 근거 ID/순서·marker/Turn 및 공급자 토큰 정책은 각 호출부에 보존했다. 수정 전 합성21개와 실제3경로 normalized/읽기/Markdown 동일, 입력14파일 불변, 전체165/계약30/Debug PASS. 임계값·알고리즘 버전은 바꾸지 않았다. 아래는 최초 발견 기록이다.
+
 [QwenNormalizer.swift](../../Packages/DamaCore/Sources/DamaCore/QwenNormalizer.swift)와 [SonioxPrecisionNormalizer.swift](../../Packages/DamaCore/Sources/DamaCore/SonioxPrecisionNormalizer.swift)는 P2 interval 변환·겹말·coverage union·경계 보류·누락 marker 계산을 반복한다. 토큰 추출/원문 보존 방식은 다르다. 공통 시간 근거 계산을 순수 함수로 추출할 수 있지만 결합 경고나 원 source 필드까지 하나로 만들지 않는다. [ManagedNormalizer.swift](../../Packages/DamaCore/Sources/DamaCore/ManagedNormalizer.swift)의 별도 초기 margin/Turn 정책도 자동 통합하지 않는다.
 
 추출 전에 세 경로 raw→normalized golden을 고정하고 전후 byte/semantic 동일성을 검사한다. 정책/임계값을 변경하는 실험과 단순 코드 이동은 별도 작업이다.
