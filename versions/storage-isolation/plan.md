@@ -3,7 +3,7 @@ unit: storage-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-01 합성 회귀25/계약30 PASS. T-02 검사 실행 경로·crash 비교 및 전체 앱 빌드부터."
+resume: "T-02 전체160/계약30/Swift 왕복/Debug PASS, crash 비교 완료. T-03 전달·최종 상태 기록."
 spec: "사용자 2026-09-12 이어서 진행 요청; notes/backend-audit/audit.md F-04/F-07; design00 하이브리드 채택 및 design02·03·04, library-script/operating-baseline 계약"
 ---
 
@@ -30,8 +30,8 @@ spec: "사용자 2026-09-12 이어서 진행 요청; notes/backend-audit/audit.m
 
 ## 작업
 
-- T-01 완료: 조회 결과·저장/처리 실패 격리, 합성 회귀, 앱 연결. 실물 QA는 T-03.
-- T-02 검사 실행 경로·실패 로그 보존, crash 비교·전체 검사.
+- T-01 완료 `1b295dd`: 조회 결과·저장/처리 실패 격리, 합성 회귀, 앱 연결. 실물 QA는 T-03.
+- T-02 완료: 검사 실행 경로·실패 로그 보존, crash 비교·전체 검사.
 - T-03 앱 QA·0.4.6(16) 전달, AC/상태 정리.
 
 ## 종료·후속
@@ -43,3 +43,12 @@ spec: "사용자 2026-09-12 이어서 진행 요청; notes/backend-audit/audit.m
 
 - T-01 영향 검사 FileScan2/ReadingSnapshot3/LibraryJourney5/ManagedJourney15 = **25건 PASS** (14:03 KST, `.build/check-logs/storage-isolation-targeted-approved.log`). 합성 손상·중복·symlink·외부 변경/교정·재열기, 타 session 정상 재개, 영향 session 제출/재개/reuse 금지, 두 submitting 단계 접수 불명 복구 후 자동 API0 검증. 반복 손상 wav 스캔도 실패 import session을 누적하지 않는다.
 - 계약 Python30 PASS, canonical Swift12200bytes 동일. 첫 실행은 홈 SwiftShims 캐시 sandbox 거부, 승인된 밖 실행. 테스트 작성 중 init/try 컴파일 오류와 URL 표현/fixture sourceRunId 오류는 수정했고 실패 로그를 별도 보존했다. 이 기록은 실제 음성/API 품질 검사가 아니다.
+
+### T-02 검사 경로·crash 분리
+
+- `bash scripts/check.sh --scratch-path .build/storage-isolation-final --log-root .build/check-logs/storage-isolation`: **backpressure OK, exit0, SKIP0**. 실제 계약30·Swift 계약 사본/왕복·전체160 테스트(실패0,14:06 KST)·Debug BUILD SUCCEEDED. 로그 `.build/check-logs/storage-isolation/run-20260912T050643Z-McUdy5/`, 환경/시작·종료/exit/모든 단계 로그 보존.
+- 기본 scratch는 실행별 신규 `.build/check-scratch/run-*`. `--scratch-path` 지정 시에만 해당 경로 재사용. 로그는 `--log-root` 아래 매번 별도 `run-*`; 실패/정상/인터럽트 결과와 smoke compile/run 증거를 남기며 자동 삭제·재시도 없음. 강제 SIGKILL은 EXIT trap을 실행할 수 없으므로 result.txt 없이 부분 로그만 남을 수 있다.
+- `python3 scripts/test_check_runner.py` **2건 PASS**, `bash -n` PASS. 합성 명령 어댑터로 exit11 실패를 주입한 뒤 다음 정상 실행에도 기존 모든 로그 bytes 불변, 공백 경로·명시 scratch·기본 scratch 독립·잘못된 인자 exit2 확인. 어댑터 검사는 Swift/앱 실제 성공 근거가 아니다. macOS Bash3 empty-array nounset 오류는 발견 후 `${SKIP[*]-}`로 수정했다.
+- 보존된 과거 crash5개 비교: ConversionNotes 복사, ScriptCorrection? retain/validate, CodexCorrectionTests, URL.isFileURL에서 각각 발생. 같은 현상이라고 통합하거나 메모리 안전 원인을 확정하지 않았다.
+- **재빌드 없이 동일 단일 테스트 비교**: `xcrun xctest -XCTest DamaManagedTests.ManagedJourneyTests/testRetranscriptionCreatesIndependentScriptAndTrashPreservesConnectedData <bundle>` 실행. 기존 `.build/reading-performance` 바이너리 SHA256 `51eedd66…55acf`는 exit139/SIGSEGV 재현. 원래·재현 crash 모두 `URL.isFileURL → FolderLibraryStore.safe → trashScript`, invalid address0x1e. 새 crash `xctest-2026-09-12-141731.ips`; ignored `storage-isolation-old-binary-replay.log` 보존.
+- 같은0.4.5 package 코드의 기존 독립 `.build/reading-performance-final` 바이너리 SHA256 `5ddb264c…d4cf`는 동일 단일 테스트1건 PASS(0.081초), `storage-isolation-clean-binary-replay.log`. 이는 전체 테스트 순서 없이 실패 산출물에서 충돌한다는 증거이며, 빌드 산출물 차이와 연관된 범위로 좁혔다. 구체적인 incremental compiler/ABI/cache 결함은 미확정. 새 경로 PASS로 이전 FAIL을 지우거나 자동 재시도해서 성공으로 표기하지 않는다.

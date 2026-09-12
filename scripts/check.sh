@@ -7,9 +7,42 @@ ROOT="$PWD"
 FAIL=0
 SKIP=()
 BUILD_ROOT="$ROOT/.build"
-LOG_DIR="$BUILD_ROOT/check-logs"
+LOG_ROOT="$BUILD_ROOT/check-logs"
+SCRATCH_PATH=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --scratch-path|--log-root)
+      if [ $# -lt 2 ] || [ -z "$2" ]; then printf 'Missing path for %s\n' "$1" >&2; exit 2; fi
+      case "$2" in /*) CHECK_PATH="$2" ;; *) CHECK_PATH="$ROOT/$2" ;; esac
+      if [ "$1" = --scratch-path ]; then SCRATCH_PATH="$CHECK_PATH"; else LOG_ROOT="$CHECK_PATH"; fi
+      shift 2 ;;
+    --help)
+      printf '%s\n' 'Usage: bash scripts/check.sh [--scratch-path PATH] [--log-root PATH]' \
+        'Default: new independent SwiftPM scratch per invocation; existing scratch is reused only when explicitly selected.' \
+        'Relative paths are based on the repository. Every invocation keeps separate logs, including failed/interrupted runs.'
+      exit 0 ;;
+    *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
+  esac
+done
 MODULE_CACHE="$BUILD_ROOT/modulecache"
-mkdir -p "$LOG_DIR" "$MODULE_CACHE"
+mkdir -p "$LOG_ROOT" "$MODULE_CACHE" || exit 1
+LOG_DIR="$(mktemp -d "$LOG_ROOT/run-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")" || exit 1
+if [ -z "$SCRATCH_PATH" ]; then SCRATCH_PATH="$BUILD_ROOT/check-scratch/$(basename "$LOG_DIR")"; fi
+printf 'Logs: %s\nScratch: %s\n' "$LOG_DIR" "$SCRATCH_PATH"
+{
+  printf 'started_utc=%s\nroot=%s\nscratch=%s\n' "$(date -u +%FT%TZ)" "$ROOT" "$SCRATCH_PATH"
+  git rev-parse HEAD
+  git status --short
+  swift --version
+  xcodebuild -version
+} >"$LOG_DIR/environment.log" 2>&1
+finish() {
+  CHECK_EXIT=$?
+  printf 'exit_status=%s\nfinished_utc=%s\nskipped=%s\n' "$CHECK_EXIT" "$(date -u +%FT%TZ)" "${SKIP[*]-}" >"$LOG_DIR/result.txt"
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 step() { printf '\n=== %s ===\n' "$1"; }
 ok()   { printf 'PASS  %s\n' "$1"; }
@@ -33,17 +66,18 @@ else
 fi
 
 if command -v swiftc >/dev/null 2>&1; then
-  TMP="$(mktemp -d "$BUILD_ROOT/smoke.XXXXXX")"
+  TMP="$LOG_DIR/smoke"
+  mkdir -p "$TMP"
   if swiftc -swift-version 6 -module-cache-path "$MODULE_CACHE" \
        ssot/contracts/DomainContracts.swift scripts/SmokeCheck.swift \
        -o "$TMP/contract-check" >"$TMP/build.log" 2>&1 \
      && "$TMP/contract-check" fixtures/normalized-transcript.json \
-          fixtures/pyannote-job-succeeded.synthetic.json "$TMP/roundtrip.json" >/dev/null; then
+          fixtures/pyannote-job-succeeded.synthetic.json "$TMP/roundtrip.json" >"$TMP/run.log" 2>&1; then
     ok "DomainContracts.swift + SmokeCheck (Swift 6 모드)"
   else
     bad "Swift 계약"; tail -30 "$TMP/build.log"
+    if [ -f "$TMP/run.log" ]; then tail -30 "$TMP/run.log"; fi
   fi
-  rm -rf "$TMP"
 else
   skip "Swift 계약" "swiftc 없음"
 fi
@@ -53,7 +87,7 @@ if [ -d "Packages/DamaCore" ]; then
   if SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
      swift test \
        --package-path "$ROOT/Packages/DamaCore" \
-       --scratch-path "$BUILD_ROOT/swiftpm" \
+       --scratch-path "$SCRATCH_PATH" \
        --cache-path "$BUILD_ROOT/swiftpm-cache" \
        --config-path "$BUILD_ROOT/swiftpm-config" \
        --security-path "$BUILD_ROOT/swiftpm-security" \
