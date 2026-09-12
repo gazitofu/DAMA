@@ -383,7 +383,12 @@ struct LibraryShell: View {
         } else if workspace.folder == .speeches {
             if let speech = workspace.speech { speechDetail(speech) }
             else { empty("녹음 파일이 없습니다.", message: "메뉴바에서 녹음을 시작하거나 이 폴더에 M4A·WAV 파일을 넣어 주세요.", action: nil) }
-        } else if let file = workspace.scriptFile { scriptDetail(file) }
+        } else if let file = workspace.displayedScript {
+            ScriptReadingView(file: file, workspace: workspace,
+                rename: { file, block in beginEdit(LibraryEdit(file: file, kind: .speaker(block), value: block.name)) },
+                correct: correction.review)
+                .id(file.id + (file.script.snapshotTitle == nil ? ":current" : ":" + file.script.revisionID))
+        }
         else { empty("아직 스크립트가 없습니다.", message: "Speeches에서 녹음을 선택해 변환하세요.", action: nil) }
     }
     private func empty(_ title: String, message: String, action: (() -> Void)?) -> some View {

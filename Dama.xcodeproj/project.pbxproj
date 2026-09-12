@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		100000000000000000000019 = {isa = PBXBuildFile; fileRef = 200000000000000000000019; };
+		100000000000000000000020 = {isa = PBXBuildFile; fileRef = 200000000000000000000020; };
+		100000000000000000000021 = {isa = PBXBuildFile; fileRef = 200000000000000000000021; };
 		100000000000000000000013 = {isa = PBXBuildFile; fileRef = 200000000000000000000013; };
 		100000000000000000000014 = {isa = PBXBuildFile; productRef = B00000000000000000000004; };
 		100000000000000000000009 = {isa = PBXBuildFile; fileRef = 200000000000000000000010; };
@@ -28,6 +31,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		200000000000000000000019 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptEditingSession.swift; sourceTree = "<group>"; };
+		200000000000000000000020 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineScriptText.swift; sourceTree = "<group>"; };
+		200000000000000000000021 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReadingView.swift; sourceTree = "<group>"; };
 		200000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingWorkspace.swift; sourceTree = "<group>"; };
 		200000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingWorkspace.swift; sourceTree = "<group>"; };
 		200000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
@@ -74,6 +80,7 @@
 		400000000000000000000002 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				200000000000000000000019,
 				200000000000000000000015,
 				200000000000000000000017,
 				200000000000000000000001 /* DamaApp.swift */,
@@ -89,6 +96,8 @@
 		400000000000000000000003 /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				200000000000000000000020,
+				200000000000000000000021,
 				200000000000000000000016,
 				200000000000000000000002 /* ReviewShell.swift */,
 				200000000000000000000007 /* EvidencePanel.swift */,
@@ -216,6 +225,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				100000000000000000000019,
+				100000000000000000000020,
+				100000000000000000000021,
 				100000000000000000000016,
 				100000000000000000000017,
 				100000000000000000000015,

@@ -25,6 +25,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published var message: String?
     @Published private(set) var busy = false
     @Published var editing = false
+    @Published var titlePending = false
+    @Published private(set) var historicalFile: LibraryScriptFile?
     @Published private(set) var preparingSpeechID: String?
     @Published private(set) var needsDefaultFolderAccess = false
     @Published private(set) var savingRunIDs: Set<String> = []
@@ -32,9 +34,10 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     private var root: URL?
     private var started = false
     private var scoped: [URL] = []
-    var canLeave: Bool { !busy && !editing && savingRunIDs.isEmpty }
+    var canLeave: Bool { !busy && !editing && !titlePending && savingRunIDs.isEmpty }
     var speech: LibrarySpeech? { speeches.first { $0.id == selectedSpeechID } }
     var scriptFile: LibraryScriptFile? { scripts.first { $0.id == selectedScriptID } }
+    var displayedScript: LibraryScriptFile? { historicalFile ?? scriptFile }
     var notesValid: Bool { speakerCount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (Int(speakerCount).map { $0 > 0 } == true) }
     var notes: ConversionNotes { var value = ConversionNotes(speakerCount: Int(speakerCount), context: context, reference: reference, participants: participants.isEmpty ? nil : participants); value.meetingTerms = meetingTerms.isEmpty ? nil : meetingTerms; return value }
     var notesDirty: Bool { speech.map { $0.notes != notes } ?? false }
@@ -176,10 +179,20 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     }
     func selectFolder(_ kind: LibraryFolder) {
         if folders[kind] == nil { chooseFolder(kind); return }
-        navigate { self.folder = kind }
+        navigate { self.historicalFile = nil; self.folder = kind }
     }
-    func selectSpeech(_ id: String) { navigate { self.setSpeech(id); self.folder = .speeches } }
-    func selectScript(_ id: String) { navigate { self.selectedScriptID = id; self.folder = .scripts } }
+    func selectSpeech(_ id: String) { navigate { self.historicalFile = nil; self.setSpeech(id); self.folder = .speeches } }
+    func selectScript(_ id: String) { navigate { self.historicalFile = nil; self.selectedScriptID = id; self.folder = .scripts } }
+    func selectVersion(_ version: ScriptVersion) {
+        guard canLeave, let current = scriptFile, let store else { return }
+        busy = true; playback.stop()
+        Task {
+            defer { busy = false }
+            do { historicalFile = try await store.readVersion(version, for: current) }
+            catch { message = "이 버전을 읽지 못했습니다. 현재 결과는 보존되어 있습니다." }
+        }
+    }
+    func returnToCurrent() { guard canLeave else { return }; playback.stop(); historicalFile = nil }
     func completedScript(for speech: LibrarySpeech) -> LibraryScriptFile? { scripts.first { $0.script.transcript.sessionId == speech.id } }
 
     func canRetranscribe(_ sessionID: String) -> Bool {
@@ -308,16 +321,22 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     func saveScript(_ candidate: LibraryScript, original: LibraryScriptFile) async throws {
         guard !busy, let store else { throw LibraryFailure.invalidInput }
         busy = true; defer { busy = false }
-        var candidate = candidate
-        if candidate.reviewRecords == original.script.reviewRecords {
-            let changed = candidate.transcript.turns.filter {
-                candidate.turnTexts[$0.id] != original.script.turnTexts[$0.id] ||
-                candidate.turnNames[$0.id] != original.script.turnNames[$0.id]
-            }.map(\.id)
-            if !changed.isEmpty { try candidate.recordReview(before: original.script, turnIDs: changed) }
-        }
         let result = try await store.saveScript(candidate, to: original.url, expectedHash: original.hash)
         if let i = scripts.firstIndex(where: { $0.url == original.url }) { scripts[i] = result }
+    }
+    func saveTitle(_ title: String, original: LibraryScriptFile) async throws -> LibraryScriptFile {
+        guard !busy, historicalFile == nil, let store else { throw LibraryFailure.invalidInput }
+        busy = true; defer { busy = false }
+        let result = try await store.saveTitle(title, for: original)
+        if let i = scripts.firstIndex(where: { $0.url == original.url }) { scripts[i] = result }
+        return result
+    }
+    func saveParagraph(_ block: ScriptBlock, text: String, original: LibraryScriptFile) async throws -> LibraryScriptFile {
+        guard !busy, historicalFile == nil, let store else { throw LibraryFailure.invalidInput }
+        busy = true; defer { busy = false }
+        let result = try await store.saveParagraph(block, text: text, for: original)
+        if let i = scripts.firstIndex(where: { $0.url == original.url }) { scripts[i] = result }
+        return result
     }
     func storeCorrection(_ correction: ScriptCorrection, file: LibraryScriptFile) async throws {
         guard let store else { throw LibraryFailure.invalidInput }
@@ -359,7 +378,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         } catch { playback.message = "원음 위치를 찾을 수 없습니다. 이 Mac에 해당 녹음이 보존되어 있는지 확인해 주세요." }
     }
     func exportMarkdown() {
-        guard canLeave, let file = scriptFile, let store else { return }
+        guard canLeave, let file = displayedScript, let store else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
         panel.nameFieldStringValue = file.script.title.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-") + ".md"

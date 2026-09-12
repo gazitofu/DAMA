@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-01 완료22 PASS, T-02 완료15 PASS. T-03 제목/본문 native 직접 편집 연결. 실제 앱은 아직0.4.7(17)."
+resume: "T-03 제목/본문 동일 native NSTextView와 직렬 자동 저장 연결, Debug build PASS. T-04 화자/AI 모달·정보·버전·재생 통합 뒤 합성 native 여정 QA. 실제 전달 앱은 아직0.4.7(17)."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
