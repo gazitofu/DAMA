@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "T-08 built: 등록 화자 재선택/동일 이름·색, 발화 삭제·취소를0.5.4(22)에 전달. 계약30/Swift195/Debug PASS, 합성 native 등록→미배정 선택·통합→삭제→재실행→취소 확인. 기존7개 해시 불변. NSSavePanel 자동화 timeout으로 native 내보내기 완료 미확인, 저장 actor의 실제 Markdown 파일 생성/내용 PASS. B2 확정, 운영 v2 연결 및 타 트랙은 별도 후속."
+resume: "T-09 built: 확실한 AI 교정 기본 반영, 기존 후보44개를 로컬 재반영한 AI 보정2 저장. DAMA0.5.6(24) 설치/실행 및 본문·재실행 확인. 계약30/Swift200/Debug PASS, 원문·사람 수정·이전 버전2/타Script6/소스173/타소유7 불변. 새 AI/음성 호출 없음."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -18,6 +18,27 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - 사전검사 `bash scripts/check.sh --log-root .build/check-logs/uiux-reading-baseline`: 계약30, Swift165, Debug build PASS, SKIP0. 로그 run-20260912T091200Z-QxzFao. 실제 음성/API/마이크 미사용.
 
 ## 의도
+
+### T-09 · 2026-09-13 AI 교정 기본 반영
+
+- 사용자 ‘반영이 안되는 특별한 이유가 없으면 반영을 하자’로 기존 용어 사전 필수 조건을 해제한다. 확실한 수정은 본문에 반영하고 수정별 불확실성/미해결 범위 중첩, 원문 인용·위치·재구성 오류는 유지한다. 모델 원문/시간/화자/사람 수정은 보존한다. 화자 재배정·구조 변경 승인이 아니다.
+- `context-correction-5`: 새 구조화 응답은 용어 사전/형식 allowlist를 필수 조건으로 삼지 않는다. 검증된 용어 대응은 근거로만 남긴다. 원문 위치가 없는 legacy 응답은 기존 제한 정책 유지. 기존 저장 판정은 로드만으로 변경하지 않는다.
+- 저장된 구조화 후보는 현재 결과의 ‘저장된 AI 교정 반영’으로 외부 호출 없이 재검증·새 AI 버전 저장. 사람이 소유/삭제한 Turn은 재반영에서 제외, 원문 불일치 차단. 과거 버전은 당시 상태 그대로 읽기 전용. 구간 정보에 반영 상태와 수정별 사유를 표시한다.
+- 착수 HEAD6c9800e/branch work/m0-fixture-review/status built/타소유 dirty7 실측. 기존 공유트리 유지 승인 범위, 타소유 파일/타트랙 상태는 수정·커밋 제외. 직전 계약30/Swift198/Debug PASS 재사용. 공통 진입점·build/spec 필수 규율·dev/API·library-script 계약을 적용하고 직접 구현한다.
+- QA 종료축: 신규 회사명/어휘 교정 및 독립 불확실성, 사람 수정/삭제·원문 보존, 저장 후보→새 버전→재열기/Markdown·이전 버전 불변/충돌, 실제 요청 Script의 본문 표시와 앱 버전. 새 AI/음성 전송·정확도 평가·타 트랙은 실행하지 않는다.
+- [x] AC-14 확실한 구조화 문맥 교정 반영, 불확실/잘못된 위치 보류·실패 및 용어 근거와 적용 판정 분리 회귀.
+- [x] AC-15 저장 후보 재반영의 새 버전/중복 방지/사람 수정·원문·이전 버전 보존, 재열기/Markdown/충돌 검증.
+- [x] AC-16 계약·Swift·Debug 및 실제 저장 후보 반영/본문/재실행,0.5.6(24) 설치·실행 버전 확인.
+
+#### T-09 완료 근거
+
+- `CorrectionSpans` v5는 불확실/미해결 중첩만 보류, 형식·사용자 용어 대응은 추가 근거로 유지. 새 `CorrectionReapplication`과 저장 actor는 현재 후보의 원문 위치를 재검증하고 새 완료 ID/버전으로 저장한다. UI는 저장 후보 반영 버튼과 구간별 반영·보류 사유를 제공한다.
+- 영향 Core/버전14건 PASS(`.build/check-logs/ai-application-targeted-r3.log`). 초기 테스트 컴파일의 누락 try, 같은 읽기 문단에 속한 두 원구간을 독립 문단으로 가정한 테스트 구성을 고쳐 실제 서로 다른 문단으로 검사했다. 이전 용어 제한으로 역뮤테이션 시 신규 문맥/CLI 소비 테스트2개가 실패(단언4개)해 회귀 변별력을 확인하고 복원했다(`ai-application-inverse-mutation.log`).
+- `bash .build/diagnostics/word-v4/check.sh --scratch-path .build/ai-application-tests --log-root .build/check-logs/ai-application-final`: 계약30/Swift200/Debug PASS·SKIP0, 로그 `run-20260913T102328Z-5xw8cm`. 원 check.sh와 차이는 대소문자 통일 cwd 및 독립 module cache뿐이다. 첫 전수 실행(`run-20260913T101856Z-hdNTWs`)은 구두점 미반영을 기대한 기존 테스트1건 및 재사용 xctest signal10으로 실패했다. 사용자 승인 정책에 맞춰 기대값을 이동하고 별도 scratch에서 전수 통과; signal10 근본 원인은 미확정.
+- 실제 요청 Script의 저장 후보44개/적용0개에서44개 적용으로 변경. 동일 코드·저장 actor로 workspace 사본의 저장→새 버전→재열기→Markdown→재적용 no-op PASS(`.build/diagnostics/ai-application/Verify.swift`, `verify-r2.log`). 보존된 이전 버전의 byte/hash, 원 normalized/사람 수정/삭제를 대조했다. 사본 초기 실행은 대상 폴더 미생성으로 실패했고 폴더 생성 후 통과했다.
+- DAMA0.5.6(24)를 설치하고 CUA로 실제 ‘저장된 AI 교정 반영’ 실행. 새 ‘AI 보정2’ 본문에서 문제 회사명 교정, 구간 정보의 자동 반영/수정별 사유를 화면 확인했다. 정상 종료→재실행→Scripts에서 같은 교정 본문 확인; About의 실행 버전0.5.6(24) 확인. 기존 AI 보정1은 당시 판정 그대로 보존한다.
+- 전달 전후 실제 대상의 변경 필드는 correction/revisionID/versions뿐. 타Script6, 기존 snapshot2, 소스173, 타소유 dirty7 바이트 불변, 설치 앱=검사 빌드 바이트 일치(`.build/diagnostics/ai-application/delivery.json`). 원 앱 백업 `.build/backups/DAMA-0.5.5-23-before-ai-application.app`, 대상 원본 `.build/diagnostics/ai-application/before.dama.json` 보존.
+- 실제 AI/음성 전송·유료 호출·마이크·원음 정답 평가는 실행하지 않았다. Markdown은 저장 actor의 실제 파일 생성으로 검증; native 저장 패널은 재검사하지 않았다. main 머지/push/release 없음, 타소유7은 커밋 제외.
 
 ### T-08 · 2026-09-13 등록 화자와 발화 삭제
 

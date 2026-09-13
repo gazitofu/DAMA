@@ -88,9 +88,9 @@ enum CorrectionSpans {
                 ContextCorrection.canonicalFormat(single.trimmingCharacters(in: .whitespacesAndNewlines))
             let uncertain = !change.certain || uncertainRanges.contains { $0.overlaps(anchors[index]) }
             let termBasis = CorrectionTerms.basis(change: change, source: source.text, range: anchors[index], input: input)
-            let applied = !uncertain && (format || termBasis != nil)
+            let applied = !uncertain
             let basis = uncertain ? "이 수정 범위가 불확실해 원문을 유지했습니다." :
-                (format ? "원문 위치와 제한 형식 동등성을 확인했습니다." : termBasis ?? "검증된 용어 대응 근거가 없어 후보로 보존했습니다.")
+                (format ? "원문 위치와 제한 형식 동등성을 확인했습니다." : termBasis ?? "AI가 확실한 문맥 교정으로 제안했고 원문 수정 위치를 확인했습니다.")
             decisions.append(.init(change: change, applied: applied, basis: basis))
         }
         let appliedText = compose(source: source.text, changes: changes, ranges: anchors, accepted: decisions.map(\.applied))
@@ -98,7 +98,7 @@ enum CorrectionSpans {
         if applied && source.text.trimmingCharacters(in: .whitespacesAndNewlines) == appliedText.trimmingCharacters(in: .whitespacesAndNewlines) {
             return nil
         }
-        let reason = (applied ? "수정별 근거를 확인해 반영했습니다." : "확인된 수정만 반영하고 미해결 부분을 보존했습니다.") +
+        let reason = (applied ? "AI 교정을 반영했습니다." : (decisions.contains(where: \.applied) ? "확실한 수정은 반영하고 불확실한 부분은 원문을 유지했습니다." : "불확실한 부분은 원문을 유지했습니다.")) +
             (candidate.reason.isEmpty ? "" : " " + candidate.reason)
         return CorrectionEdit(turnID: source.id, original: source.text, text: proposed, reason: reason, applied: applied,
                               changes: decisions, unresolved: unresolved, appliedText: appliedText)

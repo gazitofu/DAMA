@@ -95,7 +95,7 @@ public struct CorrectionReply: Codable, Sendable {
 }
 
 public enum ContextCorrection {
-    public static let version = "context-correction-4"
+    public static let version = "context-correction-5"
     /// Limits bound resources; they are not measured accuracy thresholds.
     public static func chunks(_ script: LibraryScript) throws -> [CorrectionChunk] {
         try script.validate()
@@ -157,7 +157,7 @@ public enum ContextCorrection {
         changes에는 수정마다 원문 quote, occurrence(같은 인용의 0부터 세는 출현순서), replacement, certain, reason, termID(용어 근거 없으면 null)를 쓴다.
         quote는 원문 그대로이며 비어 있으면 안 된다. changes끼리는 겹치지 않고, 원문에 모두 적용한 결과가 text와 정확히 같아야 한다. 수정하지 않은 공백도 보존한다.
         별도 확인이 필요한 원문 부분은 unresolved에 quote, occurrence, reason으로 남긴다. 다른 부분의 확실한 수정과 분리한다.
-        변경이나 미해결이 없으면 해당 배열은 빈 배열이다. certain과 reason만으로 자동 적용되지 않으며 앱이 수정별 근거를 검증한다.
+        변경이나 미해결이 없으면 해당 배열은 빈 배열이다. 확실한 수정은 원문 위치 검증 후 본문에 반영되므로 불확실한 수정은 certain=false로 표시한다.
         terms는 사용자가 명시한 주제별 표기 대응이다. 같은 원 발화에 topic이 있고 source와 replacement가 정확히 대응할 때만 그 id를 termID로 인용한다.
         terms에 없는 대응이나 다른 주제의 용어는 termID=null로 둔다. 참고 문서의 표준어 존재만으로 발언의 뜻을 바꾸지 않는다.
         names는 명시적 자기소개(예: '저는 김민수입니다')가 있고 참석자 목록에 같은 이름이 있을 때만 반환한다.

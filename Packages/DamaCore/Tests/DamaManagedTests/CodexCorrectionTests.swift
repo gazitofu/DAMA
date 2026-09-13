@@ -32,7 +32,7 @@ final class CodexCorrectionTests: XCTestCase {
         let reply = try await CodexCorrectionClient().correct(chunk: chunk, input: ConversionNotes(), executable: executable)
         XCTAssertEqual(try ContextCorrection.validated(reply, chunk: chunk, input: ConversionNotes()).edits.first?.text, "합성 대사.")
         XCTAssertEqual(reply.turns[0].changes?.count, 1)
-        XCTAssertFalse(try XCTUnwrap(ContextCorrection.validated(reply, chunk: chunk, input: ConversionNotes()).edits.first).applied)
+        XCTAssertTrue(try XCTUnwrap(ContextCorrection.validated(reply, chunk: chunk, input: ConversionNotes()).edits.first).applied)
         let args = CodexCorrectionClient.arguments(directory: directory, schema: directory, output: directory)
         XCTAssertTrue(args.contains("--ignore-user-config")); XCTAssertTrue(args.contains("features.shell_tool=false"))
         XCTAssertTrue(args.contains("web_search=\"disabled\"")); XCTAssertFalse(args.contains("--dangerously-bypass-approvals-and-sandbox"))

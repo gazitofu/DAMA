@@ -3,6 +3,23 @@ import XCTest
 @testable import DamaCore
 
 final class ContextCorrectionTests: XCTestCase {
+    func testConfidentContextCorrectionNeedsNoTermDictionaryAndKeepsUncertainSpans() throws {
+        var script = try makeScript(["ABC는 단독 검토 중인데 모호어입니다"])
+        let chunk = try XCTUnwrap(ContextCorrection.chunks(script).first)
+        let changes: [CorrectionChange] = [
+            .init(quote: "ABC", occurrence: 0, replacement: "예시PE", certain: true, reason: "참고 자료의 회사명", termID: nil),
+            .init(quote: "모호어", occurrence: 0, replacement: "다른말", certain: false, reason: "원음 확인 필요", termID: nil)]
+        let reply = CorrectionReply(turns: [.init(id: chunk.turns[0].id, text: "예시PE는 단독 검토 중인데 다른말입니다",
+            certain: false, reason: "", changes: changes, unresolved: [])], names: [])
+        var correction = ScriptCorrection(input: script.input, engine: ContextCorrection.version, state: .completed)
+        correction.edits = try ContextCorrection.validated(reply, chunk: chunk, input: script.input).edits
+        script.correction = correction
+        XCTAssertEqual(correction.edits[0].changes?.map(\.applied), [true, false])
+        XCTAssertEqual(script.blocks()[0].text, "예시PE는 단독 검토 중인데 모호어입니다")
+        XCTAssertEqual(script.modelText(for: script.transcript.turns[0]), "ABC는 단독 검토 중인데 모호어입니다")
+        XCTAssertTrue(String(decoding: try script.markdown(), as: UTF8.self).contains("예시PE는 단독 검토 중인데 모호어입니다"))
+        XCTAssertFalse(correction.edits[0].changes![0].basis.contains("사용자가 지정한"))
+    }
     func testIndependentSpanCorrectionAndUnresolvedRoundTripJourney() throws {
         var script = try makeScript(["원자로 에스엠알 30억원 추정", "다음 발화"])
         let input = ConversionNotes(context: "원자로 검토", reference: "용어 | 원자로 | 에스엠알 | SMR")
@@ -68,7 +85,8 @@ final class ContextCorrectionTests: XCTestCase {
                    unresolved: [CorrectionUnresolved] = []) throws -> Bool {
             let chunk = CorrectionChunk(turns: [.init(id: "t", speakerID: nil, startUs: 0, endUs: 1, text: before)], contextBefore: [], contextAfter: [])
             let changes = [CorrectionChange(quote: "에스엠알", occurrence: 0, replacement: "SMR", certain: true, reason: "확실함", termID: id)]
-            return try ContextCorrection.validated(.init(turns: [.init(id: "t", text: after, certain: true, reason: "", changes: changes, unresolved: unresolved)], names: []), chunk: chunk, input: notes).edits.first?.changes?.first?.applied == true
+            // Dictionary evidence remains independently verified; it is no longer required for application.
+            return try ContextCorrection.validated(.init(turns: [.init(id: "t", text: after, certain: true, reason: "", changes: changes, unresolved: unresolved)], names: []), chunk: chunk, input: notes).edits.first?.changes?.first?.basis.hasPrefix("사용자가 지정한") == true
         }
         XCTAssertTrue(try apply("원자로 에스엠알", "원자로 SMR", term.id))
         XCTAssertFalse(try apply("원자로 에스엠알", "원자로 SMR", nil))

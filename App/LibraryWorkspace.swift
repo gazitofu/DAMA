@@ -353,6 +353,12 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         let result = try await store.saveCorrection(correction, for: file)
         if let i = scripts.firstIndex(where: { $0.id == result.id }) { scripts[i] = result }
     }
+    func applyPendingCorrection(_ file: LibraryScriptFile) async throws {
+        guard historicalFile == nil, canLeave, !CorrectionWorkspace.shared.busy, let store else { throw LibraryFailure.invalidInput }
+        busy = true; defer { busy = false }
+        let result = try await store.applyPendingCorrection(for: file)
+        if let i = scripts.firstIndex(where: { $0.id == result.id }) { scripts[i] = result }
+    }
     func validateCorrectionSource(_ file: LibraryScriptFile) async throws {
         guard historicalFile == nil, let store else { throw LibraryFailure.invalidInput }
         try await store.validateCurrent(file)

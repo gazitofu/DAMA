@@ -271,6 +271,12 @@ public actor FolderLibraryStore {
         guard candidate.revisionID != latest.script.revisionID else { return latest }
         return try saveScript(candidate, to: latest.url, expectedHash: latest.hash)
     }
+    public func applyPendingCorrection(for source: LibraryScriptFile) throws -> LibraryScriptFile {
+        let latest = try latestForMerge(source)
+        guard latest.script.correction?.id == source.script.correction?.id else { throw LibraryFailure.changedFile }
+        guard let correction = try ContextCorrection.reapplyingPending(in: latest.script) else { return latest }
+        return try saveCorrection(correction, for: latest)
+    }
     public func saveCorrection(_ correction: ScriptCorrection, for source: LibraryScriptFile) throws -> LibraryScriptFile {
         let latest = try latestForMerge(source)
         try correction.validate(transcript: latest.script.transcript)

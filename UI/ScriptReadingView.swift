@@ -15,6 +15,8 @@ struct ScriptReadingView: View {
     @State private var information = false
     @State private var playingID: String?
     @State private var deletionError: String?
+    @State private var hasSavedCorrections = false
+    @State private var correctionError: String?
     init(file: LibraryScriptFile, workspace: LibraryWorkspace,
          rename: @escaping (LibraryScriptFile, ScriptBlock) -> Void, correct: @escaping (LibraryScriptFile) -> Void) {
         self.file = file; self.workspace = workspace; self.rename = rename; self.correct = correct
@@ -72,6 +74,7 @@ struct ScriptReadingView: View {
                 }
                 Divider()
                 if let deletionError { Text(deletionError).font(.caption).foregroundStyle(.red).padding(.horizontal, 24) }
+                if let correctionError { Text(correctionError).font(.caption).foregroundStyle(.red).padding(.horizontal, 24) }
                 HStack(spacing: 12) {
                     Button("이전 문단", systemImage: "chevron.up") { move(-1, scroll: scroll) }.labelStyle(.iconOnly).disabled(editor.block != nil || index <= 0)
                     Button("다음 문단", systemImage: "chevron.down") { move(1, scroll: scroll) }.labelStyle(.iconOnly).disabled(editor.block != nil || index + 1 >= blocks.count)
@@ -92,12 +95,28 @@ struct ScriptReadingView: View {
                         Text("AI 보정 중… \(correction.completed)/\(correction.total)").font(.caption)
                         Button("보정 취소", action: correction.cancel)
                     } else {
+                        if !readOnly && hasSavedCorrections {
+                            Button("저장된 AI 교정 반영") {
+                                correctionError = nil
+                                Task {
+                                    do { try await workspace.applyPendingCorrection(file) }
+                                    catch { correctionError = "교정을 반영하지 못했습니다. 새로고침 후 다시 시도해 주세요." }
+                                }
+                            }.help("AI를 다시 호출하지 않고 저장된 확실한 후보를 새 결과로 반영합니다.")
+                                .disabled(!workspace.canLeave || correction.busy)
+                        }
                         Button("AI 검수/보정", systemImage: "sparkles") { correct(file) }.disabled(readOnly || !workspace.canLeave || correction.busy)
                     }
                 }.padding(.horizontal, 24).padding(.vertical, 14)
             }
         }
         .onChange(of: file.hash) { _, _ in editor.receive(file) }
+        .task(id: file.hash) {
+            let script = file.script
+            hasSavedCorrections = await Task.detached(priority: .utility) {
+                (try? ContextCorrection.reapplyingPending(in: script)) != nil
+            }.value
+        }
         .onReceive(workspace.playback.$playingID.removeDuplicates()) { playingID = $0 }
         .onReceive(workspace.playback.$positionUs) { position in
             guard playingID != nil, editor.block == nil,
@@ -161,7 +180,12 @@ struct ScriptReadingView: View {
                     let edits = shown.script.correction?.visibleEdits.filter { block.turnIDs.contains($0.turnID) } ?? []
                     ForEach(edits, id: \.turnID) { edit in
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(edit.reason); Text("AI 후보: \(edit.text)")
+                            Text(edit.decisionLabel).fontWeight(.semibold)
+                            Text(edit.reason); Text("\(edit.applied ? "AI 교정" : "AI 후보"): \(edit.text)")
+                            ForEach(Array((edit.changes ?? []).enumerated()), id: \.offset) { _, decision in
+                                Text("\(decision.applied ? "반영" : "보류"): \(decision.change.quote) → \(decision.change.replacement)")
+                                Text(decision.basis)
+                            }
                             ForEach(Array((edit.unresolved ?? []).enumerated()), id: \.offset) { _, item in Text("\(item.quote) · \(item.reason)") }
                         }.font(.caption)
                     }

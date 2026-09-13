@@ -10,6 +10,59 @@ final class ScriptVersionTests: XCTestCase {
         let model = try JSONDecoder().decode(TranscriptDocument.self, from: Data(contentsOf: repo.appendingPathComponent("fixtures/normalized-transcript.json")))
         return try LibraryScript(transcript: model, title: "합성 제목", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
     }
+    func testSavedCandidatesApplyOnceWithHumanEditsAndImmutableHistory() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let root = folder.appendingPathComponent("internal"), url = folder.appendingPathComponent("script.dama.json")
+        let store = FolderLibraryStore(root: root)
+        let first = try await store.saveScript(script(), to: url, expectedHash: nil)
+        let allSources = try ContextCorrection.chunks(first.script).flatMap(\.turns)
+        let sources = try first.reading.blocks.filter(\.isSpeech).prefix(2).map { block in
+            try XCTUnwrap(allSources.first { block.turnIDs.contains($0.id) })
+        }
+        var old = ScriptCorrection(input: first.script.input, engine: "synthetic context-correction-4", state: .completed)
+        // Construct persisted v4 decisions through Codable, as if loaded from disk.
+        old.edits = try sources.prefix(2).enumerated().map { index, source in
+            let object: [String: Any] = ["turnID": source.id, "original": source.text, "text": "합성 교정 \(index)",
+                "reason": "이전 용어 제한", "applied": false, "appliedText": source.text, "unresolved": [],
+                "changes": [["applied": false, "basis": "이전 용어 제한", "change": [
+                    "quote": source.text, "occurrence": 0, "replacement": "합성 교정 \(index)", "certain": true, "reason": "합성 표기 교정"]]]]
+            return try JSONDecoder().decode(CorrectionEdit.self, from: JSONSerialization.data(withJSONObject: object))
+        }
+        XCTAssertEqual(old.edits.count, 2)
+        let previous = try await store.saveCorrection(old, for: first)
+        let version = try XCTUnwrap(previous.script.versions?.last)
+        let history = try await store.readVersion(version, for: previous)
+        let historyBytes = try Data(contentsOf: history.url)
+        let owned = try XCTUnwrap(previous.reading.blocks.first { $0.turnIDs.contains(sources[1].id) })
+        _ = try await store.saveParagraph(owned, text: "사람 수정 유지", for: previous)
+        let applied = try await store.applyPendingCorrection(for: previous)
+        XCTAssertEqual(applied.script.text(for: applied.script.transcript.turns.first { $0.id == sources[0].id }!), "합성 교정 0")
+        XCTAssertTrue(applied.reading.blocks.contains { $0.text == "사람 수정 유지" })
+        XCTAssertEqual(applied.script.correction?.edits[1].applied, false)
+        XCTAssertEqual(applied.script.versions?.map(\.number), [0, 1, 2])
+        XCTAssertNotEqual(applied.script.correction?.id, old.id)
+        XCTAssertEqual(try Data(contentsOf: history.url), historyBytes)
+        XCTAssertEqual(try applied.script.sourceFingerprint(), try first.script.sourceFingerprint())
+        let again = try await store.applyPendingCorrection(for: applied)
+        XCTAssertEqual(again.hash, applied.hash)
+        do { _ = try await store.applyPendingCorrection(for: previous); XCTFail("stale correction") }
+        catch { XCTAssertTrue(error is LibraryFailure) }
+        do { _ = try await store.applyPendingCorrection(for: history); XCTFail("read-only history") }
+        catch { XCTAssertTrue(error is LibraryFailure) }
+        let reopened = FolderLibraryStore(root: root)
+        let files = try await reopened.scripts(in: folder)
+        let loaded = try XCTUnwrap(files.first)
+        XCTAssertEqual(loaded.reading.blocks.map(\.text), applied.reading.blocks.map(\.text))
+        let export = folder.appendingPathComponent("corrected.md")
+        try await reopened.exportMarkdown(loaded, to: export)
+        let md = try String(contentsOf: export, encoding: .utf8)
+        XCTAssertTrue(md.contains("합성 교정 0")); XCTAssertTrue(md.contains("사람 수정 유지"))
+        try Data("external mutation".utf8).write(to: loaded.url)
+        do { _ = try await reopened.applyPendingCorrection(for: loaded); XCTFail("external conflict") }
+        catch { XCTAssertTrue(error is LibraryFailure) }
+    }
     func testSerialFieldMergeImmutableVersionsAndReadOnlyExport() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
