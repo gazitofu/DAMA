@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "2026-09-13 B2 결과 사용자 확정, 추가 화자 등록/재선택·발화 삭제/취소는 uiux-reading T-08 built로 DAMA0.5.4(22) 전달. 계약30/Swift195/Debug, 합성 native 저장·재실행·취소 PASS. 기존7개 해시 불변. 다음은 승인된 word-v4를 새 전사 기본값에 연결(현재 운영 v2); B2 결과 선택 재승인 불필요. AI 구조 수정·타 트랙 보류 유지."
+resume: "2026-09-13 사용자 요청으로 세션 종료. 구현 HEAD3738131, DAMA0.5.4(22) 전달: B2 사용자 확정 및 uiux-reading T-08 화자 등록/재선택·발화 삭제/취소 완료. 계약30/Swift195/Debug, 합성 native 저장·재실행·취소 PASS. 기존7개 Script 불변. 다음 세션 첫 작업은 승인된 word-v4를 ManagedProcessor의 새 전사 기본 경로에 연결(현재 v2); B2 선택 재승인 불필요. 기존 결과·사람 수정 보존, AI 구조 수정·타 트랙 보류 유지."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
@@ -80,6 +80,15 @@ spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ss
 - 마지막 status 실측: `work/m0-fixture-review`, 사용자/다른 트랙 혼합7문서만 기존 변경으로 남긴다. 앱 코드·신규 계약·본 plan은 이 작업 커밋에 포함. 원격 push 없음.
 
 ## 다음 세션 착수 (2026-09-11 추가 요청)
+
+### 세션 종료·재개 기준 (2026-09-13)
+
+- 사용자 요청으로 여기서 작업을 종료한다. 마지막 구현 커밋은 `3738131`, 브랜치는 `work/m0-fixture-review`, 설치·실행 확인된 앱은 **DAMA 0.5.4(22)**다. 화자 등록/재선택과 발화 삭제/취소는 [uiux-reading T-08](../uiux-reading/plan.md)에 완료·검증 근거를 남겼다. native 저장 패널 완료는 미확인이고 저장 actor의 Markdown 파일 검증은 PASS다.
+- **다음 첫 작업:** 승인된 B2 `soniox-p2-word-v4`를 새 전사 기본 처리에 연결한다. 현재 `ManagedProcessor.swift`는 `SonioxPrecisionNormalizer`의 `soniox-p2-v2`를 호출하며, `SonioxPrecisionReconciler.wordRepair`는 비교 경로에만 있다. [결합 정책·T-05](../soniox-p2-alignment/plan.md)와 실제 호출/복구 경로를 읽고 후속 구현·AC를 기존 plan에 구체화한다. B2 결과 선택이나 완료된 UI 승인은 다시 묻지 않는다.
+- 새 처리와 저장 응답 재사용 모두에서 정책 버전·출처·중단/재개를 검증한다. 기존 v2/A/B/B2, Soniox 원문·시간·화자 ID 및 사용자의 이름·본문·삭제·AI 이력은 덮어쓰지 않고 새 Run으로 분리한다. 저장된 소스 검증부터 진행하며 신규 과금 호출·음성/AI 전송은 건별 승인 경계를 유지한다.
+- 세션 종료 시 다른 소유 변경 7개(`.claude/commands/build.md`, `README.md`, `notes/qwen-local/evaluation.md`, `ssot/dev.md`, `versions/m0-fixture-review/plan.md`, `versions/m1-recording-safety/plan.md`, `versions/m2-managed-processing/plan.md`)는 그대로 보존했다. 재개 시 HEAD·dirty·앱 버전을 다시 실측한다. AI 화자 재배정/통합, Qwen 학습과 다른 트랙 보류는 이번 승인에 포함하지 않는다. main 머지·push·release는 실행하지 않았다.
+
+아래는 누적 진행 기록이며, 재개 순서는 위 기준을 따른다.
 
 등록 화자·삭제 전달 (2026-09-13): 사용자가 B2를 ‘이정도로 확정’하고 추가 요청한 두 기능을 [uiux-reading T-08](../uiux-reading/plan.md)에 반영했다. DAMA0.5.4(22) 실제 실행, 스크립트별 등록 화자 선택/같은 이름·색, 발화 삭제·취소/원문 보존 제공. 계약30/Swift195/Debug와 합성 native 등록→미배정 선택/수동 통합→삭제→재실행→취소 PASS. native 저장 패널 자동화는 timeout으로 완료 미확인, 저장 actor의 Markdown 파일 검증 PASS. 기존7개 불변. **B2 결과 선택은 승인됐으며 다음은 word-v4를 새 전사 기본값에 연결하는 작업**이다. 이번 UI 후속에서는 운영 v2를 변경하지 않았다. 아래 ‘원음 판정 후’는 승인 전 기록이다.
 
