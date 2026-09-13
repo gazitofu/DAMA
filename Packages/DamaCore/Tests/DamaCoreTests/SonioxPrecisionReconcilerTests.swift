@@ -139,4 +139,41 @@ final class SonioxPrecisionReconcilerTests: XCTestCase {
         XCTAssertEqual(try NormalizedTranscriptCodec.encode(raw), before)
         XCTAssertThrowsError(try SonioxPrecisionReconciler.reconcile(raw, runID: raw.runId, createdAt: date, policy: .word))
     }
+
+    func testPhraseTailSharesP2EvidenceWithoutPunctuationTimeAttribution() throws {
+        let raw = try source([token("질문", 100, 500), token(" ", 600, 660), token("인", 700, 760),
+                              token("가", 800, 860), token("?", 1500, 1560), token(" 답", 1700, 1800)],
+                             [interval("A", 0, 0.6), interval("B", 1.5, 3)])
+        let old = try compare(raw, .word), repaired = try compare(raw, .wordRepair)
+        XCTAssertEqual(Array(labels(old).prefix(5)), ["A", "A", nil, nil, nil])
+        XCTAssertEqual(labels(repaired), ["A", "A", "A", "A", "A", "B"])
+        XCTAssertNil(repaired.words[2].alignmentScore)
+        XCTAssertEqual(repaired.words[2].sourceIntervalIds, ["d0", "e0"])
+        XCTAssertFalse(repaired.words[4].sourceIntervalIds.contains("e1"))
+        XCTAssertEqual(try script(repaired).blocks().map(\.text), ["질문 인가?", "답"])
+    }
+
+    func testTailRepairDoesNotCrossCommaASRChangeOtherVoiceOrTwoWords() throws {
+        let base = [token("앞", 100, 200), token(",", 200, 260), token(" 이", 300, 360), token("거", 360, 420), token(".", 420, 480)]
+        let intervals = [interval("A", 0, 0.25), interval("B", 1.5, 3)]
+        XCTAssertEqual(Array(labels(try compare(source(base, intervals), .wordRepair)).suffix(3)), [nil, nil, nil])
+        var changed = [token("앞", 100, 200), token(" 뒤", 300, 400)]
+        changed[1]["speaker"] = "two"
+        XCTAssertNil(try compare(source(changed, intervals), .wordRepair).words[1].speakerId)
+        let newLine = [token("앞", 100, 200), token("\n뒤", 300, 400)]
+        XCTAssertNil(try compare(source(newLine, intervals), .wordRepair).words[1].speakerId)
+        let twoWords = [token("앞", 100, 200), token(" 뒤", 300, 360), token(" 또", 400, 460)]
+        XCTAssertNil(try compare(source(twoWords, intervals), .wordRepair).words[1].speakerId)
+        let interrupted = [interval("A", 0, 0.2), interval("B", 0.21, 0.22)]
+        let raw = try source([token("앞", 100, 200), token(" 뒤", 300, 400)], interrupted)
+        XCTAssertNil(try compare(raw, .wordRepair).words[1].speakerId)
+    }
+
+    func testTailRepairGapAndSpan500MillisecondsAreInclusiveNot501() throws {
+        let intervals = [interval("A", 0, 0.2), interval("B", 2, 3)]
+        for (start, end, expected) in [(700, 800, "A" as String?), (701, 801, nil), (300, 800, "A"), (300, 801, nil)] {
+            let raw = try source([token("앞", 100, 200), token(" 뒤", start, end)], intervals)
+            XCTAssertEqual(labels(try compare(raw, .wordRepair))[1], expected, "\(start)-\(end)ms")
+        }
+    }
 }

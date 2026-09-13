@@ -4,6 +4,7 @@ import Foundation
 public enum SonioxPrecisionComparison: String, CaseIterable, Sendable {
     case timeline = "soniox-p2-timeline-v3"
     case word = "soniox-p2-word-v3"
+    case wordRepair = "soniox-p2-word-v4"
 }
 
 public enum SonioxPrecisionReconciler {
@@ -32,12 +33,20 @@ public enum SonioxPrecisionReconciler {
         doc.revision = RevisionMetadata(id: "model-\(runID)", baseRevisionId: nil,
             sourceRunId: runID, humanEdited: false, savedAt: createdAt)
 
-        var choices = doc.words.map { direct($0, regular: doc.diarization, exclusive: doc.exclusiveDiarization) }
-        if policy == .word {
+        var choices = doc.words.map {
+            policy == .wordRepair && $0.tokenKind == .punctuation
+                ? Choice(sourceIDs: [], overlap: false, boundary: false)
+                : direct($0, regular: doc.diarization, exclusive: doc.exclusiveDiarization)
+        }
+        if policy != .timeline {
             for group in orthographicGroups(doc.words) {
                 shareWordEvidence(group, words: doc.words, choices: &choices,
                     regular: doc.diarization, exclusive: doc.exclusiveDiarization)
             }
+        }
+        if policy == .wordRepair {
+            sharePhraseTailEvidence(words: doc.words, choices: &choices,
+                regular: doc.diarization, exclusive: doc.exclusiveDiarization)
         }
         attachClosingPunctuation(words: doc.words, choices: &choices)
 
@@ -54,10 +63,11 @@ public enum SonioxPrecisionReconciler {
             w.assignmentSource = choice.speaker == nil ? .unknown : .reconciled
             w.alignmentScore = choice.coverage; w.sourceIntervalIds = choice.sourceIDs
             w.overlap = choice.overlap; w.reviewIssueIds = []
-            if w.startUs == nil || w.endUs == nil || w.startUs == w.endUs {
+            let acoustic = policy != .wordRepair || w.tokenKind == .lexical
+            if acoustic && (w.startUs == nil || w.endUs == nil || w.startUs == w.endUs) {
                 w.reviewIssueIds.append(flag(.invalid_timestamp, w.startUs, w.endUs, [w.id], choice.sourceIDs))
             }
-            if choice.speaker == nil { w.reviewIssueIds.append(flag(.ambiguous_speaker, w.startUs, w.endUs, [w.id], choice.sourceIDs)) }
+            if acoustic && choice.speaker == nil { w.reviewIssueIds.append(flag(.ambiguous_speaker, w.startUs, w.endUs, [w.id], choice.sourceIDs)) }
             if choice.boundary { w.reviewIssueIds.append(flag(.boundary_conflict, w.startUs, w.endUs, [w.id], choice.sourceIDs)) }
             if choice.overlap { w.reviewIssueIds.append(flag(.overlapping_speech, w.startUs, w.endUs, [w.id], choice.sourceIDs)) }
             doc.words[i] = w
@@ -101,7 +111,7 @@ public enum SonioxPrecisionReconciler {
         for marker in markers.sorted(by: { $0.startUs! < $1.startUs! }) {
             doc.turns.insert(marker, at: doc.turns.firstIndex { ($0.startUs ?? Int64.min) >= marker.startUs! } ?? doc.turns.endIndex)
         }
-        if policy == .word { doc.turns = speakerTurns(doc) }
+        if policy != .timeline { doc.turns = speakerTurns(doc) }
         try TranscriptValidator().validate(doc)
         return doc
     }
@@ -177,6 +187,56 @@ public enum SonioxPrecisionReconciler {
             choices[i].speaker = choices[j].speaker
             choices[i].sourceIDs = Array(Set(choices[i].sourceIDs + choices[j].sourceIDs)).sorted()
             choices[i].coverage = nil
+        }
+    }
+
+    /// Initial, deliberately bounded comparison rule, not a measured accuracy threshold.
+    private static let maximumTailUs: Int64 = 500_000
+    private static func sharePhraseTailEvidence(words: [TranscriptWord], choices: inout [Choice],
+                                                 regular: [DiarizationInterval], exclusive: [DiarizationInterval]) {
+        var phrases: [[Int]] = [], phrase: [Int] = [], asr: String?
+        let boundaries = CharacterSet(charactersIn: ",;:，、；：.!?。？！…—\n\r")
+        for i in words.indices {
+            let word = words[i], text = word.prefix + word.text
+            if text.contains("\n") || text.contains("\r") {
+                if !phrase.isEmpty { phrases.append(phrase); phrase = [] }; asr = nil
+            }
+            if word.tokenKind == .lexical {
+                if !phrase.isEmpty && (word.asrSpeakerLabel == nil || word.asrSpeakerLabel != asr) {
+                    phrases.append(phrase); phrase = []
+                }
+                phrase.append(i); asr = word.asrSpeakerLabel
+            }
+            if text.unicodeScalars.contains(where: boundaries.contains) {
+                if !phrase.isEmpty { phrases.append(phrase); phrase = [] }; asr = nil
+            }
+        }
+        if !phrase.isEmpty { phrases.append(phrase) }
+        for phrase in phrases {
+            guard let firstUnknown = phrase.firstIndex(where: { choices[$0].speaker == nil }), firstUnknown > 0 else { continue }
+            let supported = Array(phrase[..<firstUnknown]), tail = Array(phrase[firstUnknown...])
+            let speakers = Set(supported.compactMap { choices[$0].speaker })
+            guard speakers.count == 1, let speaker = speakers.first,
+                  phrase.allSatisfy({ words[$0].asrSpeakerLabel != nil && words[$0].asrSpeakerLabel == words[phrase[0]].asrSpeakerLabel }),
+                  tail.allSatisfy({ choices[$0].speaker == nil && choices[$0].sourceIDs.isEmpty }),
+                  let anchorEnd = words[supported.last!].endUs, let start = words[tail[0]].startUs,
+                  let end = words[tail.last!].endUs,
+                  start >= anchorEnd, start - anchorEnd <= maximumTailUs,
+                  end >= start, end - start <= maximumTailUs else { continue }
+            // Only one trailing orthographic word; never bridge a sentence, comma, or another voice.
+            guard zip(tail, tail.dropFirst()).allSatisfy({ left, right in
+                let between = words[(left + 1)...right].map { $0.prefix + $0.text }.joined()
+                return !between.contains(where: \.isWhitespace)
+            }),
+            zip(phrase, phrase.dropFirst()).allSatisfy({ left, right in
+                guard let a = words[left].startUs, let b = words[right].startUs else { return false }
+                return a <= b
+            }),
+            !(regular + exclusive).contains(where: { $0.speakerId != speaker && max(anchorEnd, $0.startUs) < min(end, $0.endUs) }) else { continue }
+            let evidence = Array(Set(supported.flatMap { choices[$0].sourceIDs })).sorted()
+            for i in tail {
+                choices[i].speaker = speaker; choices[i].sourceIDs = evidence; choices[i].coverage = nil
+            }
         }
     }
 

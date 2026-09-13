@@ -18,7 +18,7 @@ public final class ScriptReadingSnapshot: Sendable {
 
 /// Reading layout, separately versioned from model normalization.
 public enum ScriptReadingPolicy {
-    public static let algorithmVersion = "reading-v7"
+    public static let algorithmVersion = "reading-v8"
 
     /// Legacy Soniox source-Turn segmentation. Reading-v7 no longer uses this guard.
     static func endsSentence(_ text: String) -> Bool {
@@ -68,8 +68,10 @@ public struct ScriptBlock: Identifiable, Sendable {
     public let colorIndex: Int?
     public let issues: [ReviewIssue]
     public let edited: Bool
-    public var startUs: Int64? { turns.compactMap(\.startUs).min() }
-    public var endUs: Int64? { turns.compactMap(\.endUs).max() }
+    public let startUs: Int64?
+    public let endUs: Int64?
+    public let speakerID: String?
+    public let speakerTurnID: String
     public var turnIDs: [String] { turns.map(\.id) }
     public var isSpeech: Bool { turns.allSatisfy { $0.kind == .speech } }
     public var openIssues: [ReviewIssue] { issues.filter { $0.status == .open } }
@@ -93,23 +95,7 @@ extension LibraryScript {
 
     /// Hard boundary guard shared by automatic and manual reading layout.
     public func canJoinParagraph(before turnID: String) -> Bool {
-        guard !transcript.revision.humanEdited,
-              let i = transcript.turns.firstIndex(where: { $0.id == turnID }), i > 0 else { return false }
-        guard let previous = transcript.turns[..<i].last(where: { $0.kind == .speech }) else { return false }
-        let next = transcript.turns[i]
-        return canJoin(previous, next, previousName: name(for: previous), nextName: name(for: next))
-    }
-    private func canJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn, previousName: String, nextName: String) -> Bool {
-        guard !transcript.revision.humanEdited else { return false }
-        guard previous.kind == .speech, next.kind == .speech,
-              let speaker = previous.speakerId, speaker == next.speakerId,
-              previousName == nextName,
-              let start = previous.startUs, let end = previous.endUs,
-              let nextStart = next.startUs, let nextEnd = next.endUs,
-              start <= end, nextStart <= nextEnd, start <= nextStart else { return false }
-        // Reading follows transcribed speaker changes. Evidence-only detections and
-        // nested punctuation times remain in the source without splitting the body.
-        return true
+        ScriptReadingStructure(self).joinableBefore.contains(turnID)
     }
 
     public mutating func setParagraphBreak(before turnID: String, split: Bool?) throws {
@@ -131,6 +117,7 @@ extension LibraryScript {
     }
 
     public func blocks() -> [ScriptBlock] {
+        let structure = ScriptReadingStructure(self)
         // Freeze the exact source membership of human paragraphs, independent of punctuation/AI.
         let owners = Dictionary((paragraphEdits ?? []).flatMap { edit in edit.turnIDs.map { ($0, edit.id) } }, uniquingKeysWith: { a, _ in a })
         let edits = Dictionary((paragraphEdits ?? []).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -153,12 +140,13 @@ extension LibraryScript {
         }
         let texts = Dictionary(uniqueKeysWithValues: transcript.turns.map { ($0.id, currentText($0)) })
         let preservesSourceSpacing = transcript.provenance.engine == .hybridSonioxPyannote || transcript.provenance.engine == .managedSoniox || transcript.provenance.engine == .hybridPyannoteQwen
-        func appended(_ current: String, _ next: String) -> String {
-            let needsSpace = !preservesSourceSpacing && !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
+        func appended(_ current: String, _ next: String, previous: TranscriptTurn, turn: TranscriptTurn) -> String {
+            let needsSpace = !preservesSourceSpacing && !structure.decorations.contains(turn.id) && !structure.opening.contains(previous.id)
+                && !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
             return current + (needsSpace ? " " : "") + next
         }
         func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn) -> Bool {
-            guard canJoin(previous, next, previousName: displayName(previous), nextName: displayName(next)) else { return false }
+            guard structure.joinableBefore.contains(next.id) else { return false }
             if owners[previous.id] != nil || owners[next.id] != nil { return owners[previous.id] == owners[next.id] }
             if let split = paragraphBreaks?[next.id] { return !split }
             return true
@@ -169,7 +157,7 @@ extension LibraryScript {
             let text = texts[turn.id] ?? ""
             if let previous = groups.last?.last, let accumulated = groupTexts.last, mayJoin(previous, turn) {
                 groups[groups.count - 1].append(turn)
-                groupTexts[groupTexts.count - 1] = appended(accumulated, text)
+                groupTexts[groupTexts.count - 1] = appended(accumulated, text, previous: previous, turn: turn)
             } else { groups.append([turn]); groupTexts.append(text) }
         }
         var result: [ScriptBlock] = []
@@ -185,10 +173,17 @@ extension LibraryScript {
             let hasHumanText = paragraph != nil || transcript.revision.humanEdited || group.contains {
                 turnTexts[$0.id] != nil || $0.wordIds.contains { words[$0]?.editedText != nil }
             }
+            let anchor = structure.anchor(in: group)
+            // Keep deliberate human punctuation paragraphs; unowned typography alone is not speech.
+            guard anchor != nil || hasHumanText || group.contains(where: { paragraphBreaks?[$0.id] != nil }) else { continue }
             let displayText = hasHumanText ? text : text.trimmingCharacters(in: .whitespacesAndNewlines)
-            result.append(ScriptBlock(turns: group, name: displayName(group[0]), text: displayText,
-                colorIndex: group[0].speakerId.flatMap { colors[$0] }, issues: issues,
-                edited: paragraph != nil || group.contains { turnTexts[$0.id] != nil }))
+            let speakerTurn = anchor ?? group[0]
+            let lexical = group.flatMap(\.wordIds).compactMap { words[$0] }.filter { $0.tokenKind == .lexical }
+            result.append(ScriptBlock(turns: group, name: displayName(speakerTurn), text: displayText,
+                colorIndex: speakerTurn.speakerId.flatMap { colors[$0] }, issues: issues,
+                edited: paragraph != nil || group.contains { turnTexts[$0.id] != nil },
+                startUs: lexical.compactMap(\.startUs).min(), endUs: lexical.compactMap(\.endUs).max(),
+                speakerID: speakerTurn.speakerId, speakerTurnID: speakerTurn.id))
         }
         // Session/interval-level events without turn references must remain reachable.
         for issue in transcript.reviewIssues where !attached.contains(issue.id) && !result.isEmpty {
@@ -201,14 +196,16 @@ extension LibraryScript {
             } ?? 0
             let block = result[index]
             result[index] = ScriptBlock(turns: block.turns, name: block.name, text: block.text,
-                colorIndex: block.colorIndex, issues: block.issues + [issue], edited: block.edited)
+                colorIndex: block.colorIndex, issues: block.issues + [issue], edited: block.edited,
+                startUs: block.startUs, endUs: block.endUs, speakerID: block.speakerID, speakerTurnID: block.speakerTurnID)
         }
         return result
     }
 
     public func affectedTurns(in block: ScriptBlock, scope: SpeakerNameScope) -> [String] {
         if scope == .one { return block.turnIDs }
-        return affectedTurns(block.id, scope: scope)
+        let ids = Set(affectedTurns(block.speakerTurnID, scope: scope)).union(block.turnIDs)
+        return transcript.turns.filter { ids.contains($0.id) }.map(\.id)
     }
     public mutating func rename(_ block: ScriptBlock, name: String, scope: SpeakerNameScope) throws {
         guard blocks().contains(where: { $0.turnIDs == block.turnIDs }),

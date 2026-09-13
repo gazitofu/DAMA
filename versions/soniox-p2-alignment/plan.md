@@ -3,7 +3,7 @@ unit: soniox-p2-alignment
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: ""
+resume: "T-05 built: reading-v8/비교 B2 word-v4, DAMA0.5.3(21) 설치·실행·두 구간 화면 확인. B294→279/B2 276문단, 부호만0, B2 unknown lexical9. 기존6개/입력8개 해시 불변, 계약30/Swift189/Debug PASS. B2 19:21을 열어둠. 다음은 사용자 원음 판정 후 채택 정책 연결; 운영 v2와 AI 구조 변경 보류 유지."
 spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·02·04 및 notes/uiux-reading/speaker-context-diagnosis.md"
 ---
 
@@ -17,6 +17,29 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·
 - 사전검사 PASS: `.build/check-logs/soniox-p2-alignment-baseline/run-20260912T160116Z-OI0Nzz`, 계약30/Swift170/Debug/SKIP0. 새 독립 scratch 동명.
 
 ## 의도
+
+### T-05 · 2026-09-13 부호·어절 진단 뒤 사용자 수정 승인
+
+- 사용자 ‘수정하자’에 따라 직전 권고1·2 실행. 읽기에서 부호/공백은 독립 발화를 만들지 않고, 원문상 동일 미배정 어절 조각을 합친다. 앞뒤 화자가 다른00:27의 재귀속/AI 구조 변경은 수행하지 않는다.
+- 신규 비교 `soniox-p2-word-v4`(B2)는 기존 B에 제한된 미배정 어절 꼬리의 단일 P2 근거 공유 추가. 쉼표/종결/줄바꿈/ASR label 전환/다른 P2 화자 근거를 넘지 않는다. null suffix 한 어절만 허용하고 정렬 score를 만들어내지 않음. 새 Run으로 원본 B/소스 보존, 운영 v2 승격 아님.
+- 초기 설계 한도: anchor 종료→꼬리 시작0~500,000µs, 꼬리 첫 시작→마지막 끝0~500,000µs(각 경계 포함). 시간 원값 불변; 500ms/501ms 고정 경계 및 역뮤테이션으로 검증한다. 이 값은 정확도 실측 최적값이 아니다.
+- [x] AC-10 기존 Scripts의 부호 독립 문단 제거·unknown 동일 어절 묶음, 사람 문단/이름/수동 경계 보호, 읽기/Markdown/저장 왕복 일관성.
+- [x] AC-11 B2의19:21 꼬리 연결,00:27 unknown 어절 유지, 실제 화자 전환/무근거/동률/쉼표/ASR 전환/시간 한도 회귀. 전체 원토큰/시간/기존6개 파일 보존.
+- [x] AC-12 계약/전체 회귀/Debug 및0.5.3(21) 설치·실행·두 예시 화면 확인. AI/외부 음성 호출 없음.
+- HEAD2cb6576/branch/dirty7 재실측 일치. 같은 세션의 지침·커맨드·적용 규율 본문 재사용, 규율22개 설명 재탐색/수치 규율 본문 확인. 독립 Codex 직접 구현. 영향은 Core 읽기·문단 검증·비교 정책·합성 테스트·CLI·계약/진단/상태·앱 버전이다.
+
+#### T-05 검증·전달 결과
+
+- `ScriptReadingStructure`를 읽기와 문단 저장 검증에 공통 사용. 부호의 원 speaker/time이 lexical 경계·이름 수정 범위·재생 범위를 결정하지 않는다. 미배정 동일 어절은 null을 보존하며 묶는다. 사람 소유 원 ID 집합/원문/명시적 경계와 실제 lexical A→B→A를 보존. 화자 이름 조회는 speaker별 캐시로 인접 Turn마다 전체를 재탐색하지 않음.
+- 새 비교 정책 `soniox-p2-word-v4`는 기존 v3를 보존하고 제한된 꼬리만 보완한다. B2 준비본은 `.build/diagnostics/soniox-p2-alignment/preview-r2/`, Run/파일 `F96D664D-1F1E-4D03-8B8B-E26C09B507A7`, 제목 ‘비교 B2 · 문단 보완’. 최종 코드로 재조정한 normalized가 준비본과 완전 일치. 입력8개/analysis.wav 해시는 manifest 참조. AI OFF, 새 네트워크/유료 호출 없음.
+- 현행7개 전수: B 읽기294(v7)→279(v8), B2 276, A308, 최신v2 615, 이전v2 604, Soniox273, Pyannote324. 부호만 문단은7개 파일 모두0. B unknown lexical13→B2 9(전체 unknown23→17), 원 Soniox6,016토큰/원시간은 동일. 문단 수·미배정 수는 E1/E2 정확도 실측이 아니다.
+- B2 예시: 00:27.030–00:27.150의 원3Turn을 한 미배정 어절로 읽고 다음00:27.510은 분리. 19:21.150 질문의 꼬리2lexical을 앞 P2 근거로 연결하고 물음표까지 한 문단으로 표시. lexical 종료19:21.930으로 읽기 범위를 정하며 부호의19:22.950까지 늘리지 않는다. 부호가 다음 P2 시작과5ms 겹친 것을 화자 근거로 사용하지 않음.
+- 실제 데이터 검증 `.build/diagnostics/soniox-p2-alignment/VerifyReadingV8.swift`/`reading-v8-verification.json`: Script7개 validate, 표시 토큰 전체 순서/ID 보존, 최대 문단 각3개 총21개 메모리 편집·왕복/source fingerprint 불변, Markdown placeholder0. 추가 B2 Draft2020-12 schema PASS. 실제 원문은 ignored 산출물에만 저장.
+- 합성 추가8개 및 기존 회귀: 문장부호/여는 괄호, 미배정 한 어절/공백, 이름 수정·AI 사람 보호 맥락, 실제 화자 전환, 시간 역행,500ms 포함/501ms 제외, 쉼표/줄바꿈/ASR 전환/다른 화자 끼어들기/무근거·동률 보존. 대상35개 PASS. 500,000→499,000µs 및 unknown 어절 연결 비활성의 역뮤테이션에서2개 검사/4단정 FAIL 후 원 코드 복원. 로그 `reading-v8-reverse-mutation.log`.
+- golden은 normalized21개 모두 불변. 읽기2개(`invalid-zero-reversed-and-uncovered/combined`, `short-b-missing-punctuation/combined`)와 Markdown21개(버전/lexical 시간 범위/부호 표시)를 의도대로 갱신. 첫 통합 검사에서 구 golden 불일치와 공유 scratch의 signal10 종료가 있었고, 별도 scratch `reading-v8`에서 전체를 다시 실행해 **계약30/Swift189/Debug/SKIP0 PASS**. 최종 로그 `.build/check-logs/reading-v8-final/run-20260913T011119Z-n8xEzW`, 실패 로그 `reading-v8-integration` 보존. 테스트 생략 없음.
+- `.build/check-logs/reading-v8-delivery-build.log` PASS, Debug/Release0.5.3(21), `CODE_SIGNING_ALLOWED=NO`/entitlements 없음 유지. 이전 앱 백업 `.build/backups/DAMA-0.5.2-20-before-reading-v8.app`. 설치 binary와 빌드 SHA256 일치, CUA About **DAMA Version 0.5.3 (21)** 확인. 전달 증거 `reading-v8-app-delivery.json`.
+- `.build/diagnostics/soniox-p2-alignment/deliver-r2.py`: 준비본 schema/해시 및 기존6개/입력8개 확인 후 사용자 승인된 외부 폴더 쓰기로 B2 한 개 exclusive create. 현재 Scripts7개, 새 파일 준비본 일치/기존6개/입력8개 불변을 설치 및 최종 UI 확인 후 재검증. `delivery-r2-before.json`/`delivery-r2-result.json` 보존.
+- CUA에서 기존 앱 정상 종료 후 교체·시작, B2 자동 선택, 스크롤바 AX 값0.018/0.871로 두 예시의 연결과 실제 앞뒤 화자 분리 스크린샷 확인. B2 19:21을 열어둠. 실제 원음 청취 정답/재생 음질 검증은 하지 않음. 운영 기본값 v2·AI 구조 기능·타 트랙 보류 유지. 이번 소유 파일만 로컬 커밋하며 기존 타 소유 dirty7는 보존, 원격 push 없음.
 
 같은 Soniox 원문과 P2 응답을 사용한 비교본2개를 현재 앱에 제공한다. 미배정·분절 감소와 실제 화자 정확도를 구분해 사용자 청취 판정이 가능한 상태로 끝낸다.
 

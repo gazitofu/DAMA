@@ -102,7 +102,7 @@ public enum ContextCorrection {
         let owned = script.humanOwnedTurnIDs
         let paragraphOwned = Set((script.paragraphEdits ?? []).flatMap(\.turnIDs))
         let humanParagraphs = script.blocks().filter { !paragraphOwned.isDisjoint(with: $0.turnIDs) }.map {
-            CorrectionHumanParagraph(turnIDs: $0.turnIDs, speakerID: $0.turns[0].speakerId,
+            CorrectionHumanParagraph(turnIDs: $0.turnIDs, speakerID: $0.speakerID,
                 name: $0.name, startUs: $0.startUs, endUs: $0.endUs, text: $0.text)
         } + script.transcript.turns.filter { owned.contains($0.id) && !paragraphOwned.contains($0.id) && $0.kind == .speech }.map {
             CorrectionHumanParagraph(turnIDs: [$0.id], speakerID: $0.speakerId, name: script.name(for: $0),

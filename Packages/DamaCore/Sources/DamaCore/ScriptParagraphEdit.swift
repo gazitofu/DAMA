@@ -30,6 +30,7 @@ extension LibraryScript {
     func validateParagraphEdits() throws {
         guard let edits = paragraphEdits, !edits.isEmpty else { return }
         let fingerprint = try sourceFingerprint()
+        let joinable = ScriptReadingStructure(self).joinableBefore
         let positions = Dictionary(uniqueKeysWithValues: transcript.turns.enumerated().map { ($0.element.id, $0.offset) })
         var seen = Set<String>(), editIDs = Set<String>()
         for edit in edits {
@@ -46,7 +47,7 @@ extension LibraryScript {
                 if let previous {
                     guard i > previous,
                           transcript.turns[(previous + 1)..<i].allSatisfy({ $0.kind == .missingSpeech }),
-                          canJoinParagraph(before: id) else { throw LibraryFailure.invalidScript }
+                          joinable.contains(id) else { throw LibraryFailure.invalidScript }
                 }
                 previous = i
             }

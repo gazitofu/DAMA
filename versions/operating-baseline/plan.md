@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "2026-09-13 soniox-p2-alignment T-04 built. 사용자 후속으로 누락 의심 본문 제거/같은 화자 연속 문단 합치기 reading-v7를 앱0.5.2(20)에 전달. B 전체490→294문단, 지적한01:42.630/02:39.030 연결을 실제 UI 확인, B02:39 표시 중. 원본6개 해시 불변, 계약30/Swift181/Debug PASS. 화자 미배정657→A71/B23의 비교 정책은 기존 후보 그대로이며 운영 정규화v2 유지. 사용자 원음 판정 후 채택 정책을 새 변환 기본값으로 연결, AI 후보정은 다음 단계. 상세 진단과 남은 미배정·화자 귀속 검증은 notes/uiux-reading/speaker-context-diagnosis.md 및 해당 plan 참조. 타 트랙 보류 유지."
+resume: "2026-09-13 soniox-p2-alignment T-05 built. reading-v8/비교 B2 word-v4를 DAMA0.5.3(21)에 전달. 부호만 문단0, B294→279/B2 276문단, B2 unknown lexical9.00:27 한 어절 미배정 유지/19:21 질문 꼬리 연결을 실제 UI 확인, B2 19:21 표시 중. 기존6개/입력8개 불변, 계약30/Swift189/Debug PASS. 운영 정규화v2 유지. 다음은 사용자 원음 판정 후 채택 정책을 새 변환 기본값으로 연결; AI 구조 수정·타 트랙 보류 유지. 상세는 notes/uiux-reading/speaker-context-diagnosis.md 및 해당 plan."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
@@ -80,6 +80,8 @@ spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ss
 - 마지막 status 실측: `work/m0-fixture-review`, 사용자/다른 트랙 혼합7문서만 기존 변경으로 남긴다. 앱 코드·신규 계약·본 plan은 이 작업 커밋에 포함. 원격 push 없음.
 
 ## 다음 세션 착수 (2026-09-11 추가 요청)
+
+부호·어절 후속 전달 (2026-09-13): 사용자 ‘수정하자’에 따라 `reading-v8`과 비교 B2 `soniox-p2-word-v4`를 앱0.5.3(21)에 전달했다. 기존 B294→279, B2 276문단이며 부호만 문단은 현재7개 Script 모두0. 00:27 한 어절은 미배정 유지,19:21 꼬리+물음표는 단일 문단으로 실제 화면 확인. B2 19:21을 열어두었고 기존6개/입력8개 불변, 계약30/Swift189/Debug PASS. [soniox-p2-alignment T-05](../soniox-p2-alignment/plan.md) built. 다음은 사용자 원음 판정 후 정책 채택/새 변환 연결이며 운영 v2와 AI 구조 기능 보류는 유지한다. 아래 T-04와 초기 비교 수치는 이전 단계 기록이다.
 
 읽기 후속 전달 (2026-09-13): 사용자 지적에 따라 `reading-v7`로 누락 의심 본문/전사 없는 감지 경계/문장별 분절을 제거했다. 앱0.5.2(20) 실제 실행, 비교 B 전체490→294문단, 두 예시 각각 단일 문단 확인. 기존 Soniox도 새 정책273문단이다. [soniox-p2-alignment T-04](../soniox-p2-alignment/plan.md) built, 원본Script6개 불변. 다음은 남은 실제 화자 귀속·미배정의 사용자 청취 판정과 채택 정책 연결이며 AI 후보정은 추후다. 운영 정규화v2는 아직 승격하지 않았다.
 

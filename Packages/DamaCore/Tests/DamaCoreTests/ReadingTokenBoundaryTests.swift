@@ -64,8 +64,9 @@ final class ReadingTokenBoundaryTests: XCTestCase {
         unknown.words[1].speakerId = nil; unknown.words[1].assignmentSource = .unknown
         unknown.turns[1].speakerId = nil
         let guarded = try LibraryScript(transcript: unknown, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
-        XCTAssertEqual(guarded.blocks().map(\.turnIDs), [["t0"], ["t1"], ["t2", "t3"]])
+        XCTAssertEqual(guarded.blocks().map(\.turnIDs), [["t0", "t1", "t2", "t3"]])
+        XCTAssertNil(guarded.transcript.words[1].speakerId)
         var manual = guarded
-        XCTAssertThrowsError(try manual.setParagraphBreak(before: "t1", split: false))
+        XCTAssertNoThrow(try manual.setParagraphBreak(before: "t1", split: false))
     }
 }

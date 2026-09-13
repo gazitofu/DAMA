@@ -1,4 +1,4 @@
-// Build against DamaCore; arguments: SOURCE_SCRIPT INTERNAL_ROOT OUTPUT_DIRECTORY.
+// Build against DamaCore; arguments: SOURCE_SCRIPT INTERNAL_ROOT OUTPUT_DIRECTORY [POLICY].
 // This executable reads saved responses only. It never calls managed processing or an API.
 import Foundation
 import CryptoKit
@@ -6,7 +6,12 @@ import DamaCore
 
 @main struct CompareSonioxPrecision {
     static func main() throws {
-        guard CommandLine.arguments.count == 4 else { throw LibraryFailure.invalidInput }
+        guard (4...5).contains(CommandLine.arguments.count) else { throw LibraryFailure.invalidInput }
+        let policies: [SonioxPrecisionComparison]
+        if CommandLine.arguments.count == 5 {
+            guard let policy = SonioxPrecisionComparison(rawValue: CommandLine.arguments[4]) else { throw LibraryFailure.invalidInput }
+            policies = [policy]
+        } else { policies = [.timeline, .word] }
         let sourceURL = URL(fileURLWithPath: CommandLine.arguments[1])
         let root = URL(fileURLWithPath: CommandLine.arguments[2])
         let output = URL(fileURLWithPath: CommandLine.arguments[3])
@@ -68,7 +73,7 @@ import DamaCore
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let now = Date(), createdAt = ISO8601DateFormatter().string(from: now)
         var artifacts: [[String: Any]] = []
-        for policy in SonioxPrecisionComparison.allCases {
+        for policy in policies {
             let runID = UUID().uuidString
             let doc = try SonioxPrecisionReconciler.reconcile(original, runID: runID, createdAt: createdAt, policy: policy)
             guard doc.words.count == original.words.count else { throw LibraryFailure.invalidScript }
@@ -79,7 +84,7 @@ import DamaCore
                       a.asrSpeakerLabel == b.asrSpeakerLabel else { throw LibraryFailure.invalidScript }
             }
             var input = script.input; input.aiCorrection = false
-            let label = policy == .timeline ? "비교 A · P2 시간표" : "비교 B · P2 화자별 원문"
+            let label = policy == .wordRepair ? "비교 B2 · 문단 보완" : (policy == .timeline ? "비교 A · P2 시간표" : "비교 B · P2 화자별 원문")
             let candidate = try LibraryScript(transcript: doc, title: label,
                 recordedAt: script.recordedAt, dateSource: script.dateSource,
                 timeZoneID: script.timeZoneID, input: input, createdAt: now)
