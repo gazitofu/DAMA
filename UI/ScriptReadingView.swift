@@ -14,6 +14,7 @@ struct ScriptReadingView: View {
     @State private var selected: String?
     @State private var information = false
     @State private var playingID: String?
+    @State private var deletionError: String?
     init(file: LibraryScriptFile, workspace: LibraryWorkspace,
          rename: @escaping (LibraryScriptFile, ScriptBlock) -> Void, correct: @escaping (LibraryScriptFile) -> Void) {
         self.file = file; self.workspace = workspace; self.rename = rename; self.correct = correct
@@ -58,14 +59,19 @@ struct ScriptReadingView: View {
                                     canPlay: !capture.phase.busy && !workspace.editing && !workspace.titlePending && block.startUs != nil && block.endUs != nil,
                                     select: { if editor.block == nil { selected = block.id } },
                                     rename: { rename(shown, block) }, play: { workspace.play(block, file: shown) },
+                                    delete: { changeDeletion(block) },
                                     info: { selected = block.id; information = true })
                                     .id(block.id)
+                            }
+                            if blocks.isEmpty {
+                                Text("표시할 발화가 없습니다.").foregroundStyle(.secondary).padding(24)
                             }
                         }.frame(maxWidth: 800).padding(.horizontal, 26).padding(.vertical, 14).frame(maxWidth: .infinity)
                     }
                     if information { inspector.frame(width: 285) }
                 }
                 Divider()
+                if let deletionError { Text(deletionError).font(.caption).foregroundStyle(.red).padding(.horizontal, 24) }
                 HStack(spacing: 12) {
                     Button("이전 문단", systemImage: "chevron.up") { move(-1, scroll: scroll) }.labelStyle(.iconOnly).disabled(editor.block != nil || index <= 0)
                     Button("다음 문단", systemImage: "chevron.down") { move(1, scroll: scroll) }.labelStyle(.iconOnly).disabled(editor.block != nil || index + 1 >= blocks.count)
@@ -77,6 +83,9 @@ struct ScriptReadingView: View {
                         if playingID != nil { Button("현재 문단") { scroll.scrollTo(selectedBlock?.id, anchor: .center) } }
                     }
                     Spacer()
+                    if !readOnly, let deleted = file.script.deletedParagraphs, !deleted.isEmpty {
+                        Button("삭제 취소 (\(deleted.count))") { changeDeletion(nil) }.disabled(!workspace.canLeave)
+                    }
                     if capture.phase.busy { Text("녹음 중에는 재생할 수 없습니다.").font(.caption).foregroundStyle(.secondary) }
                     if correction.activeID == file.id {
                         ProgressView().controlSize(.small)
@@ -101,6 +110,21 @@ struct ScriptReadingView: View {
     private var currentLabel: String {
         let number = workspace.scriptFile?.script.versions?.last?.number ?? 0
         return number > 0 ? "현재 결과 · AI 보정 \(number) 기반" : "현재 결과"
+    }
+    private func changeDeletion(_ block: ScriptBlock?) {
+        guard workspace.canLeave, !readOnly else { return }
+        workspace.playback.stop(); deletionError = nil
+        let source = shown, oldIndex = index
+        Task {
+            do {
+                var candidate = source.script
+                if let block { try candidate.deleteParagraph(block) }
+                else { try candidate.undoParagraphDeletion() }
+                try await workspace.saveScript(candidate, original: source)
+                let remaining = candidate.blocks()
+                selected = remaining.isEmpty ? nil : remaining[min(oldIndex, remaining.count - 1)].id
+            } catch { deletionError = "발화 변경을 저장하지 못했습니다. 새로고침 후 다시 시도해 주세요." }
+        }
     }
     private var resultMenu: some View {
         Menu("다른 결과 보기") {
@@ -172,6 +196,7 @@ private struct ReadingParagraphRow: View {
     let select: () -> Void
     let rename: () -> Void
     let play: () -> Void
+    let delete: () -> Void
     let info: () -> Void
     private var editing: Bool { editor.block?.id == block.id }
     private var name: String { block.name == "화자 미확정" ? "화자 미배정" : block.name }
@@ -200,6 +225,10 @@ private struct ReadingParagraphRow: View {
                     if editing {
                         Button("취소", action: editor.cancelBody).disabled(editor.savingBody)
                         Text(editor.bodyDirty ? "저장하지 않은 변경" : "본문 편집 중").font(.caption).foregroundStyle(.secondary)
+                    }
+                    if !editing && !editor.readOnly {
+                        Button("삭제", role: .destructive, action: delete).disabled(!canAct)
+                            .accessibilityLabel("발화 삭제")
                     }
                     Spacer(minLength: 0)
                 }.controlSize(.small)

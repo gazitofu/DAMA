@@ -23,7 +23,7 @@ import Foundation
         let speeches = try await store.speeches(in: speechFolder)
         let speech = speeches.first { $0.title.contains("제품") }!
         _ = try await AudioLibrary(root: root).prepareAnalysis(speech.id)
-        let labels = ["A", "A", "A", "B", "A", "A", "B", "A", "B", "A"]
+        let labels = ["A", "A", "A", "B", "C", "C", "B", "A", "B", "C"]
         let text = ["이번 분기에는 사용자가 녹음을 옮기는 과정과", "처음 스크립트를 읽고 수정하는 과정을 함께 살펴보고",
                     "제품의 우선순위를 결정하면 좋겠습니다.", "네, 먼저 화면에서 불편했던 부분부터 이야기하겠습니다.",
                     "여기서는 본문을 직접 수정하고", "제목은 별도 저장 없이 입력하는 방식입니다.", "화자 이름도 눌러서 바꿀 수 있겠네요.",
@@ -31,9 +31,12 @@ import Foundation
         let intervals: [[String: Any]] = labels.enumerated().map { ["start": Double($0.offset * 2), "end": Double($0.offset * 2 + 1), "speaker": $0.element] }
         let words: [[String: Any]] = labels.enumerated().map { ["start": Double($0.offset * 2), "end": Double($0.offset * 2) + 0.8, "speaker": $0.element, "text": text[$0.offset]] }
         let payload = try JSONSerialization.data(withJSONObject: ["jobId": "synthetic-ui", "status": "succeeded", "output": ["diarization": intervals, "exclusiveDiarization": intervals, "wordLevelTranscription": words]])
-        let model = try ManagedNormalizer.normalize(payload, sessionID: speech.id, runID: UUID().uuidString, durationUs: 30_000_000,
+        var model = try ManagedNormalizer.normalize(payload, sessionID: speech.id, runID: UUID().uuidString, durationUs: 30_000_000,
             audioSHA256: speech.sourceHash, synthetic: true, createdAt: "2026-09-12T00:00:00Z")
-        var notes = ConversionNotes(speakerCount: 2, context: "합성 제품 UI 회의", reference: "외부 전송하지 않는 검증 자료", participants: "김가상 · 개발\n이가상 · 디자인")
+        // Deliberate normalized unknown for the UI journey; no provider accuracy claim.
+        model.words[8].speakerId = nil; model.words[8].assignmentSource = .unknown
+        for i in model.turns.indices where model.turns[i].wordIds.contains(model.words[8].id) { model.turns[i].speakerId = nil }
+        var notes = ConversionNotes(speakerCount: 3, context: "합성 제품 UI 회의", reference: "외부 전송하지 않는 검증 자료", participants: "김가상 · 개발\n이가상 · 디자인\n박가상 · 운영")
         notes.meetingTerms = "DAMA\n제품 검토"
         try await store.saveNotes(notes, speechID: speech.id)
         let current = try await store.createScript(model, speech: speech, input: notes, in: scriptFolder)

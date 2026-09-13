@@ -8,34 +8,42 @@ struct SpeakerNameSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var value: String
     @State private var scope: SpeakerNameScope
+    @State private var selectedSpeaker = ""
     @State private var error: String?
     private var block: ScriptBlock { switch edit.kind { case let .speaker(block): block } }
+    private var hasSpeaker: Bool { block.speakerID != nil || edit.file.script.registeredSpeaker(for: block.speakerTurnID) != nil }
     init(edit: LibraryEdit, workspace: LibraryWorkspace) {
         self.edit = edit; self.workspace = workspace
         switch edit.kind {
         case let .speaker(block):
-            _scope = State(initialValue: block.turns[0].speakerId == nil ? .one : .all)
+            _scope = State(initialValue: block.speakerID == nil && edit.file.script.registeredSpeaker(for: block.speakerTurnID) == nil ? .one : .all)
             _value = State(initialValue: block.name == "화자 미확정" ? "" : block.name)
+            _selectedSpeaker = State(initialValue: edit.file.script.availableSpeakers.first(where: { $0.name == block.name })?.id ?? "")
         }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("화자 이름 변경").font(.title2)
+            Picker("등록된 화자", selection: $selectedSpeaker) {
+                Text("직접 입력").tag("")
+                ForEach(edit.file.script.availableSpeakers) { speaker in Text(speaker.name).tag(speaker.id) }
+            }.accessibilityLabel("등록된 화자")
             TextField("표시 이름", text: $value).textFieldStyle(.roundedBorder).accessibilityLabel("표시 이름")
+            Text("이름을 저장하면 이 스크립트의 다른 발화에서도 선택할 수 있습니다.").font(.caption).foregroundStyle(.secondary)
             Picker("적용 범위", selection: $scope) {
                 Text("이 부분만").tag(SpeakerNameScope.one)
-                if block.turns[0].speakerId != nil {
+                if hasSpeaker {
                     Text("이 부분부터").tag(SpeakerNameScope.from)
                     Text("전체").tag(SpeakerNameScope.all)
                 }
             }.pickerStyle(.radioGroup)
             Text("대상 원구간 \(edit.file.script.affectedTurns(in: block, scope: scope).count)개").font(.caption)
-            Text(block.turns[0].speakerId == nil ? "미배정 화자는 선택한 부분만 바꿀 수 있습니다." : "원래 화자 ID는 보존됩니다.").font(.caption).foregroundStyle(.secondary)
+            Text(hasSpeaker ? "같은 등록 화자는 이름과 색을 함께 사용합니다." : "미배정 화자는 선택한 부분만 바꿀 수 있습니다.").font(.caption).foregroundStyle(.secondary)
             if let error { Text(error).foregroundStyle(.red).font(.caption) }
             HStack {
                 Spacer()
                 Button("취소") { dismiss() }.keyboardShortcut(.cancelAction).disabled(workspace.busy)
-                Button("이름 변경") {
+                Button("화자 저장") {
                     Task {
                         do {
                             var candidate = edit.file.script
@@ -47,6 +55,12 @@ struct SpeakerNameSheet: View {
                 }.keyboardShortcut(.defaultAction).disabled(workspace.busy || value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }.padding(24).frame(width: 430).interactiveDismissDisabled()
+            .onChange(of: selectedSpeaker) { _, id in
+                if let speaker = edit.file.script.availableSpeakers.first(where: { $0.id == id }) { value = speaker.name }
+            }
+            .onChange(of: value) { _, name in
+                if edit.file.script.availableSpeakers.first(where: { $0.id == selectedSpeaker })?.name != name { selectedSpeaker = "" }
+            }
     }
 }
 

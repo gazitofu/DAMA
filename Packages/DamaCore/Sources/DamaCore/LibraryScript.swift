@@ -71,6 +71,9 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     public let transcript: TranscriptDocument
     public var turnNames: [String: String]
     public var turnTexts: [String: String]
+    public var registeredSpeakers: [ScriptSpeaker]?
+    public var turnSpeakerIDs: [String: String]?
+    public var deletedParagraphs: [ScriptDeletedParagraph]?
     public var correction: ScriptCorrection?
     public var showsOriginal: Bool?
     /// Boundary before an existing Turn: true = split, false = join if identity/evidence permits.
@@ -105,6 +108,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
               Set((paragraphBreaks ?? [:]).keys).isSubset(of: ids),
               turnNames.values.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
         else { throw LibraryFailure.invalidScript }
+        try validatePeopleAndDeletion()
         try validateParagraphEdits()
         if let versions {
             guard snapshotTitle == nil, versions.map(\.number) == Array(0..<versions.count),
@@ -122,7 +126,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
         }
     }
     public func name(for turn: TranscriptTurn) -> String {
-        if let name = turnNames[turn.id] { return name }
+        if let name = manualName(for: turn) { return name }
         if showsOriginal != true, let id = turn.speakerId, let name = correction?.speakerNames[id] { return name }
         guard let id = turn.speakerId else { return "화자 미확정" }
         // Preserve names already manually edited in a legacy current revision.
@@ -172,7 +176,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw LibraryFailure.invalidInput }
         let ids = affectedTurns(turnID, scope: scope)
         guard !ids.isEmpty else { throw LibraryFailure.invalidInput }
-        for id in ids { turnNames[id] = name }
+        for id in ids { turnNames[id] = name; turnSpeakerIDs?[id] = nil }
         revisionID = UUID().uuidString
     }
     public mutating func editText(_ turnID: String, text: String) throws {

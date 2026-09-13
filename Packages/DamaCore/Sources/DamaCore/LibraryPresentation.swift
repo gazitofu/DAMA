@@ -121,8 +121,9 @@ extension LibraryScript {
         // Freeze the exact source membership of human paragraphs, independent of punctuation/AI.
         let owners = Dictionary((paragraphEdits ?? []).flatMap { edit in edit.turnIDs.map { ($0, edit.id) } }, uniquingKeysWith: { a, _ in a })
         let edits = Dictionary((paragraphEdits ?? []).map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let deletedOwners = Dictionary((deletedParagraphs ?? []).flatMap { edit in edit.turnIDs.map { ($0, edit.id) } }, uniquingKeysWith: { a, _ in a })
         let words = Dictionary(uniqueKeysWithValues: transcript.words.map { ($0.id, $0) })
-        var base = self; base.turnNames = [:]
+        var base = self; base.turnNames = [:]; base.turnSpeakerIDs = nil
         var names: [String: String] = [:], colors: [String: Int] = [:]
         for turn in transcript.turns {
             if let id = turn.speakerId, names[id] == nil {
@@ -130,7 +131,7 @@ extension LibraryScript {
             }
         }
         func displayName(_ turn: TranscriptTurn) -> String {
-            turnNames[turn.id] ?? turn.speakerId.flatMap { names[$0] } ?? "화자 미확정"
+            manualName(for: turn) ?? turn.speakerId.flatMap { names[$0] } ?? "화자 미확정"
         }
         func currentText(_ turn: TranscriptTurn) -> String {
             if let edit = turnTexts[turn.id] { return edit }
@@ -146,6 +147,7 @@ extension LibraryScript {
             return current + (needsSpace ? " " : "") + next
         }
         func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn) -> Bool {
+            guard deletedOwners[previous.id] == deletedOwners[next.id] else { return false }
             guard structure.joinableBefore.contains(next.id) else { return false }
             if owners[previous.id] != nil || owners[next.id] != nil { return owners[previous.id] == owners[next.id] }
             if let split = paragraphBreaks?[next.id] { return !split }
@@ -167,6 +169,7 @@ extension LibraryScript {
             let ids = Set(group.flatMap(\.reviewIssueIds) + group.flatMap(\.wordIds).flatMap { words[$0]?.reviewIssueIds ?? [] })
             let issues = ids.compactMap { issueIndex[$0] }.sorted { $0.0 < $1.0 }.map(\.1)
             attached.formUnion(issues.map(\.id))
+            guard !group.allSatisfy({ deletedOwners[$0.id] != nil }) else { continue }
             let paragraph = owners[group[0].id].flatMap { edits[$0] }
             let text = paragraph?.text ?? groupTexts[groupIndex]
             // Trim only the reading paragraph. Keep source tokens and user-authored spacing intact.
@@ -180,7 +183,7 @@ extension LibraryScript {
             let speakerTurn = anchor ?? group[0]
             let lexical = group.flatMap(\.wordIds).compactMap { words[$0] }.filter { $0.tokenKind == .lexical }
             result.append(ScriptBlock(turns: group, name: displayName(speakerTurn), text: displayText,
-                colorIndex: speakerTurn.speakerId.flatMap { colors[$0] }, issues: issues,
+                colorIndex: registeredSpeaker(for: speakerTurn.id)?.colorIndex ?? speakerTurn.speakerId.flatMap { colors[$0] }, issues: issues,
                 edited: paragraph != nil || group.contains { turnTexts[$0.id] != nil },
                 startUs: lexical.compactMap(\.startUs).min(), endUs: lexical.compactMap(\.endUs).max(),
                 speakerID: speakerTurn.speakerId, speakerTurnID: speakerTurn.id))
@@ -204,13 +207,12 @@ extension LibraryScript {
 
     public func affectedTurns(in block: ScriptBlock, scope: SpeakerNameScope) -> [String] {
         if scope == .one { return block.turnIDs }
-        let ids = Set(affectedTurns(block.speakerTurnID, scope: scope)).union(block.turnIDs)
+        let ids = Set(speakerTargets(block.speakerTurnID, scope: scope)).union(block.turnIDs)
         return transcript.turns.filter { ids.contains($0.id) }.map(\.id)
     }
     public mutating func rename(_ block: ScriptBlock, name: String, scope: SpeakerNameScope) throws {
         guard blocks().contains(where: { $0.turnIDs == block.turnIDs }),
               !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw LibraryFailure.invalidInput }
-        for id in affectedTurns(in: block, scope: scope) { turnNames[id] = name }
-        revisionID = UUID().uuidString
+        try registerName(name, for: affectedTurns(in: block, scope: scope), anchor: block.speakerTurnID)
     }
 }

@@ -20,7 +20,7 @@ extension LibraryScript {
         return Self.digest(try encoder.encode(transcript))
     }
     public var humanOwnedTurnIDs: Set<String> {
-        var ids = Set(turnTexts.keys).union((paragraphEdits ?? []).flatMap(\.turnIDs))
+        var ids = Set(turnTexts.keys).union((paragraphEdits ?? []).flatMap(\.turnIDs)).union(deletedTurnIDs)
         let words = Set(transcript.words.filter { $0.editedText != nil }.map(\.id))
         for turn in transcript.turns where transcript.revision.humanEdited || !words.isDisjoint(with: turn.wordIds) {
             ids.insert(turn.id)

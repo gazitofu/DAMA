@@ -12,13 +12,13 @@ struct ScriptReadingStructure {
         let words = Dictionary(uniqueKeysWithValues: script.transcript.words.map { ($0.id, $0) })
         self.words = words
         let turns = script.transcript.turns.filter { $0.kind == .speech }
-        var base = script; base.turnNames = [:]
+        var base = script; base.turnNames = [:]; base.turnSpeakerIDs = nil
         var names: [String: String] = [:]
         for turn in script.transcript.turns {
             if let id = turn.speakerId, names[id] == nil { names[id] = base.name(for: turn) }
         }
         func name(_ turn: TranscriptTurn) -> String {
-            script.turnNames[turn.id] ?? turn.speakerId.flatMap { names[$0] } ?? "화자 미확정"
+            script.manualName(for: turn) ?? turn.speakerId.flatMap { names[$0] } ?? "화자 미확정"
         }
         var decorations = Set<String>(), opening = Set<String>()
         let openCharacters = CharacterSet(charactersIn: "([{「『‘“").union(.whitespacesAndNewlines)
@@ -41,7 +41,7 @@ struct ScriptReadingStructure {
             let previous = turns[i - 1]
             // A manually named decoration must retain that name and boundary.
             if (decorations.contains(next.id) || decorations.contains(previous.id)),
-               (script.turnNames[next.id] != nil || script.turnNames[previous.id] != nil),
+               (script.manualName(for: next) != nil || script.manualName(for: previous) != nil),
                name(next) != name(previous) { continue }
             if decorations.contains(next.id) {
                 if !opening.contains(next.id) || opening.contains(previous.id) { joins.insert(next.id) }

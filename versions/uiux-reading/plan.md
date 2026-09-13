@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: ""
+resume: "T-08 built: 등록 화자 재선택/동일 이름·색, 발화 삭제·취소를0.5.4(22)에 전달. 계약30/Swift195/Debug PASS, 합성 native 등록→미배정 선택·통합→삭제→재실행→취소 확인. 기존7개 해시 불변. NSSavePanel 자동화 timeout으로 native 내보내기 완료 미확인, 저장 actor의 실제 Markdown 파일 생성/내용 PASS. B2 확정, 운영 v2 연결 및 타 트랙은 별도 후속."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -18,6 +18,28 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - 사전검사 `bash scripts/check.sh --log-root .build/check-logs/uiux-reading-baseline`: 계약30, Swift165, Debug build PASS, SKIP0. 로그 run-20260912T091200Z-QxzFao. 실제 음성/API/마이크 미사용.
 
 ## 의도
+
+### T-08 · 2026-09-13 등록 화자와 발화 삭제
+
+- 사용자 ‘이정도로 확정’으로 B2 결과 확인 완료. 추가 지시1·2는 기존 화자 모달에 등록 화자 선택 추가, 본문 조작에 삭제 추가로 직접 반영한다. 기존 화면을 재설계하거나 재승인을 요구하지 않는다.
+- 스크립트 envelope에 optional registeredSpeakers(UUID/name/colorIndex), turnSpeakerIDs(Turn→등록ID), deletedParagraphs(UUID/원Turn ID 집합)를 추가. 원 normalized·음성·기존 사람 수정/AI 이력은 불변, 다른 Script/Run 전파 없음. 이름 입력 저장 시 등록, 같은 이름 재입력/목록 선택 시 동일 등록ID와 색 사용. legacy turnNames는 읽기·목록에서 존중한다. 실제 원 화자 경계를 이름만으로 자동 병합하지 않는다.
+- 기존 범위 ‘이 부분만/이 부분부터/전체’ 유지. 등록 화자는 등록ID 기준, 미등록은 원 speakerID 기준. 미배정 최초 지정은 선택 문단만. 삭제 문단은 화면/Markdown/신규 AI 입력에서 제외하고 마지막 삭제부터 취소 가능. 삭제 전후 원구간은 자동 합치지 않는다. 현재 버전만 변경, 과거 snapshot 읽기 전용, 외부 파일 충돌 차단.
+- QA 축: 화자C 이름 입력→미배정 문단에서 선택→이름/색/등록ID 일치→저장/재실행/Markdown, 본문 수동 통합→원 문단 삭제→저장/재실행/내보내기→삭제 취소. 원문 fingerprint·순서·사람 수정·AI 완료 병합/과거 버전·실패/외부 변경도 검사. 실제 사용자7개는 읽기 검증/해시 보존, 쓰기 QA는 별도 합성 앱에서 시행.
+- HEAD2a6b311/branch/기존 dirty7 실측 일치. 같은 세션 기준/규율 재사용, 설명22개 탐색 및 파괴쓰기 본문 보충. 사전 PASS는 직전 최종 계약30/Swift189/Debug(제품 코드 변경 전) 재사용. 독립 Codex 직접 구현, 위임 없음. 버전0.5.4(22) 전달 예정.
+- [x] AC-11 등록 화자 재사용/동일 이름·색/범위/legacy 보존 및 스크립트 간 분리.
+- [x] AC-12 삭제·취소/빈 스크립트/사람 수정·AI·원문/시간 보존, 저장·재실행·Markdown/버전/충돌 회귀.
+- [x] AC-13 전체 backpressure와 합성 네이티브 두 여정,0.5.4(22) 설치·실행 버전/기존7개 해시 불변 확인. native 저장 패널 완료는 아래 한계로 구분.
+
+#### T-08 완료 근거
+
+- Core optional envelope 등록 화자/Turn 연결/삭제 목록 및 UI 모달 Picker·발화 삭제·삭제 취소 완료. 미배정 최초 지정은 문단만, 동일 등록ID의 이후/전체 범위 지원. 원 화자 ID나 시간은 변경하지 않는다. legacy 입력 이름은 읽기만으로 원 파일을 바꾸지 않고 목록에 표시하며, 명시적 재사용 시 등록한다. 같은 이름만으로 다른 원 화자 경계를 자동 합치지 않음.
+- 새 Core5/저장1 검사와 기존 회귀 **계약30/Swift195/Debug/SKIP0 PASS**: `.build/check-logs/reading-people-final/run-20260913T013705Z-GTZV77`, 독립 scratch `reading-people`. 기존189 검사·golden 기대값 변경/삭제 없음. 역뮤테이션(등록 재사용 해제/삭제 표시 해제)2검사5실패 후 복원하여 전수 PASS, `reading-people-mutation.log`.
+- 첫 재사용 scratch에서는 ScriptVersionTests2단정 실패(versions nil), 새 scratch에서 동일 원 검사3개와 전체 PASS. 원인을 제품 수정 없이 확정하지 않음. 새 합성 소스의 필수 text 누락은 수정 후5개 PASS. CLI fixture 최초 provider null speaker 거부는 유효 provider payload 후 합성 normalized unknown을 명시하는 방식으로 수정. 실패 로그/부분 준비 폴더 보존, 테스트 완화 없음.
+- `.build/diagnostics/reading-people/Verify.swift`/`verification.json`: 실제 현재Script7개 validate, 메모리 이름·문단 수정→삭제→codec 왕복→취소, 원 fingerprint/원 파일 해시 보존. 설치 전후 전체7개 해시 불변. 기존 B2에는 사용자 이름/부분 수정이 이미 있으므로 이전 T-05 전달 직후 해시를 재사용하지 않고 이번 착수 baseline을 사용했다.
+- `ReadingUIFixture.swift`는 합성30초 무음/3화자/미배정1개/과거 snapshot2개를 준비한다. `/private/tmp/dama-reading-qa-20260913-people-b`, 별도 `com.gazitofu.Dama.ReadingQA` ad-hoc 앱에서 실제 CUA: Speaker C→이석훈 상무 전체 저장→미배정 목록 선택→원4Turn의 같은 등록ID/색, 화면3문단 확인. 첫 문단에 다음 문단 텍스트를 통합·저장→다음 문단 삭제→7→6문단→앱 재실행 후 유지→삭제 취소로 원7문단 복구, 통합 본문과 등록은 유지. QA 원자료/검증 산출물은 ignored 경로에만 보관.
+- native NSSavePanel 저장 클릭 후 timeoutReached가 발생해 Markdown 파일 완료는 확인하지 못함. sample은 메인 이벤트 루프 대기, 앱 교착으로 단정하지 않음. 화자/본문/삭제 저장을 디스크에서 확인한 뒤 QA PID90489만 승인된 TERM/재실행으로 복구, 이후 삭제 취소/정상 종료 확인. AXError.failure가 반환된 일부 클릭도 실제 상태 변화는 재조회로 확인하고 중복 제출하지 않음. 동일 저장 actor `exportMarkdown`으로 QA 삭제 checkpoint의 `.md`를 생성하여 통합 문장1회/삭제 문단 제외를 검증했다. 실제 음성·마이크·AI·유료 모델 호출은 없음.
+- `.build/check-logs/reading-people-delivery-build.log` PASS, 독립 derivedData `reading-people-delivery`, Debug/Release0.5.4(22), CODE_SIGNING_ALLOWED=NO/entitlements 없음 유지. 기존 앱 백업 `.build/backups/DAMA-0.5.3-21-before-reading-people.app`. 빌드→설치 번들 파일 해시 전수 일치, 실제 About **DAMA Version 0.5.4 (22)**. 기존 B2의 화자 모달에 이미 입력한3개 이름 표시 확인 후 저장 없이 취소, B2 열어 전달. `.build/diagnostics/reading-people/delivery.json`.
+- 이번 소유 파일만 로컬 커밋, 기존 타 소유 dirty7 보존. 소규모 사용자 후속 승인을 기존 스펙에 덧붙여 재빌드하고 tone/계약 갱신. B2 결과 판정 승인과 새 전사의 운영 정책 연결은 구분해 후속에 기록. 원격/main merge/외부 반출 없음.
 
 사용자가 읽던 제목·본문에서 바로 수정하고, 화자 이름과 AI 참고만 모달로 다룬다. Speeches는 선택 엔진이 사용하는 입력과 실제 전송 내용을 보여 준다. 미배정 원인·개인 용어/참조 개선 방향은 별도 진단이며 화자 정책·학습을 임의 전환하지 않는다.
 

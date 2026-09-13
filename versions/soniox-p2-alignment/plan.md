@@ -3,7 +3,7 @@ unit: soniox-p2-alignment
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "T-05 built: reading-v8/비교 B2 word-v4, DAMA0.5.3(21) 설치·실행·두 구간 화면 확인. B294→279/B2 276문단, 부호만0, B2 unknown lexical9. 기존6개/입력8개 해시 불변, 계약30/Swift189/Debug PASS. B2 19:21을 열어둠. 다음은 사용자 원음 판정 후 채택 정책 연결; 운영 v2와 AI 구조 변경 보류 유지."
+resume: "T-05 built/B2 결과 사용자 ‘이정도로 확정’(2026-09-13). 추가 결과 승인을 다시 요구하지 않음. 등록 화자·발화 삭제 후속은 uiux-reading T-08, DAMA0.5.4(22) 전달 완료. 다음 전사 정책 연결은 아직 구현하지 않아 운영 v2 유지; 승인된 word-v4 연결이 후속. AI 구조 변경은 별도."
 spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·02·04 및 notes/uiux-reading/speaker-context-diagnosis.md"
 ---
 
@@ -95,6 +95,8 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·
 | T-03 | Scripts 추가·현재 앱 소비 확인 | 목록/본문/A↔B/원음 연결, 원본 비변경 |
 
 ## 결정 항목
+
+- 2026-09-13 T-05 후속 사용자 ‘오케이 이정도로 확정’으로 B2 결과 판정 승인. 이어 요청한 등록 화자/발화 삭제는 uiux-reading T-08에 구현·전달했다. 다음 새 전사 기본값 연결에서 B2 결과 선택을 재확인하지 않는다. 이 UI 작업이 ManagedProcessor 기본값을 변경한 것은 아니다.
 
 - D-01 사용자 승인: 규칙 완화·두 후보 비교. 최대 교집합과 어절/부호 보완을 구현 판단으로 구체화. 근거 없는 최근접 화자/문맥 인물 추정 없음.
 - D-02 사용자 결과 판정 전에는 운영 기본값 v2를 바꾸지 않는다. 이번 완료는 비교 가능한 결과 제공이며 정확도 승격이 아니다.

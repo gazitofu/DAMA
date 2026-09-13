@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "2026-09-13 soniox-p2-alignment T-05 built. reading-v8/비교 B2 word-v4를 DAMA0.5.3(21)에 전달. 부호만 문단0, B294→279/B2 276문단, B2 unknown lexical9.00:27 한 어절 미배정 유지/19:21 질문 꼬리 연결을 실제 UI 확인, B2 19:21 표시 중. 기존6개/입력8개 불변, 계약30/Swift189/Debug PASS. 운영 정규화v2 유지. 다음은 사용자 원음 판정 후 채택 정책을 새 변환 기본값으로 연결; AI 구조 수정·타 트랙 보류 유지. 상세는 notes/uiux-reading/speaker-context-diagnosis.md 및 해당 plan."
+resume: "2026-09-13 B2 결과 사용자 확정, 추가 화자 등록/재선택·발화 삭제/취소는 uiux-reading T-08 built로 DAMA0.5.4(22) 전달. 계약30/Swift195/Debug, 합성 native 저장·재실행·취소 PASS. 기존7개 해시 불변. 다음은 승인된 word-v4를 새 전사 기본값에 연결(현재 운영 v2); B2 결과 선택 재승인 불필요. AI 구조 수정·타 트랙 보류 유지."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
@@ -80,6 +80,8 @@ spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ss
 - 마지막 status 실측: `work/m0-fixture-review`, 사용자/다른 트랙 혼합7문서만 기존 변경으로 남긴다. 앱 코드·신규 계약·본 plan은 이 작업 커밋에 포함. 원격 push 없음.
 
 ## 다음 세션 착수 (2026-09-11 추가 요청)
+
+등록 화자·삭제 전달 (2026-09-13): 사용자가 B2를 ‘이정도로 확정’하고 추가 요청한 두 기능을 [uiux-reading T-08](../uiux-reading/plan.md)에 반영했다. DAMA0.5.4(22) 실제 실행, 스크립트별 등록 화자 선택/같은 이름·색, 발화 삭제·취소/원문 보존 제공. 계약30/Swift195/Debug와 합성 native 등록→미배정 선택/수동 통합→삭제→재실행→취소 PASS. native 저장 패널 자동화는 timeout으로 완료 미확인, 저장 actor의 Markdown 파일 검증 PASS. 기존7개 불변. **B2 결과 선택은 승인됐으며 다음은 word-v4를 새 전사 기본값에 연결하는 작업**이다. 이번 UI 후속에서는 운영 v2를 변경하지 않았다. 아래 ‘원음 판정 후’는 승인 전 기록이다.
 
 부호·어절 후속 전달 (2026-09-13): 사용자 ‘수정하자’에 따라 `reading-v8`과 비교 B2 `soniox-p2-word-v4`를 앱0.5.3(21)에 전달했다. 기존 B294→279, B2 276문단이며 부호만 문단은 현재7개 Script 모두0. 00:27 한 어절은 미배정 유지,19:21 꼬리+물음표는 단일 문단으로 실제 화면 확인. B2 19:21을 열어두었고 기존6개/입력8개 불변, 계약30/Swift189/Debug PASS. [soniox-p2-alignment T-05](../soniox-p2-alignment/plan.md) built. 다음은 사용자 원음 판정 후 정책 채택/새 변환 연결이며 운영 v2와 AI 구조 기능 보류는 유지한다. 아래 T-04와 초기 비교 수치는 이전 단계 기록이다.
 

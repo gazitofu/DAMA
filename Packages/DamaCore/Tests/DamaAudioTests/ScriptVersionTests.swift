@@ -80,4 +80,43 @@ final class ScriptVersionTests: XCTestCase {
         catch { XCTAssertTrue(error is LibraryFailure) }
         XCTAssertEqual(try Data(contentsOf: renamed.url), bytes)
     }
+    func testRegisteredPeopleAndDeletionSurviveReopenCorrectionAndVersionIsolation() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let root = folder.appendingPathComponent("internal"), url = folder.appendingPathComponent("script.dama.json")
+        let store = FolderLibraryStore(root: root)
+        let original = try await store.saveScript(script(), to: url, expectedHash: nil)
+        let fingerprint = try original.script.sourceFingerprint()
+        var edit = original.script
+        try edit.rename(edit.blocks()[0], name: "등록 인물", scope: .all)
+        let toDelete = edit.blocks()[1]
+        try edit.deleteParagraph(toDelete)
+        let saved = try await store.saveScript(edit, to: url, expectedHash: original.hash)
+        let correction = ScriptCorrection(input: original.script.input, engine: "synthetic", state: .completed)
+        let completed = try await store.saveCorrection(correction, for: original)
+        XCTAssertEqual(completed.script.deletedParagraphs, saved.script.deletedParagraphs)
+        XCTAssertEqual(completed.script.registeredSpeakers, saved.script.registeredSpeakers)
+        XCTAssertEqual(completed.script.turnSpeakerIDs, saved.script.turnSpeakerIDs)
+        let version = try XCTUnwrap(completed.script.versions?.last)
+        let history = try await store.readVersion(version, for: completed)
+        let historyBytes = try Data(contentsOf: history.url)
+        let reopened = FolderLibraryStore(root: root)
+        let files = try await reopened.scripts(in: folder)
+        let current = try XCTUnwrap(files.first)
+        XCTAssertEqual(current.reading.blocks.map(\.text), completed.reading.blocks.map(\.text))
+        XCTAssertEqual(current.script.registeredSpeakers, saved.script.registeredSpeakers)
+        let export = folder.appendingPathComponent("result.md")
+        try await reopened.exportMarkdown(current, to: export)
+        XCTAssertTrue(try String(contentsOf: export, encoding: .utf8).contains("등록 인물"))
+        var restored = current.script
+        try restored.undoParagraphDeletion()
+        let restoredFile = try await reopened.saveScript(restored, to: url, expectedHash: current.hash)
+        XCTAssertTrue(restoredFile.reading.blocks.contains { $0.turnIDs == toDelete.turnIDs })
+        XCTAssertEqual(try Data(contentsOf: history.url), historyBytes)
+        XCTAssertEqual(try restoredFile.script.sourceFingerprint(), fingerprint)
+        do { _ = try await reopened.saveScript(edit, to: url, expectedHash: saved.hash); XCTFail("stale deletion must not replace restored content") }
+        catch { XCTAssertTrue(error is LibraryFailure) }
+        XCTAssertEqual(try AudioFiles.hash(url), restoredFile.hash)
+    }
 }
