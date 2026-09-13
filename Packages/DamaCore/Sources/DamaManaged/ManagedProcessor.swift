@@ -23,6 +23,8 @@ public struct ManagedRun: Codable, Sendable, Identifiable {
     public var parentRunID: String?
     public var sonioxRunID: String?
     public var precisionRunID: String?
+    // Missing in older persisted runs: retain v2 when resuming those runs.
+    public var combinationAlgorithmVersion: String? = nil
     public var provider: TranscriptionProvider { input?.provider ?? .pyannote }
 
     public var canRetranscribe: Bool {
@@ -205,7 +207,8 @@ public actor ManagedProcessor {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let run = ManagedRun(id: UUID().uuidString, sessionID: sessionID,
-                             createdAt: formatter.string(from: Date()), consent: true, stage: "queued", input: input)
+                             createdAt: formatter.string(from: Date()), consent: true, stage: "queued", input: input,
+                             combinationAlgorithmVersion: input.provider == .sonioxPrecision ? SonioxPrecisionComparison.wordRepair.rawValue : nil)
         try persist(run)
         return try await execute(run, key: key, sonioxKey: sonioxKey)
     }
@@ -226,6 +229,13 @@ public actor ManagedProcessor {
         defer { active = alreadyActive }
         var run = input
         do {
+            if run.provider == .sonioxPrecision {
+                let version = run.combinationAlgorithmVersion ?? SonioxPrecisionNormalizer.version
+                guard [SonioxPrecisionNormalizer.version, SonioxPrecisionComparison.wordRepair.rawValue].contains(version)
+                else { throw ManagedFailure.invalidResponse }
+                run.combinationAlgorithmVersion = version
+                try persist(run)
+            }
             if run.provider == .qwen { try qwen.validateReady() }
             if let retryAt = run.retryAt, retryAt > Date() { try await sleep(retryAt.timeIntervalSinceNow) }
             let library = AudioLibrary(root: root)
@@ -452,9 +462,20 @@ public actor ManagedProcessor {
         input.sonioxSourceRunID = asr.id; input.precisionSourceRunID = p2.id; run.input = input
         run.stage = "normalizing"; run.reportedModel = asr.reportedModel; try persist(run)
         let duration = try AudioFiles.microseconds(frames: analysis.frames, rate: analysis.sampleRate)
-        let document = try SonioxPrecisionNormalizer.normalize(soniox: asrBytes, diarization: p2Bytes,
-            sonioxJobID: jobID, sessionID: run.sessionID, runID: run.id, durationUs: duration,
-            audioSHA256: analysis.sha256, model: asr.reportedModel ?? asr.provider.model, createdAt: run.createdAt, captureInterrupted: audio.interruption != nil)
+        try Task.checkCancellation()
+        let document: TranscriptDocument
+        if run.combinationAlgorithmVersion == SonioxPrecisionComparison.wordRepair.rawValue {
+            document = try SonioxPrecisionReconciler.normalize(soniox: asrBytes, diarization: p2Bytes,
+                sonioxJobID: jobID, sessionID: run.sessionID, runID: run.id, durationUs: duration,
+                audioSHA256: analysis.sha256, model: asr.reportedModel ?? asr.provider.model,
+                createdAt: run.createdAt, captureInterrupted: audio.interruption != nil)
+        } else {
+            document = try SonioxPrecisionNormalizer.normalize(soniox: asrBytes, diarization: p2Bytes,
+                sonioxJobID: jobID, sessionID: run.sessionID, runID: run.id, durationUs: duration,
+                audioSHA256: analysis.sha256, model: asr.reportedModel ?? asr.provider.model,
+                createdAt: run.createdAt, captureInterrupted: audio.interruption != nil)
+        }
+        try Task.checkCancellation()
         try await repository.importManagedTranscript(document, rawData: asrBytes)
         run.stage = "readyForReview"; run.failure = nil; try persist(run)
         return run

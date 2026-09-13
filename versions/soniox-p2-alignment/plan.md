@@ -3,7 +3,7 @@ unit: soniox-p2-alignment
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "T-05 built/B2 결과 사용자 ‘이정도로 확정’(2026-09-13). 추가 결과 승인을 다시 요구하지 않음. 등록 화자·발화 삭제 후속은 uiux-reading T-08, DAMA0.5.4(22) 전달 완료. 다음 전사 정책 연결은 아직 구현하지 않아 운영 v2 유지; 승인된 word-v4 연결이 후속. AI 구조 변경은 별도."
+resume: ""
 spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·02·04 및 notes/uiux-reading/speaker-context-diagnosis.md"
 ---
 
@@ -17,6 +17,34 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·
 - 사전검사 PASS: `.build/check-logs/soniox-p2-alignment-baseline/run-20260912T160116Z-OI0Nzz`, 계약30/Swift170/Debug/SKIP0. 새 독립 scratch 동명.
 
 ## 의도
+
+### T-06 · 2026-09-13 승인된 B2의 새 전사 기본 연결
+
+- 입력: operating-baseline plan:84 재개 요청 및 B2 확정. B2 재승인·새 화면 설계 없음. 이 유닛만 planning→ready-to-build→building→built로 갱신하고 이전 AC는 유지한다.
+- 실측 HEAD `bb44c84`, branch 일치, 설치0.5.4(22). 다른 소유 dirty7는 기존 목록과 일치하며 `.build/diagnostics/word-v4/preservation-before.json`에 파일 해시와 현재 Script7개 해시를 보존했다. B2에는 후속 AI/사람 수정이 있으므로 현재 파일 바이트를 기준으로 보존한다.
+- 홈/appdev/repo 지침, README/Vault 인덱스, spec·plan·build, 현행 규율22개 설명 및 필수 공통10/appdev2/미디어/워치독·Apple/인라인/리뷰종료 본문, design00·02·03·04·06·07, dev/API verified, DomainContracts/schema/library-script/operating-baseline, T-05·Core/Managed/저장/앱 소비 경로를 읽었다. 독립 Codex 직접 구현.
+- 변경: Reconciler의 raw 정규화 진입점에서 동일 word-v4 계산을 재사용한다. `ManagedRun.combinationAlgorithmVersion: String?`를 새 parent 생성 시 `soniox-p2-word-v4`로 저장한다. 기존 누락 필드는 v2로 읽고 재개 때 고정, 지원하지 않는 정책은 소스 실행 전에 실패한다. 비교용 `reconcile`의 새 Run·사람 수정 거부는 유지한다.
+- 새 전사·저장 소스 재사용·중단 재개는 Run에 고정한 정책과 같은 원응답을 사용한다. completed model/revision은 immutable, 다른 Run의 이름·본문·등록 화자·삭제·AI 이력은 이식하지 않는다. source 캐시 동일성·접수 불명·키/동의 경계는 기존 계약을 유지한다.
+- 시간: Soniox ms/P2 s→기존 Int64 µs, 반열린 구간. 변환·500,000µs 꼬리 한도·정책값 변경 없음. INV-01~09/RC-01~09·13 및 기존 T-05 고정 회귀 재사용.
+- [x] AC-13 새 mock 처리와 양쪽 저장 소스 재사용 결과가 word-v4, source request/raw/ID·원 토큰/시간 보존, 새 Run/화자 ID 분리. 승인된 비교 계산과 normalized 전 필드 동일.
+- [x] AC-14 재시작/중단과 model 저장 후 상태 저장 전 복구에서 같은 Run/정책/결과 유지, 추가 POST 없음. 구 정책 누락/v2는 v2 유지, 미지원 버전은 외부 호출 전에 거부, 불명 접수 재제출 없음.
+- [x] AC-15 실제 저장 소스 사본의 Managed 경로→Script 저장·재열기·Markdown 검증, B2와 정규화 의미 동일, 현재 Script7개/입력/사람 수정 불변. 새 음성/API/AI 전송 없음. E1/E2/청취 정답은 미측정.
+- [x] AC-16 계약·Swift 회귀·Debug PASS, Debug/Release0.5.5(23), 백업 후 로컬 앱 전달·실행 버전 확인. main/push/release 없음.
+- QA 경계: 신규 처리/재사용→중단/재개→Script 저장/재열기/내보내기 한 묶음. 위 네 축 확인 후 종료하며 다른 트랙·AI 구조 변경·Qwen 학습은 보류한다.
+- 사전검사 원본 `word-v4-baseline/run-20260913T042120Z-dcE75t`: 계약30 PASS, Swift/앱 FAIL. `_DarwinFoundation1`의 `Developer/Dama`와 `developer/dama` 공용 PCM 중복 정의와 signal11 관측. 공용 캐시 삭제 없이 check.sh 사본의 루트·MODULE_CACHE만 고정해 동일4단계 재검사한다.
+- 사전 재검사 `word-v4-baseline-isolated/run-20260913T042740Z-56SdI1`: 계약30/Swift195/Debug/SKIP0 PASS. 정책 결정 해소, ready-to-build 확인 후 building 진입.
+
+#### T-06 검증·전달 결과
+
+- 최종 제품 변경: 새 parent에 word-v4 저장, 필드 없는 과거 Run에 v2 고정, 정책 미지원 조기 거부, raw→B2 정규화 진입점과 비교 경로의 동일 계산. 기존 비교 `reconcile`의 새 Run/사람 수정 거부는 유지. Core v2 정규화·B2 수치·읽기·AI·소스 캐시 선택 규칙 변경 없음.
+- `SonioxJourneyTests`의 새3건+확장1건: 새 요청/무키 재사용, 프로세서 재생성·취소, 모델 저장 후 normalizing 복구, 필드 누락/명시 v2, 미지원 정책 및 불명 접수. 영향25건 PASS(`word-v4-targeted-final.log`). 기본값을 v2로 역뮤테이션하면 대상1건의5단정 FAIL(`word-v4-reverse-mutation.log`), 원 변경을 바이트 복원 후 최종 전수검사.
+- 최종 `.build/check-logs/word-v4-final/run-20260913T095110Z-LrFLrU`: 계약30/Swift198/Debug/SKIP0 PASS, 계약 사본 byte-exact. 사전 공용 PCM 충돌·첫 targeted 홈 캐시 접근 실패 및 테스트의 누락 try 컴파일 실패 로그도 보존. 최종은 전용 캐시와 동일4단계로 검사했고 생략 없음. 기존 SDK target/AppIntents 경고·adhoc/linker-signed 유지.
+- 실제 검증 CLI `.build/diagnostics/word-v4/VerifyManaged.swift`를 최종 Core/Audio/Managed object에 링크했다. `.build/diagnostics/word-v4/internal-selected`에는 B2의 정확한 두 source, `internal`에는 현재 전체 저장 이력 사본을 준비. 실제 보존 음성21분53.280초·6,016토큰 사용, 실패하는 transport를 주입하고 키는 빈 문자열. 모델/API 재호출·AI 전송 없이 `begin`→`loadModel`→`FolderLibraryStore.createScript`→새 actor 재열기→Markdown→normalizing 복구를 완주했다.
+- 정확한 B2 입력 결과 Run `3AF57B39-5B35-4A88-8A80-D6F2E3B9AB34`, 전체 이력의 최신 재사용 결과 Run `4A4E7361-C180-46EE-BB03-FEE52E26FFC8`. 양쪽6016토큰/276읽기문단/미배정 lexical9, 각 같은 raw의 승인 비교 계산과 normalized 전 필드 동일. 원 B2의 normalized도 승인 계산과 동일. 결과 `result-exact.json`/`result-latest.json`, Markdown2개 및 명령 로그는 같은 ignored 진단/검사 폴더. 미배정·문단 수는 정확도 측정이 아니다.
+- 현재 캐시는 더 최근 P2 `336E25CC-02C0-4A3A-B67B-26487CC9FACD`를 선택하며 B2 당시 P2는 `0F20720E-C464-4744-91B5-9BDC23EE0513`다. 첫 진단은 같은 source ID라는 가정 단정에서 실패했고, 두 입력 모집단을 분리해 검증했다. raw/요청 사본/source ID 보존 및 각 Run의 재개 결과 byte-equal, transport 호출0. 새 결과에는 사람 이름·본문·등록/삭제·AI/버전 이식 없음.
+- 설치 전후 원본 Script7개와 기존 session 전체 파일+library-index173개, 다른 소유 문서7개 SHA256 불변. 사용자 폴더에 QA 결과를 추가하지 않았고 기존 v2/A/B/B2와 사람/AI 수정본을 유지했다. `preservation-before.json`/`source-before.json`/`delivery.json`에 모집단과 해시 보존.
+- 이전 앱 백업 `.build/backups/DAMA-0.5.4-22-before-word-v4.app`, `.build/xcode/Build/Products/Debug/DAMA.app`를 `/Applications/DAMA.app`에 설치. binary/debug dylib/Info.plist byte-equal, CUA About **DAMA Version0.5.5(23)** 확인 및 기존 B2/등록 화자/사람 본문/AI 보정1 재열기 확인. 첫 종료는 저장 보호 안내로 취소됐고 정상 종료 재시도 후 교체, 강제 종료 없음. 실마이크/새 서버 응답/청취 정답/E1·E2/정상요금은 이번 검증 축 아님.
+- 최종 branch `work/m0-fixture-review`; 이번 파일만 pathspec 로컬 커밋, 기존 타 소유 dirty7 보존. 운영 연결 완료, AI 구조 변경·Qwen 학습·다른 트랙 보류 유지.
 
 ### T-05 · 2026-09-13 부호·어절 진단 뒤 사용자 수정 승인
 

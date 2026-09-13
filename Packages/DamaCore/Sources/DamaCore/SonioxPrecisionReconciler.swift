@@ -1,6 +1,6 @@
 import Foundation
 
-/// Explicit, offline comparison policies. Managed processing still defaults to soniox-p2-v2.
+/// Versioned policies; wordRepair is also used by newly created managed runs.
 public enum SonioxPrecisionComparison: String, CaseIterable, Sendable {
     case timeline = "soniox-p2-timeline-v3"
     case word = "soniox-p2-word-v3"
@@ -8,6 +8,19 @@ public enum SonioxPrecisionComparison: String, CaseIterable, Sendable {
 }
 
 public enum SonioxPrecisionReconciler {
+    /// Normalize provider bytes for a new run without creating or saving an intermediate v2 run.
+    public static func normalize(soniox: Data, diarization: Data, sonioxJobID: String,
+                                 sessionID: String, runID: String, durationUs: Int64,
+                                 audioSHA256: String, model: String, createdAt: String,
+                                 synthetic: Bool = false, captureInterrupted: Bool = false) throws -> TranscriptDocument {
+        guard UUID(uuidString: runID) != nil else { throw LibraryFailure.invalidInput }
+        let source = try SonioxPrecisionNormalizer.normalize(soniox: soniox, diarization: diarization,
+            sonioxJobID: sonioxJobID, sessionID: sessionID, runID: runID, durationUs: durationUs,
+            audioSHA256: audioSHA256, model: model, createdAt: createdAt,
+            synthetic: synthetic, captureInterrupted: captureInterrupted)
+        return try applying(source, runID: runID, createdAt: createdAt, policy: .wordRepair)
+    }
+
     private struct Choice {
         var speaker: String?
         var sourceIDs: [String]
@@ -23,6 +36,11 @@ public enum SonioxPrecisionReconciler {
               source.provenance.algorithmVersion == SonioxPrecisionNormalizer.version,
               !source.revision.humanEdited, source.words.allSatisfy({ $0.editedText == nil }),
               UUID(uuidString: runID) != nil, runID != source.runId else { throw LibraryFailure.invalidInput }
+        return try applying(source, runID: runID, createdAt: createdAt, policy: policy)
+    }
+
+    private static func applying(_ source: TranscriptDocument, runID: String, createdAt: String,
+                                 policy: SonioxPrecisionComparison) throws -> TranscriptDocument {
         var doc = source
         let mapping = Dictionary(uniqueKeysWithValues: source.speakers.enumerated().map { ($0.element.id, "\(runID)-p2-\($0.offset)") })
         doc.runId = runID

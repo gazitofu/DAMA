@@ -3,7 +3,7 @@ unit: operating-baseline
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "2026-09-13 사용자 요청으로 세션 종료. 구현 HEAD3738131, DAMA0.5.4(22) 전달: B2 사용자 확정 및 uiux-reading T-08 화자 등록/재선택·발화 삭제/취소 완료. 계약30/Swift195/Debug, 합성 native 저장·재실행·취소 PASS. 기존7개 Script 불변. 다음 세션 첫 작업은 승인된 word-v4를 ManagedProcessor의 새 전사 기본 경로에 연결(현재 v2); B2 선택 재승인 불필요. 기존 결과·사람 수정 보존, AI 구조 수정·타 트랙 보류 유지."
+resume: "2026-09-13 재개 완료: soniox-p2-alignment T-06 built, 새 Managed 결합 Run은 승인 word-v4 고정·구 Run은 v2 재개. DAMA0.5.5(23) 설치/실행, 계약30/Swift198/Debug와 실제 저장 응답2경로의 생성·저장·재열기·Markdown·복구 PASS. 기존 Script7/저장자료173/타소유7 불변. AI 구조 변경·Qwen 학습·타 트랙 보류 유지."
 spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
 ---
 
@@ -82,6 +82,8 @@ spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ss
 ## 다음 세션 착수 (2026-09-11 추가 요청)
 
 ### 세션 종료·재개 기준 (2026-09-13)
+
+- **재개 작업 완료:** [soniox-p2-alignment T-06](../soniox-p2-alignment/plan.md)에서 승인 B2를 새 전사·저장 소스 재사용의 기본 정책에 연결했다. 새 Run에 `soniox-p2-word-v4`를 저장하고 기존 버전 미기록 Run은 v2로 재개한다. **DAMA0.5.5(23)** 실제 실행, 계약30/Swift198/Debug 및 실제 응답 사본2경로의 저장·재열기·Markdown·복구 PASS. 기존 Script7개/저장자료173개·사람 수정·AI 이력·다른 소유 문서7개 보존, 신규 전송 없음. 아래 세션 종료 기록의 ‘다음 첫 작업’은 완료됐다. AI 구조 변경/Qwen 학습/타 트랙은 기존 보류대로 별도다.
 
 - 사용자 요청으로 여기서 작업을 종료한다. 마지막 구현 커밋은 `3738131`, 브랜치는 `work/m0-fixture-review`, 설치·실행 확인된 앱은 **DAMA 0.5.4(22)**다. 화자 등록/재선택과 발화 삭제/취소는 [uiux-reading T-08](../uiux-reading/plan.md)에 완료·검증 근거를 남겼다. native 저장 패널 완료는 미확인이고 저장 actor의 Markdown 파일 검증은 PASS다.
 - **다음 첫 작업:** 승인된 B2 `soniox-p2-word-v4`를 새 전사 기본 처리에 연결한다. 현재 `ManagedProcessor.swift`는 `SonioxPrecisionNormalizer`의 `soniox-p2-v2`를 호출하며, `SonioxPrecisionReconciler.wordRepair`는 비교 경로에만 있다. [결합 정책·T-05](../soniox-p2-alignment/plan.md)와 실제 호출/복구 경로를 읽고 후속 구현·AC를 기존 plan에 구체화한다. B2 결과 선택이나 완료된 UI 승인은 다시 묻지 않는다.

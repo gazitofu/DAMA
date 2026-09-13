@@ -32,13 +32,25 @@ import XCTest
         var input = notes; input.transcriptionProvider = .sonioxPrecision
         let waiting = try await processor.begin(sessionID: audio.id, confirmed: true, key: "", input: input, sonioxKey: "soniox-key")
         XCTAssertEqual(waiting.stage, "waitingForCredentials")
+        XCTAssertEqual(waiting.combinationAlgorithmVersion, "soniox-p2-word-v4")
         let asrID = try XCTUnwrap(waiting.sonioxRunID)
         let asrDoc = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: asrID)
         XCTAssertEqual(asrDoc.provenance.engine, .managedSoniox)
-        let done = try await processor.resume(waiting.id, key: "pyannote-key", sonioxKey: "")
+        let restarted = ManagedProcessor(root: root, transport: p2, soniox: fake, sleep: { _ in })
+        let done = try await restarted.resume(waiting.id, key: "pyannote-key", sonioxKey: "")
         XCTAssertEqual(done.stage, "readyForReview")
         let combined = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: done.id)
         XCTAssertEqual(combined.provenance.engine, .hybridSonioxPyannote)
+        XCTAssertEqual(combined.provenance.algorithmVersion, "soniox-p2-word-v4")
+        let runDir = root.appendingPathComponent("Sessions/\(audio.id)/runs/\(done.id)")
+        let asrBytes = try Data(contentsOf: runDir.appendingPathComponent("raw/soniox-response.json"))
+        let p2Bytes = try Data(contentsOf: runDir.appendingPathComponent("raw/pyannote-response.json"))
+        let jobID = try JSONDecoder().decode(SonioxTranscriptDTO.self, from: asrBytes).id
+        let baseline = try SonioxPrecisionNormalizer.normalize(soniox: asrBytes, diarization: p2Bytes,
+            sonioxJobID: jobID, sessionID: audio.id, runID: UUID().uuidString, durationUs: combined.durationUs,
+            audioSHA256: done.sourceAudioSHA256!, model: combined.provenance.asrModel, createdAt: done.createdAt)
+        let approved = try SonioxPrecisionReconciler.reconcile(baseline, runID: done.id, createdAt: done.createdAt, policy: .wordRepair)
+        XCTAssertEqual(try NormalizedTranscriptCodec.encode(combined), try NormalizedTranscriptCodec.encode(approved))
         XCTAssertEqual(combined.words.map(\.text), asrDoc.words.map(\.text))
         XCTAssertEqual(combined.words.map(\.startUs), asrDoc.words.map(\.startUs))
         let calls = await fake.calls; XCTAssertEqual(calls.filter { $0 == "POST /v1/transcriptions" }.count, 1)
@@ -50,11 +62,109 @@ import XCTest
         XCTAssertNotNil(input.sonioxSourceRunID); XCTAssertNotNil(input.precisionSourceRunID)
         let reused = try await processor.begin(sessionID: audio.id, confirmed: true, key: "", input: input, retranscribing: true)
         XCTAssertEqual(reused.stage, "readyForReview"); XCTAssertNotEqual(reused.id, done.id)
+        let reusedDoc = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: reused.id)
+        XCTAssertEqual(reusedDoc.provenance.algorithmVersion, "soniox-p2-word-v4")
+        XCTAssertTrue(Set(reusedDoc.speakers.map(\.id)).isDisjoint(with: combined.speakers.map(\.id)))
+        XCTAssertEqual(reused.input?.sonioxSourceRunID, done.sonioxRunID)
+        XCTAssertEqual(reused.input?.precisionSourceRunID, done.precisionRunID)
+        for name in ["raw/soniox-response.json", "raw/pyannote-response.json", "soniox-request.json", "precision-request.json"] {
+            let reusedDir = root.appendingPathComponent("Sessions/\(audio.id)/runs/\(reused.id)")
+            XCTAssertEqual(try Data(contentsOf: reusedDir.appendingPathComponent(name)), try Data(contentsOf: runDir.appendingPathComponent(name)))
+        }
+        // A process can stop after immutable model installation but before marking the run ready.
+        let modelURL = runDir.appendingPathComponent("normalized/model.json")
+        let savedModel = try Data(contentsOf: modelURL)
+        var interrupted = done; interrupted.stage = "normalizing"
+        try JSONEncoder().encode(interrupted).write(to: runDir.appendingPathComponent("state.json"))
+        let recovered = try await restarted.resume(done.id, key: "", sonioxKey: "")
+        XCTAssertEqual(recovered.stage, "readyForReview")
+        XCTAssertEqual(recovered.combinationAlgorithmVersion, "soniox-p2-word-v4")
+        XCTAssertEqual(try Data(contentsOf: modelURL), savedModel)
         let after = await fake.calls, p2After = await p2.requests
         XCTAssertEqual(after, calls); XCTAssertEqual(p2After, requests)
         var different = input; different.context = "new context"; different.sonioxContext = true
         let mismatch = try await processor.reusableSoniox(sessionID: audio.id, audioHash: done.sourceAudioSHA256!, input: different)
         XCTAssertNil(mismatch)
+    }
+
+    func testLegacyCombinedRunsKeepV2AcrossResumeAndInstalledModelRecovery() async throws {
+        for explicitVersion in [false, true] {
+            let (root, audio) = try await setup(), fake = SonioxFake()
+            var fixturePath = URL(fileURLWithPath: #filePath)
+            for _ in 0..<5 { fixturePath.deleteLastPathComponent() }
+            let p2 = CombinedPyannote(final: try Data(contentsOf: fixturePath.appendingPathComponent("fixtures/pyannote-job-succeeded.synthetic.json")))
+            var input = notes; input.transcriptionProvider = .sonioxPrecision
+            let processor = ManagedProcessor(root: root, transport: p2, soniox: fake, sleep: { _ in })
+            var legacy = try await processor.begin(sessionID: audio.id, confirmed: true, key: "", input: input)
+            legacy.combinationAlgorithmVersion = explicitVersion ? "soniox-p2-v2" : nil
+            let dir = root.appendingPathComponent("Sessions/\(audio.id)/runs/\(legacy.id)")
+            let state = dir.appendingPathComponent("state.json")
+            let oldBytes = try JSONEncoder().encode(legacy)
+            if !explicitVersion {
+                XCTAssertNil((try JSONSerialization.jsonObject(with: oldBytes) as! [String: Any])["combinationAlgorithmVersion"])
+            }
+            try oldBytes.write(to: state)
+            let restarted = ManagedProcessor(root: root, transport: p2, soniox: fake, sleep: { _ in })
+            var done = try await restarted.resume(legacy.id, key: "pyannote-key", sonioxKey: "soniox-key")
+            XCTAssertEqual(done.stage, "readyForReview")
+            XCTAssertEqual(done.combinationAlgorithmVersion, "soniox-p2-v2")
+            let model = dir.appendingPathComponent("normalized/model.json"), bytes = try Data(contentsOf: model)
+            let doc = try NormalizedTranscriptCodec.decode(bytes)
+            XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-p2-v2")
+            let raw = try Data(contentsOf: dir.appendingPathComponent("raw/soniox-response.json"))
+            let expected = try SonioxPrecisionNormalizer.normalize(soniox: raw,
+                diarization: Data(contentsOf: dir.appendingPathComponent("raw/pyannote-response.json")),
+                sonioxJobID: JSONDecoder().decode(SonioxTranscriptDTO.self, from: raw).id,
+                sessionID: audio.id, runID: done.id, durationUs: doc.durationUs,
+                audioSHA256: done.sourceAudioSHA256!, model: doc.provenance.asrModel, createdAt: done.createdAt)
+            XCTAssertEqual(bytes, try NormalizedTranscriptCodec.encode(expected))
+            done.stage = "normalizing"; done.combinationAlgorithmVersion = explicitVersion ? "soniox-p2-v2" : nil
+            try JSONEncoder().encode(done).write(to: state)
+            let calls = await fake.calls, requests = await p2.requests
+            let recovered = try await restarted.resume(done.id, key: "")
+            XCTAssertEqual(recovered.stage, "readyForReview")
+            XCTAssertEqual(try Data(contentsOf: model), bytes)
+            let after = await fake.calls, p2After = await p2.requests
+            XCTAssertEqual(after, calls); XCTAssertEqual(p2After, requests)
+        }
+    }
+
+    func testUnsupportedCombinedPolicyFailsBeforeProviderExecution() async throws {
+        let (root, audio) = try await setup(), fake = SonioxFake(), p2 = ForbiddenPyannote()
+        var input = notes; input.transcriptionProvider = .sonioxPrecision
+        let processor = ManagedProcessor(root: root, transport: p2, soniox: fake)
+        var run = try await processor.begin(sessionID: audio.id, confirmed: true, key: "", input: input)
+        run.combinationAlgorithmVersion = "future-policy"
+        let state = root.appendingPathComponent("Sessions/\(audio.id)/runs/\(run.id)/state.json")
+        try JSONEncoder().encode(run).write(to: state)
+        let failed = try await processor.resume(run.id, key: "p2", sonioxKey: "soniox")
+        XCTAssertEqual(failed.stage, "failed")
+        XCTAssertEqual(failed.combinationAlgorithmVersion, "future-policy")
+        let calls = await fake.calls, p2Calls = await p2.calls
+        XCTAssertTrue(calls.isEmpty); XCTAssertEqual(p2Calls, 0)
+    }
+
+    func testCancelledCombinedRunKeepsPolicyAndResumesSameJob() async throws {
+        let (root, audio) = try await setup(), fake = SonioxFake(fault: "cancelPoll")
+        var fixturePath = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { fixturePath.deleteLastPathComponent() }
+        let p2 = CombinedPyannote(final: try Data(contentsOf: fixturePath.appendingPathComponent("fixtures/pyannote-job-succeeded.synthetic.json")))
+        var input = notes; input.transcriptionProvider = .sonioxPrecision
+        let processor = ManagedProcessor(root: root, transport: p2, soniox: fake, sleep: { _ in })
+        let paused = try await processor.begin(sessionID: audio.id, confirmed: true, key: "pyannote-key", input: input, sonioxKey: "soniox-key")
+        XCTAssertEqual(paused.stage, "paused")
+        XCTAssertEqual(paused.combinationAlgorithmVersion, "soniox-p2-word-v4")
+        await fake.clearFault()
+        let done = try await ManagedProcessor(root: root, transport: p2, soniox: fake, sleep: { _ in })
+            .resume(paused.id, key: "pyannote-key", sonioxKey: "soniox-key")
+        XCTAssertEqual(done.id, paused.id); XCTAssertEqual(done.sonioxRunID, paused.sonioxRunID)
+        XCTAssertEqual(done.stage, "readyForReview")
+        let doc = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: done.id)
+        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-p2-word-v4")
+        let calls = await fake.calls, requests = await p2.requests
+        XCTAssertEqual(calls.filter { $0 == "upload" }.count, 1)
+        XCTAssertEqual(calls.filter { $0 == "POST /v1/transcriptions" }.count, 1)
+        XCTAssertEqual(requests.count, 1)
     }
     func testCombinedUncertainSubmissionNeverRunsOtherProviderOrResubmits() async throws {
         let (root, audio) = try await setup(), fake = SonioxFake(fault: "submitTimeout")
@@ -217,6 +327,7 @@ private actor SonioxFake: SonioxTransporting {
             return HTTPReply(data: try transcript(), status: 200)
         }
         if fault == "poll503" { return HTTPReply(data: Data(), status: 503) }
+        if fault == "cancelPoll" { throw CancellationError() }
         return HTTPReply(data: try JSONSerialization.data(withJSONObject: ["id": job,
             "status": fault == "unknown" ? "futureStatus" : fault == "error" ? "error" : "completed",
             "model": "stt-async-v5", "audio_duration_ms": 3_000]), status: 200)

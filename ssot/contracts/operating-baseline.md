@@ -20,6 +20,8 @@ Precision-2 새 요청은 `transcription=false`, `exclusive=true`, `turnLevelCon
 
 ## 처리·보존
 
+- 2026-09-13 B2 사용자 확정: 새 결합 Run(새 음성/저장 소스 재사용/재전사)은 `soniox-p2-word-v4`를 사용한다. parent 생성 시 optional `ManagedRun.combinationAlgorithmVersion`에 저장하고 재개 때 그대로 쓴다. 이 필드가 없는 과거 Run은 `soniox-p2-v2`이며 재개 시 v2를 기록한다. 지원하지 않는 버전은 소스 실행 전에 실패하고 최신 정책으로 자동 치환하지 않는다.
+- word-v4는 같은 raw 정규화 결과에 승인된 B2 계산을 적용한다. 중간 v2 Run/model은 저장하지 않는다. 비교용 `reconcile`은 기존처럼 별도 Run ID와 수정되지 않은 v2 모델만 받는다. 이미 완료된 v2/A/B/B2와 사람 수정/삭제/AI 이력은 그대로 두며 정책 변경은 새 Run에만 적용한다.
 - 결합 parent Run과 Soniox/P2 source Run을 구분한다. 자식 ID는 요청 시작 전에 저장한다. Soniox가 완료되면 독립 스크립트를 저장하므로 P2가 실패/대기해도 원문을 열 수 있다. 완료 결과를 새 전사로 덮지 않는다. 앱에서 삭제한 비교본을 매 처리마다 무조건 복원하지 않는다.
 - 재개는 같은 Run·같은 입력·원음 해시를 사용한다. 접수 여부가 불명확한 POST는 자동 재제출하지 않는다. 다른 단계의 완료 응답은 그대로 유지한다. 재전사는 새 parent Run이고 기존 수정본·화자 이름은 자동 이식하지 않는다.
 - P2 캐시는 session·분석 WAV SHA256·요청 모델·exclusive/turn confidence·numSpeakers 일치를 요구한다. min/max 설정의 과거 결과는 재사용하지 않는다. Soniox 캐시는 같은 session/hash·모델·언어 힌트·화자/언어 감지·실제 context JSON 일치를 요구한다. 캐시 사용은 현재 별칭의 최신 서버 모델 재평가가 아니라 **저장 당시 결과 재구성**이다.
@@ -28,7 +30,7 @@ Precision-2 새 요청은 `transcription=false`, `exclusive=true`, `turnLevelCon
 
 ## 결합 증거와 읽기
 
-`soniox-p2-v2`: Soniox 토큰의 문자열·공백·순서·원시간·ASR confidence·언어는 불변이다. `asrSpeakerLabel`에 원 Soniox 후보, `modelSpeakerId`와 `sourceIntervalIds`에 P2 후보/근거를 남긴다. 라벨 전체를 사람 이름이나 다른 cluster로 치환하지 않는다.
+현행 새 Run의 `soniox-p2-word-v4`는 아래 B2 규칙을 따른다. 기존 `soniox-p2-v2`의 재현·복구 규칙은 다음과 같다. 양쪽 모두 Soniox 토큰의 문자열·공백·순서·원시간·ASR confidence·언어는 불변이다. `asrSpeakerLabel`에 원 Soniox 후보, `modelSpeakerId`와 `sourceIntervalIds`에 P2 후보/근거를 남긴다. 라벨 전체를 사람 이름이나 다른 cluster로 치환하지 않는다.
 
 - 단어 시간이 한 P2 화자에 안정적으로 겹치고 coverage≥0.60이면 배정한다. 기존 Qwen 경로에서 가져온 **초기 설계값**이며 정답 확률이 아니다.
 - 복수 화자 경계·실제 동시발화·시간 불명/0길이/coverage 부족은 null. regular와 exclusive 모두 보존한다. exclusive는 소스 분리나 겹말 텍스트 복원 기능이 아니다. [결합 안내](https://docs.pyannote.ai/tutorials/diarization-asr-merge).
@@ -36,9 +38,9 @@ Precision-2 새 요청은 `transcription=false`, `exclusive=true`, `turnLevelCon
 - 화자 구간에 텍스트가 없으면 누락 **의심** marker. A→짧은 B→A는 B 텍스트가 없어도 장벽을 유지한다. 원문에 없는 내용을 채우지 않는다.
 - 읽기 `reading-v8` 및 수동 문단 경계를 사용한다. 같은 화자 연속 본문과 동일 미배정 어절을 묶고, 부호는 본문에 붙인다. 누락 의심 marker/전사 없는 감지로 문단을 나누지 않는다. 원 normalized는 보존하며 정책 상세는 `library-script.md`를 따른다. 문단 수 감소는 화자 정확도 지표가 아니다. `review-events-v2`는 원 이슈가 겹치거나 1초 이내이며 전체 30초 이내인 인접 사건을 듣기용으로 묶는다. 이미 겹치는 이슈는 시간 범위를 보존하므로 더 길 수도 있다. 이는 초기 UI 값이고 원 이슈 ID·종류를 삭제하지 않는다.
 
-### 명시적 로컬 비교 정책 (2026-09-13 사용자 승인)
+### 결합 정책과 로컬 비교 (2026-09-13 사용자 승인)
 
-목적은 Soniox 원문 품질과 P2 화자 구분을 함께 보존하는 것이다. 사용자가 규칙 완화와 결과 비교를 승인했다. 아래 정책은 저장 응답으로 새 Run/Script를 만드는 비교용이며, 현행 ManagedProcessor의 v2 기본값 승격은 결과 판정 뒤 결정한다. 상태는 [soniox-p2-alignment plan](../../versions/soniox-p2-alignment/plan.md).
+목적은 Soniox 원문 품질과 P2 화자 구분을 함께 보존하는 것이다. 규칙 완화·비교 후 사용자가 B2를 확정했다. A/B는 명시적 로컬 비교용으로 유지하고 B2는 새 Managed Run의 기본 정책으로 연결한다. 저장 응답 재사용은 추가 호출 없이 새 결과를 만든다. 상태는 [soniox-p2-alignment plan](../../versions/soniox-p2-alignment/plan.md) T-06.
 
 - `soniox-p2-timeline-v3`(A): 양수 길이 토큰은 exclusive와의 교집합이 가장 큰 유일한 화자를 선택한다. B800>A200이면 B, A500=B500 또는 교집합 없음이면 null. 기존 coverage0.60과 regular 겹말/경계의 일괄 미배정 조건을 제거하되 경고/구간 근거는 보존한다.
 - 0길이의 유효 시각은 `[start,end)`에 들어가는 유일한 exclusive 화자를 후보로 사용한다. 시작은 포함/끝은 제외하며 원시간은 그대로 둔다. invalid_timestamp 경고는 유지하고 면적이 없는 점의 coverage는 nil이다. 시간 자체가 없는 lexical은 미배정이다.
