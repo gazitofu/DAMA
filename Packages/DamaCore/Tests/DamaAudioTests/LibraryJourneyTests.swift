@@ -97,7 +97,9 @@ final class LibraryJourneyTests: XCTestCase {
         let md = directory.appendingPathComponent("export.md")
         try await store.exportMarkdown(saved, to: md)
         let text = try String(contentsOf: md, encoding: .utf8)
-        for value in ["수정 제목 \\#1", "1970-01-01 09:00:00 +09:00", "Asia/Seoul", "참여 화자 수: 3", "제품 \\*논의\\*", "용어\n\\[링크\\]", "지수", "바뀐 말\n다음 줄", "전사 누락"] { XCTAssertTrue(text.contains(value), value) }
+        for value in ["수정 제목 \\#1", "1970-01-01 09:00:00 +09:00", "Asia/Seoul", "참여 화자 수: 3", "제품 \\*논의\\*", "용어\n\\[링크\\]", "지수", "바뀐 말\n다음 줄"] { XCTAssertTrue(text.contains(value), value) }
+        XCTAssertFalse(text.contains("전사 누락"))
+        XCTAssertTrue(loaded[0].script.transcript.turns.contains { $0.kind == .missingSpeech })
         XCTAssertEqual(LibraryScript.timestamp(850_000), "00:00:00.850")
         XCTAssertEqual(LibraryScript.timestamp(nil), "시간 미확인")
         try Data("external edit".utf8).write(to: url)

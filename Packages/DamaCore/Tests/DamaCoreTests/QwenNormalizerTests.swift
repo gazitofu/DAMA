@@ -16,15 +16,16 @@ final class QwenNormalizerTests: XCTestCase {
     }
     private var aba:[[String:Any]] { [["start":0.0,"end":1.0,"speaker":"A"],
         ["start":1.0,"end":1.2,"speaker":"B"],["start":1.2,"end":2.0,"speaker":"A"]] }
-    func testMissingShortSpeakerPreventsJoiningAndRoundTrips() throws {
+    func testMissingShortSpeakerStaysInSourceButDoesNotSplitReading() throws {
         let doc=try normalize([["text":"H&Q 15.38% 네 ","startUs":200_000,"endUs":800_000],
                               ["text":"네","startUs":1_300_000,"endUs":1_900_000]],intervals:aba)
         XCTAssertEqual(doc.words.map(\.text).joined(separator: ""),"H&Q 15.38% 네 네")
         XCTAssertEqual(doc.words[0].startUs,200_000)
         XCTAssertTrue(doc.turns.contains{$0.kind == .missingSpeech && $0.startUs==1_000_000 && $0.endUs==1_200_000})
         let script=try LibraryScript(transcript:doc,title:"test",recordedAt:nil,dateSource:"fixture",input:ConversionNotes())
-        XCTAssertFalse(script.canJoinParagraph(before:"t1"))
-        XCTAssertEqual(script.blocks().filter(\.isSpeech).count,2)
+        XCTAssertTrue(script.canJoinParagraph(before:"t1"))
+        XCTAssertEqual(script.blocks().map(\.text), ["H&Q 15.38% 네 네"])
+        XCTAssertEqual(doc.turns.filter { $0.kind == .speech }.count, 2)
         let encoded=try NormalizedTranscriptCodec.encode(doc)
         XCTAssertFalse(encoded.isEmpty)
         XCTAssertEqual(try JSONDecoder().decode(TranscriptDocument.self,from:encoded).provenance.engine,.hybridPyannoteQwen)

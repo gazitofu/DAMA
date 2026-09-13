@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-import DamaCore
+@testable import DamaCore
 @testable import DamaAudio
 
 final class ReadingSnapshotTests: XCTestCase {
@@ -94,14 +94,19 @@ final class ReadingSnapshotTests: XCTestCase {
         // A correction arriving from the pre-edit file must merge into the latest human layer.
         var correction = ScriptCorrection(input: script.input, engine: "synthetic", state: .completed)
         correction.speakerNames = [script.transcript.turns[1].speakerId!: "AI 이름"]
+        correction.edits = [.init(turnID: "t2", original: script.text(for: script.transcript.turns[2]),
+                                  text: "AI 교정한 다음 말", reason: "synthetic", applied: true)]
         let merged = try await store.saveCorrection(correction, for: source)
         XCTAssertEqual(merged.script.turnTexts["t1"], "사람이 수정한 말")
-        XCTAssertTrue(merged.reading.blocks.contains { $0.name == "AI 이름" })
+        XCTAssertEqual(merged.script.correction?.speakerNames, correction.speakerNames)
+        XCTAssertFalse(merged.reading.blocks.contains { $0.name == "AI 이름" }) // Hidden marker speaker.
+        XCTAssertTrue(merged.reading.blocks.contains { $0.text.contains("AI 교정한 다음 말") })
         try assertProjection(merged)
         var shown = merged.script; shown.showsOriginal = true; shown.revisionID = UUID().uuidString
         let originalView = try await store.saveScript(shown, to: url, expectedHash: merged.hash)
         XCTAssertFalse(originalView.reading.blocks.contains { $0.name == "AI 이름" })
-        XCTAssertTrue(originalView.reading.blocks.contains { $0.name == "새 이름" && $0.text == "사람이 수정한 말" })
+        XCTAssertFalse(originalView.reading.blocks.contains { $0.text.contains("AI 교정한 다음 말") })
+        XCTAssertTrue(originalView.reading.blocks.contains { $0.name == "새 이름" && $0.text.hasPrefix("사람이 수정한 말") && $0.turnIDs == ["t1", "t2"] })
         try assertProjection(originalView)
         XCTAssertEqual(try NormalizedTranscriptCodec.encode(originalView.script.transcript), original)
         let markdown = folder.appendingPathComponent("current.md")

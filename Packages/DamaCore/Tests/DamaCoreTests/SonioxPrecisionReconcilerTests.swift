@@ -99,7 +99,7 @@ final class SonioxPrecisionReconcilerTests: XCTestCase {
         }
     }
 
-    func testABAAndMissingBackchannelAreBarriersEvenInsideOrthographicGroup() throws {
+    func testABABarriersRemainInSourceWhileUntranscribedDetectionDoesNotSplitReading() throws {
         let raw = try source([token("첫", 100, 900), token(" 네", 1000, 1200), token(" 다시", 1300, 1900)], aba)
         let result = try compare(raw, .word)
         XCTAssertEqual(labels(result), ["A", "B", "A"])
@@ -107,12 +107,13 @@ final class SonioxPrecisionReconcilerTests: XCTestCase {
         let missing = try source([token("진", 100, 900), token("행", 1300, 1900)], aba)
         let missingResult = try compare(missing, .word)
         XCTAssertEqual(missingResult.turns.map(\.kind), [.speech, .missingSpeech, .speech])
-        XCTAssertEqual(try script(missingResult).blocks().count, 3)
+        XCTAssertEqual(try script(missingResult).blocks().map(\.text), ["진행"])
     }
 
-    func testTimelineReadsSentencesAndWordPolicyReadsContinuousSpeakerTurns() throws {
+    func testBothPoliciesReadContinuousSpeakerWithDifferentSourceGranularity() throws {
         let raw = try source([token("시작합니다.", 100, 500), token(" 계속합니다.", 600, 900)], aba)
-        XCTAssertEqual(try script(compare(raw)).blocks().filter(\.isSpeech).count, 2)
+        XCTAssertEqual(try compare(raw).turns.filter { $0.kind == .speech }.count, 2)
+        XCTAssertEqual(try script(compare(raw)).blocks().filter(\.isSpeech).count, 1)
         XCTAssertEqual(try script(compare(raw, .word)).blocks().filter(\.isSpeech).count, 1)
         let reversed = try source([token("첫", 500, 700), token("조각", 100, 400)], aba)
         XCTAssertEqual(try compare(reversed, .word).turns.filter { $0.kind == .speech }.count, 2)

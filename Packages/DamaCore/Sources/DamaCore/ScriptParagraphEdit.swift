@@ -44,7 +44,9 @@ extension LibraryScript {
                     throw LibraryFailure.invalidScript
                 }
                 if let previous {
-                    guard i == previous + 1, canJoinParagraph(before: id) else { throw LibraryFailure.invalidScript }
+                    guard i > previous,
+                          transcript.turns[(previous + 1)..<i].allSatisfy({ $0.kind == .missingSpeech }),
+                          canJoinParagraph(before: id) else { throw LibraryFailure.invalidScript }
                 }
                 previous = i
             }

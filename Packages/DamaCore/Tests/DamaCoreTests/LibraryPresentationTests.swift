@@ -3,18 +3,20 @@ import XCTest
 @testable import DamaCore
 
 final class LibraryPresentationTests: XCTestCase {
-    func testKoreanFragmentsJoinWhileCompletedSentencesAndResponsesStay() throws {
-        for text in ["그다음에.", "주요 조건을.", "그 회사는.", "진행하고.", "할 건데.", "예를 들어서."] {
-            XCTAssertFalse(ScriptReadingPolicy.completesReadingSentence(text), text)
+    func testLegacySourceSentenceBoundaryRemainsUnchanged() {
+        for text in ["완료했습니다.", "완료했습니다.\"  ", "맞습니까?", "네!", "끝。"] {
+            XCTAssertTrue(ScriptReadingPolicy.endsSentence(text), text)
         }
-        for text in ["정해야죠.", "완료했습니다.", "진행합니다.", "네.", "네!", "조건을?", "완료했습니다.\""] {
-            XCTAssertTrue(ScriptReadingPolicy.completesReadingSentence(text), text)
+        for text in ["회사는", "그리고...", "음…", "3.", "", " "] {
+            XCTAssertFalse(ScriptReadingPolicy.endsSentence(text), text)
         }
+    }
+    func testSameSpeakerSentencesJoinWhileTranscribedResponsesStay() throws {
         var model = try script(["A", "A", "A", "A", "B", "A"]).transcript
         let texts = ["그다음에.", "주요 조건을.", "정해야죠.", "이 회사는.", "네.", "검토합니다."]
         for i in texts.indices { model.words[i].text = texts[i] }
         let value = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
-        XCTAssertEqual(value.blocks().map(\.text), ["그다음에. 주요 조건을. 정해야죠.", "이 회사는.", "네.", "검토합니다."])
+        XCTAssertEqual(value.blocks().map(\.text), ["그다음에. 주요 조건을. 정해야죠. 이 회사는.", "네.", "검토합니다."])
         XCTAssertEqual(value.blocks().flatMap { $0.turns.flatMap(\.wordIds) }, value.transcript.words.map(\.id))
     }
 
@@ -44,14 +46,6 @@ final class LibraryPresentationTests: XCTestCase {
         let hinted = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: input)
         XCTAssertTrue(hinted.speakerCountApplication.contains("3명 힌트 전송"))
         XCTAssertTrue(hinted.speakerCountSummary.contains("검수 필요"))
-    }
-    func testExplicitSentenceEndDoesNotTreatEllipsisOrDecimalAsCompletion() {
-        for text in ["완료했습니다.", "완료했습니다.\"  ", "맞습니까?", "네!", "끝。"] {
-            XCTAssertTrue(ScriptReadingPolicy.endsSentence(text), text)
-        }
-        for text in ["회사는", "그리고...", "음…", "3.", "", " "] {
-            XCTAssertFalse(ScriptReadingPolicy.endsSentence(text), text)
-        }
     }
     func testContinuousOverlapReadEditAndExportPreservesSpeakerTransitions() throws {
         let intervals: [[String: Any]] = [
@@ -106,17 +100,17 @@ final class LibraryPresentationTests: XCTestCase {
         XCTAssertEqual(result.blocks().count, 1)
         XCTAssertEqual(result.blocks()[0].endUs, 5_600_000)
     }
-    func testSentenceEndAndSpeakerChangeDriveReadAndExportBoundaries() throws {
+    func testOnlySpeakerChangeSplitsContinuousReadAndExport() throws {
         var value = try script(["A", "A", "A", "A", "B", "A"])
         let texts = ["이번에", "검토할 회사는", "다마입니다.", "다음으로", "네", "설명하겠습니다."]
         for i in texts.indices { try value.editText(value.transcript.turns[i].id, text: texts[i]) }
         let blocks = value.blocks()
-        XCTAssertEqual(blocks.map(\.text), ["이번에 검토할 회사는 다마입니다.", "다음으로", "네", "설명하겠습니다."])
-        XCTAssertEqual(blocks.map { $0.turns.count }, [3, 1, 1, 1])
+        XCTAssertEqual(blocks.map(\.text), ["이번에 검토할 회사는 다마입니다. 다음으로", "네", "설명하겠습니다."])
+        XCTAssertEqual(blocks.map { $0.turns.count }, [4, 1, 1])
         let loaded = try JSONDecoder().decode(LibraryScript.self, from: JSONEncoder().encode(value))
         let markdown = String(decoding: try loaded.markdown(), as: UTF8.self)
         XCTAssertTrue(markdown.contains("이번에 검토할 회사는 다마입니다\\."))
-        XCTAssertEqual(markdown.components(separatedBy: "### [").count - 1, 4)
+        XCTAssertEqual(markdown.components(separatedBy: "### [").count - 1, 3)
         XCTAssertEqual(loaded.blocks().flatMap { $0.turns.flatMap(\.wordIds) }, value.transcript.words.map(\.id))
     }
     func testSameSpeakerOverlappingWordTimesJoinWithoutChangingTiming() throws {
@@ -127,6 +121,54 @@ final class LibraryPresentationTests: XCTestCase {
         XCTAssertEqual(value.blocks().count, 1)
         XCTAssertEqual(value.blocks()[0].endUs, 1_400_000)
         XCTAssertEqual(value.blocks()[0].turns.map(\.startUs), [0, 700_000])
+    }
+    func testNestedPunctuationTimeUsesFullPlaybackRange() throws {
+        var model = try script(["A", "A", "A"]).transcript
+        model.turns[0].endUs = 3_000_000; model.words[0].endUs = 3_000_000
+        model.words[0].text = "완료했습니다"
+        model.words[1].text = "."; model.words[1].tokenKind = .punctuation
+        model.turns[1].endUs = 2_000_000; model.words[1].endUs = 2_000_000
+        let value = try LibraryScript(transcript: model, title: "시간", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        let original = try NormalizedTranscriptCodec.encode(model)
+        XCTAssertEqual(value.blocks().map(\.turnIDs), [model.turns.map(\.id)])
+        // Test a paragraph whose last timestamp is nested inside the first word.
+        var split = value
+        try split.setParagraphBreak(before: model.turns[2].id, split: true)
+        XCTAssertEqual(split.blocks()[0].endUs, 3_000_000)
+        XCTAssertEqual(try NormalizedTranscriptCodec.encode(split.transcript), original)
+    }
+    func testHiddenMarkerParagraphEditsRoundtripWithoutLosingSourceOrManualBoundary() throws {
+        var model = try script().transcript
+        let b = model.speakers.first { $0.providerId == "B" }!.id
+        model.turns.insert(TranscriptTurn(id: "missing", kind: .missingSpeech, startUs: 1_000_000,
+            endUs: 1_100_000, speakerId: b, wordIds: [], markerText: "[음성 감지 / 전사 누락 의심]",
+            reviewed: false, reviewIssueIds: ["missing-issue"]), at: 1)
+        model.reviewIssues.append(ReviewIssue(id: "missing-issue", kind: .missing_speech, startUs: 1_000_000,
+            endUs: 1_100_000, severity: .warning, status: .open, wordIds: [], sourceIntervalIds: []))
+        var value = try LibraryScript(transcript: model, title: "누락 표시", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        let original = try value.sourceFingerprint(), block = value.blocks()[0]
+        XCTAssertEqual(value.blocks().map { $0.turns.count }, [3, 1, 1])
+        XCTAssertTrue(value.blocks().allSatisfy(\.isSpeech))
+        XCTAssertEqual(block.issues.map(\.id), ["missing-issue"])
+        XCTAssertFalse(String(decoding: try value.markdown(), as: UTF8.self).contains("전사 누락 의심"))
+        XCTAssertTrue(value.canJoinParagraph(before: model.turns[2].id))
+        try value.setParagraphBreak(before: model.turns[2].id, split: true)
+        XCTAssertEqual(value.blocks().map { $0.turns.count }, [1, 2, 1, 1])
+        try value.setParagraphBreak(before: model.turns[2].id, split: nil)
+        try value.editParagraph(block, text: "사람이 저장한 전체 문단")
+        let loaded = try JSONDecoder().decode(LibraryScript.self, from: JSONEncoder().encode(value))
+        try loaded.validate()
+        XCTAssertEqual(loaded.blocks()[0].text, "사람이 저장한 전체 문단")
+        XCTAssertEqual(loaded.blocks()[0].turnIDs, block.turnIDs)
+        XCTAssertEqual(try loaded.sourceFingerprint(), original)
+        XCTAssertEqual(loaded.transcript.turns.count, 6)
+        // An existing human paragraph remains bounded even when adjacent sentences now join.
+        var manual = try script(["A", "A", "A"])
+        try manual.setParagraphBreak(before: manual.transcript.turns[2].id, split: true)
+        try manual.editParagraph(manual.blocks()[0], text: "확정 문단")
+        try manual.setParagraphBreak(before: manual.transcript.turns[2].id, split: nil)
+        XCTAssertEqual(manual.blocks().map { $0.turns.count }, [2, 1])
+        XCTAssertEqual(manual.blocks()[0].text, "확정 문단")
     }
     func testReviewEventsCoalesceSharedRangesWithoutDroppingKindsOrUnknownTimes() {
         func issue(_ id: String, _ kind: IssueKind, _ start: Int64?, _ end: Int64?) -> ReviewIssue {
@@ -230,20 +272,20 @@ final class LibraryPresentationTests: XCTestCase {
         XCTAssertEqual(md.components(separatedBy: "### [").count - 1, 3)
         XCTAssertEqual(try JSONSerialization.jsonObject(with: JSONEncoder().encode(loaded.transcript)) as? NSDictionary, original)
     }
-    func testGroupingPreservesOtherSpeakerMissingUnknownTimeAndHumanBarriers() throws {
+    func testEvidenceOnlyInterruptionsDisappearButUnknownTimeAndHumanBarriersStay() throws {
         let source = try script()
         func wrapped(_ model: TranscriptDocument) throws -> LibraryScript {
             try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
         }
         var model = source.transcript
         let b = model.speakers.first { $0.providerId == "B" }!.id
-        // No B text or marker exists in this gap; the diarization itself must block A→A.
+        // An untranscribed detection remains source evidence without splitting reading.
         model.diarization.append(DiarizationInterval(id: "hidden-b", startUs: 1_000_000, endUs: 1_100_000, speakerId: b, confidence: nil))
-        XCTAssertEqual(try wrapped(model).blocks().map { $0.turns.count }, [1, 2, 1, 1])
+        XCTAssertEqual(try wrapped(model).blocks().map { $0.turns.count }, [3, 1, 1])
         model = source.transcript
         model.turns.insert(TranscriptTurn(id: "missing", kind: .missingSpeech, startUs: 1_000_000, endUs: 1_100_000, speakerId: b,
             wordIds: [], markerText: "[누락]", reviewed: false, reviewIssueIds: []), at: 1)
-        XCTAssertEqual(try wrapped(model).blocks().map { $0.turns.count }, [1, 1, 2, 1, 1])
+        XCTAssertEqual(try wrapped(model).blocks().map { $0.turns.count }, [3, 1, 1])
         model = source.transcript
         model.turns[1].speakerId = nil
         model.words[1].speakerId = nil

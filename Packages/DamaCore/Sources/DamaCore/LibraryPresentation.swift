@@ -18,42 +18,16 @@ public final class ScriptReadingSnapshot: Sendable {
 
 /// Reading layout, separately versioned from model normalization.
 public enum ScriptReadingPolicy {
-    public static let algorithmVersion = "reading-v6"
+    public static let algorithmVersion = "reading-v7"
 
-    /// Evaluate the displayed paragraph accumulated so far, including split punctuation.
-    /// This runs only after speaker/time/manual boundary checks have permitted a join.
-    static func continuesReadingSentence(_ text: String, with next: String) -> Bool {
-        let suffix = next.trimmingCharacters(in: .whitespacesAndNewlines)
-        let closingPunctuation = CharacterSet(charactersIn: ".?!。？！…\"'”’)]}」』")
-        if !suffix.isEmpty && suffix.unicodeScalars.allSatisfy(closingPunctuation.contains) { return true }
-        // 3 + . + 14 remains 3.14; whitespace before 14 denotes a separate token boundary.
-        if text.last == ".", text.dropLast().last?.isNumber == true, next.first?.isNumber == true { return true }
-        return !completesReadingSentence(text)
-    }
-
+    /// Legacy Soniox source-Turn segmentation. Reading-v7 no longer uses this guard.
     static func endsSentence(_ text: String) -> Bool {
         let closers = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'”’)]}」』"))
         let ending = text.trimmingCharacters(in: closers)
         guard let last = ending.last else { return false }
         if "?!。？！".contains(last) { return true }
-        // Ellipses and a bare number followed by a dot are not a clear sentence end.
         guard last == ".", !ending.hasSuffix("..") else { return false }
         return ending.dropLast().contains(where: \.isLetter)
-    }
-
-    /// Reading-only Korean continuation heuristic. Does not rewrite provider punctuation or turns.
-    static func completesReadingSentence(_ text: String) -> Bool {
-        guard endsSentence(text) else { return false }
-        let ending = text.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\"'”’)]}」』")))
-        guard ending.last == "." else { return true } // Keep explicit questions/exclamations.
-        let stem = String(ending.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
-        let word = stem.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? ""
-        let acknowledgments: Set<String> = ["네", "네네", "네네네", "예", "예예", "응", "어", "음", "아", "맞아", "그래", "그렇죠", "맞죠", "오케이"]
-        if acknowledgments.contains(stem) { return true }
-        // Explicit endings take precedence over suffixes that may occur inside a complete verb.
-        if ["요", "습니다", "입니다", "합니다", "했다", "한다", "된다", "있다", "없다", "같다", "겠다", "거다", "이다", "거야", "거지", "했지", "하자", "해라", "해줘", "맞아", "맞지"].contains(where: word.hasSuffix) { return true }
-        if ["그리고", "그다음", "그다음에", "그러니까", "그런데", "그래서", "일단", "이제", "대충", "예를 들어서"].contains(stem) { return false }
-        return !["은", "는", "을", "를", "의", "에", "에서", "에게", "한테", "으로", "로", "하고", "되고", "했고", "있고", "없고", "보고", "주고", "잡고", "하면", "하면은", "하지만", "는데", "건데", "니까", "면서", "다가", "라고", "거나", "든지", "부터", "까지", "보다", "처럼", "위해서", "관해서", "대해서"].contains(where: word.hasSuffix)
     }
 }
 
@@ -94,8 +68,8 @@ public struct ScriptBlock: Identifiable, Sendable {
     public let colorIndex: Int?
     public let issues: [ReviewIssue]
     public let edited: Bool
-    public var startUs: Int64? { turns.first?.startUs }
-    public var endUs: Int64? { turns.last?.endUs }
+    public var startUs: Int64? { turns.compactMap(\.startUs).min() }
+    public var endUs: Int64? { turns.compactMap(\.endUs).max() }
     public var turnIDs: [String] { turns.map(\.id) }
     public var isSpeech: Bool { turns.allSatisfy { $0.kind == .speech } }
     public var openIssues: [ReviewIssue] { issues.filter { $0.status == .open } }
@@ -121,7 +95,8 @@ extension LibraryScript {
     public func canJoinParagraph(before turnID: String) -> Bool {
         guard !transcript.revision.humanEdited,
               let i = transcript.turns.firstIndex(where: { $0.id == turnID }), i > 0 else { return false }
-        let previous = transcript.turns[i - 1], next = transcript.turns[i]
+        guard let previous = transcript.turns[..<i].last(where: { $0.kind == .speech }) else { return false }
+        let next = transcript.turns[i]
         return canJoin(previous, next, previousName: name(for: previous), nextName: name(for: next))
     }
     private func canJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn, previousName: String, nextName: String) -> Bool {
@@ -131,11 +106,10 @@ extension LibraryScript {
               previousName == nextName,
               let start = previous.startUs, let end = previous.endUs,
               let nextStart = next.startUs, let nextEnd = next.endUs,
-              start <= end, nextStart <= nextEnd, start <= nextStart, end <= nextEnd else { return false }
-        guard end < nextStart else { return true }
-        return !(transcript.diarization + transcript.exclusiveDiarization).contains {
-            $0.speakerId != speaker && $0.startUs >= end && $0.startUs < nextStart && $0.endUs > $0.startUs
-        }
+              start <= end, nextStart <= nextEnd, start <= nextStart else { return false }
+        // Reading follows transcribed speaker changes. Evidence-only detections and
+        // nested punctuation times remain in the source without splitting the body.
+        return true
     }
 
     public mutating func setParagraphBreak(before turnID: String, split: Bool?) throws {
@@ -174,7 +148,6 @@ extension LibraryScript {
         func currentText(_ turn: TranscriptTurn) -> String {
             if let edit = turnTexts[turn.id] { return edit }
             if showsOriginal != true, let text = correction?.edits.first(where: { $0.turnID == turn.id })?.effectiveText { return text }
-            if turn.kind == .missingSpeech { return turn.markerText ?? "[음성 감지 / 전사 누락 의심]" }
             return turn.wordIds.compactMap { words[$0] }.sorted { $0.ordinal < $1.ordinal }
                 .map { $0.prefix + ($0.editedText ?? $0.text) }.joined()
         }
@@ -184,17 +157,17 @@ extension LibraryScript {
             let needsSpace = !preservesSourceSpacing && !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false
             return current + (needsSpace ? " " : "") + next
         }
-        func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn, accumulated: String) -> Bool {
+        func mayJoin(_ previous: TranscriptTurn, _ next: TranscriptTurn) -> Bool {
             guard canJoin(previous, next, previousName: displayName(previous), nextName: displayName(next)) else { return false }
             if owners[previous.id] != nil || owners[next.id] != nil { return owners[previous.id] == owners[next.id] }
             if let split = paragraphBreaks?[next.id] { return !split }
-            return ScriptReadingPolicy.continuesReadingSentence(accumulated, with: texts[next.id] ?? "")
+            return true
         }
         var groups: [[TranscriptTurn]] = []
         var groupTexts: [String] = []
-        for turn in transcript.turns {
+        for turn in transcript.turns where turn.kind == .speech {
             let text = texts[turn.id] ?? ""
-            if let previous = groups.last?.last, let accumulated = groupTexts.last, mayJoin(previous, turn, accumulated: accumulated) {
+            if let previous = groups.last?.last, let accumulated = groupTexts.last, mayJoin(previous, turn) {
                 groups[groups.count - 1].append(turn)
                 groupTexts[groupTexts.count - 1] = appended(accumulated, text)
             } else { groups.append([turn]); groupTexts.append(text) }

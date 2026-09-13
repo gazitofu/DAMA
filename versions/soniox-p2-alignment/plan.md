@@ -20,6 +20,27 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·
 
 같은 Soniox 원문과 P2 응답을 사용한 비교본2개를 현재 앱에 제공한다. 미배정·분절 감소와 실제 화자 정확도를 구분해 사용자 청취 판정이 가능한 상태로 끝낸다.
 
+### 2026-09-13 후속 승인: 읽기 문단
+
+- 사용자가 `[음성 감지 / 전사 누락 의심]` 전부 제거 및 01:42.630–01:47.430, 02:39.030–02:39.870의 같은 화자 연결을 요청. 문장별 세분화 대신 Soniox 수준의 문단 수가 목표.
+- `reading-v7`로 기존 파일의 화면/Markdown을 함께 변경한다. 누락 marker와 전사 없는 diarization은 읽기 경계를 만들지 않는다. 실제 텍스트 화자 전환·미배정·사람 문단/수동 경계는 유지. 원 normalized INV-06 장벽과 모델 원문·시간·이슈는 불변이다. 이 절이 이전 Follow-ups의 읽기 장벽 보류를 대체한다.
+- T-04 영향: LibraryPresentation·ScriptParagraphEdit·회귀 테스트·읽기 계약·앱 버전0.5.2(20)·기존 상태 문서. HEAD5f26b08/branch 실측 일치, 타 소유 dirty7 보존. API/AI 호출 없이 로컬 원본6개로 전후 측정.
+- [x] AC-07 누락 의심은 본문/Markdown 문단0개. 동일 화자의 완결 문장도 연결하며 실제 A→B→A 텍스트는 보존.
+- [x] AC-08 사용자 두 시간대 연결 및 전체 전후 문단 수 실측. 토큰/시간/원본6개 해시 불변. 사람 문단 저장·왕복·이름/경계/unknown 보호 검증.
+- [x] AC-09 backpressure PASS 및 앱0.5.2(20) 전달, 실제 실행 버전·화면 확인. 인식/화자 정확도 개선과 구분.
+
+#### T-04 검증·전달 결과
+
+- `reading-v7`: 누락 marker를 읽기 그룹에서 제외, 문장 종결과 전사 없는 화자 감지 장벽 제거. 종료 시각이 안쪽에 있는 부호도 합치고 재생 범위 min/max 사용. `ScriptParagraphEdit`는 숨긴 marker만 건너뛴 ID 집합을 저장 가능. 다른 speech를 건너뛰는 편집은 계속 거부.
+- `.build/diagnostics/soniox-p2-alignment/ReadingContinuity.swift`를 변경 전/후 실제 Core에 링크해 `reading-before.json`/`reading-after.json` 측정. Script6개 validate, 동일 단어 ID 순서, 전체 원본 해시·source fingerprint6개 불변, 각 최대 문단3개(총18개)의 메모리 편집·왕복 PASS. 마지막 설치/화면 확인 후에도 원본6개 불변.
+- **전체 표시 항목**: A727→349, B490→294, 최신 기존v2 1,279→1,062, Soniox439→273, Pyannote456→324, 이전v2 1,274→1,063. marker는 A/B/기존v2의72개, Pyannote20개 모두 본문0개. 실제 화자 미배정은 이번에 바꾸지 않아 구v2는 여전히 많음. B는 기존 Soniox439문단보다 적고, 같은 새 정책의 Soniox273문단과 가까움. 수를 맞추기 위한 화자 추정 없음.
+- B 지적 구간: 01:42.630 시작4문단 → 01:42.630–01:47.550 단일 문단(원23토큰); 02:39.030 시작3문단 → 02:39.030–02:40.710 단일 문단(원12토큰). 사용자가 적은 마지막 시작 시점 이후의 원 토큰 종료까지 표시 범위에 포함.
+- 기존 문장/누락 표시 검사 기대값을 최신 승인으로 갱신. normalized golden21개 해시는 모두 불변, reading golden 변경5개는 숨긴 marker/장벽 영향, Markdown21개는 reading 버전 메타데이터 및 같은 표시 변경. 실제 transcribed A→B→A/raw missing-B 보존 단정은 유지. 합성 source 문장 분할용 `endsSentence`는 변경 없이 보존.
+- 최초 targeted는 남은 Soniox source helper 참조 누락으로 compile 실패 후 복구,27개 PASS. 전수의 구 읽기 기대값28단정 및 테스트 접근 지정 오류를 수정. 이후181개 중 AAC 실코덱1건만 sandbox 실패, 승인된 밖 실행 최종 **계약30/Swift181/Debug/SKIP0 PASS**. `.build/check-logs/reading-v7-final-approved/run-20260913T002322Z-QYjc98` 및 앞 실패 로그 보존. 검증된 제품 코드 이후에는 테스트/문서만 변경.
+- 전달 빌드 `.build/check-logs/reading-v7-delivery-build-approved.log` PASS. 초기 전달 빌드의 홈 캐시 쓰기 sandbox 차단 후 정상 권한으로 재실행. `CODE_SIGNING_ALLOWED=NO`, entitlements 없음 유지. 기존 앱 백업 `.build/backups/DAMA-0.5.1-19-before-reading-v7.app`, 새 binary와 `/Applications/DAMA.app` SHA256 일치. Debug/Release 버전0.5.2(20) 함께 증가.
+- CUA: 기존 앱 정상 종료→교체→Scripts A/B 표시→스크롤바 AX 값으로 두 예시 이동→화면/스크린샷 확인. B 02:39.030 단일 본문을 열어둠. About에 **DAMA Version 0.5.2 (20)** 실측. 스크롤 제스처 noWindowsAvailable는 AX 값 대체로 해소. 새 음성/유료 API/AI 호출 없음, 화자 정답·실제 원음 재생 품질은 이 표시 수정의 검증 축 아님.
+- 최종 공유 트리에서 본 태스크 파일만 pathspec 커밋. 기존 타 소유 dirty7는 그대로 유지, main/원격 push 없음.
+
 ## 영향 범위
 
 - 신규 Core `SonioxPrecisionReconciler`: v2 normalized 원본으로부터 명시적 새 Run과 정책별 알고리즘 생성. 기존 `SonioxPrecisionNormalizer`/ManagedProcessor 기본값 v2 유지.

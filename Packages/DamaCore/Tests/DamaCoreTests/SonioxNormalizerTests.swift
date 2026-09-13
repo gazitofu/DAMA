@@ -52,7 +52,7 @@ final class SonioxNormalizerTests: XCTestCase {
         XCTAssertEqual(document.words[3].startUs, 40_000_000)
         XCTAssertTrue(document.diarization.isEmpty); XCTAssertTrue(document.exclusiveDiarization.isEmpty)
         let script = try LibraryScript(transcript: document, title: "합성 비교", recordedAt: nil, dateSource: "synthetic", input: ConversionNotes())
-        XCTAssertEqual(script.blocks().map(\.text), ["이번에 검토할 회사입니다.", "다음", "네", "이어서"])
+        XCTAssertEqual(script.blocks().map(\.text), ["이번에 검토할 회사입니다. 다음", "네", "이어서"])
         let normalized = try NormalizedTranscriptCodec.decode(NormalizedTranscriptCodec.encode(document))
         XCTAssertEqual(normalized.words.map(\.asrConfidence), document.words.map(\.asrConfidence))
         let loaded = try JSONDecoder().decode(LibraryScript.self, from: JSONEncoder().encode(script))
@@ -77,7 +77,7 @@ final class SonioxNormalizerTests: XCTestCase {
         let values = ["말했습니다", ".", "\"", " 다음", "...", " 숫자는 3", ".", "14", "입니다", "."]
         let doc = try normalize(values.enumerated().map { token($0.element, $0.offset * 100, ($0.offset + 1) * 100) })
         let script = try LibraryScript(transcript: doc, title: "punctuation", recordedAt: nil, dateSource: "synthetic", input: ConversionNotes())
-        XCTAssertEqual(script.blocks().map(\.text), ["말했습니다.\"", "다음... 숫자는 3.14입니다."])
+        XCTAssertEqual(script.blocks().map(\.text), ["말했습니다.\" 다음... 숫자는 3.14입니다."])
         XCTAssertEqual(doc.words.map(\.text), values)
     }
     func testOverlapAndTextMismatchAreNotSilentlyDiscarded() throws {

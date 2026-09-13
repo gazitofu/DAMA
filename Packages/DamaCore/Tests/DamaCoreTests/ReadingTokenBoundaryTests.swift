@@ -31,20 +31,20 @@ final class ReadingTokenBoundaryTests: XCTestCase {
     }
 
     func testSplitPunctuationAndClosersMatchWholeSentences() throws {
-        try assertReading(["완료했습니다.", " 다음입니다."], ["완료했습니다.", "다음입니다."])
-        try assertReading(["완료했습니다", ".", " 다음입니다", "."], ["완료했습니다.", "다음입니다."])
-        try assertReading(["완료했습니다", ".", "\"", " 다음입니다", "."], ["완료했습니다.\"", "다음입니다."])
-        try assertReading(["맞나요", "?", "!", "”", " 다음입니다", "."], ["맞나요?!”", "다음입니다."])
+        try assertReading(["완료했습니다.", " 다음입니다."], ["완료했습니다. 다음입니다."])
+        try assertReading(["완료했습니다", ".", " 다음입니다", "."], ["완료했습니다. 다음입니다."])
+        try assertReading(["완료했습니다", ".", "\"", " 다음입니다", "."], ["완료했습니다.\" 다음입니다."])
+        try assertReading(["맞나요", "?", "!", "”", " 다음입니다", "."], ["맞나요?!” 다음입니다."])
     }
 
     func testFragmentedDecimalEllipsisAndUnfinishedKoreanRemainContinuous() throws {
         try assertReading(["비율은 3", ".", "14", "%", "입니다", ".", " 다음입니다", "."],
-                          ["비율은 3.14%입니다.", "다음입니다."])
+                          ["비율은 3.14%입니다. 다음입니다."])
         try assertReading(["검토", ".", ".", ".", " 이어서", " 설명합니다", ".", " 다음입니다", "."],
-                          ["검토... 이어서 설명합니다.", "다음입니다."])
+                          ["검토... 이어서 설명합니다. 다음입니다."])
         try assertReading(["그다음에", ".", " 조건을", ".", " 검토하고", ".", " 정합니다", ".", " 네", "."],
-                          ["그다음에. 조건을. 검토하고. 정합니다.", "네."])
-        try assertReading(["값은 3", ".", " 다음입니다", "."], ["값은 3.", "다음입니다."])
+                          ["그다음에. 조건을. 검토하고. 정합니다. 네."])
+        try assertReading(["값은 3", ".", " 다음입니다", "."], ["값은 3. 다음입니다."])
     }
 
     func testManualAndUnknownBoundariesOverridePunctuationAttachment() throws {
@@ -55,7 +55,7 @@ final class ReadingTokenBoundaryTests: XCTestCase {
         try value.setParagraphBreak(before: "t2", split: true)
         XCTAssertEqual(value.blocks().map(\.text), ["완료했습니다.", "다음입니다."])
         try value.setParagraphBreak(before: "t2", split: nil)
-        XCTAssertEqual(value.blocks().count, 2)
+        XCTAssertEqual(value.blocks().count, 1)
         try value.editText("t0", text: "검토하고")
         XCTAssertEqual(value.blocks().map(\.text), ["검토하고. 다음입니다."])
         XCTAssertEqual(try NormalizedTranscriptCodec.encode(value.transcript), model)
