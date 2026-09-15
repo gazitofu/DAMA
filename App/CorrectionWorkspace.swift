@@ -97,7 +97,7 @@ import SwiftUI
         activeID = file.id; completed = 0; total = 0; message = nil
         let executable = self.executable
         task = Task {
-            var correction = ScriptCorrection(input: input, engine: "Codex CLI (기본 모델) · " + ContextCorrection.version)
+            var correction = ScriptCorrection(input: input, engine: "Codex CLI · \(CodexCorrectionClient.modelTitle) · " + ContextCorrection.version)
             let hasPreviousResult = file.script.correction?.state == .completed
             defer { activeID = nil; task = nil; runNext() }
             do {

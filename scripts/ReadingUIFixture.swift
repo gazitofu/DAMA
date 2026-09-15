@@ -33,6 +33,7 @@ import Foundation
         let payload = try JSONSerialization.data(withJSONObject: ["jobId": "synthetic-ui", "status": "succeeded", "output": ["diarization": intervals, "exclusiveDiarization": intervals, "wordLevelTranscription": words]])
         var model = try ManagedNormalizer.normalize(payload, sessionID: speech.id, runID: UUID().uuidString, durationUs: 30_000_000,
             audioSHA256: speech.sourceHash, synthetic: true, createdAt: "2026-09-12T00:00:00Z")
+        model.provenance.engine = .hybridSonioxPyannote
         // Deliberate normalized unknown for the UI journey; no provider accuracy claim.
         model.words[8].speakerId = nil; model.words[8].assignmentSource = .unknown
         for i in model.turns.indices where model.turns[i].wordIds.contains(model.words[8].id) { model.turns[i].speakerId = nil }
@@ -44,6 +45,14 @@ import Foundation
         ai.completedAt = Date()
         let versioned = try await store.saveCorrection(ai, for: current)
         _ = try await store.saveTitle("제품 검토 회의", for: versioned)
-        print("Synthetic UI fixture created: 2 speeches, 1 script, 2 historical snapshots; no external requests.")
+        var comparison = model
+        comparison.runId = UUID().uuidString
+        comparison.provenance.engine = .managedSoniox
+        comparison.revision.id = "model-\(comparison.runId)"
+        comparison.revision.sourceRunId = comparison.runId
+        var comparisonInput = notes
+        comparisonInput.transcriptionProvider = .soniox
+        _ = try await store.createScript(comparison, speech: speech, input: comparisonInput, in: scriptFolder)
+        print("Synthetic UI fixture created: 2 speeches, 2 results for 1 Speech, 2 historical snapshots; no external requests.")
     }
 }

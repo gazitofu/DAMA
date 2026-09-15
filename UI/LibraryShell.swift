@@ -155,14 +155,14 @@ struct LibraryShell: View {
                                 }
                         }
                     } else {
-                        ForEach(workspace.scripts) { file in
+                        ForEach(workspace.primaryScripts) { file in
                             Button { workspace.selectScript(file.id) } label: {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(file.script.title).font(.body.weight(.medium)).lineLimit(2)
                                     Text(date(file.script.createdAt)).font(.caption).foregroundStyle(.secondary)
                                     Text(file.script.transcript.provenance.engine.title).font(.caption2).foregroundStyle(.secondary)
                                 }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
-                                    .background(workspace.selectedScriptID == file.id ? Color(nsColor: .textBackgroundColor) : .clear, in: RoundedRectangle(cornerRadius: 8))
+                                    .background(workspace.scriptGroupSelected(file) ? Color(nsColor: .textBackgroundColor) : .clear, in: RoundedRectangle(cornerRadius: 8))
                             }.buttonStyle(.plain)
                                 .contextMenu {
                                     Button("재전사…") { workspace.retranscribeScript(file) }.disabled(!workspace.canRetranscribe(file.script.transcript.sessionId))
@@ -266,7 +266,7 @@ struct LibrarySettings: View {
             APIKeySettings()
             Divider()
             Button("월 비용·무료 혜택 기록…") { costSettings = true }
-            Text("문맥 교정 · Codex CLI").font(.headline)
+            Text("문맥 교정 · Codex CLI · \(CodexCorrectionClient.modelTitle)").font(.headline)
             Text(correction.executable.path).font(.caption).foregroundStyle(.secondary).lineLimit(2)
             Button("Codex 실행 파일 선택…", action: correction.chooseExecutable).disabled(correction.busy)
             Text("이 Mac에 설치·로그인된 Codex를 사용합니다. CLI 실행과 계정 접근은 앱 권한에 따라 제한될 수 있습니다.").font(.caption).foregroundStyle(.secondary)

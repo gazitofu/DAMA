@@ -4,6 +4,30 @@ import XCTest
 @testable import DamaAudio
 
 final class LibraryJourneyTests: XCTestCase {
+    func testOnePrimaryScriptPerSpeechPrefersNewestOperationalResult() throws {
+        func file(sessionID: String, runID: String, engine: EngineKind, createdAt: TimeInterval) throws -> LibraryScriptFile {
+            var document = try fixture()
+            document.sessionId = sessionID
+            document.runId = runID
+            document.provenance.engine = engine
+            document.revision.id = "model-\(runID)"
+            document.revision.sourceRunId = runID
+            document.revision.savedAt = Date(timeIntervalSince1970: createdAt).ISO8601Format()
+            let script = try LibraryScript(transcript: document, title: sessionID, recordedAt: nil,
+                dateSource: "합성", input: ConversionNotes(), createdAt: Date(timeIntervalSince1970: createdAt))
+            return LibraryScriptFile(url: URL(fileURLWithPath: "/tmp/\(runID).dama.json"), hash: runID, script: script)
+        }
+        let sessionA = UUID().uuidString, sessionB = UUID().uuidString
+        let soniox = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .managedSoniox, createdAt: 300)
+        let olderCombined = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .hybridSonioxPyannote, createdAt: 100)
+        let newerCombined = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .hybridSonioxPyannote, createdAt: 200)
+        let otherSpeech = try file(sessionID: sessionB, runID: UUID().uuidString, engine: .managedSoniox, createdAt: 400)
+
+        let primary = ScriptResultPresentation.primaryFiles(in: [soniox, olderCombined, newerCombined, otherSpeech])
+        XCTAssertEqual(primary.map(\.id), [otherSpeech.id, newerCombined.id])
+        XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [soniox, olderCombined, newerCombined])?.id, newerCombined.id)
+    }
+
     func testTrashRejectsChangedScriptWrongFolderAndFilesystemFailure() async throws {
         let base = try root(), internalRoot = base.appendingPathComponent("internal")
         let folder = base.appendingPathComponent("Scripts"), other = base.appendingPathComponent("Other")

@@ -35,6 +35,8 @@ final class CodexCorrectionTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(ContextCorrection.validated(reply, chunk: chunk, input: ConversionNotes()).edits.first).applied)
         let args = CodexCorrectionClient.arguments(directory: directory, schema: directory, output: directory)
         XCTAssertTrue(args.contains("--ignore-user-config")); XCTAssertTrue(args.contains("features.shell_tool=false"))
+        XCTAssertEqual(args[args.firstIndex(of: "--model")! + 1], "gpt-5.6-luna")
+        XCTAssertTrue(args.contains("model_reasoning_effort=\"medium\""))
         XCTAssertTrue(args.contains("web_search=\"disabled\"")); XCTAssertFalse(args.contains("--dangerously-bypass-approvals-and-sandbox"))
     }
     func testNewProcessReplyCannotOmitSpanContract() async throws {

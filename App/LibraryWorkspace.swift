@@ -38,6 +38,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     var speech: LibrarySpeech? { speeches.first { $0.id == selectedSpeechID } }
     var scriptFile: LibraryScriptFile? { scripts.first { $0.id == selectedScriptID } }
     var displayedScript: LibraryScriptFile? { historicalFile ?? scriptFile }
+    var primaryScripts: [LibraryScriptFile] { ScriptResultPresentation.primaryFiles(in: scripts) }
     var notesValid: Bool { speakerCount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (Int(speakerCount).map { $0 > 0 } == true) }
     var notes: ConversionNotes {
         var value = speech?.notes ?? ConversionNotes()
@@ -157,7 +158,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 do {
                     let scan = try await store.scanScripts(in: url)
                     scripts = scan.items; scanIssues[.scripts] = scan.issues
-                    if !scripts.contains(where: { $0.id == selectedScriptID }) { historicalFile = nil; selectedScriptID = scripts.first?.id }
+                    if !scripts.contains(where: { $0.id == selectedScriptID }) { historicalFile = nil; selectedScriptID = primaryScripts.first?.id }
                 } catch { scanIssues[.scripts] = [FileScanIssue(url: url)] }
             }
         }
@@ -202,7 +203,13 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         }
     }
     func returnToCurrent() { guard canLeave else { return }; playback.stop(); historicalFile = nil }
-    func completedScript(for speech: LibrarySpeech) -> LibraryScriptFile? { scripts.first { $0.script.transcript.sessionId == speech.id } }
+    func completedScript(for speech: LibrarySpeech) -> LibraryScriptFile? {
+        ScriptResultPresentation.primaryFile(in: scripts.filter { $0.script.transcript.sessionId == speech.id })
+    }
+    func scriptGroupSelected(_ file: LibraryScriptFile) -> Bool {
+        guard let selected = scriptFile else { return false }
+        return selected.script.transcript.sessionId == file.script.transcript.sessionId
+    }
 
     func canRetranscribe(_ sessionID: String) -> Bool {
         canLeave && notesValid && folders[.scripts] != nil && !RecordingWorkspace.shared.capture.phase.busy &&
@@ -256,7 +263,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             do {
                 try await store.trashScript(file, in: folder)
                 scripts.removeAll { $0.url == file.url }
-                if selectedScriptID == file.id { selectedScriptID = scripts.first?.id }
+                if selectedScriptID == file.id { selectedScriptID = primaryScripts.first?.id }
                 message = "Script를 휴지통으로 이동했습니다. 원음과 다른 스크립트는 유지됩니다."
             } catch { message = "Script를 삭제하지 못했습니다. 파일 변경 여부와 폴더 권한을 확인한 뒤 새로고침해 주세요. 영구 삭제로 재시도하지 않습니다." }
         }

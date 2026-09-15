@@ -6,12 +6,14 @@ public enum CodexCorrectionFailure: Error, Sendable { case unavailable, failed, 
 
 /// A product adapter, never an implementation/delegation agent. No shell interpolation.
 public actor CodexCorrectionClient {
+    public static let model = "gpt-5.6-luna"
+    public static let modelTitle = "GPT-5.6 Luna"
     public init() {}
     public static func arguments(directory: URL, schema: URL, output: URL) -> [String] {
         var args = ["exec", "--ignore-user-config", "--ignore-rules", "--ephemeral", "--sandbox", "read-only",
                     "--skip-git-repo-check", "--cd", directory.path, "--color", "never",
-                    "--output-schema", schema.path, "--output-last-message", output.path]
-        for config in ["approval_policy=\"never\"", "web_search=\"disabled\"", "project_doc_max_bytes=0",
+                    "--model", model, "--output-schema", schema.path, "--output-last-message", output.path]
+        for config in ["approval_policy=\"never\"", "model_reasoning_effort=\"medium\"", "web_search=\"disabled\"", "project_doc_max_bytes=0",
                        "features.shell_tool=false", "features.unified_exec=false", "features.apps=false",
                        "features.multi_agent=false", "features.hooks=false", "features.memories=false",
                        "features.plugins=false", "features.skill_search=false", "features.skill_mcp_dependency_install=false",

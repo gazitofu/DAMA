@@ -25,6 +25,34 @@ public struct LibraryScriptFile: Sendable, Identifiable {
     }
 }
 
+/// Collapses multiple processing results for one Speech into one library row.
+/// All files remain available to the reader's "다른 결과 보기" menu.
+public enum ScriptResultPresentation {
+    public static func primaryFiles(in files: [LibraryScriptFile]) -> [LibraryScriptFile] {
+        Dictionary(grouping: files, by: { $0.script.transcript.sessionId }).values
+            .compactMap(primaryFile)
+            .sorted(by: newestFirst)
+    }
+
+    public static func primaryFile(in files: [LibraryScriptFile]) -> LibraryScriptFile? {
+        files.max { lhs, rhs in
+            let left = priority(lhs), right = priority(rhs)
+            if left != right { return left < right }
+            if lhs.script.createdAt != rhs.script.createdAt { return lhs.script.createdAt < rhs.script.createdAt }
+            return lhs.id > rhs.id
+        }
+    }
+
+    private static func priority(_ file: LibraryScriptFile) -> Int {
+        file.script.transcript.provenance.engine == .hybridSonioxPyannote ? 1 : 0
+    }
+
+    private static func newestFirst(_ lhs: LibraryScriptFile, _ rhs: LibraryScriptFile) -> Bool {
+        if lhs.script.createdAt != rhs.script.createdAt { return lhs.script.createdAt > rhs.script.createdAt }
+        return lhs.id < rhs.id
+    }
+}
+
 /// File I/O stays outside MainActor. All caller URLs remain security-scoped for the operation.
 public actor FolderLibraryStore {
     private let root: URL

@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "T-09 built: 확실한 AI 교정 기본 반영, 기존 후보44개를 로컬 재반영한 AI 보정2 저장. DAMA0.5.6(24) 설치/실행 및 본문·재실행 확인. 계약30/Swift200/Debug PASS, 원문·사람 수정·이전 버전2/타Script6/소스173/타소유7 불변. 새 AI/음성 호출 없음."
+resume: "T-10 built: Speech당 Scripts 대표 1건 표시, 다른 결과 보기 유지, GPT-5.6 Luna medium 명시 고정. 계약30/Swift201/Debug, 설치0.5.7(25), 실화면 확인 완료. 실제 AI/음성 호출과 한국어 품질 비교는 미실행."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -18,6 +18,22 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - 사전검사 `bash scripts/check.sh --log-root .build/check-logs/uiux-reading-baseline`: 계약30, Swift165, Debug build PASS, SKIP0. 로그 run-20260912T091200Z-QxzFao. 실제 음성/API/마이크 미사용.
 
 ## 의도
+
+### T-10 · 2026-09-15 Speech당 단일 대표 결과와 교정 모델 고정
+
+- 사용자 요청에 따라 Scripts 좌측 목록은 같은 Speech의 전사 Run을 한 행으로 묶는다. 대표는 최신 Soniox+Precision-2 운영본이며, 운영본이 없을 때만 최신 비교본을 쓴다. 보존된 Soniox 단독·재전사·AI 버전은 삭제하거나 병합하지 않고 기존 ‘다른 결과 보기’에서 연다. 비교본을 보고 있을 때도 같은 Speech의 대표 행을 선택 상태로 표시한다.
+- 앱의 Codex CLI 호출은 `--ignore-user-config`로 전역 `model=gpt-5.6-sol`을 읽지 않았고 `--model`도 없어 과거 실제 모델 ID를 확정할 수 없었다. 새 교정은 로컬 모델 카탈로그의 비용 민감형 `gpt-5.6-luna`, reasoning medium으로 명시 고정하고 설정·새 correction engine에 표시한다. 하위 모델에서도 구조화 출력·원문 위치·Turn 소유·미해결 검증과 실패 폐쇄는 동일하게 유지한다.
+- [x] AC-17 같은 Speech의 Soniox 단독+결합본+재전사 결과가 Scripts 한 행으로 표시되고 최신 결합본이 기본이며, 모든 원 파일은 ‘다른 결과 보기’에서 선택 가능하다. 다른 Speech는 별도 행이다.
+- [x] AC-18 새 Codex 호출 인자·설정·저장 engine은 GPT-5.6 Luna를 일치 표시하고 사용자 전역 설정과 과거 이력을 바꾸지 않는다. 합성/가짜 CLI와 실제 모델 품질을 구분한다.
+- [x] AC-19 대상 Core/가짜 CLI, 전체 backpressure, Debug0.5.7(25) 빌드 및 설치·실행 버전/실화면을 확인한다. 실제 AI·음성 전송은 하지 않는다.
+
+#### T-10 완료 근거
+
+- `ScriptResultPresentation`은 sessionID로 원 결과를 묶고 최신 Soniox+Precision-2 운영본을 대표로 선택한다. 대상 Core/가짜 CLI 5건 PASS. 모델 인자 `--model gpt-5.6-luna`, reasoning medium과 Speech별 대표 선택/다른 Speech 분리를 검사했다.
+- 원 `scripts/check.sh`의 첫 전수 시도들은 공유 Swift 6.3.3 module cache signal11, 샌드박스 CoreAudio M4A, 샌드박스 Xcode 서비스 제한에 걸렸다. 원 스크립트와 cwd 대소문자·독립 module cache만 다른 기존 진단 wrapper로 재실행하여 계약30/Swift201/Debug/SKIP0 PASS. 로그 `.build/check-logs/script-results-model-full-r3/run-20260915T050448Z-J33QA0`.
+- 합성 fixture는 Speech2건 중 1건에 Soniox+Precision-2와 Soniox 원 결과2건을 만들고 외부 요청0건을 확인했다. 실설치 UI에서는 기존 3개 Speech의 Scripts 7행이 3행으로 축약되고, 선택 Speech의 ‘다른 결과 보기’에 두 원 결과와 현재 선택 표시가 유지됐다. 설정의 `문맥 교정 · Codex CLI · GPT-5.6 Luna`, About의 `DAMA Version 0.5.7 (25)` 확인.
+- 검사 빌드와 `/Applications/DAMA.app` 실행 파일 SHA-256 `483d259fe332369512a8c60b1eaf7742d766efb3d261f85d17a4e92c57bbfd16` 일치. 이전 앱 백업 `.build/backups/DAMA-0.5.6-24-before-script-results-model.app` 보존.
+- 실제 AI·음성 전송·유료 호출은 실행하지 않았다. 과거 `기본 모델`의 실제 모델 ID와 GPT-5.6 Luna의 사용자 한국어 전사 품질은 사후 확정·측정하지 않았으며, 선택 판단은 제한된 구조화 교정 계약과 로컬 모델 카탈로그 역할을 근거로 한다.
 
 ### T-09 · 2026-09-13 AI 교정 기본 반영
 
