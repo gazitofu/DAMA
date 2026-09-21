@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "T-11 built: 화자 이름 범위를 원 화자 ID 기준으로 고정, 화자 모달에 원 라벨 표시. 20260918_에너벤터식사 화자 지정 롤백 완료. 계약30/Swift202/Debug, 설치0.5.8(26). 실기기 화면 캡처는 화면 기록 권한 부재로 미측정."
+resume: "T-12 built: 화자 이름 변경 되돌리기(nameHistory + ‘이름 변경 취소 (N)’). 계약30/Swift205/Debug, 설치0.5.9(27). 단추 실화면 확인은 화면 기록 권한 부재로 미측정."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -141,6 +141,19 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - 전달: Debug 0.5.8(26)을 `/Applications/DAMA.app`에 ditto 설치. 설치본·빌드본 실행 파일 SHA256 일치, adhoc/linker-signed 유지. 이전 0.5.7(25)은 `.build/backups/DAMA-0.5.7-25-before-speaker-scope.app`. 실행 확인(PID 99189).
 - 미측정: 실제 앱 화면 캡처·모달 문구 실화면 확인은 화면 기록 권한이 없어 못 했다. 사용자 조작 여정(모달 열기→범위 선택→저장)도 실기기 미측정. Codex 위임은 사용량 한도로 실패해 메인이 직접 구현했다.
 - main merge·원격 push·출시 승인 없음. 로컬 전달만 수행했다.
+
+## T-12 화자 이름 변경 되돌리기 (2026-09-21 사용자 요청)
+
+- 사용자: `20260918_에너벤터식사`에서 '전체' 범위 오조작이 두 번 발생했다. 13:32:13 저장은 Speaker B 913개 중 883개를, 13:46:08 저장은 832개를 한 이름으로 덮었다. 두 건 모두 직전 불변 리비전(`9F6BBB45`, `445DEDB7`)의 바이트로 복원했고, 직전 상태는 `.build/backups/script-7F31839A-{A5F634CF,E5CBBB0D}-before-undo-all*.dama.json`에 보존했다. 복원 전 대조에서 `transcript`·`turnTexts`·`registeredSpeakers`·삭제·문단편집·AI 이력이 동일함을 확인했다.
+- 원인은 새 범위 규칙이 아니다. 두 사고 모두 원 화자 하나(Speaker B) 안에서만 번졌다. 한 원 화자의 문단을 사람마다 따로 고쳐 둔 상태에서 '전체'를 누르면 그 수정이 전부 덮인다는 구조적 위험이고, 앱에 이름 변경 취소가 없어 매번 파일을 직접 되돌려야 했다.
+- 구현: `ScriptNameChange`(UUID `id`, 적용 `name`, 영향 `turnIDs`, 직전 `previousNames`/`previousSpeakerIDs`, `addedSpeakerID?`)와 `nameHistory: [ScriptNameChange]?`를 추가했다. `registerName`이 쓰기 직전 상태를 기록하고, legacy 이름 재사용으로 함께 연결되는 Turn도 대상에 포함한다. `undoNameChange()`는 마지막 항목만 되돌리며, 그 변경이 만든 등록 인물은 남은 이름·남은 이력이 더 이상 참조하지 않을 때만 지운다. 상한 `nameHistoryLimit = 20`은 초기 설계값이며 근거 출처가 있는 수치가 아니다.
+- UI: 읽기 하단 도구막대의 '삭제 취소 (N)' 왼쪽에 '이름 변경 취소 (N)'. 도움말에 마지막 이름과 원구간 수를 표시한다. 과거 결과·읽기 전용에서는 나타나지 않는다.
+- 검증: `scripts/check.sh` 계약30/Swift계약/swift test 205/xcodebuild Debug PASS, SKIP 0 (`uiux-reading-t12-check.log`). 신규 테스트 3건: 덮인 이름 복원과 생성 인물 제거, 전량 되돌리기 및 snapshot 거부, 상한 유지와 손상 항목 거부.
+- 실데이터 검증(`uiux-reading-t12-realdata.log`, 읽기 전용): 실제 파일에서 Speaker B '전체' 사고를 재현해 912개 원구간이 덮이는 것을 확인하고, 취소 1회로 `turnNames`·`turnSpeakerIDs`·`registeredSpeakers`·이름 분포가 사고 전과 완전히 일치함을 확인했다. 원문 fingerprint와 원 speakerId 배열 불변.
+- 전달: Debug 0.5.9(27) `/Applications/DAMA.app` 설치. launcher·`DAMA.debug.dylib` 모두 빌드본과 SHA256 일치, adhoc/linker-signed 유지. 이전 0.5.8(26)은 `.build/backups/DAMA-0.5.8-26-before-name-undo.app`.
+- 설치 사고: 첫 종료 요청이 `User canceled (-128)`로 거부된 상태에서 ditto가 실행돼 **실행 중 번들을 교체**했다. 이후 재요청으로 정상 종료하고 13:53:11에 새 프로세스로 재실행했다. 앱은 교체 중에도 응답했고 사용자 편집(13:52:22~13:53:06의 이름 변경 5건)은 모두 리비전에 보존됐다. 다음부터는 종료 성공을 확인한 뒤 설치한다.
+- 미측정: 단추의 실제 화면 표시·클릭 여정은 화면 기록 권한이 없어 못 했다. 기존 파일에는 `nameHistory`가 없으므로 단추는 새 빌드에서 이름을 한 번 바꾼 뒤부터 나타난다. Codex 위임은 사용량 한도로 불가해 메인이 직접 구현했다.
+- main merge·원격 push·출시 승인 없음.
 
 ## Follow-ups
 

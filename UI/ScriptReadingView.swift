@@ -86,6 +86,11 @@ struct ScriptReadingView: View {
                         if playingID != nil { Button("현재 문단") { scroll.scrollTo(selectedBlock?.id, anchor: .center) } }
                     }
                     Spacer()
+                    if !readOnly, let changes = file.script.nameHistory, let last = changes.last {
+                        Button("이름 변경 취소 (\(changes.count))") { undoNameChange() }
+                            .disabled(!workspace.canLeave)
+                            .help("마지막 화자 이름 변경을 되돌립니다. ‘\(last.name)’ · 원구간 \(last.turnIDs.count)개")
+                    }
                     if !readOnly, let deleted = file.script.deletedParagraphs, !deleted.isEmpty {
                         Button("삭제 취소 (\(deleted.count))") { changeDeletion(nil) }.disabled(!workspace.canLeave)
                     }
@@ -129,6 +134,18 @@ struct ScriptReadingView: View {
     private var currentLabel: String {
         let number = workspace.scriptFile?.script.versions?.last?.number ?? 0
         return number > 0 ? "현재 결과 · AI 보정 \(number) 기반" : "현재 결과"
+    }
+    private func undoNameChange() {
+        guard workspace.canLeave, !readOnly else { return }
+        workspace.playback.stop(); deletionError = nil
+        let source = shown
+        Task {
+            do {
+                var candidate = source.script
+                try candidate.undoNameChange()
+                try await workspace.saveScript(candidate, original: source)
+            } catch { deletionError = "이름 변경을 되돌리지 못했습니다. 새로고침 후 다시 시도해 주세요." }
+        }
     }
     private func changeDeletion(_ block: ScriptBlock?) {
         guard workspace.canLeave, !readOnly else { return }

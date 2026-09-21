@@ -84,6 +84,66 @@ final class ScriptPeopleAndDeletionTests: XCTestCase {
         invalid = script; invalid.deletedParagraphs = [ScriptDeletedParagraph(id: UUID().uuidString, turnIDs: [first.turnIDs[0], unknown.turnIDs[0]])]
         XCTAssertThrowsError(try invalid.validate())
     }
+    func testUndoRestoresTheNamesOneSweepReplaced() throws {
+        var script = try source()
+        // Paragraphs of one original speaker are corrected to two different people first.
+        try script.rename(script.blocks()[0], name: "정연서 대표", scope: .one)
+        try script.rename(script.blocks()[2], name: "김성중 교수", scope: .one)
+        let before = script.blocks().map(\.name)
+        XCTAssertEqual(before, ["정연서 대표", "Speaker B", "김성중 교수", "화자 미확정", "화자 미확정"])
+        // One mistaken '전체' sweeps both back to a single name.
+        try script.rename(script.blocks()[0], name: "이정익 교수", scope: .all)
+        XCTAssertEqual(script.blocks().map(\.name), ["이정익 교수", "Speaker B", "이정익 교수", "화자 미확정", "화자 미확정"])
+        XCTAssertEqual(script.nameHistory?.count, 3)
+        XCTAssertEqual(script.nameHistory?.last?.name, "이정익 교수")
+        var loaded = try roundtrip(script)
+        try loaded.undoNameChange()
+        XCTAssertEqual(loaded.blocks().map(\.name), before)
+        XCTAssertEqual(loaded.nameHistory?.count, 2)
+        // The person the sweep created is gone; the two it replaced stay registered.
+        XCTAssertEqual(loaded.registeredSpeakers?.map(\.name), ["정연서 대표", "김성중 교수"])
+        XCTAssertEqual(loaded.registeredSpeaker(for: loaded.blocks()[0].speakerTurnID)?.name, "정연서 대표")
+        XCTAssertEqual(try loaded.sourceFingerprint(), try script.sourceFingerprint())
+        try loaded.validate()
+    }
+    func testUndoUnwindsEveryChangeAndRefusesOnHistoricalSnapshot() throws {
+        var script = try source()
+        let original = script.blocks().map(\.name)
+        try script.rename(script.blocks()[0], name: "첫 사람", scope: .all)
+        try script.rename(script.blocks()[3], name: "둘째 사람", scope: .one)
+        try script.rename(script.blocks()[1], name: "첫 사람", scope: .all)
+        var loaded = try roundtrip(script)
+        while loaded.nameHistory?.isEmpty == false { try loaded.undoNameChange() }
+        XCTAssertEqual(loaded.blocks().map(\.name), original)
+        XCTAssertNil(loaded.nameHistory)
+        XCTAssertNil(loaded.registeredSpeakers)
+        XCTAssertNil(loaded.turnSpeakerIDs)
+        XCTAssertTrue(loaded.turnNames.isEmpty)
+        try loaded.validate()
+        XCTAssertThrowsError(try loaded.undoNameChange())
+        var historical = try roundtrip(script); historical.snapshotTitle = "AI 보정 전"
+        XCTAssertThrowsError(try historical.undoNameChange())
+    }
+    func testNameHistoryStaysBoundedAndMalformedEntriesAreRejected() throws {
+        var script = try source()
+        for i in 0...LibraryScript.nameHistoryLimit { try script.rename(script.blocks()[0], name: "이름 \(i)", scope: .one) }
+        let loaded = try roundtrip(script)
+        XCTAssertEqual(loaded.nameHistory?.count, LibraryScript.nameHistoryLimit)
+        XCTAssertEqual(loaded.nameHistory?.last?.name, "이름 \(LibraryScript.nameHistoryLimit)")
+        XCTAssertEqual(loaded.blocks()[0].name, "이름 \(LibraryScript.nameHistoryLimit)")
+        var invalid = loaded
+        invalid.nameHistory?[0] = ScriptNameChange(id: "not-a-uuid", name: "x", turnIDs: loaded.blocks()[0].turnIDs,
+            previousNames: [:], previousSpeakerIDs: [:], addedSpeakerID: nil)
+        XCTAssertThrowsError(try invalid.validate())
+        invalid = loaded
+        invalid.nameHistory?[0] = ScriptNameChange(id: UUID().uuidString, name: "x", turnIDs: ["unknown-turn"],
+            previousNames: [:], previousSpeakerIDs: [:], addedSpeakerID: nil)
+        XCTAssertThrowsError(try invalid.validate())
+        invalid = loaded
+        invalid.nameHistory?[0] = ScriptNameChange(id: UUID().uuidString, name: "x", turnIDs: loaded.blocks()[0].turnIDs,
+            previousNames: [:], previousSpeakerIDs: [loaded.blocks()[0].turnIDs[0]: UUID().uuidString], addedSpeakerID: nil)
+        XCTAssertThrowsError(try invalid.validate())
+    }
     func testDeleteAfterManualMergePersistsAndUndoRestoresHumanTextWithoutJoiningNeighbors() throws {
         var script = try source()
         let fingerprint = try script.sourceFingerprint()

@@ -74,6 +74,8 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
     public var registeredSpeakers: [ScriptSpeaker]?
     public var turnSpeakerIDs: [String: String]?
     public var deletedParagraphs: [ScriptDeletedParagraph]?
+    /// Undo stack for speaker name changes. Absent in older files; capped at `nameHistoryLimit`.
+    public var nameHistory: [ScriptNameChange]?
     public var correction: ScriptCorrection?
     public var showsOriginal: Bool?
     /// Boundary before an existing Turn: true = split, false = join if identity/evidence permits.
@@ -109,6 +111,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
               turnNames.values.allSatisfy({ !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
         else { throw LibraryFailure.invalidScript }
         try validatePeopleAndDeletion()
+        try validateNameHistory()
         try validateParagraphEdits()
         if let versions {
             guard snapshotTitle == nil, versions.map(\.number) == Array(0..<versions.count),
