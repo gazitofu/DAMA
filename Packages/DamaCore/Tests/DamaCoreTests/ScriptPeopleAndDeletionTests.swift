@@ -35,18 +35,38 @@ final class ScriptPeopleAndDeletionTests: XCTestCase {
         XCTAssertTrue(String(decoding: try loaded.markdown(), as: UTF8.self).contains("이석훈 상무"))
         XCTAssertTrue(try source().availableSpeakers.isEmpty)
     }
-    func testRegisteredScopeIncludesManuallyAssignedUnknownAndPreservesSourceBoundaries() throws {
+    func testScopeFollowsOriginalSpeakerNotRegisteredPerson() throws {
         var script = try source()
         try script.rename(script.blocks()[0], name: "동일 인물", scope: .all)
         try script.rename(script.blocks()[3], name: "동일 인물", scope: .one)
         XCTAssertEqual(script.blocks().count, 5)
+        // A manually assigned unknown paragraph shares the person, but "전체" never reaches other original speakers.
         try script.rename(script.blocks()[3], name: "수정 이름", scope: .all)
-        XCTAssertEqual(script.blocks().map(\.name), ["수정 이름", "Speaker B", "수정 이름", "수정 이름", "화자 미확정"])
+        XCTAssertEqual(script.blocks().map(\.name), ["동일 인물", "Speaker B", "동일 인물", "수정 이름", "화자 미확정"])
         try script.rename(script.blocks()[2], name: "부분 이름", scope: .from)
-        XCTAssertEqual(script.blocks()[0].name, "수정 이름")
-        XCTAssertEqual(script.blocks()[3].name, "부분 이름")
-        XCTAssertEqual(script.blocks()[4].name, "화자 미확정")
+        XCTAssertEqual(script.blocks().map(\.name), ["동일 인물", "Speaker B", "부분 이름", "수정 이름", "화자 미확정"])
         try script.validate()
+    }
+    func testRenamingOneOriginalSpeakerLeavesOtherOriginalSpeakerWithSameName() throws {
+        var script = try source()
+        let originalSpeakers = script.transcript.turns.map(\.speakerId)
+        XCTAssertEqual(script.originalSpeakerLabel(for: script.blocks()[0].speakerTurnID), "Speaker A")
+        XCTAssertEqual(script.originalSpeakerLabel(for: script.blocks()[1].speakerTurnID), "Speaker B")
+        XCTAssertNil(script.originalSpeakerLabel(for: script.blocks()[3].speakerTurnID))
+        try script.rename(script.blocks()[0], name: "정연서 대표", scope: .all)
+        try script.rename(script.blocks()[1], name: "정연서 대표", scope: .all)
+        XCTAssertEqual(script.registeredSpeakers?.count, 1)
+        XCTAssertEqual(script.blocks().map(\.name), ["정연서 대표", "정연서 대표", "정연서 대표", "화자 미확정", "화자 미확정"])
+        try script.rename(script.blocks()[1], name: "윤현섭 이사", scope: .all)
+        let loaded = try roundtrip(script), blocks = loaded.blocks()
+        XCTAssertEqual(blocks.map(\.name), ["정연서 대표", "윤현섭 이사", "정연서 대표", "화자 미확정", "화자 미확정"])
+        XCTAssertEqual(loaded.registeredSpeakers?.map(\.name), ["정연서 대표", "윤현섭 이사"])
+        XCTAssertEqual(loaded.registeredSpeaker(for: blocks[0].speakerTurnID)?.name, "정연서 대표")
+        XCTAssertEqual(loaded.registeredSpeaker(for: blocks[1].speakerTurnID)?.name, "윤현섭 이사")
+        XCTAssertEqual(loaded.originalSpeakerLabel(for: blocks[1].speakerTurnID), "Speaker B")
+        // The original separation stays intact in the immutable transcript.
+        XCTAssertEqual(loaded.transcript.turns.map(\.speakerId), originalSpeakers)
+        XCTAssertEqual(Set(originalSpeakers.compactMap { $0 }).count, 2)
     }
     func testLegacyNamesAreSelectableAndMalformedRegistryIsRejected() throws {
         var script = try source()

@@ -30,14 +30,14 @@ extension LibraryScript {
         }
         return result
     }
+    /// ‘이 부분부터/전체’는 항상 원 화자 ID(Speaker A/B/C)가 같은 Turn 집합이다 (2026-09-21 사용자 규칙).
+    /// 등록 인물·이름은 대상 선정에 쓰지 않으므로, 같은 이름으로 지정된 다른 원 화자는 함께 바뀌지 않는다.
     func speakerTargets(_ turnID: String, scope: SpeakerNameScope) -> [String] {
         guard let index = transcript.turns.firstIndex(where: { $0.id == turnID }) else { return [] }
-        let turn = transcript.turns[index], registered = turnSpeakerIDs?[turnID]
         let deleted = deletedTurnIDs
-        if scope == .one || (registered == nil && turn.speakerId == nil) { return deleted.contains(turnID) ? [] : [turnID] }
+        guard scope != .one, let speaker = transcript.turns[index].speakerId else { return deleted.contains(turnID) ? [] : [turnID] }
         return transcript.turns.enumerated().filter { i, candidate in
-            let matches = registered.map { turnSpeakerIDs?[candidate.id] == $0 } ?? (candidate.speakerId == turn.speakerId)
-            return matches && !deleted.contains(candidate.id) && (scope == .all || i >= index)
+            candidate.speakerId == speaker && !deleted.contains(candidate.id) && (scope == .all || i >= index)
         }.map { $0.element.id }
     }
     mutating func registerName(_ value: String, for ids: [String], anchor: String) throws {

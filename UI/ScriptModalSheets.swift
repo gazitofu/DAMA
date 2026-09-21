@@ -11,12 +11,13 @@ struct SpeakerNameSheet: View {
     @State private var selectedSpeaker = ""
     @State private var error: String?
     private var block: ScriptBlock { switch edit.kind { case let .speaker(block): block } }
-    private var hasSpeaker: Bool { block.speakerID != nil || edit.file.script.registeredSpeaker(for: block.speakerTurnID) != nil }
+    private var hasSpeaker: Bool { block.speakerID != nil }
+    private var originalLabel: String? { edit.file.script.originalSpeakerLabel(for: block.speakerTurnID) }
     init(edit: LibraryEdit, workspace: LibraryWorkspace) {
         self.edit = edit; self.workspace = workspace
         switch edit.kind {
         case let .speaker(block):
-            _scope = State(initialValue: block.speakerID == nil && edit.file.script.registeredSpeaker(for: block.speakerTurnID) == nil ? .one : .all)
+            _scope = State(initialValue: block.speakerID == nil ? .one : .all)
             _value = State(initialValue: block.name == "화자 미확정" ? "" : block.name)
             _selectedSpeaker = State(initialValue: edit.file.script.availableSpeakers.first(where: { $0.name == block.name })?.id ?? "")
         }
@@ -24,6 +25,7 @@ struct SpeakerNameSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("화자 이름 변경").font(.title2)
+            Text("원 화자 \(originalLabel ?? "미배정") · 현재 이름 \(block.name)").font(.caption).foregroundStyle(.secondary)
             Picker("등록된 화자", selection: $selectedSpeaker) {
                 Text("직접 입력").tag("")
                 ForEach(edit.file.script.availableSpeakers) { speaker in Text(speaker.name).tag(speaker.id) }
@@ -38,7 +40,7 @@ struct SpeakerNameSheet: View {
                 }
             }.pickerStyle(.radioGroup)
             Text("대상 원구간 \(edit.file.script.affectedTurns(in: block, scope: scope).count)개").font(.caption)
-            Text(hasSpeaker ? "같은 등록 화자는 이름과 색을 함께 사용합니다." : "미배정 화자는 선택한 부분만 바꿀 수 있습니다.").font(.caption).foregroundStyle(.secondary)
+            Text(hasSpeaker ? "‘이 부분부터’·‘전체’는 원 화자 \(originalLabel ?? "")로 분리된 부분에만 적용됩니다. 같은 이름의 다른 원 화자는 바뀌지 않습니다." : "미배정 화자는 선택한 부분만 바꿀 수 있습니다.").font(.caption).foregroundStyle(.secondary)
             if let error { Text(error).foregroundStyle(.red).font(.caption) }
             HStack {
                 Spacer()

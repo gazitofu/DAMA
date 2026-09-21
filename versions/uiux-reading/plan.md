@@ -3,7 +3,7 @@ unit: uiux-reading
 branch: work/m0-fixture-review
 status: built
 decisions_resolved: true
-resume: "T-10 built: Speech당 Scripts 대표 1건 표시, 다른 결과 보기 유지, GPT-5.6 Luna medium 명시 고정. 계약30/Swift201/Debug, 설치0.5.7(25), 실화면 확인 완료. 실제 AI/음성 호출과 한국어 품질 비교는 미실행."
+resume: "T-11 built: 화자 이름 범위를 원 화자 ID 기준으로 고정, 화자 모달에 원 라벨 표시. 20260918_에너벤터식사 화자 지정 롤백 완료. 계약30/Swift202/Debug, 설치0.5.8(26). 실기기 화면 캡처는 화면 기록 권한 부재로 미측정."
 spec: notes/uiux-reading/uiux-reading.src.html
 ---
 
@@ -128,6 +128,19 @@ spec: notes/uiux-reading/uiux-reading.src.html
 - 최종 독립 scratch 전체검사 계약30/Swift170/Debug PASS, SKIP0: .build/check-logs/uiux-reading-final-clean/run-20260912T145840Z-iMQdTm. 최초 회귀와 재사용 scratch SIGBUS는 QA 기록에 보존.
 - 앱0.5.0(18) About 창 실측, 기존 운영 입력·완료 Run·Scripts 열림 확인. 실제 원본14파일 unchanged14/changed0/missing0. 기존 linker-signed 전달 방식 유지, main merge/push 없음.
 - 검증 중 닫기 의도와 달리 합성 무음30초가 외부 처리된 사건을 사용자에게 알림. QA 전용 모델 실행 차단 및 네트워크 권한 제거 후 AI 차단 확인. 비용 미확인; 성능 성과로 산입하지 않음.
+
+## T-11 화자 이름 범위 · 화자 지정 롤백 (2026-09-21 사용자 요청)
+
+- 사용자 요청 ①: `20260918_에너벤터식사`의 화자 지정을 롤백. ②: Speaker A·B를 같은 이름으로 지정한 뒤 Speaker B만 다른 이름으로 바꾸면 Speaker B 문단만 바뀌도록 규칙 변경.
+- 결함: `speakerTargets(_:scope:)`가 앵커 Turn에 `turnSpeakerIDs`가 있으면 **같은 등록 인물** 전체를 대상으로 잡았다. 이름이 같아진 다른 원 화자까지 함께 바뀌었다. 계약 §화자 범위를 원 speakerId 기준으로 개정하고 구현을 맞췄다.
+- 구현: `speakerTargets`는 `.from`/`.all`에서 항상 원 `speakerId`가 같은 Turn만 대상으로 한다. `LibraryScript.originalSpeakerLabel(for:)` 추가 (원 라벨 계산을 `providerLabel(for:)`로 공유). 화자 모달에 `원 화자 Speaker B · 현재 이름 N` 캡션과 새 안내 문구. 등록 인물 재사용(같은 이름 → 같은 등록ID·색)은 유지.
+- 롤백: 앱 정상 종료 후 활성 파일 `7F31839A-…dama.json`을 생성 직후 불변 리비전 `23082BB9-…`(11:19:34)의 바이트로 복원. 사전 대조에서 `transcript`·`input`·제목·`createdAt` 동일, 차이는 `turnNames`/`turnSpeakerIDs`/`registeredSpeakers`뿐임을 확인했다. 복원 후 turnNames 0·turnSpeakerIDs nil·registeredSpeakers nil, turns 2,074·words 53,368·원 화자 4명 그대로. 직전 상태는 리비전 `A3EACE1C-…`와 `.build/backups/script-7F31839A-speakers-0.5.7-before-rollback.dama.json`(해시 일치)에 보존.
+- 검증: `scripts/check.sh` 계약30/Swift계약/swift test 202/xcodebuild Debug 전부 PASS, SKIP 0 (`.build/check-logs/run-20260921T025440Z-38SOPD`, `uiux-reading-t11-check2.log`). 신규 `testRenamingOneOriginalSpeakerLeavesOtherOriginalSpeakerWithSameName`, 개정 `testScopeFollowsOriginalSpeakerNotRegisteredPerson`.
+- 실데이터 검증(`uiux-reading-t11-realdata.log`, 읽기 전용): 롤백 파일 1,160문단이 Speaker A~D로만 표시. Speaker A 전체 지정 14문단 → Speaker B도 같은 이름 지정 583문단(등록 인물 1명) → Speaker B만 다른 이름으로 전체 변경 시 정연서 대표 14·윤현섭 이사 569. 원 speakerId 배열과 원문 fingerprint 불변. 파일 미수정(해시 그대로).
+- 부수 수정: Xcode 27 / Swift 6.4 업그레이드로 `FileSessionRepository.validRevisionCandidates`의 지역 재귀 클로저가 region isolation 오류가 됐다. HEAD worktree에서도 동일 실패를 확인해 기존 결함으로 판정하고, 체인 검사를 명시적 상태를 받는 메서드로 분리했다. 동작 변경 없음.
+- 전달: Debug 0.5.8(26)을 `/Applications/DAMA.app`에 ditto 설치. 설치본·빌드본 실행 파일 SHA256 일치, adhoc/linker-signed 유지. 이전 0.5.7(25)은 `.build/backups/DAMA-0.5.7-25-before-speaker-scope.app`. 실행 확인(PID 99189).
+- 미측정: 실제 앱 화면 캡처·모달 문구 실화면 확인은 화면 기록 권한이 없어 못 했다. 사용자 조작 여정(모달 열기→범위 선택→저장)도 실기기 미측정. Codex 위임은 사용량 한도로 실패해 메인이 직접 구현했다.
+- main merge·원격 push·출시 승인 없음. 로컬 전달만 수행했다.
 
 ## Follow-ups
 

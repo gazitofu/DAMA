@@ -749,29 +749,45 @@ public actor FileSessionRepository: TranscriptRepository {
             }
         }
 
+        // Swift 6.4 region isolation rejects a local recursive closure that captures both the
+        // candidate map and this actor. The chain walk moves to a method with explicit state.
         var validity: [String: Bool] = [:]
         var visiting = Set<String>()
-        func isChainValid(_ id: String) -> Bool {
-            if let cached = validity[id] { return cached }
-            guard let candidate = decoded[id], visiting.insert(id).inserted else {
-                validity[id] = false
-                return false
+        var result: [String: RevisionCandidate] = [:]
+        for (id, candidate) in decoded {
+            if isChainValid(id, sessionId: sessionId, decoded: decoded, validity: &validity, visiting: &visiting) {
+                result[id] = candidate
             }
-            defer { visiting.remove(id) }
-            let document = candidate.document
-            let valid: Bool
-            if let base = document.revision.baseRevisionId {
-                valid = decoded[base]?.document.runId == document.runId && isChainValid(base)
-            } else {
-                valid = (try? modelDocument(
-                    sessionId: sessionId,
-                    runId: document.runId
-                ).revision.id) == document.revision.id
-            }
-            validity[id] = valid
-            return valid
         }
-        return decoded.filter { isChainValid($0.key) }
+        return result
+    }
+
+    private func isChainValid(
+        _ id: String,
+        sessionId: String,
+        decoded: [String: RevisionCandidate],
+        validity: inout [String: Bool],
+        visiting: inout Set<String>
+    ) -> Bool {
+        if let cached = validity[id] { return cached }
+        guard let candidate = decoded[id], visiting.insert(id).inserted else {
+            validity[id] = false
+            return false
+        }
+        defer { visiting.remove(id) }
+        let document = candidate.document
+        let valid: Bool
+        if let base = document.revision.baseRevisionId {
+            valid = decoded[base]?.document.runId == document.runId
+                && isChainValid(base, sessionId: sessionId, decoded: decoded, validity: &validity, visiting: &visiting)
+        } else {
+            valid = (try? modelDocument(
+                sessionId: sessionId,
+                runId: document.runId
+            ).revision.id) == document.revision.id
+        }
+        validity[id] = valid
+        return valid
     }
 
     private func pointerState(sessionId: String) throws -> PointerState {

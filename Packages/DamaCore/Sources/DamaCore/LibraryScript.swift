@@ -135,11 +135,19 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
            speaker.displayName != speaker.providerId, !speaker.displayName.hasPrefix("화자 ") {
             return speaker.displayName
         }
+        return providerLabel(for: id) ?? "화자 미확정"
+    }
+    /// 전사가 분리한 원 화자의 표시 라벨("Speaker A"). 사람 지정·AI 이름과 무관하게 항상 같은 값이다.
+    public func originalSpeakerLabel(for turnID: String) -> String? {
+        guard let id = transcript.turns.first(where: { $0.id == turnID })?.speakerId else { return nil }
+        return providerLabel(for: id)
+    }
+    private func providerLabel(for speakerID: String) -> String? {
         var speakers: [String] = []
         for t in transcript.turns {
             if let s = t.speakerId, !speakers.contains(s) { speakers.append(s) }
         }
-        guard let i = speakers.firstIndex(of: id) else { return "화자 미확정" }
+        guard let i = speakers.firstIndex(of: speakerID) else { return nil }
         return "Speaker \(Self.letters(i))"
     }
     private static func letters(_ index: Int) -> String {
