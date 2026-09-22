@@ -1,10 +1,10 @@
 ---
 unit: soniox-p2-alignment
 branch: work/m0-fixture-review
-status: built
+status: building
 decisions_resolved: true
-resume: ""
-spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·02·04 및 notes/uiux-reading/speaker-context-diagnosis.md"
+resume: "T-07 착수: 09-22 진단 결과로 사용자가 어절 원자성 개선을 승인(2026-09-22). 비교 정책 soniox-p2-word-v5 추가 → 비교 Script 생성 → 사용자 판정. 운영 기본값 word-v4는 D-02대로 유지. T-01~06 AC 및 타 트랙 보류 유지."
+spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인 + 2026-09-22 어절 원자성 개선 승인, ssot/design/00·02·04 및 notes/uiux-reading/speaker-context-diagnosis.md"
 ---
 
 ## 근거
@@ -17,6 +17,42 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인, ssot/design/00·
 - 사전검사 PASS: `.build/check-logs/soniox-p2-alignment-baseline/run-20260912T160116Z-OI0Nzz`, 계약30/Swift170/Debug/SKIP0. 새 독립 scratch 동명.
 
 ## 의도
+
+### T-07 · 2026-09-22 어절 원자성 비교 정책
+
+- 입력: 사용자 "지금 9/22 녹취록의 퀄리티를 개선할 방법이 없는지 봐봐" → 진단 보고 → "가장 큰 개선 진행하자". 새 화면·재승인 없음. 이 유닛만 built→building→built로 갱신하고 이전 AC는 유지한다.
+- 실측 HEAD `4ae706b`, branch 일치, 설치 0.5.9(27). 사전검사 `.build/check-logs/word-v5-baseline/run-20260922T073822Z-nKVt5O` 계약30 / Swift205 / Debug PASS, SKIP 0. 타 소유 dirty 8 + untracked `ssot/api/nari-verified.md` 보존.
+- 진단 근거: 현행 `soniox-p2-word-v4`가 09-22에서 한 어절을 두 화자로 42건 갈라 놓았다. 전부 `해야지` `거예요` `차액이` `1600억` 같은 단일 어절이고 두 단어가 붙은 사례는 0건이다. 한 어절을 두 사람이 나눠 말할 수 없으므로 42건 모두 최소 한쪽이 확정적으로 틀렸고 동시에 헛된 발화 구분 42개를 만든다.
+- 변경: 비교 정책 `soniox-p2-word-v5`를 추가한다. v4의 문장부호·꼬리 보완을 그대로 켜고, `sharePhraseTailEvidence` 뒤 `attachClosingPunctuation` 앞에 어절 원자성 패스를 넣는다. **v4가 어절 안에서 화자를 갈라 둔 어절에만** 적용하고, 어절 전체 구간의 exclusive coverage 최대 화자로 통일한다. 동률·후보 없음은 그대로 둔다. 공백 경계를 넘지 않으므로 짧은 B 발화 어절은 보존된다(INV-06).
+- 운영 기본값은 바꾸지 않는다. `normalize`는 `.wordRepair`, `ManagedRun.combinationAlgorithmVersion`은 `soniox-p2-word-v4` 유지. 승격은 사용자 판정 후 별도 태스크다(D-02).
+- 시간·수치: 새 변환·오프셋·임계값을 만들지 않는다. `P2TimeEvidence.token`의 기존 반열린 구간·동률 규칙을 그대로 쓴다. 500,000µs 꼬리 한도 변경 없음.
+- 위임: 발주문 `notes/soniox-p2-alignment/codex/t07-word-atomicity.md`, 수탁 Codex CLI. 분할·diff 리뷰·테스트 실행·통합·판정은 메인.
+- [x] AC-17 `soniox-p2-word-v5`가 v4의 문장부호/꼬리/`acoustic` 판정을 동일하게 켠다. 이미 단일 화자이거나 전부 null인 어절은 v4와 바이트 동일. 동률 어절은 v4와 동일하며 전체 null로 만들지 않는다. 공백 경계를 넘지 않는다.
+- [x] AC-18 Soniox 원문·prefix·ordinal·token kind·원시간·ASR confidence·언어·`asrSpeakerLabel` 보존. `overlap`/`boundary` 파생 이슈는 `direct()` 계산값 유지. 기존 v2/v3/v4 결과·기본값·golden 불변. INV-01·02·06·08·09.
+- [x] AC-19 실제 저장 응답으로 09-22·09-21 비교본을 생성하고 v4 대비 문단·미배정·단어중간절단을 실측한다. 새 음성/API/AI 호출 0. 미배정·문단 수는 정확도 실측이 아니다.
+- [ ] AC-20 계약·Swift 전수·Debug PASS, 역뮤테이션으로 새 검사의 실패 확인. 사용자 Scripts 기존 파일 해시 불변, 새 비교 파일만 추가.
+- QA 경계: 정책 계산 → 비교본 생성 → 앱에서 v4/v5 대조 한 묶음. 운영 승격·AI 구조 변경·Qwen 학습·타 트랙은 보류.
+
+#### T-07 검증·전달 결과
+
+- 구현은 발주문대로 Codex CLI 수탁(`task-mucd8c4p-h16dym`). `SonioxPrecisionReconciler`에 `.wordAtomic = "soniox-p2-word-v5"`와 `repairsWords` 계산 속성, `resolveWordAtomicity` 추가. v4의 세 분기(문장부호 Choice, 꼬리 공유, `acoustic`)를 `repairsWords`로 v5에도 연결. `normalize`의 `.wordRepair`, ManagedProcessor, `combinationAlgorithmVersion`, reconcile 가드, `policy != .timeline` 두 분기는 불변.
+- 수탁 테스트는 샌드박스에서 실행 불가(`swift test` manifest 컴파일 단계 쓰기 차단)로 미실행 기록. 메인이 밖에서 전수 실행했고 `XCTAssertEqual(try a, b)`의 `try` 누락 5건 컴파일 오류를 메인이 수정했다. 실패 로그 `.build/check-logs/word-v5-impl/run-20260922T074613Z-Gfzlmk`.
+- 사전검사 `.build/check-logs/word-v5-baseline/run-20260922T073822Z-nKVt5O` 계약30/Swift205/Debug/SKIP0. 최종 `.build/check-logs/word-v5-impl2/run-20260922T074701Z-XoPiYn` **계약30/Swift212/Debug/SKIP0 PASS**, 실패 0. 신규 7건 전부 통과.
+- 역뮤테이션 2종: 분할 어절 한정 가드(`Set(...).count > 1`) 제거 시 `testWordAtomicLeavesUnanimousWordAlone` 등 3단정 FAIL, 원자성 패스 비활성 시 8단정 FAIL. 각각 복원 후 대상 19건 PASS, 원본 파일 SHA256 `89a1a477…` 바이트 복원 확인.
+- `scripts/CompareSonioxPrecision.swift` 갱신(메인): 원본 Script가 이미 정책 결과(word-v4)면 같은 raw로 v2 기반본을 다시 만들고 기록된 정책을 재적용해 현재 파일과 `NormalizedTranscriptCodec` 바이트 동일한지 확인한 뒤 그 기반본을 비교 입력으로 쓴다. `.wordAtomic` 라벨 "비교 C · 어절 원자성" 추가. 이 동일성 확인이 통과했다는 것은 현재 09-22·09-21 결과가 저장 응답만으로 재현된다는 뜻이다.
+- 실제 저장 응답으로 생성(새 음성/API/AI 호출 0, transport 미사용). 09-22 `.build/diagnostics/word-v5/0922-v5/227D4B49-AC4D-4924-BF89-64FE0FC2682F.dama.json`(base Run `6F7A3B89`), 09-21 `.build/diagnostics/word-v5/0921-v5/6E757EE7-26D3-4CD1-BCB9-3396C3A42B6E.dama.json`(base Run `3E66BE55`). 각 manifest에 입력 8개 해시·원본 snapshot·normalized·Markdown 보존.
+
+| | 문단 | 미배정 문단 | 미배정 토큰 | 단어중간절단 | 어절 안 화자 분할 | 어절/문단 |
+|---|---|---|---|---|---|---|
+| 09-22 v4 | 193 | 12 | 66 | 61 | 42 | 26.0 |
+| 09-22 v5 | 172 | 9 | 61 | 19 | **0** | 29.2 |
+| 09-21 v4 | 323 | 39 | 130 | 73 | 31 | 20.2 |
+| 09-21 v5 | 312 | 35 | 123 | 43 | **0** | 20.9 |
+
+- 토큰 5,851/7,605 보존. `id·ordinal·text·prefix·startUs·endUs·tokenKind·asrConfidence·language·asrSpeakerLabel·editedText·timingOrigin` 불일치 0, `diarization`/`exclusiveDiarization` 개수 동일. 바뀐 필드는 `speakerId·modelSpeakerId·assignmentSource·alignmentScore·sourceIntervalIds·reviewIssueIds`뿐이고 `overlap`은 보존됐다. providerId 기준 화자가 바뀐 어절은 09-22 54개(null→화자 3, 화자→null 0, A→B 51), 09-21 38개(null→화자 4, 화자→null 0, A→B 34).
+- 예시(09-22): `아, 당연히 해야` / `지. 인수는—` → `아, 당연히 해야지.` / `인수는— 인수는 벌써 했잖아.` · `회사 입` / `장에서.` → `회사` / `입장에서.` · `그러니` / `까 이건 우리 아이디` / `어` / `지.` → `그러니까` / `이건 우리 아이디어지. …` · `환하면` → `상환하면`.
+- 문단·미배정 수는 정확도 실측이 아니다. E1/E2와 실제 화자 정답은 사용자의 원음 대조로만 판정한다. 운영 기본값은 v4 그대로이며 앱 바이너리·버전 변경 없음(0.5.9(27) 유지). 앱은 `algorithmVersion`을 Markdown 표시 외에 분기에 쓰지 않아 설치본이 v5 Script를 그대로 읽는다.
+- 사용자 `~/DAMA/Scripts` 17개 파일 무변경(16:40 이후 수정 0건). **비교본 배치는 외부 폴더 쓰기이므로 사용자 승인 대기 중이다.**
 
 ### T-06 · 2026-09-13 승인된 B2의 새 전사 기본 연결
 

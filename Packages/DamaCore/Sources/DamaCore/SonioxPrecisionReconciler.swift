@@ -5,6 +5,12 @@ public enum SonioxPrecisionComparison: String, CaseIterable, Sendable {
     case timeline = "soniox-p2-timeline-v3"
     case word = "soniox-p2-word-v3"
     case wordRepair = "soniox-p2-word-v4"
+    case wordAtomic = "soniox-p2-word-v5"
+}
+
+extension SonioxPrecisionComparison {
+    /// v4부터의 어절/문장부호 보완을 쓰는 정책.
+    var repairsWords: Bool { self == .wordRepair || self == .wordAtomic }
 }
 
 public enum SonioxPrecisionReconciler {
@@ -52,7 +58,7 @@ public enum SonioxPrecisionReconciler {
             sourceRunId: runID, humanEdited: false, savedAt: createdAt)
 
         var choices = doc.words.map {
-            policy == .wordRepair && $0.tokenKind == .punctuation
+            policy.repairsWords && $0.tokenKind == .punctuation
                 ? Choice(sourceIDs: [], overlap: false, boundary: false)
                 : direct($0, regular: doc.diarization, exclusive: doc.exclusiveDiarization)
         }
@@ -62,9 +68,15 @@ public enum SonioxPrecisionReconciler {
                     regular: doc.diarization, exclusive: doc.exclusiveDiarization)
             }
         }
-        if policy == .wordRepair {
+        if policy.repairsWords {
             sharePhraseTailEvidence(words: doc.words, choices: &choices,
                 regular: doc.diarization, exclusive: doc.exclusiveDiarization)
+        }
+        if policy == .wordAtomic {
+            for group in orthographicGroups(doc.words) {
+                resolveWordAtomicity(group, words: doc.words, choices: &choices,
+                    regular: doc.diarization, exclusive: doc.exclusiveDiarization)
+            }
         }
         attachClosingPunctuation(words: doc.words, choices: &choices)
 
@@ -81,7 +93,7 @@ public enum SonioxPrecisionReconciler {
             w.assignmentSource = choice.speaker == nil ? .unknown : .reconciled
             w.alignmentScore = choice.coverage; w.sourceIntervalIds = choice.sourceIDs
             w.overlap = choice.overlap; w.reviewIssueIds = []
-            let acoustic = policy != .wordRepair || w.tokenKind == .lexical
+            let acoustic = !policy.repairsWords || w.tokenKind == .lexical
             if acoustic && (w.startUs == nil || w.endUs == nil || w.startUs == w.endUs) {
                 w.reviewIssueIds.append(flag(.invalid_timestamp, w.startUs, w.endUs, [w.id], choice.sourceIDs))
             }
@@ -190,6 +202,26 @@ public enum SonioxPrecisionReconciler {
             choices[i].speaker = best.speakerID
             choices[i].sourceIDs = Array(Set(choices[i].sourceIDs + evidence.sourceIDs)).sorted()
             choices[i].coverage = nil // Word-level support is not this token's coverage.
+        }
+    }
+
+    /// 한 어절을 두 사람이 나눠 말할 수는 없다. v4가 어절 안에서 화자를 갈라 둔 경우에만,
+    /// 어절 전체 구간의 exclusive coverage 최대 화자로 통일한다. 동률이면 그대로 둔다.
+    private static func resolveWordAtomicity(_ group: [Int], words: [TranscriptWord], choices: inout [Choice],
+                                             regular: [DiarizationInterval], exclusive: [DiarizationInterval]) {
+        let lexical = group.filter { words[$0].tokenKind == .lexical }
+        guard lexical.count > 1,
+              Set(lexical.map { choices[$0].speaker }).count > 1,
+              lexical.allSatisfy({ words[$0].startUs != nil && words[$0].endUs != nil }),
+              let start = lexical.compactMap({ words[$0].startUs }).min(),
+              let end = lexical.compactMap({ words[$0].endUs }).max(), start < end else { return }
+        let evidence = P2TimeEvidence.token(startUs: start, endUs: end, regular: regular, exclusive: exclusive)
+        guard let best = evidence.best,
+              !(evidence.scores.count > 1 && evidence.scores[1].coverage == best.coverage) else { return }
+        for i in lexical {
+            choices[i].speaker = best.speakerID
+            choices[i].sourceIDs = Array(Set(choices[i].sourceIDs + evidence.sourceIDs)).sorted()
+            choices[i].coverage = nil // 어절 단위 근거는 이 토큰의 coverage가 아니다.
         }
     }
 

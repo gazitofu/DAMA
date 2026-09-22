@@ -34,6 +34,113 @@ final class SonioxPrecisionReconcilerTests: XCTestCase {
             dateSource: "synthetic", input: ConversionNotes())
     }
 
+    // Use the same comparison run ID so byte comparisons isolate policy changes.
+    private func atomicPair(_ raw: TranscriptDocument) throws -> (TranscriptDocument, TranscriptDocument) {
+        let runID = UUID().uuidString
+        return (try SonioxPrecisionReconciler.reconcile(raw, runID: runID, createdAt: date, policy: .wordRepair),
+                try SonioxPrecisionReconciler.reconcile(raw, runID: runID, createdAt: date, policy: .wordAtomic))
+    }
+
+    private func wordBytes(_ words: [TranscriptWord]) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return try encoder.encode(words)
+    }
+
+    private func splitAtomicSource() throws -> TranscriptDocument {
+        try source([token("해", 0, 400), token("야", 400, 800), token("지", 800, 1000),
+                    token(".", 1100, 1100)],
+                   [interval("A", 0, 0.8), interval("B", 0.8, 1.2)])
+    }
+
+    func testWordAtomicUnifiesSplitOrthographicWord() throws {
+        let (v4, v5) = try atomicPair(splitAtomicSource())
+        XCTAssertEqual(labels(v4), ["A", "A", "B", "B"])
+        XCTAssertEqual(labels(v5), ["A", "A", "A", "A"])
+        XCTAssertTrue(v5.words.allSatisfy { $0.alignmentScore == nil })
+        for word in v5.words {
+            XCTAssertEqual(word.sourceIntervalIds, ["d0", "d1", "e0", "e1"])
+        }
+        XCTAssertTrue(v5.words[3].reviewIssueIds.isEmpty)
+    }
+
+    func testWordAtomicKeepsTiedWordUnchanged() throws {
+        let raw = try source([token("차", 0, 500), token("액", 500, 1000)],
+                             [interval("A", 0, 0.5), interval("B", 0.5, 1)])
+        let (v4, v5) = try atomicPair(raw)
+        XCTAssertEqual(labels(v4), ["A", "B"])
+        XCTAssertEqual(try wordBytes(v5.words), try wordBytes(v4.words))
+    }
+
+    func testWordAtomicLeavesUnanimousWordAlone() throws {
+        let tokens = [token("차", 0, 100), token("액", 900, 1000)]
+        // Whole-word B wins, but both direct token choices are A.
+        let unanimous = try source(tokens, [interval("A", 0, 0.1), interval("B", 0.1, 0.9), interval("A", 0.9, 1)])
+        // Each token ties; whole-word A wins because it also covers the gap.
+        let unknown = try source(tokens, [interval("A", 0, 0.05), interval("B", 0.05, 0.1),
+            interval("A", 0.1, 0.95), interval("B", 0.95, 1)])
+        let shared = try source([token("진", 100, 180), token("행", 180, 200)],
+                                [interval("A", 0, 0.18), interval("B", 1, 2)])
+        let tail = try source([token("앞", 100, 200), token(" 뒤", 300, 350), token("쪽", 350, 400)],
+                              [interval("A", 0, 0.2), interval("B", 2, 3)])
+        for (raw, expected) in [(unanimous, ["A", "A"] as [String?]),
+                                (unknown, [nil, nil]), (shared, ["A", "A"]), (tail, ["A", "A", "A"])] {
+            let (v4, v5) = try atomicPair(raw)
+            XCTAssertEqual(labels(v4), expected)
+            XCTAssertEqual(try wordBytes(v5.words), try wordBytes(v4.words))
+        }
+    }
+
+    func testWordAtomicDoesNotCrossWhitespace() throws {
+        let raw = try source([token("첫", 100, 900), token(" 네", 1000, 1200), token(" 다시", 1300, 1900)], aba)
+        let (v4, v5) = try atomicPair(raw)
+        XCTAssertEqual(labels(v5), ["A", "B", "A"])
+        XCTAssertEqual(try wordBytes(v5.words), try wordBytes(v4.words))
+        XCTAssertEqual(v5.turns.filter { $0.kind == .speech }.map(\.wordIds), v5.words.map { [$0.id] })
+    }
+
+    func testWordAtomicPreservesTokensAndTimes() throws {
+        let (v4, v5) = try atomicPair(splitAtomicSource())
+        XCTAssertNotEqual(try wordBytes(v5.words), try wordBytes(v4.words))
+        var restored = v5.words
+        for i in restored.indices {
+            // Restore only the six permitted fields; every other serialized field must match.
+            restored[i].speakerId = v4.words[i].speakerId
+            restored[i].modelSpeakerId = v4.words[i].modelSpeakerId
+            restored[i].assignmentSource = v4.words[i].assignmentSource
+            restored[i].alignmentScore = v4.words[i].alignmentScore
+            restored[i].sourceIntervalIds = v4.words[i].sourceIntervalIds
+            restored[i].reviewIssueIds = v4.words[i].reviewIssueIds
+        }
+        XCTAssertEqual(try wordBytes(restored), try wordBytes(v4.words))
+    }
+
+    func testWordAtomicKeepsOverlapAndBoundaryFlags() throws {
+        let raw = try source([token("해", 0, 400), token("야", 400, 850), token("지", 850, 1000)],
+            [interval("A", 0, 0.8), interval("B", 0.6, 1)],
+            [interval("A", 0, 0.8), interval("B", 0.8, 1)])
+        let (v4, v5) = try atomicPair(raw)
+        XCTAssertEqual(labels(v4), ["A", "A", "B"])
+        XCTAssertEqual(labels(v5), ["A", "A", "A"])
+        XCTAssertEqual(v5.words.map(\.overlap), [false, true, false])
+        for (i, word) in v5.words.enumerated() {
+            let direct = P2TimeEvidence.token(startUs: word.startUs, endUs: word.endUs,
+                regular: v5.diarization, exclusive: v5.exclusiveDiarization)
+            let issues = v5.reviewIssues.filter { word.reviewIssueIds.contains($0.id) }
+            XCTAssertEqual(word.overlap, direct.overlap)
+            XCTAssertEqual(issues.contains { $0.kind == .overlapping_speech }, direct.overlap)
+            XCTAssertEqual(issues.contains { $0.kind == .boundary_conflict }, direct.boundary)
+            XCTAssertEqual(direct.boundary, i == 1)
+        }
+    }
+
+    func testWordAtomicRunPassesValidator() throws {
+        let result = try compare(splitAtomicSource(), .wordAtomic)
+        XCTAssertNoThrow(try TranscriptValidator().validate(result))
+        XCTAssertEqual(result.provenance.algorithmVersion, "soniox-p2-word-v5")
+        _ = try NormalizedTranscriptCodec.decode(NormalizedTranscriptCodec.encode(result))
+    }
+
     func testMaximumIntersectionWinsAndExactTieRemainsUnknown() throws {
         let raw = try source([token("다수", 900, 1200), token(" 동률", 900, 1100)], aba)
         XCTAssertTrue(raw.words.allSatisfy { $0.speakerId == nil }) // Existing default is unchanged.

@@ -43,13 +43,30 @@ import DamaCore
         let sonioxRequest = try read(base.appendingPathComponent("soniox-request.json"))
         let p2Request = try read(base.appendingPathComponent("precision-request.json"))
         let response = try JSONDecoder().decode(SonioxTranscriptDTO.self, from: soniox)
-        let reconstructed = try SonioxPrecisionNormalizer.normalize(soniox: soniox, diarization: p2,
-            sonioxJobID: response.id, sessionID: original.sessionId, runID: original.runId,
-            durationUs: original.durationUs, audioSHA256: original.provenance.sourceAudioSHA256!,
-            model: original.provenance.asrModel, createdAt: original.provenance.createdAt,
-            captureInterrupted: original.reviewIssues.contains { $0.kind == .capture_interrupted })
-        guard try NormalizedTranscriptCodec.encode(reconstructed) == NormalizedTranscriptCodec.encode(original)
-        else { throw LibraryFailure.changedFile }
+        func rebuild(_ runID: String) throws -> TranscriptDocument {
+            try SonioxPrecisionNormalizer.normalize(soniox: soniox, diarization: p2,
+                sonioxJobID: response.id, sessionID: original.sessionId, runID: runID,
+                durationUs: original.durationUs, audioSHA256: original.provenance.sourceAudioSHA256!,
+                model: original.provenance.asrModel, createdAt: original.provenance.createdAt,
+                captureInterrupted: original.reviewIssues.contains { $0.kind == .capture_interrupted })
+        }
+        // 원본이 v2 정규화본이면 그대로, 이미 정책이 적용된 결과이면 같은 raw로 기반본을 다시 만들고
+        // 기록된 정책을 재적용해 현재 파일과 완전히 같은지 확인한 뒤 그 기반본을 비교 입력으로 쓴다.
+        let sourceDocument: TranscriptDocument
+        if original.provenance.algorithmVersion == SonioxPrecisionNormalizer.version {
+            guard try NormalizedTranscriptCodec.encode(rebuild(original.runId)) == NormalizedTranscriptCodec.encode(original)
+            else { throw LibraryFailure.changedFile }
+            sourceDocument = original
+        } else {
+            guard let recorded = SonioxPrecisionComparison(rawValue: original.provenance.algorithmVersion)
+            else { throw LibraryFailure.invalidInput }
+            let rebased = try rebuild(UUID().uuidString)
+            let replay = try SonioxPrecisionReconciler.reconcile(rebased, runID: original.runId,
+                createdAt: original.provenance.createdAt, policy: recorded)
+            guard try NormalizedTranscriptCodec.encode(replay) == NormalizedTranscriptCodec.encode(original)
+            else { throw LibraryFailure.changedFile }
+            sourceDocument = rebased
+        }
 
         func metrics(_ value: LibraryScript) -> [String: Any] {
             let t = value.transcript, blocks = value.blocks().filter(\.isSpeech)
@@ -75,7 +92,7 @@ import DamaCore
         var artifacts: [[String: Any]] = []
         for policy in policies {
             let runID = UUID().uuidString
-            let doc = try SonioxPrecisionReconciler.reconcile(original, runID: runID, createdAt: createdAt, policy: policy)
+            let doc = try SonioxPrecisionReconciler.reconcile(sourceDocument, runID: runID, createdAt: createdAt, policy: policy)
             guard doc.words.count == original.words.count else { throw LibraryFailure.invalidScript }
             for (a,b) in zip(original.words,doc.words) {
                 guard a.id == b.id, a.ordinal == b.ordinal, a.text == b.text, a.prefix == b.prefix,
@@ -84,7 +101,13 @@ import DamaCore
                       a.asrSpeakerLabel == b.asrSpeakerLabel else { throw LibraryFailure.invalidScript }
             }
             var input = script.input; input.aiCorrection = false
-            let label = policy == .wordRepair ? "비교 B2 · 문단 보완" : (policy == .timeline ? "비교 A · P2 시간표" : "비교 B · P2 화자별 원문")
+            let label: String
+            switch policy {
+            case .timeline: label = "비교 A · P2 시간표"
+            case .word: label = "비교 B · P2 화자별 원문"
+            case .wordRepair: label = "비교 B2 · 문단 보완"
+            case .wordAtomic: label = "비교 C · 어절 원자성"
+            }
             let candidate = try LibraryScript(transcript: doc, title: label,
                 recordedAt: script.recordedAt, dateSource: script.dateSource,
                 timeZoneID: script.timeZoneID, input: input, createdAt: now)
