@@ -106,7 +106,7 @@ import DamaCore
             case .timeline: label = "비교 A · P2 시간표"
             case .word: label = "비교 B · P2 화자별 원문"
             case .wordRepair: label = "비교 B2 · 문단 보완"
-            case .wordAtomic: label = "비교 C · 어절 원자성"
+            case .wordAtomic: label = script.title + " · 비교 C(어절 원자성)"
             }
             let candidate = try LibraryScript(transcript: doc, title: label,
                 recordedAt: script.recordedAt, dateSource: script.dateSource,

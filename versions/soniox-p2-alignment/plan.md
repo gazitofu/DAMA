@@ -1,9 +1,9 @@
 ---
 unit: soniox-p2-alignment
 branch: work/m0-fixture-review
-status: building
+status: built
 decisions_resolved: true
-resume: "T-07 착수: 09-22 진단 결과로 사용자가 어절 원자성 개선을 승인(2026-09-22). 비교 정책 soniox-p2-word-v5 추가 → 비교 Script 생성 → 사용자 판정. 운영 기본값 word-v4는 D-02대로 유지. T-01~06 AC 및 타 트랙 보류 유지."
+resume: "T-07 built: soniox-p2-word-v5 비교 정책 추가, 계약30/Swift212/Debug PASS·역뮤테이션 2종 검출. 09-22·09-21 비교본을 사용자 Scripts에 배치 완료(대표 행이 v5). 다음은 사용자의 원음 대조 판정이며, 승격 시 ManagedProcessor 기본값 연결이 별도 태스크다. 운영 기본값 word-v4 유지, 타 트랙 보류 유지."
 spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인 + 2026-09-22 어절 원자성 개선 승인, ssot/design/00·02·04 및 notes/uiux-reading/speaker-context-diagnosis.md"
 ---
 
@@ -30,7 +30,7 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인 + 2026-09-22 어�
 - [x] AC-17 `soniox-p2-word-v5`가 v4의 문장부호/꼬리/`acoustic` 판정을 동일하게 켠다. 이미 단일 화자이거나 전부 null인 어절은 v4와 바이트 동일. 동률 어절은 v4와 동일하며 전체 null로 만들지 않는다. 공백 경계를 넘지 않는다.
 - [x] AC-18 Soniox 원문·prefix·ordinal·token kind·원시간·ASR confidence·언어·`asrSpeakerLabel` 보존. `overlap`/`boundary` 파생 이슈는 `direct()` 계산값 유지. 기존 v2/v3/v4 결과·기본값·golden 불변. INV-01·02·06·08·09.
 - [x] AC-19 실제 저장 응답으로 09-22·09-21 비교본을 생성하고 v4 대비 문단·미배정·단어중간절단을 실측한다. 새 음성/API/AI 호출 0. 미배정·문단 수는 정확도 실측이 아니다.
-- [ ] AC-20 계약·Swift 전수·Debug PASS, 역뮤테이션으로 새 검사의 실패 확인. 사용자 Scripts 기존 파일 해시 불변, 새 비교 파일만 추가.
+- [x] AC-20 계약·Swift 전수·Debug PASS, 역뮤테이션으로 새 검사의 실패 확인. 사용자 Scripts 기존 파일 해시 불변, 새 비교 파일만 추가.
 - QA 경계: 정책 계산 → 비교본 생성 → 앱에서 v4/v5 대조 한 묶음. 운영 승격·AI 구조 변경·Qwen 학습·타 트랙은 보류.
 
 #### T-07 검증·전달 결과
@@ -52,7 +52,8 @@ spec: "사용자 2026-09-13 규칙 완화/결과 비교 승인 + 2026-09-22 어�
 - 토큰 5,851/7,605 보존. `id·ordinal·text·prefix·startUs·endUs·tokenKind·asrConfidence·language·asrSpeakerLabel·editedText·timingOrigin` 불일치 0, `diarization`/`exclusiveDiarization` 개수 동일. 바뀐 필드는 `speakerId·modelSpeakerId·assignmentSource·alignmentScore·sourceIntervalIds·reviewIssueIds`뿐이고 `overlap`은 보존됐다. providerId 기준 화자가 바뀐 어절은 09-22 54개(null→화자 3, 화자→null 0, A→B 51), 09-21 38개(null→화자 4, 화자→null 0, A→B 34).
 - 예시(09-22): `아, 당연히 해야` / `지. 인수는—` → `아, 당연히 해야지.` / `인수는— 인수는 벌써 했잖아.` · `회사 입` / `장에서.` → `회사` / `입장에서.` · `그러니` / `까 이건 우리 아이디` / `어` / `지.` → `그러니까` / `이건 우리 아이디어지. …` · `환하면` → `상환하면`.
 - 문단·미배정 수는 정확도 실측이 아니다. E1/E2와 실제 화자 정답은 사용자의 원음 대조로만 판정한다. 운영 기본값은 v4 그대로이며 앱 바이너리·버전 변경 없음(0.5.9(27) 유지). 앱은 `algorithmVersion`을 Markdown 표시 외에 분기에 쓰지 않아 설치본이 v5 Script를 그대로 읽는다.
-- 사용자 `~/DAMA/Scripts` 17개 파일 무변경(16:40 이후 수정 0건). **비교본 배치는 외부 폴더 쓰기이므로 사용자 승인 대기 중이다.**
+- 2026-09-22 사용자 "둘다 하자" 승인으로 비교본 2개를 `~/DAMA/Scripts`에 배치했다. 목록 구분을 위해 생성기 라벨을 `원본제목 · 비교 C(어절 원자성)`로 바꿔 재컴파일·재생성했고 수치는 동일하다. 배타적 생성(`open(...,'xb')`)으로 09-22 `CE077131-034C-4832-9A81-68DCE7570AD4`, 09-21 `57C3F857-04E7-4625-9AD0-E95DAAEA9B7D`만 추가. 사전/사후 해시는 `.build/diagnostics/word-v5/placement-before.json`·`placement-result.json`.
+- 배치 후 기존 17개 SHA256 불변, 추가 2개만 준비본과 해시 일치, 폴더 전체에 중복 Script id·runId 없음. `ScriptResultPresentation`이 hybrid 중 createdAt 최신을 대표로 고르므로 두 녹음의 라이브러리 대표 행이 v5가 되고 기존 v4·Soniox는 ‘다른 결과 보기’에 남는다. 새 파일을 삭제하면 v4가 다시 대표가 된다.
 
 ### T-06 · 2026-09-13 승인된 B2의 새 전사 기본 연결
 
