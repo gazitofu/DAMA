@@ -65,4 +65,4 @@
 
 ## 위임
 
-기계적 구현은 Opus 서브에이전트(Agent `model: opus`)에 위임한다. 분할·diff 리뷰·통합·판단은 메인 세션이 직접 한다. 발주문은 파일로 남기고 인라인 반환은 인정하지 않는다. 키체인·서명 의존 명령은 메인이 샌드박스 밖에서 한다 (rule-apple-toolchain-sandbox).
+기계적 구현은 Opus 서브에이전트(Agent `model: opus`)에 위임한다(메인이 Opus면 직접 구현). 분할·diff 리뷰·통합·판단은 메인 세션이 직접 한다. 발주문은 파일로 남기고 인라인 반환은 인정하지 않는다. 키체인·서명 의존 명령은 메인이 샌드박스 밖에서 한다 (rule-apple-toolchain-sandbox).
