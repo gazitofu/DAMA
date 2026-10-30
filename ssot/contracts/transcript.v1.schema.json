@@ -437,7 +437,8 @@
             "managedSoniox",
             "hybridPyannoteWhisperKit",
             "hybridPyannoteQwen",
-            "hybridSonioxPyannote"
+            "hybridSonioxPyannote",
+            "hybridSonioxNemotron"
           ]
         },
         "diarizationModel": {

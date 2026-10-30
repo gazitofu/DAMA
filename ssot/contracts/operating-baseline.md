@@ -6,13 +6,24 @@
 
 | 경로 | 역할 | 실행 |
 |---|---|---|
-| Soniox 전사 + Precision-2 | 당분간 운영 기본 | 새 녹음별 확인 후 두 공급자 각각 1회 또는 동일 조건의 결과 재사용 |
+| Soniox 전사 + Nemotron 3 (이 Mac) | 운영 기본 (2026-10-30~) | 새 녹음별 확인 후 Soniox 1회 + 로컬 화자 분리, 또는 동일 조건의 결과 재사용. 정책은 아래 «Nemotron 3 운영 경로» |
+| Soniox 전사 + Precision-2 | 2026-10-30 운영 종료 | 새 요청 없음. 완료 결과·스크립트 보존·열람, 저장 응답으로 하는 로컬 `reconcile`만 유지 |
 | Soniox 자체 화자 결과 | 결합의 추가 가치를 판단하는 비교본 | 위 Soniox Run을 그대로 보존; 비교용 추가 전사 없음 |
-| Qwen3-ASR + ForcedAligner + 동일 Precision-2 | 선별 실험 | 사용자 선택 시만 실행, AI 교정 OFF; 운영에 자동 개입 없음 |
-| pyannote 통합 전사 | 업데이트·정기 재평가용 | 고정 표본에서 별도 선택. 기존 STT 품질이 개선됐다고 추정하지 않음 |
+| Qwen3-ASR + ForcedAligner + 동일 Precision-2 | 2026-10-30 선택 목록 제외 | 새 요청 없음. 기존 결과 보존·열람 |
+| pyannote 통합 전사 | 2026-10-30 선택 목록 제외 | 새 요청 없음. 기존 결과 보존·열람 |
 | TIRO·클로바노트 | 외부 기준 | 같은 원음으로 별도 실험 승인/실행. 현재 미수행 |
 
-새 선택의 기본값은 `sonioxPrecision`. 이전 사용자의 엔진 선택은 새 운영 선택 저장 키와 분리해 1회 초기화하며 이후 선택은 유지한다. 구 Run의 미기록 공급자는 pyannote로 해석한다. Qwen 설정·체크포인트·완료 비교 결과는 보존한다. 중단된 Qwen은 새 운영 전사를 막지 않지만 실행 중 작업은 동시에 시작하지 않는다. 운영·Qwen 경로의 자동 AI 교정은 OFF다.
+### Nemotron 3 운영 경로 (2026-10-30 사용자 확정)
+
+정본 스펙은 `notes/nemotron-diarization/nemotron-diarization.src.html`, 상태는 `versions/nemotron-diarization/plan.md`.
+
+- 결합 parent `sonioxNemotron` = Soniox 자식(기존 규칙) + `nemotron` 자식(이 Mac, 음성 전송 없음). 분석 WAV 전체를 FluidAudio 0.18.0 `offline` 프리셋 `processComplete` 1회로 처리한다. 원본 `nemotron-probabilities.f32`(LE Float32, 프레임×8, 10 ms)와 `nemotron-meta.json`을 보존한다. 재사용 키는 session·분석 WAV SHA256·모델 파일 SHA256 목록·FluidAudio 버전·프리셋.
+- 구간 `nemotron-intervals-v1`: 확률 > 0.5(공급자 기본값, 한국어 실측 전 초기 설계값) 프레임이 같은 채널로 이어진 최대 구간이 일반 구간, 활성 채널이 정확히 하나인 프레임의 최대 구간이 단독 구간(앱 파생, 공급자 exclusive 아님). 최소 길이·패딩·틈 메우기 없음. confidence는 null. 채널 ID는 Run 안에서만 유효하다.
+- 배정은 위 구간에 B2(`soniox-p2-word-v4`) 규칙을 그대로 적용하며 버전은 `soniox-nemotron-word-v1`, engine `hybridSonioxNemotron`.
+- 화자 수는 Nemotron에 지정하지 않는다(FluidAudio `numSpeakers`는 채널 절단이라 사용 금지). Soniox 힌트 규칙은 그대로. 녹음 우선 규칙은 Qwen과 같다. 모델은 사용자가 «모델 받기»로 한 번 받고 고정 SHA256 목록과 맞을 때만 쓴다.
+- P2 자식이 미완료인 기존 결합 Run과 P2 재사용이 없는 Qwen Run은 재개하지 않는다. 다시 전사는 새 `sonioxNemotron` Run이다.
+
+새 선택의 기본값은 `sonioxNemotron`(2026-10-30). 목록 밖 저장값은 기본값으로 바꾸고 목록 안 선택은 유지한다. 2026-09-11 당시 기본값은 `sonioxPrecision`이었다. 이전 사용자의 엔진 선택은 새 운영 선택 저장 키와 분리해 1회 초기화하며 이후 선택은 유지한다. 구 Run의 미기록 공급자는 pyannote로 해석한다. Qwen 설정·체크포인트·완료 비교 결과는 보존한다. 중단된 Qwen은 새 운영 전사를 막지 않지만 실행 중 작업은 동시에 시작하지 않는다. 운영·Qwen 경로의 자동 AI 교정은 OFF다.
 
 녹음 우선 실행/종료: 녹음 시작은 실행 중인 Qwen 작업에 취소를 요청한 뒤 즉시 진행한다. 녹음 준비·녹음·저장 중 또는 원본 저장이 미확정이면 Qwen 시작/재개를 차단한다. 종료 중에도 새 작업을 시작하지 않는다. 실행 provider는 현재 작업을 시작할 때 고정하며 메뉴 선택이나 이전 Run에서 추정하지 않는다. 앱 종료는 원본 저장과 Qwen 자식 프로세스 종료를 모두 기다리고, 원본 저장에 실패하면 앱을 남긴다. SIGINT에 응답하지 않는 소유 자식은 기존2초 유예 후 종료시키고 실제 종료를 확인한다. 체크포인트·완료 소스는 보존하며 자동 재개/새 API 제출은 하지 않는다. 로컬 취소는 서버 작업·과금 취소가 아니다.
 

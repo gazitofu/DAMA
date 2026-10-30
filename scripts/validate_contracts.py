@@ -272,6 +272,22 @@ class ContractTests(unittest.TestCase):
         jsonschema.Draft202012Validator.check_schema(schema)
         jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker()).validate(self.doc)
 
+    def test_schema_accepts_soniox_nemotron_engine(self):
+        try:
+            import jsonschema
+        except ImportError:
+            self.skipTest("optional jsonschema module not installed")
+        schema = load("ssot/contracts/transcript.v1.schema.json")
+        validator = jsonschema.Draft202012Validator(schema, format_checker=jsonschema.FormatChecker())
+        self.doc["provenance"]["engine"] = "hybridSonioxNemotron"
+        self.doc["provenance"]["diarizationModel"] = "nemotron-3-diarization-coreml-offline"
+        for interval in self.doc["diarization"] + self.doc["exclusiveDiarization"]:
+            interval["confidence"] = None
+        validator.validate(json.loads(json.dumps(self.doc, ensure_ascii=False)))
+        validate_document(self.doc)
+        self.doc["provenance"]["engine"] = "hybridSonioxUnknown"
+        with self.assertRaises(jsonschema.ValidationError): validator.validate(self.doc)
+
     def test_relative_markdown_links_exist(self):
         for path in documentation_paths(ROOT):
             for target in re.findall(r"\]\(([^)]+)\)", path.read_text(encoding="utf-8")):

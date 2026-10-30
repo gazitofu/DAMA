@@ -192,4 +192,4 @@
 
 ## 운영 기본·검수 기록 (2026-09-11 최종안)
 
-[operating-baseline.md](operating-baseline.md)가 현행 운영·실험·승격 계약이다. optional `reviewRecords`는 전후 텍스트/화자 표시·원음/Turn 범위·원음 확인·오류/표본 유형·능동 시간을 담는다. 구 파일의 nil은 미기록이다. `meetingTerms`는 녹음별 Soniox/Qwen 공통 용어. `sonioxSourceRunID`/`precisionSourceRunID`는 결합 source Run이며 기존 Qwen source 필드는 유지한다. normalized v1의 optional asrSpeakerLabel, hybridSonioxPyannote, provider_disagreement 확장은 원본 Soniox 후보를 보존한다.
+[operating-baseline.md](operating-baseline.md)가 현행 운영·실험·승격 계약이다. optional `reviewRecords`는 전후 텍스트/화자 표시·원음/Turn 범위·원음 확인·오류/표본 유형·능동 시간을 담는다. 구 파일의 nil은 미기록이다. `meetingTerms`는 녹음별 Soniox/Qwen 공통 용어. `sonioxSourceRunID`/`precisionSourceRunID`/`nemotronSourceRunID`는 결합 source Run이며 기존 Qwen source 필드는 유지한다. normalized v1의 optional asrSpeakerLabel, hybridSonioxPyannote, hybridSonioxNemotron(2026-10-30), provider_disagreement 확장은 원본 Soniox 후보를 보존한다.

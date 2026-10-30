@@ -24,6 +24,7 @@ extension EngineKind {
         case .hybridPyannoteWhisperKit: "pyannote + WhisperKit"
         case .hybridPyannoteQwen: "로컬 Qwen + Precision-2"
         case .hybridSonioxPyannote: "Soniox + Precision-2"
+        case .hybridSonioxNemotron: "Soniox + Nemotron 3"
         }
     }
 }
