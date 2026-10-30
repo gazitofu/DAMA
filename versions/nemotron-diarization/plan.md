@@ -3,7 +3,7 @@ unit: nemotron-diarization
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "스펙 r2(v2 단독 구간) 구현 중. 남음: v2 구현·테스트·재측정, 설치(승인), AC-09·10·14·15 실화면."
+resume: "v2 구현·0.5.13(31) 빌드 완료. 남음: AC-15 실데이터 재측정(Debug 도구), 설치(승인), AC-09·10·14·15 실화면."
 spec: notes/nemotron-diarization/nemotron-diarization.src.html
 ---
 
@@ -73,6 +73,8 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - 설치(사용자 승인 2026-10-30 «설치 진행»): 실행 중 0.5.11(29) 일반 종료, 백업 `.build/backups/DAMA-0.5.11-29-before-nemotron.app`(실행 파일 SHA256 일치), 기존 번들 휴지통, 0.5.12(30) Debug 설치. 설치 번들은 빌드 산출물과 `diff -rq` 동일, 코드 `DAMA.debug.dylib`는 이전과 다르고 빌드와 동일. 실행 중 PID가 `/Applications/DAMA.app/Contents/MacOS/DAMA.debug.dylib`를 로드, Bundle 0.5.12(30). 내부 저장소에 `Models/` 없음(모델 미다운로드 상태).
 - 설치 앱 실사용(2026-10-30 16:48 KST, 사용자 실행): 앱에서 모델 받기 → 내부 저장소 `Models/nemotron-3-diarization` 6파일 SHA256·크기 고정 목록과 일치(AC-11). BED2C097 «Soniox + Nemotron 3» Run `E33ADFD9` readyForReview, 자식 `F196F231` 확률이 1a `probs.f32`와 바이트 동일(SHA256 `6342b3fb…`), 1.34시간 처리 10.93 s(AC-13; 설치 앱 RSS는 미측정, 하네스 실측 2.37 GB/2.82시간으로 대체 기록).
 - 미배정 진단(사용자 지적 «화자 미배정 많음», `.build/check-logs/nemotron-diarization/unassigned-diagnosis.txt`, 스크립트 `notes/nemotron-diarization/{unassigned,overlap,p2excl}.py`): E33ADFD9 lexical 22,635 중 미배정 1,387(6.13%). 그중 1,275(92%)는 토큰 구간 전체가 두 채널 이상 > 0.5인 프레임(파생 단독 구간에서 빠짐), 71 Nemotron 무음, 39 시간 무효/0길이, 2 동률. 저장된 P2 13개 원응답은 일반 구간 겹침 프레임 236,162개를 단독 구간이 100% 한 화자로 덮음. 즉 P2 미배정이 낮았던 원인은 공급자 단독 출력이며 기존 v3·v4·v5 규칙은 단독 후보가 있어야 동작해 이 92%를 줄이지 못한다.
+- 스펙 r2(v2, 사용자 «v2로 변경»): `4efd7ba` 스펙·운영 계약·AC-15 · `884eb5b` 구현. `NemotronIntervals.Rule`(v1 `singleActive` 재현 유지, v2 `mostProbable`), `SonioxNemotronReconciler.Version`(새 Run v2, 저장된 v1은 v1, 미지원 버전은 `failed`). 테스트: 겹침 프레임 최고 확률 채널·동률 제외·v1 비교·v1/v2 결합·저장 버전 유지·미지원 버전 실패. 역뮤테이션(v2를 v1 동작으로) Intervals 1·Reconciler 2 FAIL, 복원 SHA256 일치. check.sh `.build/check-logs/run-20261030T082802Z-CTHPl9` exit 0, SKIP 없음, swift test 257(Core 173 / Audio 37 / Managed 47). 0.5.13(31) Debug 빌드, dylib에 `soniox-nemotron-word-v2` 포함, 미설치.
+- 재현성 발견: 같은 입력으로 B2 결합을 Release(-O)로 빌드하면 설치 앱(Debug) 결과와 BED2C097에서 15단어(꼬리 공유 구절 나누기)가 다르다. Debug 빌드 재생은 설치 앱 출력과 바이트 동일. 같은 구절 나누기 코드를 단독 프로그램으로 -O/-Onone 컴파일하면 동일해 원인 미확정. 전달 앱은 Debug라 현재 결과 영향 없음. 측정 도구는 Debug로 돌린다.
 - 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정, AC-11 앱 안 실다운로드, AC-13 설치 앱 실행, AC-14 실행 중 Bundle 확인. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
 
 ## 작업 분해
@@ -98,6 +100,8 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - OpenMDW-1.1(모델)·Apache-2.0(FluidAudio) 표기 의무 원문 미확인. 개인 사용 앱이며 배포 전 확인.
 
 ## Follow-ups
+
+- Release(-O) 빌드에서 B2 꼬리 공유의 구절 나누기가 Debug와 다르게 동작(BED2C097 15단어, `.build/replay-build` 재생 도구로 재현). P2 결합 경로에도 같은 코드가 쓰이므로 Release 전달 전에 원인 확인 필요.
 
 - 결합 미배정 비율이 P2보다 높다(AC-12, 같은 11개에서 중앙 7%대 vs 1% 미만). 정확도 지표는 아니지만 검수 부담 신호다. 원인 후보(Nemotron 무음 프레임·단독 구간 교집합 없음) 1축 진단과 규칙 조정은 별도 결정(`algorithmVersion` 변경 대상).
 - 녹음 시작 시 Nemotron 취소는 앱이 0.5초 주기로 갱신하는 Run 단계로 판정한다. 화자 분리 시작 직후 0.5초 안의 녹음 시작은 취소되지 않고 수 초 안에 끝난다(녹음은 막히지 않음). Qwen 중단 안내 문구에 대응하는 Nemotron 안내 문구는 확정 문구에 없어 표시하지 않는다.
