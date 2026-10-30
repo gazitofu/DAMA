@@ -3,7 +3,7 @@ unit: nemotron-diarization
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "게이트 ② 대기. 0.5.12(30) Debug 빌드 완료·미설치. 남음: 설치(승인) → 앱 모델 받기(승인) → AC-09 실화면·AC-10 녹음 우선 여정·AC-11 실다운로드·AC-13 설치 앱 실행·AC-14 실행 Bundle 확인."
+resume: "게이트 ② 대기. 0.5.12(30) 설치·실행 확인. 남음: 앱 모델 받기 → AC-09 실화면·AC-10 녹음 우선 여정·AC-11 실다운로드·AC-13 설치 앱 실행·AC-14 실행 Bundle 확인."
 spec: notes/nemotron-diarization/nemotron-diarization.src.html
 ---
 
@@ -69,6 +69,7 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - AC-12: `.build/check-logs/nemotron-diarization/ac12-summary.txt`. 1a 확률 28개 중 Soniox 원응답이 있는 18개 결합: 계약 검증 18/18, `speakers` = 1a 채널 수 18/18. 미배정 lexical 2.13–12.47%(중앙 7.04), `missing_speech` 56–431/h. P2 결합본이 있는 11개는 P2 미배정 0.03–8.00%(10개가 1.14% 이하). 결합 불가 10개(8개 미변환, 2개 pyannote+Whisper만).
 - AC-13 일부(설치 앱 아님): 앱과 같은 `FluidNemotronDiarizer`를 감싼 `scripts/nemotron-combine` `NemotronAppRun`. 542D0E56(9분) · 126FB238(2.82시간) 둘 다 1a `probs.f32`와 바이트 동일, 채널 수 동일, 처리 2.34 s · 5.71 s, 최대 RSS 0.68 GB · 2.37 GB, 원본 WAV SHA256 전후 동일. `.build/check-logs/nemotron-diarization/ac13-app-executor.txt`.
 - 버전: `project.pbxproj` 0.5.11(29)→0.5.12(30). 타 소유 미커밋 상향과 같은 줄이라 선례대로 작업 트리에만 둠. 빌드 산출물 `.build/xcode/Build/Products/Debug/DAMA.app` 0.5.12(30), 미설치.
+- 설치(사용자 승인 2026-10-30 «설치 진행»): 실행 중 0.5.11(29) 일반 종료, 백업 `.build/backups/DAMA-0.5.11-29-before-nemotron.app`(실행 파일 SHA256 일치), 기존 번들 휴지통, 0.5.12(30) Debug 설치. 설치 번들은 빌드 산출물과 `diff -rq` 동일, 코드 `DAMA.debug.dylib`는 이전과 다르고 빌드와 동일. 실행 중 PID가 `/Applications/DAMA.app/Contents/MacOS/DAMA.debug.dylib`를 로드, Bundle 0.5.12(30). 내부 저장소에 `Models/` 없음(모델 미다운로드 상태).
 - 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정, AC-11 앱 안 실다운로드, AC-13 설치 앱 실행, AC-14 실행 중 Bundle 확인. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
 
 ## 작업 분해
