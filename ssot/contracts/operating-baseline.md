@@ -18,8 +18,8 @@
 정본 스펙은 `notes/nemotron-diarization/nemotron-diarization.src.html`, 상태는 `versions/nemotron-diarization/plan.md`.
 
 - 결합 parent `sonioxNemotron` = Soniox 자식(기존 규칙) + `nemotron` 자식(이 Mac, 음성 전송 없음). 분석 WAV 전체를 FluidAudio 0.18.0 `offline` 프리셋 `processComplete` 1회로 처리한다. 원본 `nemotron-probabilities.f32`(LE Float32, 프레임×8, 10 ms)와 `nemotron-meta.json`을 보존한다. 재사용 키는 session·분석 WAV SHA256·모델 파일 SHA256 목록·FluidAudio 버전·프리셋.
-- 구간 `nemotron-intervals-v1`: 확률 > 0.5(공급자 기본값, 한국어 실측 전 초기 설계값) 프레임이 같은 채널로 이어진 최대 구간이 일반 구간, 활성 채널이 정확히 하나인 프레임의 최대 구간이 단독 구간(앱 파생, 공급자 exclusive 아님). 최소 길이·패딩·틈 메우기 없음. confidence는 null. 채널 ID는 Run 안에서만 유효하다.
-- 배정은 위 구간에 B2(`soniox-p2-word-v4`) 규칙을 그대로 적용하며 버전은 `soniox-nemotron-word-v1`, engine `hybridSonioxNemotron`.
+- 구간 `nemotron-intervals-v2`(2026-10-30 r2 사용자 확정): 확률 > 0.5(공급자 기본값, 한국어 실측 전 초기 설계값) 프레임이 같은 채널로 이어진 최대 구간이 일반 구간, 프레임마다 활성 채널 중 최고 확률 채널(동률·무활성은 제외)이 같은 채널로 이어진 최대 구간이 단독 구간(앱 파생, 공급자 exclusive 아님. P2 단독 출력처럼 겹침 프레임도 한 화자로 덮는다). v1(활성 채널이 정확히 하나인 프레임만)은 기존 Run 재현용. 최소 길이·패딩·틈 메우기 없음. confidence는 null. 채널 ID는 Run 안에서만 유효하다.
+- 배정은 위 구간에 B2(`soniox-p2-word-v4`) 규칙을 그대로 적용하며 새 Run 버전은 `soniox-nemotron-word-v2`(v1 Run은 v1로 재현), engine `hybridSonioxNemotron`. 겹침 단어의 `overlapping_speech` 이슈는 유지한다.
 - 화자 수는 Nemotron에 지정하지 않는다(FluidAudio `numSpeakers`는 채널 절단이라 사용 금지). Soniox 힌트 규칙은 그대로. 녹음 우선 규칙은 Qwen과 같다. 모델은 사용자가 «모델 받기»로 한 번 받고 고정 SHA256 목록과 맞을 때만 쓴다.
 - P2 자식이 미완료인 기존 결합 Run과 P2 재사용이 없는 Qwen Run은 재개하지 않는다. 다시 전사는 새 `sonioxNemotron` Run이다.
 
