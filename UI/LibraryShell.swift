@@ -73,7 +73,7 @@ struct LibraryShell: View {
                     Button("교정 중단", action: correction.cancel)
                 }
                 if capture.phase == .recording { Label("녹음 중 · \(LibraryScript.timestamp(capture.elapsedUs))", systemImage: "record.circle.fill").foregroundStyle(.red) }
-                if workspace.busy { ProgressView().controlSize(.small); Text("불러오거나 저장하는 중").font(.caption) }
+                if workspace.busy || workspace.scriptsLoading || workspace.loadingScriptID != nil { ProgressView().controlSize(.small); Text("불러오거나 저장하는 중").font(.caption) }
                 Button("설정", systemImage: "gearshape") { settings = true }
             }.padding(.horizontal, 20).frame(height: 48)
             Divider()
@@ -141,7 +141,7 @@ struct LibraryShell: View {
                                 let complete = workspace.completedScript(for: speech)
                                 if processing.activeSessionID == speech.id || workspace.preparingSpeechID == speech.id {
                                     HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("변환 중").font(.caption).foregroundStyle(.secondary) }
-                                } else { Button {
+                                } else if !workspace.scriptsLoading { Button {
                                     if let complete { workspace.selectScript(complete.id) } else { workspace.selectSpeech(speech.id) }
                                 } label: {
                                     Label(complete == nil ? "변환필요" : "변환완료", systemImage: complete == nil ? "circle.fill" : "checkmark.circle.fill")
@@ -158,14 +158,14 @@ struct LibraryShell: View {
                         ForEach(workspace.primaryScripts) { file in
                             Button { workspace.selectScript(file.id) } label: {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(file.script.title).font(.body.weight(.medium)).lineLimit(2)
-                                    Text(date(file.script.createdAt)).font(.caption).foregroundStyle(.secondary)
-                                    Text(file.script.transcript.provenance.engine.title).font(.caption2).foregroundStyle(.secondary)
+                                    Text(file.title).font(.body.weight(.medium)).lineLimit(2)
+                                    Text(date(file.createdAt)).font(.caption).foregroundStyle(.secondary)
+                                    Text(file.engine.title).font(.caption2).foregroundStyle(.secondary)
                                 }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
                                     .background(workspace.scriptGroupSelected(file) ? Color(nsColor: .textBackgroundColor) : .clear, in: RoundedRectangle(cornerRadius: 8))
                             }.buttonStyle(.plain)
                                 .contextMenu {
-                                    Button("재전사…") { workspace.retranscribeScript(file) }.disabled(!workspace.canRetranscribe(file.script.transcript.sessionId))
+                                    Button("재전사…") { workspace.retranscribeScript(file) }.disabled(!workspace.canRetranscribe(file.sessionId))
                                     Button("Script 삭제…", role: .destructive) { workspace.deleteScript(file) }.disabled(workspace.foldersLocked)
                                 }
                         }
@@ -214,6 +214,10 @@ struct LibraryShell: View {
                     workspace.editing = true; aiRequest = ScriptAIRequest(file: file)
                 })
                 .id(file.id + (file.script.snapshotTitle == nil ? ":current" : ":" + file.script.revisionID))
+        }
+        else if workspace.scriptsLoading || workspace.loadingScriptID != nil {
+            VStack(spacing: 12) { ProgressView(); Text("불러오거나 저장하는 중").foregroundStyle(.secondary) }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         else { empty("아직 스크립트가 없습니다.", message: "Speeches에서 녹음을 선택해 변환하세요.", action: nil) }
     }

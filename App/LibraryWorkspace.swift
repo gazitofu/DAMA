@@ -12,10 +12,15 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published var folder: LibraryFolder = .speeches
     @Published private(set) var folders: [LibraryFolder: URL] = [:]
     @Published private(set) var speeches: [LibrarySpeech] = []
-    @Published private(set) var scripts: [LibraryScriptFile] = []
+    /// Listed from validated summaries; the selected Script's body is read on demand (library-script.md).
+    @Published private(set) var scripts: [LibraryScriptSummary] = []
+    @Published private(set) var openedScript: LibraryScriptFile?
+    /// The Script listing is incomplete while true: actions that create or submit work stay blocked.
+    @Published private(set) var scriptsLoading = false
+    @Published private(set) var loadingScriptID: String?
     @Published private(set) var scanIssues: [LibraryFolder: [FileScanIssue]] = [:]
     @Published private(set) var selectedSpeechID: String?
-    @Published private(set) var selectedScriptID: String?
+    @Published private(set) var selectedScriptID: String? { didSet { openSelectedScript() } }
     @Published var speakerCount = ""
     @Published var context = ""
     @Published var reference = ""
@@ -34,11 +39,12 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     private var root: URL?
     private var started = false
     private var scoped: [URL] = []
+    private var failedOpen: String?
     var canLeave: Bool { !busy && !editing && !titlePending && savingRunIDs.isEmpty }
     var speech: LibrarySpeech? { speeches.first { $0.id == selectedSpeechID } }
-    var scriptFile: LibraryScriptFile? { scripts.first { $0.id == selectedScriptID } }
+    var scriptFile: LibraryScriptFile? { openedScript.flatMap { $0.id == selectedScriptID ? $0 : nil } }
     var displayedScript: LibraryScriptFile? { historicalFile ?? scriptFile }
-    var primaryScripts: [LibraryScriptFile] { ScriptResultPresentation.primaryFiles(in: scripts) }
+    var primaryScripts: [LibraryScriptSummary] { ScriptResultPresentation.primaryFiles(in: scripts) }
     var notesValid: Bool { speakerCount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (Int(speakerCount).map { $0 > 0 } == true) }
     var notes: ConversionNotes {
         var value = speech?.notes ?? ConversionNotes()
@@ -47,7 +53,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         return value
     }
     var notesDirty: Bool { speech.map { $0.notes != notes } ?? false }
-    var foldersLocked: Bool { !canLeave || notesDirty || ProcessingWorkspace.shared.busy || CorrectionWorkspace.shared.busy || RecordingWorkspace.shared.capture.phase.busy }
+    var foldersLocked: Bool { !canLeave || scriptsLoading || notesDirty || ProcessingWorkspace.shared.busy || CorrectionWorkspace.shared.busy || RecordingWorkspace.shared.capture.phase.busy }
 
     func start() {
         guard !started else { return }; started = true
@@ -139,11 +145,10 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         if let url = folders[kind] { NSWorkspace.shared.open(url) }
     }
     func refresh() {
-        guard canLeave, let store else { return }
+        guard canLeave, !scriptsLoading, let store else { return }
         ProcessingWorkspace.shared.refresh()
         busy = true
         Task {
-            defer { busy = false }
             do {
                 try await persistNotes()
                 if let url = folders[.speeches] {
@@ -154,14 +159,46 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                     } catch { scanIssues[.speeches] = [FileScanIssue(url: url)] }
                 }
             } catch { message = "입력 정보를 저장하지 못해 Speeches 갱신을 보류했습니다. 입력값과 기존 목록은 유지됩니다." }
-            if let url = folders[.scripts] {
-                do {
-                    let scan = try await store.scanScripts(in: url)
-                    scripts = scan.items; scanIssues[.scripts] = scan.issues
-                    if !scripts.contains(where: { $0.id == selectedScriptID }) { historicalFile = nil; selectedScriptID = primaryScripts.first?.id }
-                } catch { scanIssues[.scripts] = [FileScanIssue(url: url)] }
+            // Speeches are usable from here; Script-dependent actions wait for the listing below.
+            busy = false
+            guard let url = folders[.scripts] else { return }
+            scriptsLoading = true
+            do {
+                let scan = try await store.scanScriptSummaries(in: url)
+                scripts = scan.items; scanIssues[.scripts] = scan.issues
+                if !scripts.contains(where: { $0.id == selectedScriptID }) { historicalFile = nil; selectedScriptID = primaryScripts.first?.id }
+            } catch { scanIssues[.scripts] = [FileScanIssue(url: url)] }
+            scriptsLoading = false
+            openSelectedScript()
+        }
+    }
+    /// Reads the selected Script unless the opened copy already matches its listing.
+    private func openSelectedScript() {
+        guard let id = selectedScriptID, let summary = scripts.first(where: { $0.id == id }), let store else {
+            if selectedScriptID == nil { openedScript = nil }
+            return
+        }
+        if let opened = openedScript, opened.id == id, opened.url == summary.url, opened.hash == summary.hash { return }
+        loadingScriptID = id
+        Task {
+            defer { if loadingScriptID == id { loadingScriptID = nil } }
+            do {
+                let file = try await store.loadScript(summary)
+                if selectedScriptID == id { openedScript = file }
+            } catch {
+                // The file changed after listing: a rescan lists current bytes or reports damage. Retry once per version.
+                if selectedScriptID == id { openedScript = nil }
+                let attempt = id + ":" + summary.hash
+                guard failedOpen != attempt else { return }
+                failedOpen = attempt
+                loadingScriptID = nil
+                refresh()
             }
         }
+    }
+    private func updated(_ file: LibraryScriptFile) {
+        if let i = scripts.firstIndex(where: { $0.id == file.id }) { scripts[i] = LibraryScriptSummary(file) }
+        if openedScript?.id == file.id { openedScript = file }
     }
     private func setSpeech(_ id: String?) {
         playback.stop()
@@ -203,26 +240,32 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         }
     }
     func returnToCurrent() { guard canLeave else { return }; playback.stop(); historicalFile = nil }
-    func completedScript(for speech: LibrarySpeech) -> LibraryScriptFile? {
-        ScriptResultPresentation.primaryFile(in: scripts.filter { $0.script.transcript.sessionId == speech.id })
+    func completedScript(for speech: LibrarySpeech) -> LibraryScriptSummary? {
+        ScriptResultPresentation.primaryFile(in: scripts.filter { $0.sessionId == speech.id })
     }
-    func scriptGroupSelected(_ file: LibraryScriptFile) -> Bool {
-        guard let selected = scriptFile else { return false }
-        return selected.script.transcript.sessionId == file.script.transcript.sessionId
+    func scriptGroupSelected(_ file: LibraryScriptSummary) -> Bool {
+        guard let selected = scripts.first(where: { $0.id == selectedScriptID }) else { return false }
+        return selected.sessionId == file.sessionId
     }
 
     func canRetranscribe(_ sessionID: String) -> Bool {
-        canLeave && notesValid && folders[.scripts] != nil && !RecordingWorkspace.shared.capture.phase.busy &&
+        canLeave && !scriptsLoading && notesValid && folders[.scripts] != nil && !RecordingWorkspace.shared.capture.phase.busy &&
         !CorrectionWorkspace.shared.busy && ProcessingWorkspace.shared.canRetranscribe(sessionID)
     }
     func retranscribeSpeech() {
         guard let speech else { return }
         retranscribe(sessionID: speech.id, input: notes)
     }
-    func retranscribeScript(_ file: LibraryScriptFile) {
-        let sessionID = file.script.transcript.sessionId
-        let input = selectedSpeechID == sessionID ? notes : speeches.first { $0.id == sessionID }?.notes ?? file.script.input
-        retranscribe(sessionID: file.script.transcript.sessionId, input: input)
+    func retranscribeScript(_ file: LibraryScriptSummary) {
+        let sessionID = file.sessionId
+        if selectedSpeechID == sessionID { retranscribe(sessionID: sessionID, input: notes); return }
+        if let input = speeches.first(where: { $0.id == sessionID })?.notes { retranscribe(sessionID: sessionID, input: input); return }
+        // Only the Script still holds this recording's input; read it before preparing the request.
+        guard canRetranscribe(sessionID), let store else { return }
+        Task {
+            do { retranscribe(sessionID: sessionID, input: try await store.loadScript(file).script.input) }
+            catch { refresh() }
+        }
     }
     private func retranscribe(sessionID: String, input: ConversionNotes) {
         guard canRetranscribe(sessionID), let root else { return }
@@ -254,15 +297,16 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             } catch { message = "Speech를 삭제하지 못했습니다. 파일 변경 여부와 폴더 권한을 확인한 뒤 새로고침해 주세요. 영구 삭제로 재시도하지 않습니다." }
         }
     }
-    func deleteScript(_ file: LibraryScriptFile) {
+    func deleteScript(_ file: LibraryScriptSummary) {
         guard !foldersLocked, let store, let folder = folders[.scripts] else { return }
         busy = true; playback.stop()
-        guard confirmDeletion(title: file.script.title, kind: "Script", detail: "선택한 스크립트 파일을 휴지통으로 이동합니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 내부 복구 이력은 남습니다.") else { busy = false; return }
+        guard confirmDeletion(title: file.title, kind: "Script", detail: "선택한 스크립트 파일을 휴지통으로 이동합니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 내부 복구 이력은 남습니다.") else { busy = false; return }
         Task {
             defer { busy = false }
             do {
                 try await store.trashScript(file, in: folder)
                 scripts.removeAll { $0.url == file.url }
+                if openedScript?.url == file.url { openedScript = nil }
                 if selectedScriptID == file.id { selectedScriptID = primaryScripts.first?.id }
                 message = "Script를 휴지통으로 이동했습니다. 원음과 다른 스크립트는 유지됩니다."
             } catch { message = "Script를 삭제하지 못했습니다. 파일 변경 여부와 폴더 권한을 확인한 뒤 새로고침해 주세요. 영구 삭제로 재시도하지 않습니다." }
@@ -277,7 +321,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     }
 
     func convert() {
-        guard canLeave, notesValid, let speech, let root, folders[.scripts] != nil else { return }
+        // An incomplete Script listing could make an existing result look missing.
+        guard canLeave, !scriptsLoading, notesValid, let speech, let root, folders[.scripts] != nil else { return }
         let processing = ProcessingWorkspace.shared
         if let run = processing.run(for: speech.id) {
             if run.stage == "readyForReview" {
@@ -319,14 +364,14 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 guard let speech = try await store.storedSpeech(run.sessionID) else { throw LibraryFailure.missingFile }
                 let document = try await FileSessionRepository(rootURL: root).loadModel(sessionId: run.sessionID, runId: run.id)
                 let result = try await store.createScript(document, speech: speech, input: run.input ?? speech.notes, in: destination)
-                let scan = try await store.scanScripts(in: destination)
+                let scan = try await store.scanScriptSummaries(in: destination)
                 scripts = scan.items; scanIssues[.scripts] = scan.issues
                 if !select {
                     var saved = Set(UserDefaults.standard.stringArray(forKey: "library.savedSourceRuns") ?? [])
                     saved.insert(run.id); UserDefaults.standard.set(Array(saved), forKey: "library.savedSourceRuns")
                 }
                 savingRunIDs.remove(run.id)
-                if select && canLeave && !notesDirty { historicalFile = nil; selectedScriptID = result.id; folder = .scripts }
+                if select && canLeave && !notesDirty { historicalFile = nil; openedScript = result; selectedScriptID = result.id; folder = .scripts }
                 message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요."
                 if result.script.correction == nil, run.input?.aiCorrection == true {
                     CorrectionWorkspace.shared.enqueue(result, input: run.input!)
@@ -338,33 +383,33 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         guard !busy, let store else { throw LibraryFailure.invalidInput }
         busy = true; defer { busy = false }
         let result = try await store.saveScript(candidate, to: original.url, expectedHash: original.hash)
-        if let i = scripts.firstIndex(where: { $0.url == original.url }) { scripts[i] = result }
+        updated(result)
     }
     func saveTitle(_ title: String, original: LibraryScriptFile) async throws -> LibraryScriptFile {
         guard !busy, historicalFile == nil, let store else { throw LibraryFailure.invalidInput }
         busy = true; defer { busy = false }
         let result = try await store.saveTitle(title, for: original)
-        if let i = scripts.firstIndex(where: { $0.url == original.url }) { scripts[i] = result }
+        updated(result)
         return result
     }
     func saveParagraph(_ block: ScriptBlock, text: String, original: LibraryScriptFile) async throws -> LibraryScriptFile {
         guard !busy, historicalFile == nil, let store else { throw LibraryFailure.invalidInput }
         busy = true; defer { busy = false }
         let result = try await store.saveParagraph(block, text: text, for: original)
-        if let i = scripts.firstIndex(where: { $0.url == original.url }) { scripts[i] = result }
+        updated(result)
         return result
     }
     func storeCorrection(_ correction: ScriptCorrection, file: LibraryScriptFile) async throws {
         guard let store else { throw LibraryFailure.invalidInput }
         // Re-read and merge only the AI layer. Concurrent manual edits remain authoritative.
         let result = try await store.saveCorrection(correction, for: file)
-        if let i = scripts.firstIndex(where: { $0.id == result.id }) { scripts[i] = result }
+        updated(result)
     }
     func applyPendingCorrection(_ file: LibraryScriptFile) async throws {
         guard historicalFile == nil, canLeave, !CorrectionWorkspace.shared.busy, let store else { throw LibraryFailure.invalidInput }
         busy = true; defer { busy = false }
         let result = try await store.applyPendingCorrection(for: file)
-        if let i = scripts.firstIndex(where: { $0.id == result.id }) { scripts[i] = result }
+        updated(result)
     }
     func validateCorrectionSource(_ file: LibraryScriptFile) async throws {
         guard historicalFile == nil, let store else { throw LibraryFailure.invalidInput }

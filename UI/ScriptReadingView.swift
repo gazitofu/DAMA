@@ -171,10 +171,10 @@ struct ScriptReadingView: View {
                 }
                 Divider()
                 ForEach(workspace.scripts.filter {
-                    $0.script.transcript.sessionId == current.script.transcript.sessionId ||
-                    ($0.script.transcript.provenance.sourceAudioSHA256 != nil && $0.script.transcript.provenance.sourceAudioSHA256 == current.script.transcript.provenance.sourceAudioSHA256)
+                    $0.sessionId == current.script.transcript.sessionId ||
+                    ($0.sourceAudioSHA256 != nil && $0.sourceAudioSHA256 == current.script.transcript.provenance.sourceAudioSHA256)
                 }) { other in
-                    Button("\(other.id == current.id ? "✓ " : "")\(other.script.transcript.provenance.engine.title) · \(other.script.createdAt.formatted(date: .numeric, time: .shortened))") { workspace.selectScript(other.id) }
+                    Button("\(other.id == current.id ? "✓ " : "")\(other.engine.title) · \(other.createdAt.formatted(date: .numeric, time: .shortened))") { workspace.selectScript(other.id) }
                 }
             }
         }.fixedSize().disabled(!workspace.canLeave)
@@ -219,8 +219,8 @@ struct ScriptReadingView: View {
                 Text("맥락: \(file.script.input.context)")
                 Text("참고: \(file.script.input.reference)")
                 if !readOnly {
-                    Button("새 입력으로 다시 전사") { workspace.retranscribeScript(file) }.disabled(!workspace.canRetranscribe(file.script.transcript.sessionId))
-                    Button("Scripts에서 삭제", role: .destructive) { workspace.deleteScript(file) }.disabled(workspace.foldersLocked)
+                    Button("새 입력으로 다시 전사") { workspace.retranscribeScript(LibraryScriptSummary(file)) }.disabled(!workspace.canRetranscribe(file.script.transcript.sessionId))
+                    Button("Scripts에서 삭제", role: .destructive) { workspace.deleteScript(LibraryScriptSummary(file)) }.disabled(workspace.foldersLocked)
                 }
             }.font(.caption).textSelection(.enabled).padding(18).frame(maxWidth: .infinity, alignment: .leading)
         }.background(Color(nsColor: .controlBackgroundColor))

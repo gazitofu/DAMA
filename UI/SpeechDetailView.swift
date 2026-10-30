@@ -26,7 +26,12 @@ struct SpeechDetailView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    if run != nil || processing.activeSessionID == speech.id || workspace.preparingSpeechID == speech.id {
+                    if workspace.scriptsLoading {
+                        // Saved-Script state is unknown until the listing finishes.
+                        HStack(spacing: 8) { ProgressView().controlSize(.small); Text("불러오거나 저장하는 중").font(.headline) }
+                            .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.accentColor.opacity(0.045), in: RoundedRectangle(cornerRadius: 12))
+                    } else if run != nil || processing.activeSessionID == speech.id || workspace.preparingSpeechID == speech.id {
                         ProcessingProgressCard(run: run, tracking: processing.activeSessionID == speech.id,
                             preparing: workspace.preparingSpeechID == speech.id,
                             startedAt: processing.activeSessionID == speech.id ? processing.attemptStartedAt : nil,
@@ -103,7 +108,7 @@ struct SpeechDetailView: View {
                 Spacer()
                 if workspace.folders[.scripts] == nil { Button("Scripts 폴더 선택") { workspace.chooseFolder(.scripts) } }
                 Button(conversionTitle, action: workspace.convert).buttonStyle(.borderedProminent)
-                    .disabled(!workspace.canLeave || !workspace.notesValid || processing.busy || workspace.folders[.scripts] == nil || processing.localOnly.contains(speech.id))
+                    .disabled(!workspace.canLeave || workspace.scriptsLoading || !workspace.notesValid || processing.busy || workspace.folders[.scripts] == nil || processing.localOnly.contains(speech.id))
             }.padding(24)
         }
     }
