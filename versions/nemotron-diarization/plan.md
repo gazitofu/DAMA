@@ -3,7 +3,7 @@ unit: nemotron-diarization
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "게이트 ② 대기. v2 구현·실데이터 측정·0.5.13(31) 빌드 완료, 미설치. 남음: 설치(승인), AC-09·10·14 실화면, AC-15 설치 앱 다시 전사 1회."
+resume: "게이트 ② 대기. 0.5.13(31) 설치, AC-14·15 확인. 남음: AC-09 실화면 문구, AC-10 실기기 녹음 우선 여정."
 spec: notes/nemotron-diarization/nemotron-diarization.src.html
 ---
 
@@ -53,8 +53,8 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - [x] AC-11 모델: 저장 위치 = 앱 내부 저장소 `Models/nemotron-3-diarization/`. SHA256 목록 = `.build/nemotron-models/nemotron-3-diarization/` 실제 파일에서 생성해 소스에 상수로 박음(파일 경로·SHA256·바이트 수). 테스트: 목록 일치 → 준비됨, 파일 1개 바이트 변조 → 불일치·삭제·`다시 받기`(역뮤테이션: 대조 생략 시 FAIL), 파일 누락 → 필요. «모델 받기» 누를 때만 네트워크(변환 경로 다운로드 호출 0, mock). 실기기 다운로드 1회 후 목록 일치(사용자 승인 후).
 - [x] AC-12 실데이터 결합 측정(네트워크 0, 사용자 저장소 쓰기 0): Soniox 원응답 + 1a 확률이 있는 녹음 전부로 결합 문서 생성 → 전건 계약 검증 통과, `speakers` 배열 수 = 1a `summary.json` `nemotronChannels`(전건, 둘 다 «0.5 초과 프레임이 1개 이상인 채널» 정의 · `scripts/nemotron-probe/analyze.py:125`). 스크립트 «감지 N명»(`detectedSpeakerCount` = 단어 배정 화자 수)과는 다른 자이며 그 값은 기록만. 녹음별 미배정 lexical 비율·시간당 `missing_speech` 수 기록, P2 결합본이 있는 녹음은 나란히. 문턱 없음(정확도 아님). 결과 `.build/check-logs/nemotron-diarization/ac12-*.txt`.
 - [x] AC-13 앱 실행 재현·메모리: 설치 앱에서 1개 녹음 실행 → 저장된 확률과 1a `probs.f32`의 프레임 수 일치·채널 수 일치·최대 절대 차이 기록. 최장 녹음(126FB238, 2.82시간) 실행 최대 RSS 기록. 문턱 없음.
-- [ ] AC-14 전달: check.sh PASS(계약 31+, Swift 224+신규, Debug), SKIP 0. `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION` 상향, 실행 중 Bundle 버전 확인. pathspec 커밋, 타 소유 헝크 바이트 보존.
-- [ ] AC-15 v2 단독 구간(스펙 r2, 사용자 2026-10-30 «v2로 변경»): 합성 확률에서 두 채널 동시 활성 프레임의 단독 구간 = 확률이 높은 채널, 최고 확률 동률 프레임은 단독 구간 제외, 무활성 프레임 제외. v1 규칙 출력은 기존 테스트 그대로(재현). 새 Run `combinationAlgorithmVersion`·provenance = `soniox-nemotron-word-v2`, v1으로 저장된 미완료 Run 재개는 v1, 그 밖 버전은 실패(자동 치환 없음). 역뮤테이션(v2에서 겹침 프레임 제외로 되돌림) FAIL. 실데이터: Soniox 원응답과 1a 확률이 있는 녹음 전부에서 v1·v2 미배정 lexical 비율, P2 결합본이 있는 녹음은 P2 함께(문턱 없음, 정확도 아님). 설치 앱에서 BED2C097 다시 전사 1회(Soniox·Nemotron 재사용, 새 요청 0).
+- [x] AC-14 전달: check.sh PASS(계약 31+, Swift 224+신규, Debug), SKIP 0. `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION` 상향, 실행 중 Bundle 버전 확인. pathspec 커밋, 타 소유 헝크 바이트 보존.
+- [x] AC-15 v2 단독 구간(스펙 r2, 사용자 2026-10-30 «v2로 변경»): 합성 확률에서 두 채널 동시 활성 프레임의 단독 구간 = 확률이 높은 채널, 최고 확률 동률 프레임은 단독 구간 제외, 무활성 프레임 제외. v1 규칙 출력은 기존 테스트 그대로(재현). 새 Run `combinationAlgorithmVersion`·provenance = `soniox-nemotron-word-v2`, v1으로 저장된 미완료 Run 재개는 v1, 그 밖 버전은 실패(자동 치환 없음). 역뮤테이션(v2에서 겹침 프레임 제외로 되돌림) FAIL. 실데이터: Soniox 원응답과 1a 확률이 있는 녹음 전부에서 v1·v2 미배정 lexical 비율, P2 결합본이 있는 녹음은 P2 함께(문턱 없음, 정확도 아님). 설치 앱에서 BED2C097 다시 전사 1회(Soniox·Nemotron 재사용, 새 요청 0).
 
 ## 실행 기록 (2026-10-30)
 
@@ -76,7 +76,9 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - 스펙 r2(v2, 사용자 «v2로 변경»): `4efd7ba` 스펙·운영 계약·AC-15 · `884eb5b` 구현. `NemotronIntervals.Rule`(v1 `singleActive` 재현 유지, v2 `mostProbable`), `SonioxNemotronReconciler.Version`(새 Run v2, 저장된 v1은 v1, 미지원 버전은 `failed`). 테스트: 겹침 프레임 최고 확률 채널·동률 제외·v1 비교·v1/v2 결합·저장 버전 유지·미지원 버전 실패. 역뮤테이션(v2를 v1 동작으로) Intervals 1·Reconciler 2 FAIL, 복원 SHA256 일치. check.sh `.build/check-logs/run-20261030T082802Z-CTHPl9` exit 0, SKIP 없음, swift test 257(Core 173 / Audio 37 / Managed 47). 0.5.13(31) Debug 빌드, dylib에 `soniox-nemotron-word-v2` 포함, 미설치.
 - 재현성 발견: 같은 입력으로 B2 결합을 Release(-O)로 빌드하면 설치 앱(Debug) 결과와 BED2C097에서 15단어(꼬리 공유 구절 나누기)가 다르다. Debug 빌드 재생은 설치 앱 출력과 바이트 동일. 같은 구절 나누기 코드를 단독 프로그램으로 -O/-Onone 컴파일하면 동일해 원인 미확정. 전달 앱은 Debug라 현재 결과 영향 없음. 측정 도구는 Debug로 돌린다.
 - AC-15 실데이터(`.build/check-logs/nemotron-diarization/ac15-summary.txt`, Debug 빌드 도구): Soniox 원응답과 1a 확률이 있는 19개, v2 계약 검증 19/19, 화자 수 = 1a 채널 19/19. 미배정 lexical v1 2.02–12.47%(중앙 6.76) → v2 0.57–7.03%(중앙 1.26). P2 결합본 11개 P2 0.03–8.00%(10개 1.14% 이하). BED2C097 v1 6.13%는 설치 앱 Run E33ADFD9와 일치. 정확도 지표 아님. 남은 미배정이 큰 녹음: 6F4FA04E 7.03%, 73B651D8 5.45%, 542D0E56 4.58%.
-- 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정, AC-11 앱 안 실다운로드, AC-13 설치 앱 실행, AC-14 실행 중 Bundle 확인. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
+- 0.5.13(31) 설치(사용자 «설치 진행», 2026-10-30): 0.5.12(30)를 `.build/backups/DAMA-0.5.12-30-before-v2.app`에 백업, 기존 번들은 Finder 휴지통. 실행 PID가 `/Applications/DAMA.app/Contents/MacOS/DAMA.debug.dylib`를 적재, 빌드 산출물과 `cmp` 동일, Info.plist 0.5.13(31), 문자열 `soniox-nemotron-word-v1/v2`·`nemotron-intervals-v1/v2` 포함(AC-14).
+- 설치 앱 다시 전사(사용자 실행, 2026-10-30 19:56 KST): BED2C097 새 parent `108E3A3C` readyForReview, `combinationAlgorithmVersion`·provenance `soniox-nemotron-word-v2`, 자식 Soniox `CCDF109D`·Nemotron `F196F231` 재사용(이전 v1 parent `E33ADFD9`와 같은 자식, 자식 state.json 수정 시각 16:50·16:51 그대로, raw Soniox 응답·확률 파일 `cmp` 동일 → 새 Soniox·Nemotron 요청 0). lexical 22,635 중 미배정 v1 1,387(6.13%) → v2 130(0.57%), Debug 측정 도구 값과 일치. 화자 3명 동일. 검수 표시 `ambiguous_speaker` 1,387→130, `provider_disagreement` 222→525(겹침 단어가 배정되며 Soniox 화자와 다른 경우 증가), `overlapping_speech` 1,883 유지, `unrepresented_speaker` 528→436 (AC-15).
+- 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
 
 ## 작업 분해
 
