@@ -52,6 +52,9 @@
 
 - `LibraryScriptFile`은 같은 파일 bytes의 해시·검증된 Script·불변 `ScriptReadingSnapshot`을 함께 보관한다. 저장 actor에서 blocks()/검수 사건을 계산하고 UI는 결과를 재사용한다. 메모리 파생물이며 `.dama.json`에 직렬화하지 않는다. 현재 읽기 정책은 아래 `reading-v8`이며 앱 재시작 시 기존 파일에도 적용된다.
 - 새로고침은 파일을 읽어 실제 bytes 해시를 비교한다. 표준화 경로/해시가 모두 같을 때만 디코딩·검증·읽기 계산을 재사용한다. revisionID가 같아도 bytes가 다르면 새로 검증·계산한다. 사람 대사/이름·문단 경계·AI 교정·원문 보기·검수 이력은 해당 Script bytes에 포함되므로 함께 무효화된다. 성공한 폴더 조회 때 목록 밖 캐시를 비운다. 중복 ID·손상 파일·symlink 검사를 우회하지 않는다.
+- 2026-10-30 `library-loading`: 목록은 `LibraryScriptSummary`(id·url·bytes SHA256·title·createdAt·sessionId·engine·sourceAudioSHA256)로 만든다. 내부 저장소 `library-script-summaries.json`(`version`=`summaryVersion`, 원자 쓰기)은 이전에 디코딩·검증을 통과한 bytes의 요약만 담는 파생 캐시이며 Scripts 폴더나 `.dama.json`에 쓰지 않는다. 매 새로고침에서 모든 파일을 읽어 해시를 비교하고, 표준화 경로·해시·`summaryVersion`이 모두 같을 때만 디코딩·검증을 생략한다. 다르거나 새 파일은 그 자리에서 디코딩·검증해 손상·중복 ID를 보고한다. 캐시가 없거나 손상·버전 불일치면 빈 캐시로 보고 전량 재구성하며 사용자 파일은 바꾸지 않는다. `LibraryScript.validate()`나 요약 필드의 의미가 바뀌면 `summaryVersion`을 올린다.
+- 본문(`LibraryScriptFile`: 검증된 Script·읽기 계산)은 선택·열기·편집·내보내기·재전사 직전에 `loadScript`로 읽는다. 파일을 다시 읽어 요약 해시와 다르면 `changedFile`로 실패하고 호출자는 새로고침한다. 저장 병합(`latestForMerge`)과 Script 생성은 요약 목록으로 같은 id·경로·해시·중복 판정을 하며 열지 않은 다른 Script를 디코딩하지 않는다. 기존 `expectedHash` 충돌 방어와 stale 저장·내보내기 차단은 그대로다.
+- 앱은 Speech 스캔 결과를 Script 스캔보다 먼저 반영한다. Script 목록을 읽는 동안에는 변환·재전사·Script 삭제·‘스크립트 열기/저장 다시 시도’·폴더 변경을 막고, Speech 상세의 변환 상태 두 줄은 기존 문구 ‘불러오거나 저장하는 중’으로 대신하고 Speech 목록의 변환 배지는 표시하지 않는다. 선택한 Script 본문을 읽는 동안 Script 화면도 같은 기존 문구를 쓴다. Script 목록이 불완전한 동안 새 전사 제출이나 Script 생성이 일어나지 않게 하기 위해서다.
 - 화면은 재생 ID/안내 메시지만 구독한다. 약30ms 위치 갱신은 전체 Script 화면을 다시 계산하는 구독이 아니다. 재생 범위/정지/녹음 우선 규칙은 유지한다.
 - 평가 JSON은 선택 시 Script와 월 비용을 고정하고 저장 actor에서 목적지·원본 해시 검증, encoding, atomic 쓰기를 수행한다. 보안 범위 접근은 완료까지 유지한다. 내부 저장소·`.dama.json`·알려진 Speech/묶음 안·symlink 대상에는 내보내지 않는다. 자동 전송은 없다.
 
