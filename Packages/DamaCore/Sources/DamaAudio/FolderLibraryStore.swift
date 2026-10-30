@@ -25,30 +25,66 @@ public struct LibraryScriptFile: Sendable, Identifiable {
     }
 }
 
+/// List-level fields of one Script file, taken from bytes that were decoded and validated
+/// (library-script.md "읽기 계산·파일 I/O"). Opening the Script still re-reads and re-hashes the file.
+public struct LibraryScriptSummary: Codable, Sendable, Identifiable, Equatable {
+    public let id: String
+    public private(set) var url: URL
+    public let hash: String
+    public let title: String
+    public let createdAt: Date
+    public let sessionId: String
+    public let engine: EngineKind
+    public let sourceAudioSHA256: String?
+
+    init(url: URL, hash: String, script: LibraryScript) {
+        id = script.id; self.url = url; self.hash = hash; title = script.title; createdAt = script.createdAt
+        sessionId = script.transcript.sessionId; engine = script.transcript.provenance.engine
+        sourceAudioSHA256 = script.transcript.provenance.sourceAudioSHA256
+    }
+    public init(_ file: LibraryScriptFile) { self.init(url: file.url, hash: file.hash, script: file.script) }
+
+    /// The cached entry, addressed by the URL of the current folder listing.
+    func at(_ url: URL) -> LibraryScriptSummary { var copy = self; copy.url = url; return copy }
+}
+
+/// Fields that decide how results are grouped and ordered in the library.
+public protocol ScriptListing: Identifiable where ID == String {
+    var createdAt: Date { get }
+    var sessionId: String { get }
+    var engine: EngineKind { get }
+}
+extension LibraryScriptSummary: ScriptListing {}
+extension LibraryScriptFile: ScriptListing {
+    public var createdAt: Date { script.createdAt }
+    public var sessionId: String { script.transcript.sessionId }
+    public var engine: EngineKind { script.transcript.provenance.engine }
+}
+
 /// Collapses multiple processing results for one Speech into one library row.
 /// All files remain available to the reader's "다른 결과 보기" menu.
 public enum ScriptResultPresentation {
-    public static func primaryFiles(in files: [LibraryScriptFile]) -> [LibraryScriptFile] {
-        Dictionary(grouping: files, by: { $0.script.transcript.sessionId }).values
+    public static func primaryFiles<T: ScriptListing>(in files: [T]) -> [T] {
+        Dictionary(grouping: files, by: \.sessionId).values
             .compactMap(primaryFile)
             .sorted(by: newestFirst)
     }
 
-    public static func primaryFile(in files: [LibraryScriptFile]) -> LibraryScriptFile? {
+    public static func primaryFile<T: ScriptListing>(in files: [T]) -> T? {
         files.max { lhs, rhs in
             let left = priority(lhs), right = priority(rhs)
             if left != right { return left < right }
-            if lhs.script.createdAt != rhs.script.createdAt { return lhs.script.createdAt < rhs.script.createdAt }
+            if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
             return lhs.id > rhs.id
         }
     }
 
-    private static func priority(_ file: LibraryScriptFile) -> Int {
-        file.script.transcript.provenance.engine == .hybridSonioxPyannote ? 1 : 0
+    private static func priority<T: ScriptListing>(_ file: T) -> Int {
+        file.engine == .hybridSonioxPyannote ? 1 : 0
     }
 
-    private static func newestFirst(_ lhs: LibraryScriptFile, _ rhs: LibraryScriptFile) -> Bool {
-        if lhs.script.createdAt != rhs.script.createdAt { return lhs.script.createdAt > rhs.script.createdAt }
+    private static func newestFirst<T: ScriptListing>(_ lhs: T, _ rhs: T) -> Bool {
+        if lhs.createdAt != rhs.createdAt { return lhs.createdAt > rhs.createdAt }
         return lhs.id < rhs.id
     }
 }
@@ -208,6 +244,80 @@ public actor FolderLibraryStore {
         return FileScanResult(items: result.sorted { $0.script.createdAt == $1.script.createdAt ? $0.id < $1.id : $0.script.createdAt > $1.script.createdAt },
                               issues: issues.sorted { $0.id < $1.id })
     }
+    /// Bump when the summary fields or the meaning of `LibraryScript.validate()` change:
+    /// cached entries then stop counting as validated and every file is decoded again once.
+    static let summaryVersion = 1
+    private struct SummaryCache: Codable { var version: Int; var entries: [LibraryScriptSummary] }
+    private var summaryCacheURL: URL { root.appendingPathComponent("library-script-summaries.json") }
+    /// Decodes performed by summary scans and `loadScript` (test probe for cache use).
+    private(set) var scriptDecodeCount = 0
+
+    /// A missing, unreadable or older cache is an empty cache; the files stay the source of truth.
+    private func readSummaryCache() -> [String: LibraryScriptSummary] {
+        guard let data = try? Data(contentsOf: summaryCacheURL),
+              let cache = try? JSONDecoder().decode(SummaryCache.self, from: data),
+              cache.version == Self.summaryVersion else { return [:] }
+        return Dictionary(cache.entries.map { ($0.url.standardizedFileURL.path, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+    private func writeSummaryCache(_ entries: [LibraryScriptSummary]) {
+        // A failed cache write only costs a decode on the next launch.
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try? JSONEncoder().encode(SummaryCache(version: Self.summaryVersion, entries: entries))
+            .write(to: summaryCacheURL, options: .atomic)
+    }
+
+    /// Lists Scripts without decoding files whose bytes match a summary that was validated before.
+    /// Every file is still read and hashed; changed or new files are decoded and validated here.
+    public func scanScriptSummaries(in folder: URL) throws -> FileScanResult<LibraryScriptSummary> {
+        let urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+        let cached = readSummaryCache()
+        var result: [LibraryScriptSummary] = [], issues: [FileScanIssue] = []
+        for url in urls where url.lastPathComponent.hasSuffix(".dama.json") {
+            try Task.checkCancellation()
+            do {
+                try safe(url)
+                let bytes = try Data(contentsOf: url), hash = Self.hash(bytes), key = url.standardizedFileURL.path
+                if let hit = cached[key], hit.hash == hash { result.append(hit.at(url)); continue }
+                if let open = scriptCache[key], open.hash == hash { result.append(LibraryScriptSummary(open).at(url)); continue }
+                scriptDecodeCount += 1
+                let script = try JSONDecoder().decode(LibraryScript.self, from: bytes)
+                try script.validate()
+                result.append(LibraryScriptSummary(url: url, hash: hash, script: script))
+            } catch is CancellationError { throw CancellationError() }
+            catch { issues.append(Self.issue(url, error: error)) }
+        }
+        let duplicateIDs = Set(Dictionary(grouping: result, by: \.id).filter { $0.value.count > 1 }.keys)
+        for summary in result where duplicateIDs.contains(summary.id) {
+            issues.append(FileScanIssue(url: summary.url, reason: .duplicateIdentity, itemID: summary.id))
+        }
+        result.removeAll { duplicateIDs.contains($0.id) }
+        // Opened files stay cached only while their path and bytes are still listed.
+        let listed = Dictionary(result.map { ($0.url.standardizedFileURL.path, $0.hash) }, uniquingKeysWith: { first, _ in first })
+        scriptCache = scriptCache.filter { listed[$0.key] == $0.value.hash }
+        // The cache mirrors this folder's valid listing; rewrite only when it changed.
+        let byPath: (LibraryScriptSummary, LibraryScriptSummary) -> Bool = { $0.url.path < $1.url.path }
+        let entries = result.map { $0.at($0.url.standardizedFileURL) }.sorted(by: byPath)
+        if entries != cached.values.sorted(by: byPath) { writeSummaryCache(entries) }
+        return FileScanResult(items: result.sorted { $0.createdAt == $1.createdAt ? $0.id < $1.id : $0.createdAt > $1.createdAt },
+                              issues: issues.sorted { $0.id < $1.id })
+    }
+
+    /// Reads one listed Script. Bytes that no longer match the listing are `changedFile`; the caller rescans.
+    public func loadScript(_ summary: LibraryScriptSummary) throws -> LibraryScriptFile {
+        try safe(summary.url)
+        let key = summary.url.standardizedFileURL.path
+        let bytes = try Data(contentsOf: summary.url), hash = Self.hash(bytes)
+        guard hash == summary.hash else { throw LibraryFailure.changedFile }
+        if let open = scriptCache[key], open.hash == hash { return open }
+        scriptDecodeCount += 1
+        let script = try JSONDecoder().decode(LibraryScript.self, from: bytes)
+        try script.validate()
+        guard script.id == summary.id else { throw LibraryFailure.changedFile }
+        let file = LibraryScriptFile(url: summary.url, hash: hash, script: script)
+        scriptCache[key] = file
+        return file
+    }
+
     private static func issue(_ url: URL, error: Error) -> FileScanIssue {
         let reason: FileScanIssue.Reason
         switch error {
@@ -219,10 +329,11 @@ public actor FolderLibraryStore {
     }
     public func createScript(_ document: TranscriptDocument, speech: LibrarySpeech, input: ConversionNotes, in folder: URL) throws -> LibraryScriptFile {
         // Resume from existing saved file, never replace a user's edited result.
-        let scan = try scanScripts(in: folder)
+        let scan = try scanScriptSummaries(in: folder)
         // A duplicate identity must be resolved before creating another copy.
         guard !scan.issues.contains(where: { $0.itemID == document.runId }) else { throw LibraryFailure.invalidScript }
-        if let existing = scan.items.first(where: { $0.script.transcript.runId == document.runId }) { return existing }
+        // A Script's id is its transcript runId (LibraryScript.validate).
+        if let existing = scan.items.first(where: { $0.id == document.runId }) { return try loadScript(existing) }
         let script = try LibraryScript(transcript: document, title: speech.title, recordedAt: speech.recordedAt,
             dateSource: speech.dateSource, input: input)
         let url = folder.appendingPathComponent(UUID().uuidString + ".dama.json")
@@ -274,7 +385,7 @@ public actor FolderLibraryStore {
         guard source.script.snapshotTitle == nil, !source.url.path.hasPrefix(revisionFolder.path + "/") else { throw LibraryFailure.unsafePath }
         let bytes = try Data(contentsOf: source.url), hash = Self.hash(bytes)
         guard hash == source.hash || committedScriptHashes[source.url.standardizedFileURL.path] == hash else { throw LibraryFailure.changedFile }
-        let scan = try scanScripts(in: source.url.deletingLastPathComponent())
+        let scan = try scanScriptSummaries(in: source.url.deletingLastPathComponent())
         guard scan.items.contains(where: { $0.id == source.id && $0.url.standardizedFileURL == source.url.standardizedFileURL && $0.hash == hash })
         else { throw LibraryFailure.changedFile }
         let latest = try JSONDecoder().decode(LibraryScript.self, from: bytes)
@@ -383,11 +494,17 @@ public actor FolderLibraryStore {
         guard url.standardizedFileURL.deletingLastPathComponent() == folder else { throw LibraryFailure.unsafePath }
     }
     public func trashScript(_ file: LibraryScriptFile, in folder: URL) throws {
-        try validateDeletion(file.url, in: folder)
-        guard file.url.lastPathComponent.hasSuffix(".dama.json"),
-              try AudioFiles.hash(file.url) == file.hash else { throw LibraryFailure.changedFile }
-        try trash(file.url)
-        scriptCache.removeValue(forKey: file.url.standardizedFileURL.path)
+        try trashScript(url: file.url, hash: file.hash, in: folder)
+    }
+    public func trashScript(_ summary: LibraryScriptSummary, in folder: URL) throws {
+        try trashScript(url: summary.url, hash: summary.hash, in: folder)
+    }
+    private func trashScript(url: URL, hash: String, in folder: URL) throws {
+        try validateDeletion(url, in: folder)
+        guard url.lastPathComponent.hasSuffix(".dama.json"),
+              try AudioFiles.hash(url) == hash else { throw LibraryFailure.changedFile }
+        try trash(url)
+        scriptCache.removeValue(forKey: url.standardizedFileURL.path)
     }
     public func trashSpeech(_ speech: LibrarySpeech, in folder: URL) throws {
         try validateDeletion(speech.fileURL, in: folder)
