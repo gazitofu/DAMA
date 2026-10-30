@@ -3,7 +3,7 @@ unit: nemotron-diarization
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "v2 구현·0.5.13(31) 빌드 완료. 남음: AC-15 실데이터 재측정(Debug 도구), 설치(승인), AC-09·10·14·15 실화면."
+resume: "게이트 ② 대기. v2 구현·실데이터 측정·0.5.13(31) 빌드 완료, 미설치. 남음: 설치(승인), AC-09·10·14 실화면, AC-15 설치 앱 다시 전사 1회."
 spec: notes/nemotron-diarization/nemotron-diarization.src.html
 ---
 
@@ -75,6 +75,7 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - 미배정 진단(사용자 지적 «화자 미배정 많음», `.build/check-logs/nemotron-diarization/unassigned-diagnosis.txt`, 스크립트 `notes/nemotron-diarization/{unassigned,overlap,p2excl}.py`): E33ADFD9 lexical 22,635 중 미배정 1,387(6.13%). 그중 1,275(92%)는 토큰 구간 전체가 두 채널 이상 > 0.5인 프레임(파생 단독 구간에서 빠짐), 71 Nemotron 무음, 39 시간 무효/0길이, 2 동률. 저장된 P2 13개 원응답은 일반 구간 겹침 프레임 236,162개를 단독 구간이 100% 한 화자로 덮음. 즉 P2 미배정이 낮았던 원인은 공급자 단독 출력이며 기존 v3·v4·v5 규칙은 단독 후보가 있어야 동작해 이 92%를 줄이지 못한다.
 - 스펙 r2(v2, 사용자 «v2로 변경»): `4efd7ba` 스펙·운영 계약·AC-15 · `884eb5b` 구현. `NemotronIntervals.Rule`(v1 `singleActive` 재현 유지, v2 `mostProbable`), `SonioxNemotronReconciler.Version`(새 Run v2, 저장된 v1은 v1, 미지원 버전은 `failed`). 테스트: 겹침 프레임 최고 확률 채널·동률 제외·v1 비교·v1/v2 결합·저장 버전 유지·미지원 버전 실패. 역뮤테이션(v2를 v1 동작으로) Intervals 1·Reconciler 2 FAIL, 복원 SHA256 일치. check.sh `.build/check-logs/run-20261030T082802Z-CTHPl9` exit 0, SKIP 없음, swift test 257(Core 173 / Audio 37 / Managed 47). 0.5.13(31) Debug 빌드, dylib에 `soniox-nemotron-word-v2` 포함, 미설치.
 - 재현성 발견: 같은 입력으로 B2 결합을 Release(-O)로 빌드하면 설치 앱(Debug) 결과와 BED2C097에서 15단어(꼬리 공유 구절 나누기)가 다르다. Debug 빌드 재생은 설치 앱 출력과 바이트 동일. 같은 구절 나누기 코드를 단독 프로그램으로 -O/-Onone 컴파일하면 동일해 원인 미확정. 전달 앱은 Debug라 현재 결과 영향 없음. 측정 도구는 Debug로 돌린다.
+- AC-15 실데이터(`.build/check-logs/nemotron-diarization/ac15-summary.txt`, Debug 빌드 도구): Soniox 원응답과 1a 확률이 있는 19개, v2 계약 검증 19/19, 화자 수 = 1a 채널 19/19. 미배정 lexical v1 2.02–12.47%(중앙 6.76) → v2 0.57–7.03%(중앙 1.26). P2 결합본 11개 P2 0.03–8.00%(10개 1.14% 이하). BED2C097 v1 6.13%는 설치 앱 Run E33ADFD9와 일치. 정확도 지표 아님. 남은 미배정이 큰 녹음: 6F4FA04E 7.03%, 73B651D8 5.45%, 542D0E56 4.58%.
 - 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정, AC-11 앱 안 실다운로드, AC-13 설치 앱 실행, AC-14 실행 중 Bundle 확인. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
 
 ## 작업 분해
