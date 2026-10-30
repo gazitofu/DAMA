@@ -10,8 +10,10 @@ struct ProcessingProgressCard: View {
     let preparing: Bool
     let startedAt: Date?
     var scriptSaved = false
+    var retiredProvider = false
     var body: some View {
-        let state = ProcessingPresentation(run: run, tracking: tracking, preparing: preparing, scriptSaved: scriptSaved)
+        let state = ProcessingPresentation(run: run, tracking: tracking, preparing: preparing, scriptSaved: scriptSaved,
+                                           retiredProvider: retiredProvider)
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
                 if state.spinning { ProgressView().controlSize(.regular).accessibilityLabel("변환 진행 중") }

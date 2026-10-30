@@ -35,7 +35,8 @@ struct SpeechDetailView: View {
                         ProcessingProgressCard(run: run, tracking: processing.activeSessionID == speech.id,
                             preparing: workspace.preparingSpeechID == speech.id,
                             startedAt: processing.activeSessionID == speech.id ? processing.attemptStartedAt : nil,
-                            scriptSaved: run.map { value in workspace.scripts.contains { $0.id == value.id } } ?? false)
+                            scriptSaved: run.map { value in workspace.scripts.contains { $0.id == value.id } } ?? false,
+                            retiredProvider: run.map(processing.isRetired) ?? false)
                         if run?.stage == "waitingForCredentials" { Button("API 키 설정", action: settings) }
                         if processing.activeSessionID == speech.id, run?.provider == .qwen { Button("로컬 전사 일시 정지", action: processing.pause) }
                     } else {
@@ -45,7 +46,7 @@ struct SpeechDetailView: View {
                         }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.accentColor.opacity(0.045), in: RoundedRectangle(cornerRadius: 12))
                     }
-                    Text(provider == .sonioxPrecision ? "Soniox 전사 + Precision-2 화자 분리" : provider.title).font(.headline)
+                    Text(provider == .sonioxNemotron ? "Soniox 전사 + Nemotron 3 화자 분리" : provider.title).font(.headline)
                     if provider.consumesSpeakerCount(sonioxEnabled: processing.sonioxContext) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("실제 화자 수 (선택)").fontWeight(.medium)
@@ -77,6 +78,16 @@ struct SpeechDetailView: View {
                                 ForEach(TranscriptionProvider.selectable, id: \.self) { Text($0.title).tag($0) }
                             }
                             if provider.usesSoniox { Toggle("기본 문맥 전송", isOn: $processing.sonioxContext) }
+                            if provider == .sonioxNemotron {
+                                HStack {
+                                    if processing.modelStatus == .downloading { ProgressView().controlSize(.small) }
+                                    Text(processing.modelStatusText).font(.caption)
+                                    if [.missing, .failed, .mismatch].contains(processing.modelStatus) {
+                                        Button(processing.modelStatus == .missing ? "모델 받기" : "다시 받기", action: processing.downloadModel)
+                                    }
+                                }
+                                Text("화자 분리는 이 Mac에서 하며 음성을 전송하지 않습니다. 모델은 처음 한 번 Hugging Face에서 받습니다.").font(.caption).foregroundStyle(.secondary)
+                            }
                             if provider == .qwen {
                                 HStack {
                                     Text(processing.qwenReady ? "로컬 엔진 준비됨" : "로컬 엔진 설치 필요").font(.caption)
@@ -113,6 +124,10 @@ struct SpeechDetailView: View {
         }
     }
     private var countExplanation: String {
+        if provider == .sonioxNemotron {
+            return "Nemotron 3에는 화자 수를 지정할 수 없습니다. 입력한 수는 스크립트 정보에서 감지 인원과 비교해 보여 줍니다." +
+                (processing.sonioxContext ? " Soniox에는 1~15명 힌트로 전달합니다." : "")
+        }
         if provider == .soniox { return "Soniox에 1~15명 힌트로 전달합니다. 인원을 강제하지 않습니다." }
         return "실제로 말한 인원을 알면 지정하세요. Precision-2에 화자 수 제약으로 전달합니다." + (provider.usesSoniox && processing.sonioxContext ? " Soniox에는 1~15명 힌트를 함께 보냅니다." : "")
     }
@@ -121,10 +136,11 @@ struct SpeechDetailView: View {
         if workspace.preparingSpeechID == speech.id { return "오디오 준비 중…" }
         if let run {
             if run.stage == "readyForReview" { return workspace.scripts.contains { $0.id == run.id } ? "스크립트 열기" : "스크립트 저장 다시 시도" }
+            if processing.isRetired(run) { return "다시 전사…" }
             return processing.canResume(run) ? "변환 재개" : "처리 상태 확인"
         }
         if workspace.completedScript(for: speech) != nil { return "스크립트 열기" }
-        return provider == .sonioxPrecision ? "결합본 만들기" : "변환하기"
+        return [.sonioxPrecision, .sonioxNemotron].contains(provider) ? "결합본 만들기" : "변환하기"
     }
     private func noteField(_ label: String, text: Binding<String>, height: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 8) {

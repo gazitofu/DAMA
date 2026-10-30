@@ -111,6 +111,17 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         XCTAssertEqual(plain.blocks().map(\.text), ["다음", "네", "안 합니다"])
     }
 
+    func testOperatingSelectionMigratesRetiredChoices() {
+        XCTAssertEqual(TranscriptionProvider.selectable, [.sonioxNemotron, .soniox])
+        for stored in ["sonioxPrecision", "qwen", "pyannote", "precision", "nemotron", "unknown", nil] as [String?] {
+            XCTAssertEqual(TranscriptionProvider.operatingSelection(stored: stored), .sonioxNemotron, stored ?? "nil")
+        }
+        XCTAssertEqual(TranscriptionProvider.operatingSelection(stored: "soniox"), .soniox)
+        XCTAssertEqual(TranscriptionProvider.operatingSelection(stored: "sonioxNemotron"), .sonioxNemotron)
+        XCTAssertEqual(TranscriptionProvider.sonioxNemotron.title, "Soniox + Nemotron 3 (운영)")
+        XCTAssertEqual(TranscriptionProvider.soniox.title, "Soniox 단독 (비교)")
+    }
+
     func testSpeakerIdsAreScopedToRun() throws {
         let other = "00000000-0000-4000-8000-00000000e002"
         let first = try normalize([token("다음", 100, 900)], aba)

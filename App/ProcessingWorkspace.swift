@@ -2,6 +2,7 @@ import AppKit
 import DamaAudio
 import DamaManaged
 import DamaCore
+import DamaNemotron
 import SwiftUI
 
 @MainActor
@@ -15,7 +16,7 @@ final class ProcessingWorkspace: ObservableObject {
     @Published private(set) var activeSessionID: String?
     @Published private(set) var attemptStartedAt: Date?
     @Published var message: String?
-    @Published var selectedProvider = TranscriptionProvider(rawValue: UserDefaults.standard.string(forKey: "transcription.operatingProvider") ?? "") ?? .sonioxPrecision {
+    @Published var selectedProvider = TranscriptionProvider.operatingSelection(stored: UserDefaults.standard.string(forKey: "transcription.operatingProvider")) {
         didSet { UserDefaults.standard.set(selectedProvider.rawValue, forKey: "transcription.operatingProvider") }
     }
     @Published var comparison = UserDefaults.standard.object(forKey: "transcription.comparison") as? Bool ?? true {
@@ -45,12 +46,49 @@ final class ProcessingWorkspace: ObservableObject {
     private var task: Task<Void, Never>?
     private var activeProvider: TranscriptionProvider?
 
+    enum ModelStatus: Equatable { case checking, missing, downloading, ready, failed, mismatch }
+    @Published private(set) var modelStatus = ModelStatus.checking
+    private var modelStore: NemotronModelStore? { (try? AudioFiles.root()).map { NemotronModelStore(internalRoot: $0) } }
+    var modelStatusText: String {
+        switch modelStatus {
+        case .checking, .missing: "화자 분리 모델 필요 · 약 200MB"
+        case .downloading: "화자 분리 모델을 받는 중"
+        case .ready: "화자 분리 모델 준비됨 · Nemotron 3"
+        case .failed: "화자 분리 모델을 받지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요."
+        case .mismatch: "받은 모델이 이 버전의 DAMA가 확인한 파일과 달라 사용하지 않았습니다."
+        }
+    }
+    /// Hashes about 200MB off the main actor; a mismatching copy is removed.
+    func refreshModelStatus() {
+        guard modelStatus != .downloading, let store = modelStore else { return }
+        Task {
+            let state = await Task.detached { try? store.removeIfMismatched() }.value
+            guard modelStatus != .downloading else { return }
+            modelStatus = state == .ready ? .ready : state == .mismatch ? .mismatch : .missing
+        }
+    }
+    /// The only network use of the local path; runs only from the model button.
+    func downloadModel() {
+        guard modelStatus != .downloading, let store = modelStore else { return }
+        modelStatus = .downloading
+        Task {
+            do {
+                try await store.install { cache in try await FluidNemotronDownloader.download(into: cache) }
+                modelStatus = .ready
+            } catch NemotronModelError.mismatch { modelStatus = .mismatch }
+            catch { modelStatus = .failed }
+        }
+    }
+    /// Continuing this run would need pyannote.ai, which DAMA no longer calls.
+    func isRetired(_ run: ManagedRun) -> Bool { run.needsPyannote(among: runs) }
+
     private func admitsProcessing(_ provider: TranscriptionProvider) -> Bool {
         let recording = RecordingWorkspace.shared
         guard !recording.lifecycle.shuttingDown else { return false }
-        if provider == .qwen && !recording.lifecycle.allowsLocalInference(
+        if [.qwen, .sonioxNemotron].contains(provider) && !recording.lifecycle.allowsLocalInference(
             phase: recording.capture.phase, needsFinalization: recording.capture.needsFinalization) {
-            message = "녹음 원본을 저장한 뒤 Qwen 비교 전사를 시작하거나 재개해 주세요."
+            message = provider == .qwen ? "녹음 원본을 저장한 뒤 Qwen 비교 전사를 시작하거나 재개해 주세요."
+                : "녹음 원본을 저장한 뒤 화자 분리를 시작하거나 재개해 주세요."
             return false
         }
         return true
@@ -59,8 +97,18 @@ final class ProcessingWorkspace: ObservableObject {
     func start() {
         guard processor == nil else { return }
         do {
-            let processor = ManagedProcessor(root: try AudioFiles.root(), qwen: QwenRunner(runtimeURL:qwenRuntimeURL))
+            let root = try AudioFiles.root()
+            let processor = ManagedProcessor(root: root, qwen: QwenRunner(runtimeURL:qwenRuntimeURL),
+                diarizer: FluidNemotronDiarizer(), nemotronModels: NemotronModelStore(internalRoot: root),
+                admitsLocalInference: {
+                    await MainActor.run {
+                        let recording = RecordingWorkspace.shared
+                        return !recording.lifecycle.shuttingDown && recording.lifecycle.allowsLocalInference(
+                            phase: recording.capture.phase, needsFinalization: recording.capture.needsFinalization)
+                    }
+                }, allowsPyannote: false)
             self.processor = processor
+            refreshModelStatus()
             Task {
                 do {
                     await refreshRuns(recover: true)
@@ -96,7 +144,7 @@ final class ProcessingWorkspace: ObservableObject {
     }
 
     func canRetranscribe(_ sessionID: String) -> Bool {
-        !busy && historyAllowsProcessing(sessionID) && !localOnly.contains(sessionID) && runs.filter { $0.sessionID == sessionID && $0.parentRunID == nil && (selectedProvider == .qwen || $0.provider != .qwen) }.allSatisfy(\.canRetranscribe)
+        !busy && historyAllowsProcessing(sessionID) && !localOnly.contains(sessionID) && runs.filter { $0.sessionID == sessionID && $0.parentRunID == nil && (selectedProvider == .qwen || $0.provider != .qwen) }.allSatisfy { $0.canRetranscribe || isRetired($0) }
     }
 
     func preparedInput(_ input: ConversionNotes) async throws -> ConversionNotes {
@@ -127,6 +175,13 @@ final class ProcessingWorkspace: ObservableObject {
             do {
                 input.sonioxSourceRunID = try await processor.reusableSoniox(sessionID: record.id, audioHash: record.analysis!.sha256, input: input)
                 input.precisionSourceRunID = try await processor.reusableDiarization(sessionID: record.id, audioHash: record.analysis!.sha256, speakerCount: input.speakerCount)
+            } catch { message = "기존 결과의 조건을 확인하지 못했습니다. 전송하지 않았습니다."; return }
+        }
+        if input.provider == .sonioxNemotron {
+            guard modelStatus == .ready else { message = "화자 분리 모델이 없습니다. 새 전사 설정에서 모델을 먼저 받아 주세요."; return }
+            do {
+                input.sonioxSourceRunID = try await processor.reusableSoniox(sessionID: record.id, audioHash: record.analysis!.sha256, input: input)
+                input.nemotronSourceRunID = try await processor.reusableNemotron(sessionID: record.id, audioHash: record.analysis!.sha256)
             } catch { message = "기존 결과의 조건을 확인하지 못했습니다. 전송하지 않았습니다."; return }
         }
         guard !busy, admitsProcessing(input.provider) else { return }
@@ -167,7 +222,17 @@ final class ProcessingWorkspace: ObservableObject {
                 (input.sonioxSpeakerCountHint.map { " · Soniox \($0)명 힌트 (강제 아님)" } ?? " · Soniox 자동 판단") +
                 "\n참석자 명단과 실제 발화자 수는 다를 수 있습니다. 선택한 문맥은 Soniox에만 보내며 참고 문서를 정답으로 강제하지 않습니다.\n\n기존 수정본은 보존됩니다. Soniox 서버 파일은 자동 삭제하지 않으며 보관 정책이 적용됩니다."
         }
-        if retranscribing && [.sonioxPrecision, .qwen].contains(input.provider) &&
+        if input.provider == .sonioxNemotron {
+            alert.messageText = "운영 스크립트를 만들까요?"
+            alert.informativeText = "\(record.title) · \(record.durationUs / 1_000_000)초\n\nSoniox: " +
+                (input.sonioxSourceRunID.map { "동일 음성·문맥 결과 재사용 (\($0))" } ?? "전체 음성 전송 · stt-async-v5 전사 및 자체 화자분리") +
+                "\nNemotron 3: " + (input.nemotronSourceRunID.map { "동일 음성·모델 결과 재사용 (\($0))" } ?? "이 Mac에서 화자 분리 · 음성 전송 없음") +
+                "\n\n새 Soniox 요청에만 사용량이 발생합니다. 완료된 결과는 보존하고, Soniox 단독과 결합본을 따로 엽니다. AI 교정 OFF. 화자 충돌·경계·겹말은 검수 대상으로 남습니다.\n\n" +
+                (input.speakerCount.map { "실제 발화자 \($0)명: Nemotron 3에는 지정하지 않음" } ?? "실제 발화자 수 미입력") +
+                (input.sonioxSpeakerCountHint.map { " · Soniox \($0)명 힌트 (강제 아님)" } ?? " · Soniox 자동 판단") +
+                "\n참석자 명단과 실제 발화자 수는 다를 수 있습니다. 선택한 문맥은 Soniox에만 보내며 참고 문서를 정답으로 강제하지 않습니다.\n\n기존 수정본은 보존됩니다. Soniox 서버 파일은 자동 삭제하지 않으며 보관 정책이 적용됩니다."
+        }
+        if retranscribing && [.sonioxPrecision, .sonioxNemotron, .qwen].contains(input.provider) &&
             runs.contains(where: { $0.sessionID == record.id && $0.stage == "submissionUncertain" }) {
             alert.informativeText += "\n\n이전 작업의 접수 여부가 불명확합니다. 새 API 요청이 필요하면 중복 처리·과금이 발생할 수 있습니다. 기존 접수 불명 작업은 자동 재제출하지 않습니다."
         }
@@ -176,7 +241,7 @@ final class ProcessingWorkspace: ObservableObject {
         }
         CorrectionWorkspace.addPreview(to: alert, input: input)
         alert.addButton(withTitle: "닫기")
-        alert.addButton(withTitle: input.provider == .sonioxPrecision ? "결합본 만들기" : input.provider == .qwen ? "비교 전사 시작" : retranscribing ? "재전사 시작" : input.aiCorrection == true ? "전송하고 자동 교정" : "음성 전송")
+        alert.addButton(withTitle: [.sonioxPrecision, .sonioxNemotron].contains(input.provider) ? "결합본 만들기" : input.provider == .qwen ? "비교 전사 시작" : retranscribing ? "재전사 시작" : input.aiCorrection == true ? "전송하고 자동 교정" : "음성 전송")
         if !retranscribing { alert.addButton(withTitle: "로컬 저장만") }
         let response = alert.runModal()
         if response == .alertThirdButtonReturn {
@@ -188,10 +253,10 @@ final class ProcessingWorkspace: ObservableObject {
         }
         guard response == .alertSecondButtonReturn else { return }
         let confirmedInput=input
-        let combined = input.provider == .sonioxPrecision
+        let combined = input.provider == .sonioxPrecision, local = input.provider == .sonioxNemotron
         launch(sessionID: record.id, provider: input.provider,
-               needsKey: combined ? input.precisionSourceRunID == nil : input.provider != .qwen || input.qwenDiarizationRunID == nil,
-               needsSonioxKey: combined && input.sonioxSourceRunID == nil) { key, sonioxKey in
+               needsKey: local ? false : combined ? input.precisionSourceRunID == nil : input.provider != .qwen || input.qwenDiarizationRunID == nil,
+               needsSonioxKey: (combined || local) && input.sonioxSourceRunID == nil) { key, sonioxKey in
             try await processor.begin(sessionID: record.id, confirmed: true, key: key, input: confirmedInput,
                                       retranscribing: retranscribing, sonioxKey: sonioxKey)
         }
@@ -199,12 +264,12 @@ final class ProcessingWorkspace: ObservableObject {
 
     func resume(_ run: ManagedRun) {
         guard !busy, let processor, admitsProcessing(run.provider) else { return }
-        let combined = run.provider == .sonioxPrecision
+        let combined = run.provider == .sonioxPrecision, local = run.provider == .sonioxNemotron
         let p2Done = (run.precisionRunID ?? run.input?.precisionSourceRunID).map { id in runs.contains { $0.id == id && $0.stage == "readyForReview" } } ?? false
         let sonioxDone = (run.sonioxRunID ?? run.input?.sonioxSourceRunID).map { id in runs.contains { $0.id == id && $0.stage == "readyForReview" } } ?? false
         launch(sessionID: run.sessionID, provider: run.provider,
-               needsKey: combined ? !p2Done : run.provider != .qwen || run.input?.qwenDiarizationRunID == nil,
-               needsSonioxKey: combined && !sonioxDone) { key, sonioxKey in
+               needsKey: local ? false : combined ? !p2Done : run.provider != .qwen || run.input?.qwenDiarizationRunID == nil,
+               needsSonioxKey: (combined || local) && !sonioxDone) { key, sonioxKey in
             try await processor.resume(run.id, key: key, sonioxKey: sonioxKey)
         }
     }
@@ -250,7 +315,7 @@ final class ProcessingWorkspace: ObservableObject {
                     LibraryWorkspace.shared.processingFinished(result)
                 } else {
                     message = label(result)
-                    if result.provider == .sonioxPrecision, let id = result.sonioxRunID,
+                    if [.sonioxPrecision, .sonioxNemotron].contains(result.provider), let id = result.sonioxRunID,
                        runs.contains(where: { $0.id == id && $0.stage == "readyForReview" }) {
                         message = "결합 처리 미완료 · Soniox 단독 결과는 Scripts에서 열 수 있습니다. " + label(result)
                     }
@@ -261,12 +326,13 @@ final class ProcessingWorkspace: ObservableObject {
 
     func pause() { task?.cancel() }
     var localInferenceActive: Bool {
-        busy && activeProvider == .qwen
+        busy && (activeProvider == .qwen || (activeProvider == .sonioxNemotron &&
+            runs.contains { $0.sessionID == activeSessionID && $0.parentRunID == nil && $0.stage == "localDiarizing" }))
     }
     func pauseLocalInferenceForRecording() {
         guard localInferenceActive else { return }
         task?.cancel()
-        message = "녹음을 우선해 Qwen 비교 전사를 중단합니다. 저장된 진행 상태에서 직접 재개할 수 있습니다."
+        if activeProvider == .qwen { message = "녹음을 우선해 Qwen 비교 전사를 중단합니다. 저장된 진행 상태에서 직접 재개할 수 있습니다." }
     }
     func pauseAndWait() async {
         guard localInferenceActive else { return }
@@ -284,6 +350,7 @@ final class ProcessingWorkspace: ObservableObject {
         case "remotePending": "서버 처리 중"
         case "normalizing": "스크립트 준비 중"
         case "localTranscribing": "Qwen 로컬 전사·정렬 중"
+        case "localDiarizing": "이 Mac에서 화자를 나누고 있습니다"
         case "readyForReview": "전사 완료 · 검수 전"
         case "submissionUncertain": "작업 접수 여부를 확인할 수 없습니다. 자동 재제출하지 않습니다."
         case "waitingForCredentials": "API 키 필요"
@@ -297,7 +364,7 @@ final class ProcessingWorkspace: ObservableObject {
         }
     }
     func canResume(_ run: ManagedRun) -> Bool {
-        !busy && historyAllowsProcessing(run.sessionID) && ["queued", "uploading", "uploaded", "remotePending", "normalizing", "localTranscribing", "waitingForCredentials", "waitingForBilling", "waitingForNetwork", "paused"].contains(run.stage)
+        !busy && historyAllowsProcessing(run.sessionID) && !isRetired(run) && (run.resumesLocalDiarization || ["localDiarizing", "queued", "uploading", "uploaded", "remotePending", "normalizing", "localTranscribing", "waitingForCredentials", "waitingForBilling", "waitingForNetwork", "paused"].contains(run.stage))
     }
 }
 

@@ -8,15 +8,21 @@ public struct ProcessingPresentation: Sendable {
     public let step: Int?
     public let spinning: Bool
     public let completed: Bool
-    public init(run: ManagedRun?, tracking: Bool, preparing: Bool = false, scriptSaved: Bool = false) {
+    /// `retiredProvider`: continuing would need pyannote.ai, which is no longer used (2026-10-30).
+    public init(run: ManagedRun?, tracking: Bool, preparing: Bool = false, scriptSaved: Bool = false, retiredProvider: Bool = false) {
         completed = run?.stage == "readyForReview" && scriptSaved
         guard let run else {
             title = preparing ? "오디오를 준비하고 있습니다" : "변환을 준비하고 있습니다"
             detail = "원본과 오디오 형식을 확인합니다."
             step = nil; spinning = preparing || tracking; return
         }
-        let activeStages = ["queued", "uploading", "uploadSubmitting", "uploaded", "submitting", "remotePending", "normalizing", "localTranscribing"]
+        let activeStages = ["queued", "uploading", "uploadSubmitting", "uploaded", "submitting", "remotePending", "normalizing", "localTranscribing", "localDiarizing"]
         spinning = tracking && activeStages.contains(run.stage)
+        if retiredProvider {
+            title = "pyannote 화자 분리는 더 이상 사용하지 않습니다"
+            detail = "다시 전사하면 저장된 Soniox 결과를 재사용해 Nemotron 3로 결합본을 만듭니다."
+            step = nil; return
+        }
         if activeStages.contains(run.stage) && !tracking {
             title = "처리 상태 확인이 멈춰 있습니다"
             detail = "변환 재개를 누르면 같은 작업을 확인합니다. 서버 작업은 계속될 수 있습니다."
@@ -34,6 +40,10 @@ public struct ProcessingPresentation: Sendable {
             detail = "완료되면 스크립트를 자동으로 저장합니다. 서버는 진행률·남은 시간을 제공하지 않습니다."; step = 2
         case "normalizing":
             title = "스크립트를 준비하고 있습니다"; detail = "변환 결과를 읽고 이 Mac에 저장합니다."; step = 3
+        case "localDiarizing":
+            title = "이 Mac에서 화자를 나누고 있습니다"; detail = "음성을 전송하지 않습니다. 녹음을 시작하면 멈추고, 변환 재개로 처음부터 다시 실행합니다."; step = 2
+        case "failed" where run.resumesLocalDiarization:
+            title = "이 Mac에서 화자 분리를 끝내지 못했습니다"; detail = "Soniox 결과는 보존되어 있습니다. 변환 재개로 화자 분리만 다시 실행합니다."; step = nil
         case "localTranscribing":
             title="Qwen 로컬 전사·정렬 중입니다";detail="이 Mac에서 처리합니다. 중단해도 완료한 청크는 보존되며 재개할 수 있습니다.";step=2
         case "readyForReview":

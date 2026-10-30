@@ -200,6 +200,15 @@ import XCTest
         catch { XCTAssertEqual(error as? ManagedFailure, .providerRetired) }
         XCTAssertEqual(try Data(contentsOf: runDir(root, audio.id, parent.id).appendingPathComponent("state.json")), before)
         let calls = await p2.calls; XCTAssertEqual(calls, 0)
+        // Retranscribing the stalled speech starts a new local run despite the retired parent.
+        let soniox = NmSoniox(), diarizer = FakeDiarizer()
+        let fresh = ManagedProcessor(root: root, transport: p2, soniox: soniox, diarizer: diarizer,
+            nemotronModels: try models(root), allowsPyannote: false, sleep: { _ in })
+        let replaced = try await fresh.begin(sessionID: audio.id, confirmed: true, key: "", input: notes,
+                                             retranscribing: true, sonioxKey: "soniox-key")
+        XCTAssertEqual(replaced.stage, "readyForReview")
+        let callsAfter = await p2.calls; XCTAssertEqual(callsAfter, 0)
+        XCTAssertEqual(try Data(contentsOf: runDir(root, audio.id, parent.id).appendingPathComponent("state.json")), before)
         // Completed P2 or a reused P2 source keeps the old path local.
         var readyChild = withParent; readyChild.stage = "readyForReview"
         XCTAssertFalse(parent.needsPyannote(among: [parent, readyChild]))

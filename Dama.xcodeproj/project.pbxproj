@@ -14,6 +14,7 @@
 		100000000000000000000021 = {isa = PBXBuildFile; fileRef = 200000000000000000000021; };
 		100000000000000000000013 = {isa = PBXBuildFile; fileRef = 200000000000000000000013; };
 		100000000000000000000014 = {isa = PBXBuildFile; productRef = B00000000000000000000004; };
+		100000000000000000000040 /* DamaNemotron */ = {isa = PBXBuildFile; productRef = B00000000000000000000006 /* DamaNemotron */; };
 		100000000000000000000009 = {isa = PBXBuildFile; fileRef = 200000000000000000000010; };
 		100000000000000000000010 = {isa = PBXBuildFile; fileRef = 200000000000000000000011; };
 		100000000000000000000011 = {isa = PBXBuildFile; fileRef = 200000000000000000000012; };
@@ -65,6 +66,7 @@
 				100000000000000000000003 /* DamaCore in Frameworks */,
 				100000000000000000000012 /* DamaAudio */,
 				100000000000000000000014 /* DamaManaged */,
+				100000000000000000000040 /* DamaNemotron */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -152,6 +154,7 @@
 				B00000000000000000000002 /* DamaCore */,
 				B00000000000000000000003 /* DamaAudio */,
 				B00000000000000000000004 /* DamaManaged */,
+				B00000000000000000000006 /* DamaNemotron */,
 			);
 			productName = Dama;
 			productReference = 200000000000000000000004 /* DAMA.app */;
@@ -183,6 +186,7 @@
 			mainGroup = 400000000000000000000001;
 			packageReferences = (
 				B00000000000000000000001 /* XCLocalSwiftPackageReference "Packages/DamaCore" */,
+				B00000000000000000000005 /* XCLocalSwiftPackageReference "Packages/DamaNemotron" */,
 			);
 			productRefGroup = 400000000000000000000005 /* Products */;
 			projectDirPath = "";
@@ -367,6 +371,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/DamaCore;
 		};
+		B00000000000000000000005 /* XCLocalSwiftPackageReference "Packages/DamaNemotron" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/DamaNemotron;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -384,6 +392,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B00000000000000000000001 /* XCLocalSwiftPackageReference "Packages/DamaCore" */;
 			productName = DamaCore;
+		};
+		B00000000000000000000006 /* DamaNemotron */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B00000000000000000000005 /* XCLocalSwiftPackageReference "Packages/DamaNemotron" */;
+			productName = DamaNemotron;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

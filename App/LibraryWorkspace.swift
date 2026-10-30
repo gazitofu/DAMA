@@ -330,6 +330,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 else { processingFinished(run) }
                 return
             }
+            // pyannote is retired: a stalled P2 run is replaced by a new local run, never resumed.
+            if processing.isRetired(run), canRetranscribe(speech.id) { retranscribeSpeech(); return }
             if processing.canResume(run) { processing.resume(run) }
             else { message = processing.label(run) }
             return
@@ -351,7 +353,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         }
     }
     func processingFinished(_ run: ManagedRun, select: Bool = true) {
-        guard run.provider != .precision else { return }
+        guard ![.precision, .nemotron].contains(run.provider) else { return }
         guard let store, let root, let destination = folders[.scripts] else {
             message = "결과는 내부에 보존했습니다. 해당 Speeches와 Scripts 폴더를 선택한 뒤 스크립트를 저장해 주세요."
             return

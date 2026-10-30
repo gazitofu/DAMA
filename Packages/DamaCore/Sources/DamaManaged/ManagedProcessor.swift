@@ -256,8 +256,12 @@ public actor ManagedProcessor {
         guard confirmed, try !isLocalOnly(sessionID) else { throw ManagedFailure.consentRequired }
         guard !active else { throw ManagedFailure.busy }
         guard allowsPyannote || !ManagedRun.needsPyannote(input) else { throw ManagedFailure.providerRetired }
-        let previous = try runsForSession(sessionID, recover: true).filter { $0.parentRunID == nil && (input.provider == .qwen || $0.provider != .qwen) }
-        guard previous.isEmpty || (retranscribing && previous.allSatisfy(\.canRetranscribe)) else { throw ManagedFailure.existingRun }
+        let sessionRuns = try runsForSession(sessionID, recover: true)
+        let previous = sessionRuns.filter { $0.parentRunID == nil && (input.provider == .qwen || $0.provider != .qwen) }
+        // A run that could only continue through retired pyannote does not block a new transcription.
+        guard previous.isEmpty || (retranscribing && previous.allSatisfy {
+            $0.canRetranscribe || (!allowsPyannote && $0.needsPyannote(among: sessionRuns))
+        }) else { throw ManagedFailure.existingRun }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let run = ManagedRun(id: UUID().uuidString, sessionID: sessionID,

@@ -5,6 +5,11 @@ public enum TranscriptionProvider: String, Codable, CaseIterable, Sendable {
     /// pyannote-backed paths stay readable but are no longer offered (2026-10-30).
     public static var selectable: [Self] { [.sonioxNemotron, .soniox] }
     public static var operatingDefault: Self { .sonioxNemotron }
+    /// A stored choice outside the current list falls back to the operating default; listed choices are kept.
+    public static func operatingSelection(stored: String?) -> Self {
+        guard let value = stored.flatMap(Self.init(rawValue:)), selectable.contains(value) else { return operatingDefault }
+        return value
+    }
     public var usesSoniox: Bool { self == .soniox || self == .sonioxPrecision || self == .sonioxNemotron }
     public func consumesContext(sonioxEnabled: Bool) -> Bool { self == .qwen || (usesSoniox && sonioxEnabled) }
     public func consumesSpeakerCount(sonioxEnabled: Bool) -> Bool { self != .soniox || sonioxEnabled }
