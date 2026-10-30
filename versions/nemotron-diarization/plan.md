@@ -3,7 +3,7 @@ unit: nemotron-diarization
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "게이트 ② 대기. 0.5.13(31) 설치, AC-14·15 확인. 남음: AC-09 실화면 문구, AC-10 실기기 녹음 우선 여정."
+resume: "게이트 ② 대기. 0.5.13(31) 설치, AC-14·15 확인. 남음: AC-09 실화면 문구, AC-10은 사용자가 실사용 중 확인(2026-10-30 «실 사용하면서 확인»)."
 spec: notes/nemotron-diarization/nemotron-diarization.src.html
 ---
 
@@ -78,6 +78,7 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - AC-15 실데이터(`.build/check-logs/nemotron-diarization/ac15-summary.txt`, Debug 빌드 도구): Soniox 원응답과 1a 확률이 있는 19개, v2 계약 검증 19/19, 화자 수 = 1a 채널 19/19. 미배정 lexical v1 2.02–12.47%(중앙 6.76) → v2 0.57–7.03%(중앙 1.26). P2 결합본 11개 P2 0.03–8.00%(10개 1.14% 이하). BED2C097 v1 6.13%는 설치 앱 Run E33ADFD9와 일치. 정확도 지표 아님. 남은 미배정이 큰 녹음: 6F4FA04E 7.03%, 73B651D8 5.45%, 542D0E56 4.58%.
 - 0.5.13(31) 설치(사용자 «설치 진행», 2026-10-30): 0.5.12(30)를 `.build/backups/DAMA-0.5.12-30-before-v2.app`에 백업, 기존 번들은 Finder 휴지통. 실행 PID가 `/Applications/DAMA.app/Contents/MacOS/DAMA.debug.dylib`를 적재, 빌드 산출물과 `cmp` 동일, Info.plist 0.5.13(31), 문자열 `soniox-nemotron-word-v1/v2`·`nemotron-intervals-v1/v2` 포함(AC-14).
 - 설치 앱 다시 전사(사용자 실행, 2026-10-30 19:56 KST): BED2C097 새 parent `108E3A3C` readyForReview, `combinationAlgorithmVersion`·provenance `soniox-nemotron-word-v2`, 자식 Soniox `CCDF109D`·Nemotron `F196F231` 재사용(이전 v1 parent `E33ADFD9`와 같은 자식, 자식 state.json 수정 시각 16:50·16:51 그대로, raw Soniox 응답·확률 파일 `cmp` 동일 → 새 Soniox·Nemotron 요청 0). lexical 22,635 중 미배정 v1 1,387(6.13%) → v2 130(0.57%), Debug 측정 도구 값과 일치. 화자 3명 동일. 검수 표시 `ambiguous_speaker` 1,387→130, `provider_disagreement` 222→525(겹침 단어가 배정되며 Soniox 화자와 다른 경우 증가), `overlapping_speech` 1,883 유지, `unrepresented_speaker` 528→436 (AC-15).
+- AC-10(2026-10-30 20:12 KST): 사용자 «녹음 확인 통과» 시점에 내부 Sessions에 19:57 이후 새 세션 없음(라이브러리 폴더 쪽은 미조회). 사용자가 실사용 중 확인하기로 함. 디스크 증거 전까지 미체크.
 - 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
 
 ## 작업 분해
