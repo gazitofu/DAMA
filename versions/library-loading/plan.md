@@ -1,9 +1,9 @@
 ---
 unit: library-loading
 branch: work/m0-fixture-review
-status: building
+status: built
 decisions_resolved: true
-resume: "게이트 ② 사용자 확인 대기. 0.5.11(29) /Applications 설치·실행 확인. 남은 확인: AC-05 실화면(로딩 중 차단·문구), AC-06 실화면 여정(최대 Script 열기·다른 결과 보기). 확인 후 AC 체크·status built."
+resume: "게이트 ② 통과(사용자 2026-10-30 AC-05·AC-06 실화면 '둘 다 통과'). 다음은 /ship. QA 판정(GPT-6.1-sol) 미수행."
 spec: "계약 유닛. 컨펌 출처 = ssot/design/00_README.md 하이브리드 채택(2026-09-09) + 사용자 2026-10-30 AskUserQuestion '근본 수정 먼저(Script 요약 디스크 저장·본문 지연 로딩·Speech가 Script를 기다리지 않음, 화면 변화 없음)'. 진단 notes/library-workspace/startup-loading-diagnosis.md"
 ---
 
@@ -36,8 +36,8 @@ spec: "계약 유닛. 컨펌 출처 = ssot/design/00_README.md 하이브리드 �
 - [x] AC-02 검증기 성능: 같은 Mac·릴리스·같은 32파일에서 TV 합계 ≤ 1.2 s(기준 4.13 s), 최악 파일 ≤ 0.3 s(기준 2.67 s). 측정 명령·출력을 `.build/check-logs/library-loading/`에 남긴다. 실제 32파일 모두 검증 통과 유지.
 - [x] AC-03 요약 캐시: 내부 저장소 `library-script-summaries.json`(원자 쓰기, `summaryVersion` 포함)에 파일별 {standardized path, bytes SHA256, id, title, createdAt, sessionId, engine, sourceAudioSHA256}만 저장. 새로고침마다 모든 `.dama.json` bytes를 읽어 SHA256 비교(계약 §54 유지). path+hash+summaryVersion 일치 → 디코딩·검증 생략, 불일치·신규 → 현행대로 decode+validate 후 요약 갱신. 캐시 손상·누락·버전 불일치 → 빈 캐시로 간주, 전량 재구성. 중복 ID·손상 파일·symlink 이슈 처리 현행 동일(FileScanTests·LibraryJourneyTests 통과 유지). Scripts 폴더 파일 bytes 불변(스캔 전후 32파일 SHA256 동일). 실측: 캐시 적중 시 scanScripts ≤ 0.5 s(같은 32파일).
 - [x] AC-04 본문 지연 로딩: Script 선택·열기·재전사·다른 결과 이동·내보내기·삭제 직전에 `loadScript(summary)`가 bytes 재해시 → 요약 hash와 다르면 `changedFile`(현행 stale 규칙)로 새로고침 유도, 같으면 decode+validate+ScriptReadingSnapshot. 저장 시 `expectedHash` 충돌 방어 현행 동일. 최대 파일(31.1MB) 열기 시간을 기록(기준 없음, 측정만).
-- [ ] AC-05 Speech 먼저·위험 차단: `refresh()`가 Speech 결과를 먼저 반영하고 Speech 목록·상세 선택을 Script 스캔과 독립으로 허용. Script 스캔 중(`scriptsLoading`)에는 변환·재전사·Script 삭제·'스크립트 열기/저장 다시 시도'·폴더 변경 비활성, `convert()` 진입 차단(새 전사 제출 0·Script 생성 0, 순수 판정 함수 단위 테스트). 상태 문구 신설 없음: Speech 상세의 변환 상태 두 줄 자리에 기존 문구 "불러오거나 저장하는 중"을 표시. INV-01(녹음 안전) 영향 없음.
-- [ ] AC-06 보존·전달: `ssot/contracts/library-script.md` §53–54 개정(영속 요약·지연 디코딩, 해시 비교 유지). 타 소유 hunk 바이트 보존, pathspec 커밋, `git diff --cached` 헝크 확인. check.sh PASS(계약 30, Swift 213+신규, Debug), SKIP 0. `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION` 상향, 실행 중 Bundle 버전 확인. 실기기 여정: 콜드 실행 → Speech 선택 가능 시점·Script 목록 표시 시점 측정 → 최대 Script 열기 → 다른 결과 보기 → 앱 재시작 후 캐시 적중 확인.
+- [x] AC-05 Speech 먼저·위험 차단: `refresh()`가 Speech 결과를 먼저 반영하고 Speech 목록·상세 선택을 Script 스캔과 독립으로 허용. Script 스캔 중(`scriptsLoading`)에는 변환·재전사·Script 삭제·'스크립트 열기/저장 다시 시도'·폴더 변경 비활성, `convert()` 진입 차단(새 전사 제출 0·Script 생성 0, 순수 판정 함수 단위 테스트). 상태 문구 신설 없음: Speech 상세의 변환 상태 두 줄 자리에 기존 문구 "불러오거나 저장하는 중"을 표시. INV-01(녹음 안전) 영향 없음.
+- [x] AC-06 보존·전달: `ssot/contracts/library-script.md` §53–54 개정(영속 요약·지연 디코딩, 해시 비교 유지). 타 소유 hunk 바이트 보존, pathspec 커밋, `git diff --cached` 헝크 확인. check.sh PASS(계약 30, Swift 213+신규, Debug), SKIP 0. `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION` 상향, 실행 중 Bundle 버전 확인. 실기기 여정: 콜드 실행 → Speech 선택 가능 시점·Script 목록 표시 시점 측정 → 최대 Script 열기 → 다른 결과 보기 → 앱 재시작 후 캐시 적중 확인.
 
 ## 작업 분해
 
@@ -58,7 +58,9 @@ spec: "계약 유닛. 컨펌 출처 = ssot/design/00_README.md 하이브리드 �
 - 버전: `project.pbxproj` 0.5.10(28)→0.5.11(29). 0.5.10(28)은 타 소유 미커밋 상향이며 설치본도 0.5.10(28)이었다. 버전 상향은 0.5.10 선례대로 작업 트리에 두고 커밋하지 않는다(타 소유 hunk와 같은 줄).
 - 설치(사용자 승인 2026-10-30): 실행 중 0.5.10(28)을 일반 종료, 백업 `.build/backups/DAMA-0.5.10-28-before-library-loading.app`, 기존 번들은 휴지통, 새 Debug 번들 설치. 실행 파일·Info.plist 빌드 산출물과 SHA256 동일, 실행 중 Bundle 0.5.11(29).
 - 실앱 시작 측정(`ac06-launch-cpu-settle.txt`, 자 = `open`부터 프로세스 CPU 누적이 3 s 동안 멈춘 시점, 앱 기동·UI 포함 근사치, Debug 빌드): 0.5.10(28) 46.38 / 45.24 s, 0.5.11(29) 빈 캐시 5.24 s, 캐시 적중 1.64 / 1.78 s. 첫 실행 캐시 기록까지 5.51 s(`open` 기준). 측정 전후 Script 32개·`library-index.json` SHA256 동일.
-- 미검증: AC-05 실화면(로딩 중 변환 버튼 비활성·상태 문구·배지 숨김), AC-06 실화면 여정(최대 Script 열기·다른 결과 보기 이동). QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
+- check.sh(마지막 코드 커밋 `7b631ac` 이후, 이후 변경은 plan.md뿐): `.build/check-logs/run-20261030T051011Z-SEEwfx` exit 0, SKIP 없음, 계약 30, swift test 224(Managed 36 / Core 151 / Audio 37, 기준 213), xcodebuild Debug PASS.
+- 게이트 ② 실화면(사용자 승인 2026-10-30): DAMA 일반 종료 → 요약 캐시를 `.build/backups/library-script-summaries-20261030T052757Z.json`으로 이동(삭제 아님) → 0.5.11(29) 재실행. 캐시는 실행 후 6 s 안에 32건으로 재생성, 이전 캐시와 파싱 결과 동일(bytes SHA256은 다름, JSON 키 순서 비결정 추정). 사용자 확인: AC-05(로딩 중 Speech 선택 가능·기존 문구·변환/폴더 변경 비활성)와 AC-06 여정(최대 Script 열기·다른 결과 보기·재시작 후 목록 즉시 표시) 둘 다 통과.
+- QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
 
 ## 결정 항목
 
@@ -72,6 +74,7 @@ spec: "계약 유닛. 컨펌 출처 = ssot/design/00_README.md 하이브리드 �
 ## Follow-ups
 
 - `LibraryScript.validate()`의 검증기 외 부분이 32파일에 0.42–0.46 s(25.4MB Soniox 파일 0.33 s). 이번 범위 밖.
+- 요약 캐시 JSON이 같은 내용이어도 bytes가 달라진다(키 순서 추정). 동작 영향 없음, 결정적 출력(`.sortedKeys`) 여부는 별도 판단.
 - 전달 앱이 Debug 빌드다(이전 선례). 릴리스 빌드 전달 여부는 별도 판단.
 - `project.pbxproj` 버전(0.5.10→0.5.11)은 타 소유 미커밋 상향과 같은 줄이라 작업 트리에만 있다.
 
