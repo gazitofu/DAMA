@@ -76,7 +76,7 @@ Scripts 읽기 화면은 이 문구가 기존 library-workspace/review-workspace
 
 | 위치 | 문구·동작 |
 |---|---|
-| 기본 엔진 | Soniox 전사 + Precision-2 화자 분리 |
+| 기본 엔진 | Soniox 전사 + Nemotron 3 화자 분리 (2026-10-30 `nemotron-diarization.md`로 대체 · 이전 «Soniox 전사 + Precision-2 화자 분리») |
 | 기본 입력 | 실제 화자 수 (선택) / 맥락 (선택) / 참석자 (선택) |
 | 접힌 참고 입력 | 용어·참고 / 회의 공통 용어 · 한 줄에 하나씩 / 직접 입력 참고 / 참고 폴더 발췌 추가 |
 | 폴더 | Markdown·텍스트 파일의 일부를 선택합니다. 전송 전에 포함된 내용을 확인할 수 있습니다. |
