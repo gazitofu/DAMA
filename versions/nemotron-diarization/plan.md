@@ -78,6 +78,7 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - AC-15 실데이터(`.build/check-logs/nemotron-diarization/ac15-summary.txt`, Debug 빌드 도구): Soniox 원응답과 1a 확률이 있는 19개, v2 계약 검증 19/19, 화자 수 = 1a 채널 19/19. 미배정 lexical v1 2.02–12.47%(중앙 6.76) → v2 0.57–7.03%(중앙 1.26). P2 결합본 11개 P2 0.03–8.00%(10개 1.14% 이하). BED2C097 v1 6.13%는 설치 앱 Run E33ADFD9와 일치. 정확도 지표 아님. 남은 미배정이 큰 녹음: 6F4FA04E 7.03%, 73B651D8 5.45%, 542D0E56 4.58%.
 - 0.5.13(31) 설치(사용자 «설치 진행», 2026-10-30): 0.5.12(30)를 `.build/backups/DAMA-0.5.12-30-before-v2.app`에 백업, 기존 번들은 Finder 휴지통. 실행 PID가 `/Applications/DAMA.app/Contents/MacOS/DAMA.debug.dylib`를 적재, 빌드 산출물과 `cmp` 동일, Info.plist 0.5.13(31), 문자열 `soniox-nemotron-word-v1/v2`·`nemotron-intervals-v1/v2` 포함(AC-14).
 - 설치 앱 다시 전사(사용자 실행, 2026-10-30 19:56 KST): BED2C097 새 parent `108E3A3C` readyForReview, `combinationAlgorithmVersion`·provenance `soniox-nemotron-word-v2`, 자식 Soniox `CCDF109D`·Nemotron `F196F231` 재사용(이전 v1 parent `E33ADFD9`와 같은 자식, 자식 state.json 수정 시각 16:50·16:51 그대로, raw Soniox 응답·확률 파일 `cmp` 동일 → 새 Soniox·Nemotron 요청 0). lexical 22,635 중 미배정 v1 1,387(6.13%) → v2 130(0.57%), Debug 측정 도구 값과 일치. 화자 3명 동일. 검수 표시 `ambiguous_speaker` 1,387→130, `provider_disagreement` 222→525(겹침 단어가 배정되며 Soniox 화자와 다른 경우 증가), `overlapping_speech` 1,883 유지, `unrepresented_speaker` 528→436 (AC-15).
+- Release/Debug 재조사(2026-10-30 21:3x KST, 네트워크 0, Sessions 읽기 전용): 현재 소스로 scratch에서 새로 빌드한 재생 도구가 `swift build -c debug`·`-c release`·`xcodebuild -configuration Release` 세 경로 모두 BED2C097 v1 Run `E33ADFD9`과 바이트 동일(화자 차이 0, 미배정 1,387). `NemotronCombine` debug·release 19개 데이터 행 동일, 기록된 `ac15-combined.tsv`와 동일(BED2C097 v1 6.13 / v2 0.57). `swift test -c release` DamaCore 173·DamaManaged 47 통과(PolicyGoldenTests 포함). 처음 관찰한 15단어 차이는 디버그 출력(DBG)을 넣은 재생 도구 사본과 당시 release 측정 도구에서 나왔고, 이 두 산출물은 현재 소스와 입력 동일성이 확인되지 않아 원인 미확정. 판정: 현재 코드에 최적화 의존 차이 없음(재현 불가), 확인 범위는 이 녹음 1개 바이트 대조 + 19개 집계 + 단위·골든 테스트.
 - AC-10(2026-10-30 20:12 KST): 사용자 «녹음 확인 통과» 시점에 내부 Sessions에 19:57 이후 새 세션 없음(라이브러리 폴더 쪽은 미조회). 사용자가 실사용 중 확인하기로 함. 디스크 증거 전까지 미체크.
 - 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
 
@@ -105,9 +106,9 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 
 ## Follow-ups
 
-- Release(-O) 빌드에서 B2 꼬리 공유의 구절 나누기가 Debug와 다르게 동작(BED2C097 15단어, `.build/replay-build` 재생 도구로 재현). P2 결합 경로에도 같은 코드가 쓰이므로 Release 전달 전에 원인 확인 필요.
+- (해소, 2026-10-30) Release/Debug B2 차이는 현재 소스에서 재현되지 않는다(실행 기록 참조). 처음 관찰의 원인은 미확정이며, 같은 증상이 다시 보이면 측정 도구를 깨끗한 scratch에서 새로 빌드해 재확인한다.
 
-- 결합 미배정 비율이 P2보다 높다(AC-12, 같은 11개에서 중앙 7%대 vs 1% 미만). 정확도 지표는 아니지만 검수 부담 신호다. 원인 후보(Nemotron 무음 프레임·단독 구간 교집합 없음) 1축 진단과 규칙 조정은 별도 결정(`algorithmVersion` 변경 대상).
+- 결합 미배정은 v2로 중앙 6.76%→1.26%(AC-15). 남은 큰 녹음 6F4FA04E 7.03%·73B651D8 5.45%·542D0E56 4.58%의 원인(Nemotron 무음 추정)은 미진단. v2로 겹침 단어가 배정되며 `provider_disagreement`가 늘었다(BED2C097 222→525). 이 배정의 E1 여부는 사람 청취 표본 확인 전.
 - 녹음 시작 시 Nemotron 취소는 앱이 0.5초 주기로 갱신하는 Run 단계로 판정한다. 화자 분리 시작 직후 0.5초 안의 녹음 시작은 취소되지 않고 수 초 안에 끝난다(녹음은 막히지 않음). Qwen 중단 안내 문구에 대응하는 Nemotron 안내 문구는 확정 문구에 없어 표시하지 않는다.
 
 - 음성 유사도 기반 채널 분할 안내(스펙 D-05, 후속 유닛).
