@@ -23,9 +23,35 @@ public struct ManagedRun: Codable, Sendable, Identifiable {
     public var parentRunID: String?
     public var sonioxRunID: String?
     public var precisionRunID: String?
+    public var nemotronRunID: String? = nil
     // Missing in older persisted runs: retain v2 when resuming those runs.
     public var combinationAlgorithmVersion: String? = nil
     public var provider: TranscriptionProvider { input?.provider ?? .pyannote }
+
+    /// Failed local diarization can rerun without a new Soniox request.
+    public var resumesLocalDiarization: Bool {
+        provider == .sonioxNemotron && stage == "failed" &&
+            [ManagedFailure.localDiarizationFailed.rawValue, ManagedFailure.modelUnavailable.rawValue].contains(failure)
+    }
+    /// True when continuing this run would send a new request to pyannote.ai (retired 2026-10-30).
+    public func needsPyannote(among runs: [ManagedRun]) -> Bool {
+        guard stage != "readyForReview" else { return false }
+        func ready(_ id: String?) -> Bool { id.map { id in runs.contains { $0.id == id && $0.stage == "readyForReview" } } ?? false }
+        switch provider {
+        case .pyannote, .precision: return true
+        case .qwen: return input?.qwenDiarizationRunID == nil
+        case .sonioxPrecision: return !ready(precisionRunID ?? input?.precisionSourceRunID)
+        default: return false
+        }
+    }
+    public static func needsPyannote(_ input: ConversionNotes) -> Bool {
+        switch input.provider {
+        case .pyannote, .precision: return true
+        case .qwen: return input.qwenDiarizationRunID == nil
+        case .sonioxPrecision: return input.precisionSourceRunID == nil
+        default: return false
+        }
+    }
 
     public var canRetranscribe: Bool {
         ["readyForReview", "failed", "partialResult", "resultExpired", "submissionUncertain"].contains(stage)
@@ -45,15 +71,26 @@ public actor ManagedProcessor {
     private let soniox: any SonioxTransporting
     private let qwen: any QwenRunning
     private let sleep: @Sendable (Double) async throws -> Void
+    private let diarizer: (any LocalDiarizing)?
+    private let nemotronModels: NemotronModelStore?
+    private let admitsLocalInference: @Sendable () async -> Bool
+    private let allowsPyannote: Bool
     private var active = false
     public init(root: URL, transport: any ManagedTransport = PyannoteTransport(),
                 soniox: any SonioxTransporting = SonioxTransport(),
                 qwen: any QwenRunning = QwenRunner(),
+                diarizer: (any LocalDiarizing)? = nil, nemotronModels: NemotronModelStore? = nil,
+                admitsLocalInference: @escaping @Sendable () async -> Bool = { true },
+                allowsPyannote: Bool = true,
                 sleep: @escaping @Sendable (Double) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }) {
         self.root = root.standardizedFileURL
         self.transport = transport
         self.soniox = soniox
         self.qwen = qwen
+        self.diarizer = diarizer
+        self.nemotronModels = nemotronModels
+        self.admitsLocalInference = admitsLocalInference
+        self.allowsPyannote = allowsPyannote
         self.sleep = sleep
     }
 
@@ -174,6 +211,22 @@ public actor ManagedProcessor {
         }
         return nil
     }
+    /// Same session, analysis audio, pinned model files, FluidAudio version and preset.
+    public func reusableNemotron(sessionID: String, audioHash: String) throws -> String? {
+        for run in try runsForSession(sessionID) where run.provider == .nemotron && run.stage == "readyForReview" &&
+            run.sourceAudioSHA256 == audioHash {
+            let raw = try directory(run).appendingPathComponent("raw")
+            guard let data = try? Data(contentsOf: raw.appendingPathComponent("nemotron-meta.json")),
+                  let meta = try? JSONDecoder().decode(NemotronMeta.self, from: data),
+                  meta.sessionID == sessionID, meta.audioSHA256 == audioHash,
+                  meta.fluidAudioVersion == NemotronModel.fluidAudioVersion, meta.preset == NemotronModel.preset,
+                  meta.modelManifestSHA256 == NemotronModel.manifestSHA256, meta.channels == NemotronModel.channels,
+                  let size = (try? FileManager.default.attributesOfItem(atPath: raw.appendingPathComponent("nemotron-probabilities.f32").path))?[.size] as? Int,
+                  size == meta.frameCount * meta.channels * 4 else { continue }
+            return run.id
+        }
+        return nil
+    }
     public func reusableSoniox(sessionID: String, audioHash: String, input: ConversionNotes) throws -> String? {
         let wanted = try SonioxRequest.context(input)
         for run in try runsForSession(sessionID) where run.provider == .soniox &&
@@ -202,13 +255,15 @@ public actor ManagedProcessor {
         try input.validate()
         guard confirmed, try !isLocalOnly(sessionID) else { throw ManagedFailure.consentRequired }
         guard !active else { throw ManagedFailure.busy }
+        guard allowsPyannote || !ManagedRun.needsPyannote(input) else { throw ManagedFailure.providerRetired }
         let previous = try runsForSession(sessionID, recover: true).filter { $0.parentRunID == nil && (input.provider == .qwen || $0.provider != .qwen) }
         guard previous.isEmpty || (retranscribing && previous.allSatisfy(\.canRetranscribe)) else { throw ManagedFailure.existingRun }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let run = ManagedRun(id: UUID().uuidString, sessionID: sessionID,
                              createdAt: formatter.string(from: Date()), consent: true, stage: "queued", input: input,
-                             combinationAlgorithmVersion: input.provider == .sonioxPrecision ? SonioxPrecisionComparison.wordRepair.rawValue : nil)
+                             combinationAlgorithmVersion: input.provider == .sonioxPrecision ? SonioxPrecisionComparison.wordRepair.rawValue
+                                : input.provider == .sonioxNemotron ? SonioxNemotronReconciler.version : nil)
         try persist(run)
         return try await execute(run, key: key, sonioxKey: sonioxKey)
     }
@@ -217,8 +272,10 @@ public actor ManagedProcessor {
         let scan = try scanRuns(recover: true)
         guard let run = scan.items.first(where: { $0.id == id }),
               !scan.issues.contains(where: { $0.sessionID == run.sessionID }),
+              run.resumesLocalDiarization ||
               !["submissionUncertain", "readyForReview", "failed", "partialResult", "resultExpired", "unknownRemoteStatus"].contains(run.stage)
         else { throw ManagedFailure.existingRun }
+        guard allowsPyannote || !run.needsPyannote(among: scan.items) else { throw ManagedFailure.providerRetired }
         return try await execute(run, key: key, sonioxKey: sonioxKey)
     }
 
@@ -236,6 +293,14 @@ public actor ManagedProcessor {
                 run.combinationAlgorithmVersion = version
                 try persist(run)
             }
+            // A Nemotron child only runs inside its Soniox + Nemotron parent.
+            guard run.provider != .nemotron else { throw ManagedFailure.invalidResponse }
+            if run.provider == .sonioxNemotron {
+                guard (run.combinationAlgorithmVersion ?? SonioxNemotronReconciler.version) == SonioxNemotronReconciler.version
+                else { throw ManagedFailure.invalidResponse }
+                run.combinationAlgorithmVersion = SonioxNemotronReconciler.version
+                try persist(run)
+            }
             if run.provider == .qwen { try qwen.validateReady() }
             if let retryAt = run.retryAt, retryAt > Date() { try await sleep(retryAt.timeIntervalSinceNow) }
             let library = AudioLibrary(root: root)
@@ -251,7 +316,7 @@ public actor ManagedProcessor {
             guard try AudioFiles.hash(file) == analysis.sha256 else { throw ManagedFailure.sourceChanged }
             if let saved = run.sourceAudioSHA256, saved != analysis.sha256 { throw ManagedFailure.sourceChanged }
             run.sourceAudioSHA256 = analysis.sha256
-            if run.provider == .sonioxPrecision {
+            if run.provider == .sonioxPrecision || run.provider == .sonioxNemotron {
                 return try await executeCombined(&run, audio: audio, key: key, sonioxKey: sonioxKey)
             }
             let dir = try directory(run)
@@ -411,7 +476,7 @@ public actor ManagedProcessor {
         }
         func child(_ provider: TranscriptionProvider) throws -> ManagedRun {
             var notes = input; notes.transcriptionProvider = provider; notes.aiCorrection = false
-            notes.sonioxSourceRunID = nil; notes.precisionSourceRunID = nil
+            notes.sonioxSourceRunID = nil; notes.precisionSourceRunID = nil; notes.nemotronSourceRunID = nil
             let value = ManagedRun(id: UUID().uuidString, sessionID: run.sessionID, createdAt: run.createdAt,
                 consent: true, stage: "queued", input: notes, parentRunID: run.id)
             try persist(value)
@@ -432,6 +497,49 @@ public actor ManagedProcessor {
         }
         guard asr.stage == "readyForReview" else { run.stage = asr.stage; run.failure = asr.failure; try persist(run); return run }
         try Task.checkCancellation()
+        if run.provider == .sonioxNemotron {
+            var nm: ManagedRun
+            if let id = run.nemotronRunID { nm = try source(id, provider: .nemotron) }
+            else if let id = input.nemotronSourceRunID {
+                guard try reusableNemotron(sessionID: run.sessionID, audioHash: analysis.sha256) == id else { throw ManagedFailure.sourceChanged }
+                nm = try source(id, provider: .nemotron)
+            } else { nm = try child(.nemotron) }
+            run.nemotronRunID = nm.id; try persist(run)
+            if nm.stage != "readyForReview" {
+                run.stage = "localDiarizing"; run.failure = nil; try persist(run)
+                nm = try await diarize(nm, audioHash: analysis.sha256, sampleRate: analysis.sampleRate)
+                guard nm.stage == "readyForReview" else { run.stage = nm.stage; run.failure = nm.failure; try persist(run); return run }
+            }
+            guard asr.sourceAudioSHA256 == analysis.sha256, nm.sourceAudioSHA256 == analysis.sha256,
+                  let jobID = asr.jobID else { throw ManagedFailure.sourceChanged }
+            let asrDir = try directory(asr), nmRaw = try directory(nm).appendingPathComponent("raw")
+            let asrBytes = try Data(contentsOf: asrDir.appendingPathComponent("raw/soniox-response.json"))
+            let probabilities = try Data(contentsOf: nmRaw.appendingPathComponent("nemotron-probabilities.f32"))
+            let metaBytes = try Data(contentsOf: nmRaw.appendingPathComponent("nemotron-meta.json"))
+            let meta = try JSONDecoder().decode(NemotronMeta.self, from: metaBytes)
+            guard meta.audioSHA256 == analysis.sha256, meta.channels == NemotronModel.channels else { throw ManagedFailure.sourceChanged }
+            let rawDir = dir.appendingPathComponent("raw")
+            try FileManager.default.createDirectory(at: rawDir, withIntermediateDirectories: true)
+            try immutable(asrBytes, to: rawDir.appendingPathComponent("soniox-response.json"))
+            try immutable(probabilities, to: rawDir.appendingPathComponent("nemotron-probabilities.f32"))
+            try immutable(metaBytes, to: rawDir.appendingPathComponent("nemotron-meta.json"))
+            if let request = try? Data(contentsOf: asrDir.appendingPathComponent("request.json")) {
+                try immutable(request, to: dir.appendingPathComponent("soniox-request.json"))
+            }
+            input.sonioxSourceRunID = asr.id; input.nemotronSourceRunID = nm.id; run.input = input
+            run.stage = "normalizing"; run.reportedModel = asr.reportedModel; try persist(run)
+            let duration = try AudioFiles.microseconds(frames: analysis.frames, rate: analysis.sampleRate)
+            try Task.checkCancellation()
+            let document = try SonioxNemotronReconciler.normalize(soniox: asrBytes, probabilities: probabilities,
+                frameCount: meta.frameCount, channels: meta.channels, sonioxJobID: jobID, sessionID: run.sessionID,
+                runID: run.id, durationUs: duration, audioSHA256: analysis.sha256,
+                model: asr.reportedModel ?? asr.provider.model, createdAt: run.createdAt,
+                captureInterrupted: audio.interruption != nil)
+            try Task.checkCancellation()
+            try await repository.importManagedTranscript(document, rawData: asrBytes)
+            run.stage = "readyForReview"; run.failure = nil; try persist(run)
+            return run
+        }
         var p2: ManagedRun
         if let id = run.precisionRunID { p2 = try source(id, provider: .precision) }
         else if let id = input.precisionSourceRunID {
@@ -480,6 +588,47 @@ public actor ManagedProcessor {
         run.stage = "readyForReview"; run.failure = nil; try persist(run)
         return run
     }
+    /// Local Nemotron pass for a child run. Never touches the network; recording-first gating and
+    /// cancellation return the child to `queued` without writing probabilities.
+    private func diarize(_ input: ManagedRun, audioHash: String, sampleRate: Double) async throws -> ManagedRun {
+        var child = input
+        guard let diarizer, let models = nemotronModels, sampleRate == 16_000, models.state() == .ready else {
+            child.stage = "failed"; child.failure = ManagedFailure.modelUnavailable.rawValue; try persist(child); return child
+        }
+        guard await admitsLocalInference() else { child.stage = "queued"; child.failure = nil; try persist(child); return child }
+        child.stage = "localDiarizing"; child.failure = nil; try persist(child)
+        let wav = try AudioFiles.session(child.sessionID, root: root).appendingPathComponent("audio/analysis.wav")
+        let output: LocalDiarization
+        do {
+            output = try await diarizer.diarize(analysisWAV: wav, modelDirectory: models.directory)
+            try Task.checkCancellation()
+        } catch is CancellationError {
+            child.stage = "queued"; try persist(child); return child
+        } catch {
+            child.stage = "failed"; child.failure = ManagedFailure.localDiarizationFailed.rawValue; try persist(child); return child
+        }
+        guard output.channels == NemotronModel.channels, output.frameCount > 0, output.sampleCount > 0,
+              output.probabilities.count == output.frameCount * output.channels * 4 else {
+            child.stage = "failed"; child.failure = ManagedFailure.localDiarizationFailed.rawValue; try persist(child); return child
+        }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let meta = NemotronMeta(sessionID: child.sessionID, audioSHA256: audioHash, sampleCount: output.sampleCount,
+            durationSeconds: Double(output.sampleCount) / sampleRate, frameCount: output.frameCount,
+            frameSeconds: NemotronModel.frameSeconds, channels: output.channels, preset: NemotronModel.preset,
+            fluidAudioVersion: NemotronModel.fluidAudioVersion, modelRepo: NemotronModel.repo,
+            modelManifestSHA256: NemotronModel.manifestSHA256, processingSeconds: output.processingSeconds,
+            createdAt: formatter.string(from: Date()))
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let rawDir = try directory(child).appendingPathComponent("raw")
+        try FileManager.default.createDirectory(at: rawDir, withIntermediateDirectories: true)
+        try immutable(output.probabilities, to: rawDir.appendingPathComponent("nemotron-probabilities.f32"))
+        try immutable(encoder.encode(meta), to: rawDir.appendingPathComponent("nemotron-meta.json"))
+        child.sourceAudioSHA256 = audioHash; child.reportedModel = TranscriptionProvider.nemotron.model
+        child.stage = "readyForReview"; child.failure = nil; try persist(child)
+        return child
+    }
+
     private func executeSoniox(_ run: inout ManagedRun, audio: AudioManifest, file: URL,
                                dir: URL, rawDir: URL, key: String) async throws -> ManagedRun {
         guard audio.durationUs <= SonioxRequest.maximumDurationUs else { throw ManagedFailure.audioTooLong }

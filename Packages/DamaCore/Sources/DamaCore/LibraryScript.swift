@@ -3,6 +3,7 @@ import Foundation
 public struct ConversionNotes: Codable, Sendable, Equatable {
     public var sonioxSourceRunID: String?
     public var precisionSourceRunID: String?
+    public var nemotronSourceRunID: String?
     public var meetingTerms: String?
     public var speakerCount: Int?
     public var context: String
@@ -34,7 +35,7 @@ public struct ConversionNotes: Codable, Sendable, Equatable {
         result.transcriptionProvider = provider; result.sonioxContext = provider.usesSoniox && enabled
         result.sonioxTerms = provider.usesSoniox && enabled ? meetingTerms : nil
         result.qwenTerms = provider == .qwen ? meetingTerms : nil
-        result.qwenDiarizationRunID = nil; result.sonioxSourceRunID = nil; result.precisionSourceRunID = nil
+        result.qwenDiarizationRunID = nil; result.sonioxSourceRunID = nil; result.precisionSourceRunID = nil; result.nemotronSourceRunID = nil
         result.aiCorrection = false
         return result
     }

@@ -17,6 +17,7 @@ public protocol ManagedTransport: Sendable {
 public enum ManagedFailure: String, Error, Sendable {
     case consentRequired, busy, invalidResponse, invalidURL, missingKey, unsafePath
     case sourceChanged, partialResult, existingRun, localStorage, audioTooLong
+    case providerRetired, localDiarizationFailed, modelUnavailable
 }
 
 final class RejectRedirects: NSObject, URLSessionTaskDelegate, Sendable {

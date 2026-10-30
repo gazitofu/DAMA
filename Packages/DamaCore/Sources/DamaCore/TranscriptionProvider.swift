@@ -1,17 +1,21 @@
 import Foundation
 
 public enum TranscriptionProvider: String, Codable, CaseIterable, Sendable {
-    case pyannote, soniox, qwen, sonioxPrecision, precision
-    public static var selectable: [Self] { [.sonioxPrecision, .soniox, .qwen, .pyannote] }
-    public var usesSoniox: Bool { self == .soniox || self == .sonioxPrecision }
+    case pyannote, soniox, qwen, sonioxPrecision, precision, sonioxNemotron, nemotron
+    /// pyannote-backed paths stay readable but are no longer offered (2026-10-30).
+    public static var selectable: [Self] { [.sonioxNemotron, .soniox] }
+    public static var operatingDefault: Self { .sonioxNemotron }
+    public var usesSoniox: Bool { self == .soniox || self == .sonioxPrecision || self == .sonioxNemotron }
     public func consumesContext(sonioxEnabled: Bool) -> Bool { self == .qwen || (usesSoniox && sonioxEnabled) }
     public func consumesSpeakerCount(sonioxEnabled: Bool) -> Bool { self != .soniox || sonioxEnabled }
     public var title: String {
-        switch self { case .pyannote: "pyannote + Whisper (비교)"; case .soniox: "Soniox 단독 (비교)"; case .qwen: "로컬 Qwen + Precision-2 (비교)"; case .sonioxPrecision: "Soniox + Precision-2 (운영)"; case .precision: "Precision-2 화자분리" }
+        switch self { case .pyannote: "pyannote + Whisper (비교)"; case .soniox: "Soniox 단독 (비교)"; case .qwen: "로컬 Qwen + Precision-2 (비교)"; case .sonioxPrecision: "Soniox + Precision-2"; case .precision: "Precision-2 화자분리"
+        case .sonioxNemotron: "Soniox + Nemotron 3 (운영)"; case .nemotron: "Nemotron 3 화자 분리" }
     }
-    public var destination: String { self == .soniox ? "Soniox (api.soniox.com)" : "pyannote.ai" }
+    public var destination: String { [.soniox, .sonioxNemotron].contains(self) ? "Soniox (api.soniox.com)" : self == .nemotron ? "이 Mac" : "pyannote.ai" }
     public var model: String {
-        switch self { case .pyannote: "faster-whisper-large-v3-turbo"; case .soniox, .sonioxPrecision: "stt-async-v5"; case .qwen: "Qwen3-ASR-1.7B + Qwen3-ForcedAligner-0.6B"; case .precision: "precision-2" }
+        switch self { case .pyannote: "faster-whisper-large-v3-turbo"; case .soniox, .sonioxPrecision, .sonioxNemotron: "stt-async-v5"; case .qwen: "Qwen3-ASR-1.7B + Qwen3-ForcedAligner-0.6B"; case .precision: "precision-2"
+        case .nemotron: "nemotron-3-diarization-coreml-offline" }
     }
     public var rawFilename: String { self == .soniox ? "soniox-response.json" : "pyannote-response.json" }
 }
