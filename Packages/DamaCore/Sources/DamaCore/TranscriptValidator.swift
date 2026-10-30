@@ -108,6 +108,9 @@ public struct TranscriptValidator: Sendable {
     }
 
     private func validateExclusive(_ intervals: [DiarizationInterval]) throws {
+        // A start-ordered sweep decides whether any cross-speaker overlap exists in O(n log n).
+        // Only then does the pairwise scan run, so the reported path stays the first (left, right) pair.
+        guard hasCrossSpeakerOverlap(intervals) else { return }
         for leftIndex in intervals.indices {
             for rightIndex in intervals.indices where rightIndex > leftIndex {
                 let left = intervals[leftIndex]
@@ -118,6 +121,20 @@ public struct TranscriptValidator: Sendable {
                 }
             }
         }
+    }
+
+    /// Same predicate as the pairwise `overlaps` check: an earlier-starting interval of another speaker
+    /// that ends after this one starts, with this interval having positive length.
+    private func hasCrossSpeakerOverlap(_ intervals: [DiarizationInterval]) -> Bool {
+        var maxEnd: [String: Microseconds] = [:]
+        for interval in intervals.sorted(by: { $0.startUs < $1.startUs }) {
+            if interval.startUs < interval.endUs,
+               maxEnd.contains(where: { $0.key != interval.speakerId && $0.value > interval.startUs }) {
+                return true
+            }
+            maxEnd[interval.speakerId] = max(maxEnd[interval.speakerId] ?? .min, interval.endUs)
+        }
+        return false
     }
 
     private func validateIssues(
@@ -142,8 +159,13 @@ public struct TranscriptValidator: Sendable {
         issues: [String: ReviewIssue]
     ) throws {
         var ownership: [String: Int] = [:]
-        let markers = document.turns.filter { $0.kind == .missingSpeech }
-        let interrupted = document.reviewIssues.filter { $0.kind == .capture_interrupted }
+        // Built once per document; each word gap is then answered by binary search.
+        let markers = IntervalIndex(document.turns.filter { $0.kind == .missingSpeech }
+            .compactMap { turn in turn.startUs.flatMap { start in turn.endUs.map { (start, $0) } } })
+        let interrupted = IntervalIndex(document.reviewIssues.filter { $0.kind == .capture_interrupted }
+            .compactMap { issue in issue.startUs.flatMap { start in issue.endUs.map { (start, $0) } } })
+        let diarization = Dictionary(grouping: document.diarization, by: \.speakerId)
+            .mapValues { IntervalIndex($0.map { ($0.startUs, $0.endUs) }) }
 
         for (index, turn) in document.turns.enumerated() {
             let path = "$.turns[\(index)]"
@@ -195,7 +217,7 @@ public struct TranscriptValidator: Sendable {
                     current: current,
                     markers: markers,
                     interrupted: interrupted,
-                    diarization: document.diarization,
+                    diarization: diarization,
                     path: "\(path).wordIds[\(pairIndex)]"
                 )
             }
@@ -209,35 +231,23 @@ public struct TranscriptValidator: Sendable {
     private func validateBarrier(
         previous: TranscriptWord,
         current: TranscriptWord,
-        markers: [TranscriptTurn],
-        interrupted: [ReviewIssue],
-        diarization: [DiarizationInterval],
-        path: String
+        markers: IntervalIndex,
+        interrupted: IntervalIndex,
+        diarization: [String: IntervalIndex],
+        path: @autoclosure () -> String
     ) throws {
         guard let previousEnd = previous.endUs, let currentStart = current.startUs,
               previousEnd <= currentStart else { return }
 
-        let timedMarkers = markers.compactMap { marker -> (Microseconds, Microseconds)? in
-            guard let start = marker.startUs, let end = marker.endUs else { return nil }
-            return (start, end)
-        }
-        try require(!timedMarkers.contains { overlaps(previousEnd, currentStart, $0.0, $0.1) },
-                    .invalidBarrier, path)
-
-        let timedInterruptions = interrupted.compactMap { issue -> (Microseconds, Microseconds)? in
-            guard let start = issue.startUs, let end = issue.endUs else { return nil }
-            return (start, end)
-        }
-        try require(!timedInterruptions.contains { overlaps(previousEnd, currentStart, $0.0, $0.1) },
-                    .invalidBarrier, path)
+        try require(!markers.overlaps(previousEnd, currentStart), .invalidBarrier, path())
+        try require(!interrupted.overlaps(previousEnd, currentStart), .invalidBarrier, path())
 
         if let previousModel = previous.modelSpeakerId, let currentModel = current.modelSpeakerId {
-            try require(previousModel == currentModel, .invalidBarrier, path)
-            let interveningChange = diarization.contains { interval in
-                interval.speakerId != previousModel &&
-                    overlaps(previousEnd, currentStart, interval.startUs, interval.endUs)
+            try require(previousModel == currentModel, .invalidBarrier, path())
+            let interveningChange = diarization.contains { speaker, index in
+                speaker != previousModel && index.overlaps(previousEnd, currentStart)
             }
-            try require(!interveningChange, .invalidBarrier, path)
+            try require(!interveningChange, .invalidBarrier, path())
         }
     }
 
@@ -312,16 +322,17 @@ public struct TranscriptValidator: Sendable {
         try require(values[value] != nil, .danglingReference, path)
     }
 
-    private func nonempty(_ value: String, _ path: String) throws {
-        try require(!value.isEmpty, .invalidValue, path)
+    private func nonempty(_ value: String, _ path: @autoclosure () -> String) throws {
+        try require(!value.isEmpty, .invalidValue, path())
     }
 
+    // The path is only built when the check fails.
     private func require(
         _ condition: @autoclosure () -> Bool,
         _ code: TranscriptContractError.Code,
-        _ path: String
+        _ path: @autoclosure () -> String
     ) throws {
-        guard condition() else { throw TranscriptContractError(code: code, path: path) }
+        guard condition() else { throw TranscriptContractError(code: code, path: path()) }
     }
 
     private func overlaps(
@@ -331,5 +342,30 @@ public struct TranscriptValidator: Sendable {
         _ rightEnd: Microseconds
     ) -> Bool {
         max(leftStart, rightStart) < min(leftEnd, rightEnd)
+    }
+}
+
+/// Start-sorted intervals with a running maximum end, Int64 µs, half-open `[start, end)`.
+/// `overlaps(a, b)` equals "some interval x has max(a, x.start) < min(b, x.end)".
+private struct IntervalIndex {
+    private let starts: [Microseconds]
+    private let maxEnds: [Microseconds]
+
+    init(_ intervals: [(Microseconds, Microseconds)]) {
+        // Zero-length intervals can never satisfy the strict overlap rule.
+        let sorted = intervals.filter { $0.0 < $0.1 }.sorted { $0.0 < $1.0 }
+        starts = sorted.map(\.0)
+        var running = Microseconds.min
+        maxEnds = sorted.map { running = max(running, $0.1); return running }
+    }
+
+    func overlaps(_ start: Microseconds, _ end: Microseconds) -> Bool {
+        guard start < end else { return false }
+        var low = 0, high = starts.count
+        while low < high {
+            let middle = (low + high) / 2
+            if starts[middle] < end { low = middle + 1 } else { high = middle }
+        }
+        return low > 0 && maxEnds[low - 1] > start
     }
 }
