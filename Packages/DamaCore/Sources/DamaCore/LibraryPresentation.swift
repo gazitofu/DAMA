@@ -90,6 +90,10 @@ extension LibraryScript {
             if input.sonioxContext == true, let count = input.sonioxSpeakerCountHint { return "Soniox에 \(count)명 힌트 전송 · 강제 지정 아님" }
             return "Soniox 자동 판단 · 화자 수 힌트 미전송"
         }
+        if transcript.provenance.engine == .hybridSonioxNemotron {
+            if input.sonioxContext == true, let count = input.sonioxSpeakerCountHint { return "Nemotron 3 화자 수 지정 없음 · Soniox에 \(count)명 힌트 전송 · 강제 지정 아님" }
+            return "Nemotron 3 화자 수 지정 없음 · Soniox 화자 수 힌트 미전송"
+        }
         return input.speakerCount.map { "pyannote에 \($0)명 제약 전달" } ?? "자동 판단"
     }
 
@@ -140,7 +144,7 @@ extension LibraryScript {
                 .map { $0.prefix + ($0.editedText ?? $0.text) }.joined()
         }
         let texts = Dictionary(uniqueKeysWithValues: transcript.turns.map { ($0.id, currentText($0)) })
-        let preservesSourceSpacing = transcript.provenance.engine == .hybridSonioxPyannote || transcript.provenance.engine == .managedSoniox || transcript.provenance.engine == .hybridPyannoteQwen
+        let preservesSourceSpacing = transcript.provenance.engine == .hybridSonioxPyannote || transcript.provenance.engine == .hybridSonioxNemotron || transcript.provenance.engine == .managedSoniox || transcript.provenance.engine == .hybridPyannoteQwen
         func appended(_ current: String, _ next: String, previous: TranscriptTurn, turn: TranscriptTurn) -> String {
             let needsSpace = !preservesSourceSpacing && !structure.decorations.contains(turn.id) && !structure.opening.contains(previous.id)
                 && !current.isEmpty && !next.isEmpty && current.last?.isWhitespace == false && next.first?.isWhitespace == false

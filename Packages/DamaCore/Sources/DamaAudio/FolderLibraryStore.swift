@@ -80,7 +80,7 @@ public enum ScriptResultPresentation {
     }
 
     private static func priority<T: ScriptListing>(_ file: T) -> Int {
-        file.engine == .hybridSonioxPyannote ? 1 : 0
+        [.hybridSonioxPyannote, .hybridSonioxNemotron].contains(file.engine) ? 1 : 0
     }
 
     private static func newestFirst<T: ScriptListing>(_ lhs: T, _ rhs: T) -> Bool {

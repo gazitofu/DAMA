@@ -26,6 +26,12 @@ final class LibraryJourneyTests: XCTestCase {
         let primary = ScriptResultPresentation.primaryFiles(in: [soniox, olderCombined, newerCombined, otherSpeech])
         XCTAssertEqual(primary.map(\.id), [otherSpeech.id, newerCombined.id])
         XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [soniox, olderCombined, newerCombined])?.id, newerCombined.id)
+        // Nemotron combined results rank with P2 combined results; newest wins within the tier.
+        let laterSoniox = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .managedSoniox, createdAt: 600)
+        let nemotron = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .hybridSonioxNemotron, createdAt: 500)
+        XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [laterSoniox, newerCombined, nemotron])?.id, nemotron.id)
+        let newestP2 = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .hybridSonioxPyannote, createdAt: 700)
+        XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [nemotron, newestP2])?.id, newestP2.id)
     }
 
     func testTrashRejectsChangedScriptWrongFolderAndFilesystemFailure() async throws {

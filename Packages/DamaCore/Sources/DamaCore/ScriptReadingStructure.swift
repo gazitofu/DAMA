@@ -33,7 +33,7 @@ struct ScriptReadingStructure {
         }
         self.decorations = decorations
         self.opening = opening
-        let sourceSpacing = script.transcript.provenance.engine == .hybridSonioxPyannote || script.transcript.provenance.engine == .managedSoniox || script.transcript.provenance.engine == .hybridPyannoteQwen
+        let sourceSpacing = script.transcript.provenance.engine == .hybridSonioxPyannote || script.transcript.provenance.engine == .hybridSonioxNemotron || script.transcript.provenance.engine == .managedSoniox || script.transcript.provenance.engine == .hybridPyannoteQwen
         var joins = Set<String>(), anchor: TranscriptTurn?
         for (i, next) in turns.enumerated() {
             defer { if !decorations.contains(next.id) { anchor = next } }

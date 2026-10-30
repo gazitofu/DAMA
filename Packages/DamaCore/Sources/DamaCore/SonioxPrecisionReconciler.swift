@@ -45,15 +45,19 @@ public enum SonioxPrecisionReconciler {
         return try applying(source, runID: runID, createdAt: createdAt, policy: policy)
     }
 
-    private static func applying(_ source: TranscriptDocument, runID: String, createdAt: String,
-                                 policy: SonioxPrecisionComparison) throws -> TranscriptDocument {
+    /// `keepsSpeakerIDs` is for a base already built with this run's IDs (Nemotron); P2 sources are re-mapped.
+    static func applying(_ source: TranscriptDocument, runID: String, createdAt: String,
+                         policy: SonioxPrecisionComparison, version: String? = nil,
+                         keepsSpeakerIDs: Bool = false) throws -> TranscriptDocument {
         var doc = source
-        let mapping = Dictionary(uniqueKeysWithValues: source.speakers.enumerated().map { ($0.element.id, "\(runID)-p2-\($0.offset)") })
+        let mapping = Dictionary(uniqueKeysWithValues: source.speakers.enumerated().map {
+            ($0.element.id, keepsSpeakerIDs ? $0.element.id : "\(runID)-p2-\($0.offset)")
+        })
         doc.runId = runID
         for i in doc.speakers.indices { doc.speakers[i].id = mapping[doc.speakers[i].id]! }
         for i in doc.diarization.indices { doc.diarization[i].speakerId = mapping[doc.diarization[i].speakerId]! }
         for i in doc.exclusiveDiarization.indices { doc.exclusiveDiarization[i].speakerId = mapping[doc.exclusiveDiarization[i].speakerId]! }
-        doc.provenance.algorithmVersion = policy.rawValue; doc.provenance.createdAt = createdAt
+        doc.provenance.algorithmVersion = version ?? policy.rawValue; doc.provenance.createdAt = createdAt
         doc.revision = RevisionMetadata(id: "model-\(runID)", baseRevisionId: nil,
             sourceRunId: runID, humanEdited: false, savedAt: createdAt)
 
