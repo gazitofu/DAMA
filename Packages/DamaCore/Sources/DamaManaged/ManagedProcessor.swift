@@ -300,9 +300,10 @@ public actor ManagedProcessor {
             // A Nemotron child only runs inside its Soniox + Nemotron parent.
             guard run.provider != .nemotron else { throw ManagedFailure.invalidResponse }
             if run.provider == .sonioxNemotron {
-                guard (run.combinationAlgorithmVersion ?? SonioxNemotronReconciler.version) == SonioxNemotronReconciler.version
-                else { throw ManagedFailure.invalidResponse }
-                run.combinationAlgorithmVersion = SonioxNemotronReconciler.version
+                // A stored version is kept on resume; unknown versions fail instead of being replaced.
+                let version = run.combinationAlgorithmVersion ?? SonioxNemotronReconciler.version
+                guard SonioxNemotronReconciler.Version(rawValue: version) != nil else { throw ManagedFailure.invalidResponse }
+                run.combinationAlgorithmVersion = version
                 try persist(run)
             }
             if run.provider == .qwen { try qwen.validateReady() }
@@ -538,7 +539,8 @@ public actor ManagedProcessor {
                 frameCount: meta.frameCount, channels: meta.channels, sonioxJobID: jobID, sessionID: run.sessionID,
                 runID: run.id, durationUs: duration, audioSHA256: analysis.sha256,
                 model: asr.reportedModel ?? asr.provider.model, createdAt: run.createdAt,
-                captureInterrupted: audio.interruption != nil)
+                captureInterrupted: audio.interruption != nil,
+                version: SonioxNemotronReconciler.Version(rawValue: run.combinationAlgorithmVersion ?? "") ?? .v2)
             try Task.checkCancellation()
             try await repository.importManagedTranscript(document, rawData: asrBytes)
             run.stage = "readyForReview"; run.failure = nil; try persist(run)

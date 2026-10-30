@@ -45,10 +45,10 @@ import XCTest
             nemotronModels: try models(root), allowsPyannote: false, sleep: { _ in })
         let done = try await processor.begin(sessionID: audio.id, confirmed: true, key: "", input: notes, sonioxKey: "soniox-key")
         XCTAssertEqual(done.stage, "readyForReview")
-        XCTAssertEqual(done.combinationAlgorithmVersion, "soniox-nemotron-word-v1")
+        XCTAssertEqual(done.combinationAlgorithmVersion, "soniox-nemotron-word-v2")
         let doc = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: done.id)
         XCTAssertEqual(doc.provenance.engine, .hybridSonioxNemotron)
-        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v1")
+        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v2")
         XCTAssertEqual(doc.words.compactMap(\.speakerId), ["\(done.id)-nm-0", "\(done.id)-nm-0"])
         for name in ["soniox-response.json", "nemotron-probabilities.f32", "nemotron-meta.json"] {
             XCTAssertTrue(FileManager.default.fileExists(atPath: runDir(root, audio.id, done.id).appendingPathComponent("raw/\(name)").path), name)
@@ -170,6 +170,32 @@ import XCTest
             nemotronModels: store, allowsPyannote: false, sleep: { _ in }).resume(queued.id, key: "", sonioxKey: "")
         XCTAssertEqual(done.stage, "readyForReview")
         XCTAssertTrue(FileManager.default.fileExists(atPath: probabilities.path))
+    }
+
+    func testStoredVersionIsKeptOnResumeAndUnknownVersionsFail() async throws {
+        let (root, audio) = try await setup(), store = try models(root)
+        let gated = ManagedProcessor(root: root, transport: NoPyannote(), soniox: NmSoniox(), diarizer: FakeDiarizer(),
+            nemotronModels: store, admitsLocalInference: { false }, allowsPyannote: false, sleep: { _ in })
+        let queued = try await gated.begin(sessionID: audio.id, confirmed: true, key: "", input: notes, sonioxKey: "soniox-key")
+        XCTAssertEqual(queued.combinationAlgorithmVersion, "soniox-nemotron-word-v2")
+        let stateURL = runDir(root, audio.id, queued.id).appendingPathComponent("state.json")
+        func setVersion(_ value: String) throws {
+            var run = try JSONDecoder().decode(ManagedRun.self, from: Data(contentsOf: stateURL))
+            run.combinationAlgorithmVersion = value; run.stage = "queued"; run.failure = nil
+            try JSONEncoder().encode(run).write(to: stateURL)
+        }
+        let open = ManagedProcessor(root: root, transport: NoPyannote(), soniox: NmSoniox(), diarizer: FakeDiarizer(),
+            nemotronModels: store, allowsPyannote: false, sleep: { _ in })
+        try setVersion("soniox-nemotron-word-v9")
+        let unknown = try await open.resume(queued.id, key: "", sonioxKey: "")
+        XCTAssertEqual(unknown.stage, "failed")
+        XCTAssertEqual(unknown.combinationAlgorithmVersion, "soniox-nemotron-word-v9")
+        try setVersion("soniox-nemotron-word-v1")
+        let done = try await open.resume(queued.id, key: "", sonioxKey: "")
+        XCTAssertEqual(done.stage, "readyForReview")
+        XCTAssertEqual(done.combinationAlgorithmVersion, "soniox-nemotron-word-v1")
+        let doc = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: done.id)
+        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v1")
     }
 
     func testRetiredPyannotePathsAreRefusedWithoutTouchingState() async throws {

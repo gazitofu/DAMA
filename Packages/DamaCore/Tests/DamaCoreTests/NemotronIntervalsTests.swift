@@ -44,13 +44,25 @@ final class NemotronIntervalsTests: XCTestCase {
         XCTAssertEqual(e.regular.map { $0.endUs - $0.startUs }, [10_000, 10_000])
     }
 
-    func testOverlapStaysRegularAndLeavesExclusive() throws {
+    func testOverlapStaysRegularAndV1LeavesItOutOfExclusive() throws {
         // A frames 0..<4, B frames 2..<6: frames 2,3 have two active channels.
         let p = probs(frames: 6, [(0, 0..<4, 0.9), (1, 2..<6, 0.8)])
-        let e = try NemotronIntervals.derive(probabilities: p, frameCount: 6, channels: 2, durationUs: 60_000, runID: "r")
+        let e = try NemotronIntervals.derive(probabilities: p, frameCount: 6, channels: 2, durationUs: 60_000, runID: "r", rule: .singleActive)
         XCTAssertEqual(spans(e.regular), ["d0:0:0-40000", "d1:1:20000-60000"])
         XCTAssertEqual(spans(e.exclusive), ["e0:0:0-20000", "e1:1:40000-60000"])
         XCTAssertTrue(e.regular.allSatisfy { $0.confidence == nil } && e.exclusive.allSatisfy { $0.confidence == nil })
+    }
+
+    func testV2GivesOverlapFramesToTheMostProbableChannelAndSkipsTies() throws {
+        // Frames 2,3: A 0.9 vs B 0.8 -> A. Frame 4: B 0.7 vs C 0.7 tie -> none. Frame 5: B only.
+        var p = probs(frames: 6, channels: 3, [(0, 0..<4, 0.9), (1, 2..<6, 0.8), (2, 4..<5, 0.7)])
+        p[4 * 3 + 1] = 0.7
+        let e = try NemotronIntervals.derive(probabilities: p, frameCount: 6, channels: 3, durationUs: 60_000, runID: "r")
+        XCTAssertEqual(spans(e.regular), ["d0:0:0-40000", "d1:1:20000-60000", "d2:2:40000-50000"])
+        XCTAssertEqual(spans(e.exclusive), ["e0:0:0-40000", "e1:1:50000-60000"])
+        XCTAssertEqual(NemotronIntervals.Rule.mostProbable.rawValue, "nemotron-intervals-v2")
+        let v1 = try NemotronIntervals.derive(probabilities: p, frameCount: 6, channels: 3, durationUs: 60_000, runID: "r", rule: .singleActive)
+        XCTAssertEqual(spans(v1.exclusive), ["e0:0:0-20000", "e1:1:50000-60000"])
     }
 
     func testAdjacentSpeakersTouchWithoutOverlap() throws {

@@ -21,7 +21,7 @@ guard args.count == 4 else { print("usage: NemotronCombine <Sessions> <diagnosti
 let sessions = URL(fileURLWithPath: args[1], isDirectory: true), diagnostics = URL(fileURLWithPath: args[2], isDirectory: true)
 let fm = FileManager.default
 let summaries = try JSONDecoder().decode([Summary].self, from: Data(contentsOf: diagnostics.appendingPathComponent("summary.json")))
-var lines = ["session\thours\texpected\tchannels1a\tspeakers\tchannelsMatch\tassignedSpeakers\tlexical\tunassignedPct\tmissingPerHour\tp2Speakers\tp2AssignedSpeakers\tp2UnassignedPct\tp2MissingPerHour\tvalid"]
+var lines = ["session\thours\texpected\tchannels1a\tspeakers\tchannelsMatch\tassignedSpeakers\tlexical\tunassignedPct\tmissingPerHour\tp2Speakers\tp2AssignedSpeakers\tp2UnassignedPct\tp2MissingPerHour\tvalid\tv1UnassignedPct"]
 var failures = 0
 let probeDirs = try fm.contentsOfDirectory(atPath: diagnostics.path)
 for summary in summaries.sorted(by: { $0.session < $1.session }) {
@@ -51,8 +51,13 @@ for summary in summaries.sorted(by: { $0.session < $1.session }) {
         let runID = UUID().uuidString
         let doc = try SonioxNemotronReconciler.normalize(soniox: asr, probabilities: probabilities, frameCount: meta.frameCount,
             channels: meta.channels, sonioxJobID: jobID, sessionID: id, runID: runID, durationUs: durationUs,
-            audioSHA256: meta.audioSHA256, model: state.reportedModel ?? "stt-async-v5", createdAt: "2026-10-30T00:00:00Z")
+            audioSHA256: meta.audioSHA256, model: state.reportedModel ?? "stt-async-v5", createdAt: "2026-10-30T00:00:00Z",
+            version: .v2)
         try TranscriptValidator().validate(doc)
+        let v1 = try SonioxNemotronReconciler.normalize(soniox: asr, probabilities: probabilities, frameCount: meta.frameCount,
+            channels: meta.channels, sonioxJobID: jobID, sessionID: id, runID: runID, durationUs: durationUs,
+            audioSHA256: meta.audioSHA256, model: state.reportedModel ?? "stt-async-v5", createdAt: "2026-10-30T00:00:00Z",
+            version: .v1)
         let hours = Double(durationUs) / 3_600_000_000
         let s = stats(doc, hours: hours)
         var p2Cols = "-\t-\t-\t-"
@@ -61,7 +66,7 @@ for summary in summaries.sorted(by: { $0.session < $1.session }) {
             let t = stats(model, hours: hours)
             p2Cols = "\(t.speakers)\t\(t.assignedSpeakers)\t\(String(format: "%.2f", t.unassigned))\t\(String(format: "%.1f", t.missingPerHour))"
         }
-        lines.append("\(id.prefix(8))\t\(String(format: "%.2f", hours))\t\(summary.expected.map(String.init) ?? "-")\t\(summary.nemotronChannels)\t\(s.speakers)\t\(s.speakers == summary.nemotronChannels)\t\(s.assignedSpeakers)\t\(s.lexical)\t\(String(format: "%.2f", s.unassigned))\t\(String(format: "%.1f", s.missingPerHour))\t\(p2Cols)\ttrue")
+        lines.append("\(id.prefix(8))\t\(String(format: "%.2f", hours))\t\(summary.expected.map(String.init) ?? "-")\t\(summary.nemotronChannels)\t\(s.speakers)\t\(s.speakers == summary.nemotronChannels)\t\(s.assignedSpeakers)\t\(s.lexical)\t\(String(format: "%.2f", s.unassigned))\t\(String(format: "%.1f", s.missingPerHour))\t\(p2Cols)\ttrue\t\(String(format: "%.2f", stats(v1, hours: hours).unassigned))")
     } catch {
         failures += 1
         lines.append("\(id.prefix(8))\terror\t\(error)")

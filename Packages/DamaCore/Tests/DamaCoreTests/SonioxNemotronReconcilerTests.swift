@@ -19,12 +19,13 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         return (data, frames)
     }
     private func normalize(_ tokens: [[String: Any]], _ on: [(channel: Int, ms: Range<Int>, value: Float)],
-                           runID: String? = nil) throws -> TranscriptDocument {
+                           runID: String? = nil, version: SonioxNemotronReconciler.Version = .v2) throws -> TranscriptDocument {
         let asr = try JSONSerialization.data(withJSONObject: ["id": "job", "text": tokens.map { $0["text"] as! String }.joined(), "tokens": tokens])
         let (data, frames) = probabilities(on)
         return try SonioxNemotronReconciler.normalize(soniox: asr, probabilities: data, frameCount: frames, channels: 8,
             sonioxJobID: "job", sessionID: "s", runID: runID ?? self.runID, durationUs: duration,
-            audioSHA256: String(repeating: "a", count: 64), model: "stt-async-v5", createdAt: "2026-10-30T00:00:00Z", synthetic: true)
+            audioSHA256: String(repeating: "a", count: 64), model: "stt-async-v5", createdAt: "2026-10-30T00:00:00Z", synthetic: true,
+            version: version)
     }
     private var a: String { "\(runID)-nm-0" }
     private var b: String { "\(runID)-nm-1" }
@@ -54,12 +55,24 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         XCTAssertFalse(doc.diarization.contains { $0.speakerId == b })
     }
 
-    func testOverlapIsRegularEvidenceAndFlaggedNotExclusive() throws {
-        let doc = try normalize([token("동시에", 1100, 1300)], [(0, 0..<2000, 0.9), (1, 1000..<1500, 0.8)])
+    func testV1LeavesOverlapWordsUnassignedButFlagged() throws {
+        let doc = try normalize([token("동시에", 1100, 1300)], [(0, 0..<2000, 0.9), (1, 1000..<1500, 0.8)], version: .v1)
+        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v1")
         XCTAssertEqual(doc.diarization.count, 2)
         XCTAssertFalse(doc.exclusiveDiarization.contains { $0.startUs < 1_500_000 && $0.endUs > 1_000_000 })
+        XCTAssertNil(doc.words[0].speakerId)
         XCTAssertTrue(doc.words[0].overlap)
         XCTAssertTrue(doc.reviewIssues.contains { $0.kind == .overlapping_speech && $0.wordIds == [doc.words[0].id] })
+    }
+
+    func testV2AssignsOverlapWordsToTheMostProbableChannelAndKeepsTheOverlapIssue() throws {
+        let doc = try normalize([token("동시에", 1100, 1300)], [(0, 0..<2000, 0.9), (1, 1000..<1500, 0.8)])
+        XCTAssertEqual(doc.diarization.count, 2)
+        XCTAssertEqual(doc.words[0].speakerId, a)
+        XCTAssertTrue(doc.words[0].overlap)
+        XCTAssertTrue(doc.reviewIssues.contains { $0.kind == .overlapping_speech && $0.wordIds == [doc.words[0].id] })
+        let swapped = try normalize([token("동시에", 1100, 1300)], [(0, 0..<2000, 0.8), (1, 1000..<1500, 0.9)])
+        XCTAssertEqual(swapped.words[0].speakerId, b)
     }
 
     func testAdjacentSpeakersDoNotOverlap() throws {
@@ -72,7 +85,7 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         let doc = try normalize([token("다음", 100, 900, "x"), token(" 네", 1000, 1030, "y")], aba)
         XCTAssertEqual(doc.provenance.engine, .hybridSonioxNemotron)
         XCTAssertEqual(doc.provenance.diarizationModel, "nemotron-3-diarization-coreml-offline")
-        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v1")
+        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v2")
         XCTAssertEqual(doc.speakers.map(\.providerId), ["channel-0", "channel-1"])
         XCTAssertEqual(doc.speakers.map(\.displayName), ["화자 1", "화자 2"])
         XCTAssertEqual(doc.diarization.map(\.id), ["d0", "d1", "d2"])
