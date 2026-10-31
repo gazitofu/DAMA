@@ -48,7 +48,7 @@ public enum SonioxPrecisionReconciler {
     /// `keepsSpeakerIDs` is for a base already built with this run's IDs (Nemotron); P2 sources are re-mapped.
     static func applying(_ source: TranscriptDocument, runID: String, createdAt: String,
                          policy: SonioxPrecisionComparison, version: String? = nil,
-                         keepsSpeakerIDs: Bool = false) throws -> TranscriptDocument {
+                         keepsSpeakerIDs: Bool = false, unifiesSplitWords: Bool = false) throws -> TranscriptDocument {
         var doc = source
         let mapping = Dictionary(uniqueKeysWithValues: source.speakers.enumerated().map {
             ($0.element.id, keepsSpeakerIDs ? $0.element.id : "\(runID)-p2-\($0.offset)")
@@ -76,6 +76,7 @@ public enum SonioxPrecisionReconciler {
             sharePhraseTailEvidence(words: doc.words, choices: &choices,
                 regular: doc.diarization, exclusive: doc.exclusiveDiarization)
         }
+        if unifiesSplitWords { unifySplitWords(words: doc.words, choices: &choices) }
         if policy == .wordAtomic {
             for group in orthographicGroups(doc.words) {
                 resolveWordAtomicity(group, words: doc.words, choices: &choices,
@@ -226,6 +227,41 @@ public enum SonioxPrecisionReconciler {
             choices[i].speaker = best.speakerID
             choices[i].sourceIDs = Array(Set(choices[i].sourceIDs + evidence.sourceIDs)).sorted()
             choices[i].coverage = nil // 어절 단위 근거는 이 토큰의 coverage가 아니다.
+        }
+    }
+
+    /// 한 어절 안 lexical이 서로 다른 두 화자 이상으로 갈린 어절만, 같은 문장 안에서 Soniox 후보가 같고
+    /// 한 화자로 배정된 앞·뒤 이웃 어절의 화자가 하나일 때 그 화자로 맞춘다. 판정은 진입 시점 배정 한 장으로 한다.
+    /// 미배정 조각과 어절 하나 섬(A [B] A)은 건드리지 않는다.
+    private static func unifySplitWords(words: [TranscriptWord], choices: inout [Choice]) {
+        let sentenceEnds = CharacterSet(charactersIn: ".?!。？！…")
+        struct Word { let lexical: [Int]; let speaker: String?; let asr: String?; let ends: Bool; let split: Bool }
+        let snapshot = choices
+        let list: [Word] = orthographicGroups(words).compactMap { group in
+            let lexical = group.filter { words[$0].tokenKind == .lexical }
+            guard !lexical.isEmpty else { return nil }
+            let speakers = Set(lexical.map { snapshot[$0].speaker }), labels = Set(lexical.map { words[$0].asrSpeakerLabel })
+            let ends = group.contains { i in
+                (words[i].prefix + words[i].text).contains("\n") || words[i].text.unicodeScalars.contains(where: sentenceEnds.contains)
+            }
+            return Word(lexical: lexical, speaker: speakers.count == 1 ? speakers.first! : nil,
+                        asr: labels.count == 1 ? labels.first! : nil, ends: ends,
+                        split: Set(lexical.compactMap { snapshot[$0].speaker }).count > 1)
+        }
+        for (n, word) in list.enumerated() where word.split {
+            guard let label = word.asr else { continue }
+            var neighbours: [Word] = []
+            if n > 0, !list[n - 1].ends { neighbours.append(list[n - 1]) }
+            if n + 1 < list.count, !word.ends { neighbours.append(list[n + 1]) }
+            let eligible = neighbours.filter { $0.asr == label && $0.speaker != nil }
+            let speakers = Set(eligible.compactMap(\.speaker))
+            guard speakers.count == 1, let speaker = speakers.first else { continue }
+            let support = eligible.flatMap { $0.lexical.flatMap { snapshot[$0].sourceIDs } }
+            for i in word.lexical where snapshot[i].speaker != nil && snapshot[i].speaker != speaker {
+                choices[i].speaker = speaker
+                choices[i].sourceIDs = Array(Set(snapshot[i].sourceIDs + support)).sorted()
+                choices[i].coverage = nil // 이웃 어절 근거는 이 토큰의 coverage가 아니다.
+            }
         }
     }
 

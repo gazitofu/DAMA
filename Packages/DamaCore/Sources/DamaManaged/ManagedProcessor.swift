@@ -540,7 +540,7 @@ public actor ManagedProcessor {
                 runID: run.id, durationUs: duration, audioSHA256: analysis.sha256,
                 model: asr.reportedModel ?? asr.provider.model, createdAt: run.createdAt,
                 captureInterrupted: audio.interruption != nil,
-                version: SonioxNemotronReconciler.Version(rawValue: run.combinationAlgorithmVersion ?? "") ?? .v2)
+                version: SonioxNemotronReconciler.Version(rawValue: run.combinationAlgorithmVersion ?? "") ?? SonioxNemotronReconciler.currentVersion)
             try Task.checkCancellation()
             try await repository.importManagedTranscript(document, rawData: asrBytes)
             run.stage = "readyForReview"; run.failure = nil; try persist(run)

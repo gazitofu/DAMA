@@ -19,7 +19,7 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         return (data, frames)
     }
     private func normalize(_ tokens: [[String: Any]], _ on: [(channel: Int, ms: Range<Int>, value: Float)],
-                           runID: String? = nil, version: SonioxNemotronReconciler.Version = .v2) throws -> TranscriptDocument {
+                           runID: String? = nil, version: SonioxNemotronReconciler.Version = SonioxNemotronReconciler.currentVersion) throws -> TranscriptDocument {
         let asr = try JSONSerialization.data(withJSONObject: ["id": "job", "text": tokens.map { $0["text"] as! String }.joined(), "tokens": tokens])
         let (data, frames) = probabilities(on)
         return try SonioxNemotronReconciler.normalize(soniox: asr, probabilities: data, frameCount: frames, channels: 8,
@@ -85,7 +85,7 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         let doc = try normalize([token("다음", 100, 900, "x"), token(" 네", 1000, 1030, "y")], aba)
         XCTAssertEqual(doc.provenance.engine, .hybridSonioxNemotron)
         XCTAssertEqual(doc.provenance.diarizationModel, "nemotron-3-diarization-coreml-offline")
-        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v2")
+        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v3")
         XCTAssertEqual(doc.speakers.map(\.providerId), ["channel-0", "channel-1"])
         XCTAssertEqual(doc.speakers.map(\.displayName), ["화자 1", "화자 2"])
         XCTAssertEqual(doc.diarization.map(\.id), ["d0", "d1", "d2"])
@@ -133,6 +133,75 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         XCTAssertEqual(TranscriptionProvider.operatingSelection(stored: "sonioxNemotron"), .sonioxNemotron)
         XCTAssertEqual(TranscriptionProvider.sonioxNemotron.title, "Soniox + Nemotron 3 (운영)")
         XCTAssertEqual(TranscriptionProvider.soniox.title, "Soniox 단독 (비교)")
+    }
+
+    // r3 어절 안 화자 맞춤 (AC-16). A = 채널 0, B = 채널 1.
+    private func word(_ doc: TranscriptDocument, _ text: String) -> TranscriptWord? {
+        doc.words.first { $0.text.trimmingCharacters(in: .whitespaces) == text }
+    }
+    private func speakers(_ doc: TranscriptDocument, _ texts: [String]) -> [String?] { texts.map { word(doc, $0)?.speakerId } }
+
+    func testSplitWordTakesTheSpeakerOfItsSameSentenceNeighbour() throws {
+        let tokens = [token("연락", 100, 400), token(" 왔", 500, 600), token("어", 600, 700), token("요", 700, 780), token("?", 780, 800),
+                      token(" 네", 1100, 1300)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<800, 0.9), (1, 600..<800, 0.95), (1, 1000..<2000, 0.9)]
+        let v2 = try normalize(tokens, on, version: .v2)
+        XCTAssertEqual(speakers(v2, ["왔", "어", "요"]), [a, b, b])
+        let doc = try normalize(tokens, on)
+        // ① 앞 이웃 «연락»으로 맞춤 · ③ «요?»로 문장이 끝나 뒤 «네»(B)는 보지 않음 · ⑪ 닫는 부호도 따름.
+        XCTAssertEqual(speakers(doc, ["왔", "어", "요", "?", "네"]), [a, a, a, a, b])
+        // ⑩ 바꾼 토큰: 근거 = 자기 ∪ 이웃, coverage 없음, 겹침 이슈 유지.
+        let changed = try XCTUnwrap(word(doc, "어")), before = try XCTUnwrap(word(v2, "어"))
+        let neighbour = try XCTUnwrap(word(doc, "연락"))
+        XCTAssertEqual(changed.sourceIntervalIds, Array(Set(before.sourceIntervalIds + neighbour.sourceIntervalIds)).sorted())
+        XCTAssertNil(changed.alignmentScore)
+        XCTAssertTrue(changed.overlap)
+        XCTAssertTrue(doc.reviewIssues.contains { $0.kind == .overlapping_speech && $0.wordIds == [changed.id] })
+        XCTAssertEqual(try XCTUnwrap(word(doc, "왔")).sourceIntervalIds, try XCTUnwrap(word(v2, "왔")).sourceIntervalIds)
+        try TranscriptValidator().validate(doc)
+    }
+
+    func testSentenceEndBeforeTheWordLeavesOnlyTheNextNeighbour() throws {
+        // ② 앞 어절이 «.»로 끝나므로 앞(A)은 보지 않고 뒤 «이제»(B)로 맞춤.
+        let tokens = [token("끝났어요", 100, 400), token(".", 400, 410), token(" 그", 600, 700), token("래서", 700, 900), token(" 이제", 1000, 1300)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<1000, 0.9), (1, 600..<700, 0.95), (1, 1000..<2000, 0.9)]
+        XCTAssertEqual(speakers(try normalize(tokens, on, version: .v2), ["그", "래서"]), [b, a])
+        XCTAssertEqual(speakers(try normalize(tokens, on), ["끝났어요", "그", "래서", "이제"]), [a, b, b, b])
+    }
+
+    func testNeighboursThatDisagreeOrAreNotEligibleLeaveTheWordSplit() throws {
+        // ④ 앞(A)과 뒤(B) 이웃이 다름.
+        let both = try normalize([token("앞", 100, 400), token(" 왔", 500, 600), token("어", 600, 700), token(" 뒤", 1000, 1300)],
+                                 [(0, 0..<700, 0.9), (1, 600..<700, 0.95), (1, 1000..<2000, 0.9)])
+        XCTAssertEqual(speakers(both, ["왔", "어"]), [a, b])
+        // ⑤ 앞 이웃의 Soniox 후보가 다름.
+        let label = try normalize([token("연락", 100, 400, "two"), token(" 왔", 500, 600), token("어", 600, 700), token("요?", 700, 800)],
+                                  [(0, 0..<800, 0.9), (1, 600..<800, 0.95)])
+        XCTAssertEqual(speakers(label, ["왔", "어", "요?"]), [a, b, b])
+        // ⑥ 앞 이웃 자체가 두 화자로 갈림.
+        let mixed = try normalize([token("연", 100, 200), token("락", 200, 300), token(" 왔", 500, 600), token("어", 600, 700), token("요?", 700, 800)],
+                                  [(0, 0..<800, 0.9), (1, 200..<300, 0.95), (1, 600..<800, 0.95)])
+        XCTAssertEqual(speakers(mixed, ["연", "락", "왔", "어", "요?"]), [a, b, a, b, b])
+    }
+
+    func testOneWordIslandAndUnassignedFragmentsStay() throws {
+        // ⑦ 어절 하나 섬 A [B] A는 그대로.
+        let island = try normalize([token("다음", 100, 900), token(" 네", 1000, 1030), token(" 안 합니다", 1100, 1900)], aba)
+        XCTAssertEqual(island.words.map(\.speakerId), [a, b, a])
+        // ⑧ 맞추는 어절 안의 미배정 조각(«이», A·B 동률)은 null 유지.
+        let tokens = [token("연락", 100, 400), token(" 같", 900, 1000), token("이", 1100, 1300), token("요", 1300, 1400), token("?", 1400, 1410)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<1500, 0.8), (1, 1000..<1300, 0.8), (1, 1300..<1400, 0.9)]
+        XCTAssertEqual(speakers(try normalize(tokens, on, version: .v2), ["같", "이", "요"]), [a, nil, b])
+        XCTAssertEqual(speakers(try normalize(tokens, on), ["같", "이", "요"]), [a, nil, a])
+    }
+
+    func testConsecutiveSplitWordsAreJudgedFromTheSameSnapshot() throws {
+        // ⑨ «가나»는 앞(A)으로, «다라»는 직전 배정에서 앞 이웃이 갈려 있어 뒤(B)로 맞춤. 순차 적용이면 «다라»는 A·B 충돌로 남는다.
+        let tokens = [token("앞", 100, 400), token(" 가", 500, 600), token("나", 600, 700), token(" 다", 800, 900), token("라", 900, 1000),
+                      token(" 뒤", 1200, 1500)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<1000, 0.9), (1, 600..<700, 0.95), (1, 900..<1500, 0.95)]
+        XCTAssertEqual(speakers(try normalize(tokens, on, version: .v2), ["가", "나", "다", "라"]), [a, b, a, b])
+        XCTAssertEqual(speakers(try normalize(tokens, on), ["가", "나", "다", "라"]), [a, a, b, b])
     }
 
     func testSpeakerIdsAreScopedToRun() throws {

@@ -19,7 +19,7 @@
 
 - 결합 parent `sonioxNemotron` = Soniox 자식(기존 규칙) + `nemotron` 자식(이 Mac, 음성 전송 없음). 분석 WAV 전체를 FluidAudio 0.18.0 `offline` 프리셋 `processComplete` 1회로 처리한다. 원본 `nemotron-probabilities.f32`(LE Float32, 프레임×8, 10 ms)와 `nemotron-meta.json`을 보존한다. 재사용 키는 session·분석 WAV SHA256·모델 파일 SHA256 목록·FluidAudio 버전·프리셋.
 - 구간 `nemotron-intervals-v2`(2026-10-30 r2 사용자 확정): 확률 > 0.5(공급자 기본값, 한국어 실측 전 초기 설계값) 프레임이 같은 채널로 이어진 최대 구간이 일반 구간, 프레임마다 활성 채널 중 최고 확률 채널(동률·무활성은 제외)이 같은 채널로 이어진 최대 구간이 단독 구간(앱 파생, 공급자 exclusive 아님. P2 단독 출력처럼 겹침 프레임도 한 화자로 덮는다). v1(활성 채널이 정확히 하나인 프레임만)은 기존 Run 재현용. 최소 길이·패딩·틈 메우기 없음. confidence는 null. 채널 ID는 Run 안에서만 유효하다.
-- 배정은 위 구간에 B2(`soniox-p2-word-v4`) 규칙을 그대로 적용하며 새 Run 버전은 `soniox-nemotron-word-v2`(v1 Run은 v1로 재현), engine `hybridSonioxNemotron`. 겹침 단어의 `overlapping_speech` 이슈는 유지한다.
+- 배정은 위 구간에 B2(`soniox-p2-word-v4`) 규칙을 적용하고, 어절 안 lexical이 서로 다른 두 화자 이상으로 갈린 어절만 같은 문장(문장 끝 부호 `. ? ! 。 ？ ！ …`·줄바꿈을 넘지 않음) 안에서 Soniox 화자 후보가 같고 한 화자로 배정된 앞·뒤 이웃 어절의 화자가 하나일 때 그 화자로 맞춘다(2026-10-31 r3 사용자 확정, 블라인드 청취 근거). 판정은 맞춤 직전 배정 한 장으로 하고, 맞추는 어절 안의 미배정 조각과 어절 하나 섬(A [B] A)은 건드리지 않는다. 새 Run 버전은 `soniox-nemotron-word-v3`(v1·v2 Run은 저장 버전으로 재현), engine `hybridSonioxNemotron`. 겹침 단어의 `overlapping_speech` 이슈는 유지하며 P2 경로(v4)와 비교 전용 v5는 바꾸지 않는다.
 - 화자 수는 Nemotron에 지정하지 않는다(FluidAudio `numSpeakers`는 채널 절단이라 사용 금지). Soniox 힌트 규칙은 그대로. 녹음 우선 규칙은 Qwen과 같다. 모델은 사용자가 «모델 받기»로 한 번 받고 고정 SHA256 목록과 맞을 때만 쓴다.
 - P2 자식이 미완료인 기존 결합 Run과 P2 재사용이 없는 Qwen Run은 재개하지 않는다. 다시 전사는 새 `sonioxNemotron` Run이다.
 
