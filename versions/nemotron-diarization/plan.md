@@ -3,7 +3,7 @@ unit: nemotron-diarization
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "게이트 ② 대기. r3 구현·측정·0.5.14(32) 빌드 완료, 미설치. 남음: 설치(승인), BED2C097 다시 전사(AC-19), AC-09 실화면, AC-10 실사용."
+resume: "게이트 ② 대기. 0.5.14(32) 설치. 남음: BED2C097 다시 전사 후 디스크 대조(AC-19), AC-09 실화면, AC-10 실사용."
 spec: notes/nemotron-diarization/nemotron-diarization.src.html
 ---
 
@@ -97,7 +97,8 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - r3 (2026-10-31): `052fa33` T-09 Nemotron v1·v2 골든 10지문 선커밋(지문 1자 변조 시 FAIL, 복원 후 PASS) · `8d1aed0` T-10 어절 맞춤·v3. 골든 재캡처는 v3 5지문 추가만(v1·v2 10지문 동일, P2 35지문 PASS). `SonioxNemotronReconcilerTests` +5(①–⑪), `NemotronJourneyTests` +1(저장 v2 재현), 새 Run v3 단정 대상 이동 4곳. 역뮤테이션: 맞춤 끄기 4 FAIL · 문장 경계 무시 2 FAIL · 순차 적용 1 FAIL, 복원 SHA256 일치. check.sh `.build/check-logs/run-20261031T002756Z-s9euGY` exit 0, SKIP 없음, swift test 264(Core 179 / Managed 48 / Audio 37). `operating-baseline.md` v3 문구(같은 커밋).
 - AC-17·18 실데이터(`.build/check-logs/nemotron-diarization/ac18-summary.txt`): 앱 코드 v3 19개 계약 검증 19/19, v2 행은 AC-15 기록과 같음. 합계 v2 → v3 `provider_disagreement` 6,154 → 3,112 · 갈린 어절 2,140 → 394 · `unrepresented_speaker` 4,200 → 5,174 · 미배정 3,888 → 3,888 · 바뀐 lexical 2,413 = r3 모의와 전부 같음, 같은 v2 문서에서 모의와 다른 단어 0. 재계산 지표가 v3 문서 이슈 수와 19/19 일치. 새 코드로 설치 앱 Run `E33ADFD9`(v1)·`108E3A3C`(v2) 재생 바이트 동일.
 - 버전 0.5.13(31) → 0.5.14(32)(작업 트리만, 타 소유 상향과 같은 줄). Debug 빌드 `.build/check-logs/nemotron-diarization/r3-xcodebuild.log` exit 0, 산출물 Info.plist 0.5.14(32), dylib에 `soniox-nemotron-word-v1/v2/v3`. 미설치.
-- 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정, AC-19 설치·다시 전사. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
+- 0.5.14(32) 설치(사용자 «설치 진행», 2026-10-31): 실행 중 0.5.13(31) 일반 종료, 백업 `.build/backups/DAMA-0.5.13-31-before-r3.app`, 기존 번들 Finder 휴지통. 실행 PID가 `/Applications/DAMA.app/Contents/MacOS/DAMA.debug.dylib`를 적재, 빌드 산출물과 `cmp` 동일, Info.plist 0.5.14(32), `soniox-nemotron-word-v3` 포함.
+- 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정, AC-19 다시 전사. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
 
 ## 작업 분해
 
