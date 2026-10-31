@@ -3,7 +3,7 @@ unit: nemotron-diarization
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "게이트 ② 대기. 0.5.14(32) 설치. 남음: BED2C097 다시 전사 후 디스크 대조(AC-19), AC-09 실화면, AC-10 실사용."
+resume: "게이트 ② 대기. r3 AC-16~19 완료. 남음: AC-09 실화면 문구, AC-10 사용자 실사용 확인."
 spec: notes/nemotron-diarization/nemotron-diarization.src.html
 ---
 
@@ -67,7 +67,7 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - [x] AC-16 어절 맞춤 단위(스펙 r3 §02 «어절 안 화자 맞춤», INV-06): 합성 문서 테스트 ① 앞 이웃 한 화자 → 갈린 어절의 배정된 lexical 전부 그 화자 ② 앞 어절에 문장 끝 부호(`. ? ! 。 ？ ！ …`)나 줄바꿈 → 앞은 안 보고 뒤 이웃으로 ③ 대상 어절에 문장 끝 부호 → 뒤는 안 봄 ④ 앞·뒤 이웃 화자가 다름 → 그대로 ⑤ Soniox 후보(`asrSpeakerLabel`)가 대상과 다르거나 nil → 그 이웃 무자격 ⑥ 이웃 어절에 미배정 또는 두 화자 → 무자격 ⑦ 한 어절 섬 A [B] A 불변, 한 화자+미배정 어절 불변 ⑧ 대상 어절 안 미배정 조각은 null 유지 ⑨ 연속한 두 갈린 어절은 직전 배정 한 장으로 판정(순차 적용과 결과가 다른 입력) ⑩ 바꾼 토큰 `sourceIntervalIds` = 자기 ∪ 이웃 lexical, `alignmentScore` nil, `overlap`·`boundary` 이슈 유지 ⑪ 닫는 부호는 맞춘 화자를 따름. 역뮤테이션 3종(맞춤 끄기 · 문장 경계 무시 · 순차 적용)에서 각각 FAIL.
 - [x] AC-17 버전·회귀: 새 `sonioxNemotron` Run `combinationAlgorithmVersion`·provenance = `soniox-nemotron-word-v3`, 저장된 v1·v2 Run 재개·재현은 저장 버전, 미지원 버전 실패(자동 치환 없음). 구현 전 v1·v2 Nemotron 합성 출력 지문을 선커밋하고 구현 뒤 동일. P2 골든 35지문 불변. 설치 앱 Run `E33ADFD9`(v1)·`108E3A3C`(v2)를 저장된 원본으로 재생하면 구현 뒤에도 바이트 동일. 맞춤은 Nemotron v3에서만 켜짐(P2 v3·v4·v5 출력 불변).
 - [x] AC-18 어절 맞춤 실데이터(네트워크 0, Sessions 읽기 전용): AC-15 모집단 19개로 v3 결합 문서 생성 → 계약 검증 19/19, 모의와 같은 지표 스크립트(`word-unify-sim.py`의 `metrics`)로 잰 합계가 r3 모의 기준값과 같음(`provider_disagreement` 3,112 · 갈린 어절 394 · `unrepresented_speaker` 5,174 · 미배정 lexical 3,888, v2 대비 바뀐 lexical 2,413). 다르면 채택 전 1축 진단(모의와 구현의 차이 후보를 하나씩 맞춰 재측정). 문턱 없음(정확도 아님). 결과 `.build/check-logs/nemotron-diarization/ac18-*.txt`.
-- [ ] AC-19 r3 전달: check.sh PASS(SKIP 0), `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION` 0.5.14(32), `operating-baseline.md` 새 Run 버전 v3 문구, pathspec 커밋·타 소유 헝크 보존. 설치(사용자 승인) 후 실행 중 Bundle 확인, BED2C097 다시 전사 1회(사용자)로 새 parent `soniox-nemotron-word-v3`, 자식 재사용(새 Soniox·Nemotron 요청 0), 지표가 모의 BED2C097 값(525→181 · 218→30 · 436→559 · 130)과 같음.
+- [x] AC-19 r3 전달: check.sh PASS(SKIP 0), `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION` 0.5.14(32), `operating-baseline.md` 새 Run 버전 v3 문구, pathspec 커밋·타 소유 헝크 보존. 설치(사용자 승인) 후 실행 중 Bundle 확인, BED2C097 다시 전사 1회(사용자)로 새 parent `soniox-nemotron-word-v3`, 자식 재사용(새 Soniox·Nemotron 요청 0), 지표가 모의 BED2C097 값(525→181 · 218→30 · 436→559 · 130)과 같음.
 
 ## 실행 기록 (2026-10-30)
 
@@ -98,7 +98,8 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - AC-17·18 실데이터(`.build/check-logs/nemotron-diarization/ac18-summary.txt`): 앱 코드 v3 19개 계약 검증 19/19, v2 행은 AC-15 기록과 같음. 합계 v2 → v3 `provider_disagreement` 6,154 → 3,112 · 갈린 어절 2,140 → 394 · `unrepresented_speaker` 4,200 → 5,174 · 미배정 3,888 → 3,888 · 바뀐 lexical 2,413 = r3 모의와 전부 같음, 같은 v2 문서에서 모의와 다른 단어 0. 재계산 지표가 v3 문서 이슈 수와 19/19 일치. 새 코드로 설치 앱 Run `E33ADFD9`(v1)·`108E3A3C`(v2) 재생 바이트 동일.
 - 버전 0.5.13(31) → 0.5.14(32)(작업 트리만, 타 소유 상향과 같은 줄). Debug 빌드 `.build/check-logs/nemotron-diarization/r3-xcodebuild.log` exit 0, 산출물 Info.plist 0.5.14(32), dylib에 `soniox-nemotron-word-v1/v2/v3`. 미설치.
 - 0.5.14(32) 설치(사용자 «설치 진행», 2026-10-31): 실행 중 0.5.13(31) 일반 종료, 백업 `.build/backups/DAMA-0.5.13-31-before-r3.app`, 기존 번들 Finder 휴지통. 실행 PID가 `/Applications/DAMA.app/Contents/MacOS/DAMA.debug.dylib`를 적재, 빌드 산출물과 `cmp` 동일, Info.plist 0.5.14(32), `soniox-nemotron-word-v3` 포함.
-- 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정, AC-19 다시 전사. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
+- 설치 앱 다시 전사(사용자 실행, 2026-10-31 10:50 KST): BED2C097 새 parent `7A430186` readyForReview, `combinationAlgorithmVersion`·provenance `soniox-nemotron-word-v3`, 자식 Soniox `CCDF109D`·Nemotron `F196F231` 재사용(자식 state.json 수정 시각 10-30 16:50·16:51 그대로, raw Soniox 응답·확률 파일이 v2 Run `108E3A3C`와 `cmp` 동일 → 새 요청 0). 지표 `provider_disagreement` 525 → 181 · 갈린 어절 218 → 30 · `unrepresented_speaker` 436 → 559 · 미배정 130 유지 = 모의 BED2C097 값과 같음, 설치 v2 문서에 모의를 적용한 결과와 다른 단어 0, 화자 3명(AC-19).
+- 미검증: AC-09 실화면, AC-10 실기기 녹음 우선 여정. QA 판정 주체(GPT-6.1-sol) 부재로 QA 판정 미수행.
 
 ## 작업 분해
 
