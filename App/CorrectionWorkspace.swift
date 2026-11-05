@@ -42,7 +42,7 @@ import SwiftUI
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let scoped = url.startAccessingSecurityScopedResource()
         do {
-            if !directory && !FileManager.default.isExecutableFile(atPath: url.path) { throw CodexCorrectionFailure.unavailable }
+            if !directory && !FileManager.default.isExecutableFile(atPath: url.path) { throw LibraryFailure.invalidInput }
             let data = try url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil)
             UserDefaults.standard.set(data, forKey: directory ? "correction.references" : "correction.executable")
             if scoped { accessed.append(url) }
@@ -112,7 +112,7 @@ import SwiftUI
                 let client = CodexCorrectionClient()
                 for chunk in chunks {
                     try Task.checkCancellation()
-                    let response = try await client.correct(chunk: chunk, input: input, executable: executable)
+                    let response = try await client.correct(chunk: chunk, input: input, executable: executable).reply
                     let validated = try ContextCorrection.validated(response, chunk: chunk, input: input)
                     correction.edits += validated.edits
                     for (id, name) in validated.names {
