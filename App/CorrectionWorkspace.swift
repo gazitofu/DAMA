@@ -11,7 +11,8 @@ import SwiftUI
     @Published private(set) var total = 0
     @Published private(set) var referenceURL: URL?
     @Published private(set) var preview: [ReferenceExcerpt] = []
-    @Published var message: String?
+    /// 안내 띠. 새 교정 안내가 생기면 남아 있던 작업 공간 안내를 지워 가려지지 않게 한다(띠는 `workspace.message`를 먼저 보인다, usage-bundle1 게이트 ② AC-14).
+    @Published var message: String? { didSet { if message != nil { LibraryWorkspace.shared.message = nil } } }
     @Published var automatic: Bool { didSet { UserDefaults.standard.set(automatic, forKey: "correction.automatic") } }
     @Published private(set) var executable: URL
     /// 시도 기록이 바뀔 때 올린다. 화면은 이 값이 바뀌면 «이어서 교정» 상태를 다시 읽는다.

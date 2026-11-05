@@ -461,7 +461,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
   <h4>저장 시점 (T2a-5)</h4>
   <ol>
     <li>저장 계기는 Enter, 입력칸 이탈(포커스 이동), 입력창의 «저장» 셋이다. 0.5초 자동 저장은 없다.</li>
-    <li>한글 조합 중에는 저장하지 않는다(현행 조합 검사).</li>
+    <li>한글 조합 중에는 저장하지 않는다(현행 조합 검사). (2026-11-06 정정: 반쪽 글자는 저장하지 않고, 입력기가 조합 중 Enter로 글자를 확정한 뒤 넘겨준 Enter는 확정된 값을 저장한다. 한 번 Enter로 저장, 사용자 결정)</li>
     <li>Esc는 마지막 저장값으로 되돌린다.</li>
     <li>빈값·공백뿐이면 저장하지 않고 «제목을 입력해 주세요.»를 보이며 입력을 유지한다. 저장 값은 입력 그대로다(앞뒤 공백도 현행처럼 다듬지 않는다).</li>
     <li>입력이 저장값과 다르거나 저장 중이면 다른 Speech·Script로 옮기지 않는다(현행 <code>titlePending</code>·<code>canLeave</code>).<span class="fn"><code>App/LibraryWorkspace.swift:43</code> <code>canLeave</code> · <code>App/ScriptEditingSession.swift:30</code>.</span></li>
