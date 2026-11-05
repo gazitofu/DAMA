@@ -1,9 +1,9 @@
 ---
 unit: usage-bundle1
 branch: work/m0-fixture-review
-status: planning
-decisions_resolved: false
-resume:
+status: ready-to-build
+decisions_resolved: true
+resume: "/build 착수 전 (T-01부터). check.sh는 대문자 절대경로로 실행. 사용자 지시 11.05: 다음 세션에서 /build"
 spec: notes/usage-bundle1/usage-bundle1.src.html
 ---
 ## 근거
@@ -155,7 +155,9 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 - [ ] AC-13 실패 분류 (Managed, 가짜 CLI):
   - `CorrectionFailureKind` 8종 = cancelled · unavailable · timeout · auth · network · config · format · unclassified.
   - 오류 `CodexCorrectionError { kind, exitCode: Int32?, signaled: Bool, elapsedMs: Int64, stderrBytes: Int }`.
-  - stdout은 `nullDevice`. stderr는 파이프로 끝까지 읽어 바이트 수를 전부 세고, 표식은 D-02대로 대조한다. 내용은 파일·로그·화면 어디에도 쓰지 않는다.
+  - stdout은 `nullDevice`. stderr는 파이프로 끝까지 읽어 바이트 수를 전부 센다. 대조는 D-02 ⓐ: 줄 시작이 `ERROR: `·`error: `인 줄만, 줄 버퍼 64 KiB에서 자르고 대조 직후 버린다. 내용은 파일·로그·화면 어디에도 쓰지 않는다.
+  - 분류 순서는 스펙 §02-3 표 그대로이고 예외 1줄(D-01 ⓐ): 시간 초과로 끝났는데 stderr에 network 표식이 있었으면 «네트워크». 대기 300초는 그대로.
+  - 오염 방지 고정 테스트: 가짜 CLI가 stdin 프롬프트처럼 `{"…Unauthorized…waiting for network…"}` 한 줄을 stderr에 먼저 쓰고 표식 없이 exit 1 → «미분류».
   - 표식 (실측 1·4·5·7):
     - auth = `ERROR: ` 줄 + `401 Unauthorized`
     - config = exit 2 + `error: unexpected argument` 줄, 또는 `ERROR: ` 줄 + `model is not supported`
@@ -181,7 +183,7 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 
 ## 작업 분해
 
-- T-01 계약·문구 개정 (AC-01): §05 문안 5항. D-01·D-02 확정 내용을 AI 교정 절 stderr 항에 반영.
+- T-01 계약·문구 개정 (AC-01): §05 문안 5항. AI 교정 절 stderr 항은 «stdout은 버리고 stderr는 줄 시작이 `ERROR: `·`error: `인 줄만 메모리에서 분류 표식과 대조한 뒤 버린다(줄당 64 KiB). 바이트 수만 기록한다. 시간 초과 중 네트워크 표식이 있었으면 네트워크로 분류한다»로 쓴다 (D-01 ⓐ · D-02 ⓐ).
 - T-02 Core 경고 표시·Markdown (AC-02·03): 새 파일 `ReviewIssueDisplay.swift`(extension · 요약 · 짧은 이름) · `LibraryScript.markdown(title:)` · 가드 이동 4곳 + 골든 3종 다시 포착. 착수 전 38개 모의로 `### [` 기준선을 기록한다.
 - T-03 UI 읽기 화면 (AC-04): `ScriptReadingView` «주의» 제거 · 경고 줄 · 구간 정보 접힘 · `issueLabel` 4문구. **차수 A 경계**: Debug 빌드 + 합성 fixture 화면 + QA A.
 - T-04 Core·Audio 제목 데이터 (AC-05·06, AC-08·09 pure): `displayTitle` · `saveDisplayTitle` · `displayTitles` · `LibraryTitles` · `TitleDraft` · `TitlePromptQueue` · `createScript` 제목.
@@ -195,6 +197,8 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 구현 = 메인 직접 (프로젝트 CLAUDE.md «메인이 Opus면 직접 구현», 이전 유닛 선례). 태스크마다 `check.sh` 1–3단계, 앱 빌드·실기기는 차수 경계에서 1회.
 
 ## 결정 항목
+
+**해소 (사용자 확정 2026-11-05): D-01 ⓐ · D-02 ⓐ.** 반영 위치 = AC-13, T-01 AI 교정 절 stderr 항. 아래는 상신 당시 기록.
 
 판정 축 = 실패 분류가 실제 원인을 짚는가(사용자가 다음 행동을 고를 수 있는가) · 원문이 메모리 밖으로 새지 않는가. 공통 전제: 300초 제한·자동 재시도 없음·stderr 내용 미기록은 그대로 둔다.
 
