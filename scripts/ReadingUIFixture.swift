@@ -37,6 +37,20 @@ import Foundation
         // Deliberate normalized unknown for the UI journey; no provider accuracy claim.
         model.words[8].speakerId = nil; model.words[8].assignmentSource = .unknown
         for i in model.turns.indices where model.turns[i].wordIds.contains(model.words[8].id) { model.turns[i].speakerId = nil }
+        // usage-bundle1 경고 표시 검증용 합성 이슈: 첫 문단 자동 경고 8종(+화자 경계 1), 넷째 원구간 같은 건수 2종,
+        // 다섯째 일부 결과, 마지막 녹음 중단. 실제 판정 결과가 아니다.
+        func attach(_ turn: Int, _ kind: IssueKind) throws {
+            let id = "ui-fixture-issue-\(model.reviewIssues.count)"
+            let value: [String: Any] = ["id": id, "kind": kind.rawValue, "startUs": model.turns[turn].startUs ?? NSNull(),
+                "endUs": model.turns[turn].endUs ?? NSNull(), "severity": "warning", "status": "open", "wordIds": [], "sourceIntervalIds": []]
+            model.reviewIssues.append(try JSONDecoder().decode(ReviewIssue.self, from: JSONSerialization.data(withJSONObject: value)))
+            model.turns[turn].reviewIssueIds.append(id)
+        }
+        for kind in [IssueKind.ambiguous_speaker, .overlapping_speech, .missing_speech, .provider_disagreement, .boundary_conflict,
+                     .unrepresented_speaker, .invalid_timestamp, .low_confidence, .boundary_conflict] { try attach(0, kind) }
+        for kind in [IssueKind.overlapping_speech, .overlapping_speech, .boundary_conflict, .boundary_conflict] { try attach(3, kind) }
+        try attach(4, .partial_result)
+        try attach(model.turns.count - 1, .capture_interrupted)
         var notes = ConversionNotes(speakerCount: 3, context: "합성 제품 UI 회의", reference: "외부 전송하지 않는 검증 자료", participants: "김가상 · 개발\n이가상 · 디자인\n박가상 · 운영")
         notes.meetingTerms = "DAMA\n제품 검토"
         try await store.saveNotes(notes, speechID: speech.id)

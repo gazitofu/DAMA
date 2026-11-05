@@ -61,8 +61,7 @@ struct ScriptReadingView: View {
                                     canPlay: !capture.phase.busy && !workspace.editing && !workspace.titlePending && block.startUs != nil && block.endUs != nil,
                                     select: { if editor.block == nil { selected = block.id } },
                                     rename: { rename(shown, block) }, play: { workspace.play(block, file: shown) },
-                                    delete: { changeDeletion(block) },
-                                    info: { selected = block.id; information = true })
+                                    delete: { changeDeletion(block) })
                                     .id(block.id)
                             }
                             if blocks.isEmpty {
@@ -193,7 +192,19 @@ struct ScriptReadingView: View {
                 if let block = selectedBlock {
                     Text("\(LibraryScript.timestamp(block.startUs)) – \(LibraryScript.timestamp(block.endUs))").font(.caption.monospaced())
                     Text("연결된 원구간 \(block.turnIDs.count)개").font(.caption)
-                    ForEach(block.issues, id: \.id) { issue in Text(issueLabel(issue.kind)).font(.callout) }
+                    // usage-bundle1: 녹음 중단·일부 결과는 맨 위 경고 줄, 자동 경고 8종은 «자동 경고 N건» 접힘(기본 닫힘).
+                    ForEach(block.persistentWarnings, id: \.id) { issue in
+                        PersistentWarningLine(text: issue.kind.persistentWarningText ?? issueLabel(issue.kind)).font(.callout)
+                    }
+                    let warnings = block.autoWarningSummary
+                    if !warnings.isEmpty {
+                        DisclosureGroup("자동 경고 \(warnings.reduce(0) { $0 + $1.count })건") {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("화자 분리와 시간 정렬이 남긴 자동 판정입니다. 원음으로 확인한 결과가 아닙니다.").foregroundStyle(.secondary)
+                                ForEach(warnings, id: \.kind) { item in Text("\(issueLabel(item.kind)) · \(item.count)건") }
+                            }.padding(.top, 4)
+                        }.font(.callout).id(block.id)
+                    }
                     let edits = shown.script.correction?.visibleEdits.filter { block.turnIDs.contains($0.turnID) } ?? []
                     ForEach(edits, id: \.turnID) { edit in
                         VStack(alignment: .leading, spacing: 6) {
@@ -238,7 +249,6 @@ private struct ReadingParagraphRow: View {
     let rename: () -> Void
     let play: () -> Void
     let delete: () -> Void
-    let info: () -> Void
     private var editing: Bool { editor.block?.id == block.id }
     private var name: String { block.name == "화자 미확정" ? "화자 미배정" : block.name }
     private static let colors: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .indigo, .brown, .red, .yellow]
@@ -247,7 +257,6 @@ private struct ReadingParagraphRow: View {
             HStack(spacing: 8) {
                 Circle().fill(block.colorIndex.map { Self.colors[$0] } ?? .secondary).frame(width: 6, height: 6)
                 Button(name, action: rename).buttonStyle(.plain).font(.callout.weight(.semibold)).disabled(!canAct).accessibilityLabel("\(name) 화자 이름 변경")
-                if !block.openIssues.isEmpty { Button("주의", action: info).buttonStyle(.plain).font(.caption).foregroundStyle(.orange) }
                 if block.edited { Text("사용자 수정").font(.caption2).foregroundStyle(.secondary) }
                 Spacer()
                 Text(LibraryScript.timestamp(block.startUs)).font(.caption.monospaced()).foregroundStyle(.secondary)
@@ -255,6 +264,9 @@ private struct ReadingParagraphRow: View {
             InlineScriptText(text: editing ? $editor.text : .constant(block.text), editable: editing && !editor.savingBody,
                 focus: editing, label: editing ? "본문 편집" : "스크립트 본문", changed: editor.bodyChanged,
                 commit: editor.saveBody, cancel: editor.cancelBody, activated: select)
+            ForEach(block.persistentWarnings, id: \.id) { issue in
+                PersistentWarningLine(text: issue.kind.persistentWarningText ?? issueLabel(issue.kind)).font(.caption)
+            }
             if selected || editing {
                 HStack(spacing: 10) {
                     Button(playing ? "재생 정지" : "원음 듣기", systemImage: playing ? "stop.fill" : "play.fill", action: play).disabled(!canPlay)
@@ -279,6 +291,17 @@ private struct ReadingParagraphRow: View {
             .background(selected ? Color.accentColor.opacity(0.055) : .clear, in: RoundedRectangle(cornerRadius: 7))
             .overlay(RoundedRectangle(cornerRadius: 7).stroke(selected ? Color.accentColor.opacity(0.6) : .clear))
             .contentShape(Rectangle()).onTapGesture(perform: select)
+    }
+}
+
+/// 녹음 중단·일부 결과 경고 줄. ⚠ 기호와 문장으로 표시하고 색만으로 구분하지 않는다 (usage-bundle1 문구 1).
+private struct PersistentWarningLine: View {
+    let text: String
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("⚠").accessibilityHidden(true)
+            Text(text)
+        }.accessibilityElement(children: .combine).accessibilityLabel("경고: \(text)")
     }
 }
 

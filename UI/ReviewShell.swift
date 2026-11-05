@@ -315,12 +315,13 @@ func timeRange(_ start: Int64?, _ end: Int64?) -> String {
     guard start != nil, end != nil else { return TranscriptTimePresentation.unavailable }
     return "\(TranscriptTimePresentation.timestamp(start))–\(TranscriptTimePresentation.timestamp(end))"
 }
+/// 4종(ambiguous·overlapping·missing·boundary)은 ssot/tone/uiux-reading.md 확정본 (usage-bundle1 문구 2).
 func issueLabel(_ kind: IssueKind) -> String {
     switch kind {
-    case .ambiguous_speaker: "화자 미확정 · 후보가 비슷합니다."
-    case .overlapping_speech: "동시에 여러 화자가 감지되었습니다. 두 사람의 발화가 모두 전사되었다는 뜻은 아닙니다."
-    case .missing_speech: "음성 감지 / 전사 누락 의심"
-    case .boundary_conflict: "단어 시간이 화자 전환 경계를 걸칩니다."
+    case .ambiguous_speaker: "화자가 미확정이거나 후보가 비슷합니다."
+    case .overlapping_speech: "여러 화자의 음성 구간이 겹칩니다. 원음으로 확인해 주세요."
+    case .missing_speech: "[음성 감지 / 전사 누락 의심]"
+    case .boundary_conflict: "단어 시간이 화자 전환 경계에 걸쳐 있습니다."
     case .unrepresented_speaker: "음성에서 감지된 화자가 스크립트에 나타나지 않습니다."
     case .invalid_timestamp: "시간을 확인할 수 없습니다. 원문은 보존되어 있습니다."
     case .low_confidence: "공급자 화자 점수가 낮아 확인이 필요합니다."
