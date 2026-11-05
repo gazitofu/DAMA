@@ -1,0 +1,107 @@
+{
+  "coverage-threshold-and-tie/combined" : {
+    "markdown" : "c9e4ee6ef3487f12f8a5df7215a457f8ded1c655af5682b76ffbada9c63962a7",
+    "normalized" : "e576acfaf7d493afb0dd786b95c15ef156ad3714a86b78307815c8eeec3a0245",
+    "reading" : "09fe134ae0e1b63e311832ba9bacd627f5c39b76e2901512bc1cacaf4514ed32"
+  },
+  "coverage-threshold-and-tie/qwen" : {
+    "markdown" : "05951a2b6eea0405251137cc3858fd960fe2ffd0090d4882983f06feaf384dc9",
+    "normalized" : "69f1b43f904634a2df1e6ab3749bbd008be8bc98192206fbabbbe23de9cbfcb2",
+    "reading" : "43f109eaecc04d84e7ab67de539b96f9f07614973959be7bf57daa721c5a04c7"
+  },
+  "coverage-threshold-and-tie/soniox" : {
+    "markdown" : "a31e85029a0be2e8cf773f4a0a67d6e67dd5d07d3dd1443fdadb9749a4211b22",
+    "normalized" : "82ffb236c0c5de39d58fca6125dd66811fa36469d81b188d29f69734e28aa0fd",
+    "reading" : "111bf4090a5fc3a8b9e28e8b207ecc4c71eabb8295c713bbcfd3173a89a62319"
+  },
+  "dominant-later-label/combined" : {
+    "markdown" : "eb73d17943dbab31ddfb9811df81e5f985269b6b883522ae567b65fd50b5deae",
+    "normalized" : "48f4ab0dd7072921af5365ffea3c8539ee9afd660aa9035f3cc03db9ced7fd43",
+    "reading" : "7d46842787a0f115e8c36eeb083cc8bd41c0e9674f19c5ac0a5ad25301ad3657"
+  },
+  "dominant-later-label/qwen" : {
+    "markdown" : "18402e20b1a034d7c4f94708678a891619f9d17561ba464a35fe3c51ff8e9fe9",
+    "normalized" : "dce9acdf901bcc43aaba4f5892c8b021310824321624cc51f25ef0147a1f5b80",
+    "reading" : "7d46842787a0f115e8c36eeb083cc8bd41c0e9674f19c5ac0a5ad25301ad3657"
+  },
+  "dominant-later-label/soniox" : {
+    "markdown" : "c476ee8aa5073e137ec6238d686330257e94c19d719db45ad8e0e46039d76fde",
+    "normalized" : "cdd85a7a987e13a3118b132f61589e6136a1b18c59aa1b7d688d88f8038d4d49",
+    "reading" : "8f8ad4936080e2edc60ca6155543f64873db6c6032cabf18b633756e8379ab5c"
+  },
+  "invalid-zero-reversed-and-uncovered/combined" : {
+    "markdown" : "1522b9a8a8dbc0dc471248d53a93a691817b7b8c3f6e96f8f6907a178d49463e",
+    "normalized" : "999131c2088fa8f34c534df98a3b547721ab9cbae4fed64faa2193503537bf11",
+    "reading" : "a6b6951af125c0277944ab7acd732b727f30b13efb90f7bdc2e803beb5558185"
+  },
+  "invalid-zero-reversed-and-uncovered/qwen" : {
+    "markdown" : "d07760fad17bc11192b87375e6ffeb3684400ce22741293fbc5bfab69aa77721",
+    "normalized" : "84f4bc649a0b188643805f52c65558452c8fb9792b87dc73ecb2b6120dd3dc35",
+    "reading" : "400c3858831805c931c7b907ac5201dee1924f284a14bacf29e31261db06c1ff"
+  },
+  "invalid-zero-reversed-and-uncovered/soniox" : {
+    "markdown" : "af65ae57b42f46cb05d1b1ab6e511ccd53aa890a0fbeba2dc47f34f9ea892bfb",
+    "normalized" : "d319b1d27ceba04cef68a4ca60bb00217f80bdf04f789ae467dafe93ba74b7bc",
+    "reading" : "74601f7ca54dc2b174dde9a022c6079d3207335f24d1840a29eaf6c79a9655fe"
+  },
+  "missing-short-b/combined" : {
+    "markdown" : "91fc9919966c4c3d20e862971439f35dacbdda9343fd2141d71ba434c13ebf11",
+    "normalized" : "de9f1a28b253d76102c1e27246440932cf4de88b9066c9c2dbd56d9732a84cad",
+    "reading" : "acd76af00111b4d5ea37c56dd8ae20e21a88c560fd373772676f4709e2e5f3f4"
+  },
+  "missing-short-b/qwen" : {
+    "markdown" : "f33455e88295bc7c582a84bc6b1b40f047a919269e0a5b266b518271c6c392b5",
+    "normalized" : "94ac7c05a0cce0b309fd14454a9f5a897e981e7cfec273b8654da1984682a67f",
+    "reading" : "239e3be6bac09dbd5b2e50beb9fe0fd7b19361f7a9afa00ba88f2e057d8bdbbd"
+  },
+  "missing-short-b/soniox" : {
+    "markdown" : "31ffde67fe33367fd6fbf7cfa7eaedef1b5994e7634f5c6263e59155d7e203ee",
+    "normalized" : "9c70d2f3d88610d2bfce07f79fe6b11a976cece1aab0162cdf4679114ad3d146",
+    "reading" : "e69b8f219dccbf10c47595c8fe4385432af08b23c06300779a3b47c24f1f1117"
+  },
+  "overlap-boundary-and-unrepresented/combined" : {
+    "markdown" : "80514763d26f2032288ddd79158944768424185437ba01bfd97c4bec0a979379",
+    "normalized" : "c7f6c3e7526eb7e727058e2e55c2cc3b5070c60dabc32e032000babc3e0a5c76",
+    "reading" : "b6a1479535673a0f42b62491476a0665fc1406def8428eaa23b629282f80546d"
+  },
+  "overlap-boundary-and-unrepresented/qwen" : {
+    "markdown" : "4aa4c25cf82180539783357b4ea7d3cd40193bdc13929e7a61ef7e37455d93ee",
+    "normalized" : "83294670fe338b96949dbe4ac0461c523363b195243f22e90e8539809baf3085",
+    "reading" : "a9795e9f26b75cbff3a906f659e4d4897b8d593fba2f68133cb5fe3844681406"
+  },
+  "overlap-boundary-and-unrepresented/soniox" : {
+    "markdown" : "829b8685e8c7be9aab832a390bd8250a328a99fa83dda710ff11bf33313ac0eb",
+    "normalized" : "1d0865f076a7f7bec1a9c777259ce297aad18294e56ca9f1fa664b1113e38b9a",
+    "reading" : "996af367339d023435774ee3403a835364ce148c85c525fa81b3e399ca935ace"
+  },
+  "short-b-missing-punctuation/combined" : {
+    "markdown" : "2c164b25036902bab95e8ff7e3eaf59d3f054520f265239f0e89ec5520d218a3",
+    "normalized" : "d48d29072e4907e81269129d306dbe089bacf2a106ad75e5bc23e0c6154b6a80",
+    "reading" : "0806f1586a88d215900b56f61de6c364037fc231c6d1036feb0e9aba6020f246"
+  },
+  "short-b-missing-punctuation/qwen" : {
+    "markdown" : "f9c872914722af6d26e55be8fd16283d8af6fe383aa8b22041265d05e344ed7c",
+    "normalized" : "fe23bb49ad69f6dd438cbb4af8e8f54469e9d2c38835403a97047897fb603059",
+    "reading" : "af63fd5b1b14f6aceba5188b9e346d226c5c76033bb6177ce7620fcebd2ec017"
+  },
+  "short-b-missing-punctuation/soniox" : {
+    "markdown" : "ff3f8a8cdfaaef40d7a3a7d0c5ec57b6f9efa39dd745a869ee76e548c0c4f896",
+    "normalized" : "751905f52a7b3d90b031664cbe09410e8f589eaa2ee1bce0e9c59596da0b089f",
+    "reading" : "6327396a6f15526785385ff6a0caa0c0834abaa7e47cc5c45b185d753da308db"
+  },
+  "union-order-and-fractional-microseconds/combined" : {
+    "markdown" : "dea86f8d57bb1c1cdd559e587146d50947e6906ce5ec7723b6b17591159de693",
+    "normalized" : "91f0e669101cec2ac695f2fa029f703f959e12571ff76d0ef185fc718249b101",
+    "reading" : "accd473a461a658c18f1b77ef2cf977cbb90bb0a466b504570e9368eb9f5a240"
+  },
+  "union-order-and-fractional-microseconds/qwen" : {
+    "markdown" : "df5bdd2c7aeca7192474a181c6079530c3c7bc1c9f65b23d98442efec93c5d8a",
+    "normalized" : "a151ff03f6593c18a59055803f897114b36176427e09a977c833b9497115386a",
+    "reading" : "cffbce01ec1951d85c170aef41c2ff53dc9fe7eb14b6a1f427acc2d7ac72de8b"
+  },
+  "union-order-and-fractional-microseconds/soniox" : {
+    "markdown" : "6bcd470d1c24df2b2c22e24abb58f7961916a9e1444d85476c01690f885d3e46",
+    "normalized" : "d63babb026749e33428c4147ece748b1bbd0a517b0bb3277bb9282d9b93980fe",
+    "reading" : "cffbce01ec1951d85c170aef41c2ff53dc9fe7eb14b6a1f427acc2d7ac72de8b"
+  }
+}

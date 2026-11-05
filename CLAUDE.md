@@ -1,19 +1,23 @@
-# Dama (담아)
+# DAMA (다마)
 
-한국어 대화를 **누가·언제·무슨 말을 했는지 확인 가능한 원문 스크립트**로 만드는 macOS 메뉴바 녹음·검수 앱. 이름은 "담아 듣다"에서 왔다. Swift 6 · AppKit + SwiftUI · Apple Silicon.
+한국어 대화를 **누가·언제·무슨 말을 했는지 확인 가능한 원문 스크립트**로 만드는 macOS 메뉴바 녹음·검수 앱. Swift 6 · AppKit + SwiftUI · Apple Silicon.
 
 푸는 문제는 두 가지다. **E1** = A가 한 말을 B에게 귀속하는 오류. **E2** = A·B·C가 이어서 한 말을 한 사람의 문장으로 합치는 오류. 문장이 자연스럽다는 이유로 E1/E2를 숨기지 않는다.
 
 **요약·회의록 생성 앱이 아니다.** 사용자는 JSON/TXT를 뽑아 다른 AI에 직접 넘긴다.
+
+정식 명칭은 **DAMA**, 한국어 표기는 **다마**다 (사용자 확정 2026-09-09). 앱 번들은 `DAMA.app`. 기존 repo·Xcode 프로젝트 경로, scheme `Dama`, 모듈 `DamaCore`, bundle ID `com.gazitofu.Dama`는 기술 식별자로 유지한다.
+
+사용자에게 수정 앱을 전달할 때마다 `Dama.xcodeproj/project.pbxproj`의 Debug/Release `MARKETING_VERSION`과 `CURRENT_PROJECT_VERSION`을 함께 올린다. 메뉴바 메뉴·툴팁의 버전은 실행 중인 Bundle 값으로 표시하고, 전달 시 그 버전이 실제 실행 중인지 확인한다 (사용자 2026-09-10 요청). 로컬 수정 빌드의 버전 증가는 `/ship`의 main 머지·배포 승인을 뜻하지 않는다.
 
 ## 최상위 경계
 
 1. **녹음 안전성이 AI 처리보다 우선한다.** API 키도 네트워크도 없어도 녹음하고 원본을 저장한다.
 2. **다른 화자의 짧은 발화를 놓쳤다고 앞뒤를 합치지 않는다.** A → B → A에서 B가 짧거나 전사에서 빠져도 A의 앞뒤는 별개 Turn이다. 이건 UI 설명이 아니라 데이터·테스트 요구사항이다 (INV-06).
 3. **모르는 화자는 null이다.** 가장 가까운 화자나 문맥상 그럴듯한 화자로 자동으로 채우지 않는다.
-4. **원문에 손대지 않는다.** 요약·윤문·맞춤법 교정·군더더기 제거·LLM 화자 추정 금지. 출력을 다른 AI에 자동 전송하지 않는다.
+4. **모델 원문은 보존한다.** 요약·윤문·군더더기 제거·문맥만으로 화자 귀속 추정은 하지 않는다. 사용자 2026-09-10 후속 결정으로 **별도 AI 문맥 교정본**을 자동 생성할 수 있다. 전사·참석자·선택 참고 발췌의 OpenAI 전송은 녹음별 확인 후 진행하며, 원문/시간/화자 ID/사람 수정은 보존한다. 계약은 `ssot/contracts/library-script.md`의 AI 교정 절을 따른다.
 5. **exclusive는 음원 분리가 아니다.** 겹친 두 사람의 텍스트를 모두 복구했다는 보장이 아니다.
-6. **P0는 통합 API(managed) 경로다.** WhisperKit·Python·다른 STT 제품으로 임의 대체하지 않는다. 로컬 Whisper를 써도 Precision-2 클라우드 전송은 사라지지 않는다.
+6. **운영 기본값은 Soniox 전사 + 이 Mac의 Nemotron 3 화자분리다.** 사용자 2026-10-30 확정(pyannote 제외, `notes/nemotron-diarization/` 게이트 ①). pyannote에는 새 요청을 보내지 않으며 과거 P2 결과·스크립트는 보존·열람한다. Soniox 자체 결과는 항상 비교용으로 보존한다. 자동 모델 전환·자동 학습은 하지 않는다. 원음/설정이 같은 결과를 재사용하고, Run별 입력·키·동의·실패 복구를 분리한다. 현행 계약은 `ssot/contracts/operating-baseline.md`, 상태는 `versions/operating-baseline/plan.md`. 정확도·수정시간·정상 요금으로 승격하며 감지 인원 일치나 무료 청구액으로 성공을 선언하지 않는다.
 
 전체 규칙은 `ssot/design/07_SECURITY_AND_DECISIONS.md` §6과 `ssot/design/04_DATA_AND_RECONCILIATION.md` §3(INV-01~10).
 
@@ -61,4 +65,4 @@
 
 ## 위임
 
-기계적 구현은 Codex CLI(GPT 5.6 sol)에 위임한다. 분할·diff 리뷰·통합·판단은 메인 세션이 직접 한다. 발주문은 파일로 남기고 인라인 반환은 인정하지 않는다. Swift 위임 시 샌드박스에서 `xcodebuild test`가 돌지 않을 수 있으므로 **테스트 실행은 메인이 밖에서** 한다 (GAIA 선례).
+기계적 구현은 Opus 서브에이전트(Agent `model: opus`)에 위임한다(메인이 Opus면 직접 구현). 분할·diff 리뷰·통합·판단은 메인 세션이 직접 한다. 발주문은 파일로 남기고 인라인 반환은 인정하지 않는다. 키체인·서명 의존 명령은 메인이 샌드박스 밖에서 한다 (rule-apple-toolchain-sandbox).

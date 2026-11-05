@@ -1,0 +1,153 @@
+---
+unit: operating-baseline
+branch: work/m0-fixture-review
+status: built
+decisions_resolved: true
+resume: "2026-09-13 재개 완료: soniox-p2-alignment T-06 built, 새 Managed 결합 Run은 승인 word-v4 고정·구 Run은 v2 재개. DAMA0.5.5(23) 설치/실행, 계약30/Swift198/Debug와 실제 저장 응답2경로의 생성·저장·재열기·Markdown·복구 PASS. 기존 Script7/저장자료173/타소유7 불변. AI 구조 변경·Qwen 학습·타 트랙 보류 유지."
+spec: "사용자 최종 운영/실험 분리 및 평가 체계 반영 승인, ssot/design/02·03·04"
+---
+
+## 근거와 범위
+- 사용자 최종안: 운영 Soniox+Precision-2, Soniox 자체 결과 보존, Qwen 선별 비교, 모델 중립 품질/능동 수정시간/정상요금 평가. 현재 0.3.0(9), Qwen built 및 0e90919 확인. 기존 Soniox 힌트/reading-v5/수동 경계는 완료 기능으로 재사용.
+- ~/CLAUDE.md, ~/Vault/appdev/CLAUDE.md, repo CLAUDE.md·README, spec/plan/build 절차, ssot/design/00·02·03·04, ssot/dev·api·contracts 및 세션 공통/구현/측정/보존 규율 적용. 독립 Codex 직접 구현. 사용자 최종안의 기존 선택/검수 UI 확장과 운영 기본값을 승인 범위로 해석, 별도 전면 화면 설계 없음.
+- 현재 브랜치 유지. 착수 시 혼합7문서(.claude/commands/build.md, README.md, ssot/dev.md, versions/m0·m1·m2 plan, notes/qwen-local/evaluation.md)는 보존·커밋 제외. 기존 다른 트랙 owner/status 변경 없음.
+- 신규 외부 음성 전송 없이 저장된 동일 음성의 Soniox/P2로 실제 결합 검증. 외부 기준 TIRO/클로바 실제 실행, 새 회의 수집, 계정 혜택/청구서 수집, Qwen 학습은 이 단계에서 수행하지 않는다. 운영·승격 정책 및 측정 수단은 구현한다.
+
+## 수용 기준
+- [x] AC-01 운영 기본 선택 Soniox+Precision-2. 요청별 두 공급자·재사용·AI OFF 표시. Qwen/통합 STT는 선택 비교로 유지.
+- [x] AC-02 Soniox 독립 Run과 P2 전사 OFF Run을 한 번씩 요청/재사용하고 별도 결합 Run 생성. 원응답/입력/모델/해시/참조 Run/결합 버전 보존. 중단/불명 접수는 자동 재제출 없음, 완료 소스 보존 및 열기.
+- [x] AC-03 토큰 시간으로 P2 배정, 원 Soniox 후보 보존, 안정 구간/경계/겹말/누락/미정렬 구분. 후보 화자 ID 전체 치환 금지. null 유지 및 A→B→A 장벽, 단어 원문/시간 불변 테스트.
+- [x] AC-04 관련 검수 사건 묶음/원음 재생과 동일 음성 결과 비교 연결. 사용자 수정 전후/범위/원음 확인 여부/오류 분류/능동 시간/표본 유형을 저장, 원음 확인 안 된 것을 정답/학습 데이터로 승격하지 않음.
+- [x] AC-05 운영/실험/승격 정책·정상요금/실청구 분리·고정비/크레딧 산식·미측정 상태 기록 및 평가 내보내기. 무료기간·수정시간20%·8~12회의 가정/후속 실행을 완료로 표시하지 않음.
+- [x] AC-06 영향 테스트/계약/앱 빌드, 실제 저장 소스의 결합과 원문 해시 보존, 앱 설치/선택/비교/검수 저장/재열기. 품질 정답 미측정 분리. 전달 버전0.4.3(13).
+
+## 작업
+- T-01 공통 결합기/Managed 복합 작업/소스 재사용/실패 복구
+- T-02 운영 기본 UI/두 결과 보존 및 비교/검수 이력·측정
+- T-03 가격·모델중립 평가 정책/내보내기/실제 로컬 결합/앱 전달
+
+## 시간·증거 계약
+- 입력 Soniox ms, P2 s; 내부 Int64 µs, 반열린 구간. 기존 Qwen/P2 0.60 coverage는 초기값으로 유지하되 다른 화자 경계는 보류. 확률/정답으로 표현하지 않음.
+- 0길이 토큰은 원시간 보존+미확정. 읽기 묶음이 원시간/화자를 생성하지 않음. 공급자 간 라벨 일치는 인물 동일성이 아니며 시간 중첩 대응은 검수 후보 생성에만 사용.
+- 비용 USD/월과 사용량 USD를 분리. 포함 크레딧은 구독료를 없애지 않음. 미입력 청구액·능동 시간은 0이 아닌 미측정. 관측 정확도는 원음 검수 표본에만 적용.
+
+## 검증 결과 (2026-09-11)
+
+- T-01 Core/managed/계약 `68f32a6`, T-02 앱 기본값/검수·비용 UI `fc8b1be`. 후속 source evidence 보존 검증은 아래 마무리 커밋에 포함.
+- 계약 Python30건 PASS (`.build/check-logs/operating-contracts.log`), Swift canonical/사본 byte-exact PASS, check.sh 계약 compile/roundtrip PASS.
+- 전체 Core·Audio·Managed143건 PASS: 샌드박스 밖 새 `.build/operating-clean`, 로그 `.build/check-logs/operating-clean-tests.log`. 첫 sandbox 시도는 macOS AAC 제한, 기존 `.build/swiftpm` 재사용은 signal11로 중단. 실패 로그를 PASS로 취급하지 않으며 새 scratch 전체 실행으로 해소했다.
+- 이후 경고 지역화·듣기 묶음·읽기 조회 최적화: Soniox/ScriptEvaluation/LibraryPresentation 영향29건 PASS (`operating-events-tests.log`, 최종 `operating-reading-tests.log`). 새로운 전환 경고 테스트1건 포함, 같은 tests를 별도 정확도 표본으로 세지 않는다.
+- 앱 Debug 최종 컴파일 PASS (`.build/check-logs/operating-final-build.log`), 서명 identity는 기존 adhoc/linker-signed 그대로. 기존 SDK deployment target/AppIntents 경고는 유지한다. 녹음/실시간 모델 성능·공증·다른 Mac 호환성 검증 아님.
+
+### 실제 저장 음성의 로컬 재구성
+
+- 21분53.280초 동일 분석 WAV의 Soniox 기본 문맥+3명 힌트(폴더 미포함)와 기존 Precision-2 numSpeakers3 결과 사용. 앱 확인창에서 양쪽 source 재사용 ID를 확인하고 키 읽기/신규 업로드/과금 POST 없이 결합했다. 외부 호출 테스트는 합성 mock이며 이 단계 실제 API 호출0건.
+- 최종 `soniox-p2-v2` Run `DF6F46D1-D574-4493-8CA9-C7289F94EB92`, 실제 Script `~/DAMA/Scripts/8DBB4AE2-B250-43BD-86CE-8FAB4ACB2233.dama.json`. 이전 v1 개발 결합본·기존 Soniox/Qwen/pyannote 결과도 보존했다.
+- 6,008개 원 Soniox 토큰의 문자열·prefix·순서·시간·ASR confidence·언어·timingOrigin·tokenKind가 source와 전부 동일. 양쪽 raw 파일 byte-equal, 새 결합 Run에 신규 API request/upload 파일 없음. source Run ID와 요청 사본이 정상 기록됨.
+- Soniox 단독 감지2명, 결합 감지3명. 결합 미확정 token662, 누락 의심 marker72, local 전환 불일치37건. 검수 raw issue1,580개를 듣기 사건259개로 표시. 경고 지역화는 원 후보를 지우거나 정확도가 좋아졌다는 의미가 아니다.
+
+| 같은 원음 결과 | speech 읽기 문단 | 1초 미만 speech 문단 |
+|---|---:|---:|
+| Soniox 자체 | 434 | 146 |
+| Soniox + P2 | 1,123 | 886 |
+
+**결합본의 짧은 문단은 증가했다.** 시간 경계·미확정 토큰을 안전하게 남긴 결과이며 ‘분절 감소’ 또는 ‘화자 정확도 향상’으로 보고하지 않는다. 불확실한 화자를 추정해서 합치지 않았다. 이 운영 구성의 품질 승격 여부는 원음 기반 E1/E2·짧은 응답·의미·수정시간 검수가 필요하다.
+
+- 실제 읽기 조회 최적화: 결합본 blocks() 13.792초 → 0.444초 (이 Mac Debug 단회 측정). Soniox4본+결합1본의 모든 문단 Turn ID/표시 이름/텍스트/이슈 ID 배열을 수정 전후 byte-exact 비교 PASS. 알고리즘/문단 정책 변경 없이 조회만 최적화했다. 97분·다른 Mac 성능으로 외삽하지 않는다. 증거 `.build/diagnostics/operating-baseline/{reading-before,reading-after}.txt`, before/after JSON.
+
+### 앱 여정
+
+- 기본 선택 Soniox+Precision-2, AI OFF, 기본 문맥 ON/폴더 OFF; 기존 공통 입력·키 설정 보존.
+- 실제 Soniox 단독↔결합본 메뉴 전환 및 재열기 PASS. 검수 사건 펼치기/원음 재생 명령에서 오류 없음. 사람의 원음 청취·정답 판정은 수행하지 않았다.
+- 검수 타이머 시작/정지/취소 확인; 취소한 시간은 저장 안 됨. 최종 결합본에 `[동작 확인]` 메모1건만 저장/재열기/평가 JSON 확인. 원음 확인false·시간nil·오류미분류이며 원 텍스트·이름 override0건. 이 메모는 정확도/수정시간 데이터가 아니다.
+- 비용 UI에 가정19/19/13.2/9.75/0 입력 시28.75 표시 PASS; 취소해 실제 금액/계정 조건은 nil 유지. 해당 가정을 계정 요금으로 저장하지 않았다.
+- 실제 `평가 내보내기` 성공: `.build/diagnostics/operating-baseline/DAMA-evaluation-DF6F46D1-D574-4493-8CA9-C7289F94EB92.json`. source IDs, 불명 비용/시간, 원문/검수 기록을 파일로 재검증 PASS. 개인 원문이 있는 산출물은 ignored, Git에 포함 안 함.
+- 0.4.1의 느린 UI가 종료 응답을 주지 않아 검증 세션 소유 PID13357을 SIGTERM 후 성능 수정본 설치. 녹음/편집 없음, source·완료 결과는 보존됨. 0.4.2에서 Scripts 열기·검수창 동작·재열기·내보내기 및 About 버전 확인 PASS. 최종 source evidence 저장 거부 검증을 0.4.3(13)에 추가.
+
+## 후속 평가 (이번 완료 범위와 구분)
+
+- 새 회의8~12개와 TIRO/클로바 동일 원음 기준 비교, 원음 검수표본/시간 축적, 실제 계정 정상 요금/무료 종료일·포함량 입력은 아직 미수행.
+- Qwen은 기존 전사/비교 완료 상태를 이어받고 새 학습/추가 전사를 실행하지 않았다. 먼저 정렬·누락 병목을 분리하고 새 회의에서 문맥 효과를 재현한다. 자동 모델 승격 없음.
+- 자동 월 청구 수집·원음1시간당 완성 수정시간 자동 집계·다중 오류 정답 판정·학습 데이터 자동 추출/학습·자동 후보 채택은 제공하지 않는다. 기록/JSON으로 같은 검수 구간과 측정 범위를 맞춰 평가한다.
+- 결합 요청의 진행 카드 세부 단계는 parent 중심이며 자식의 상세 진행률은 Run별 state에 보존한다. 완료 source 복구/비교는 제공한다.
+- 로컬 built 단계다. main merge/release/push는 이번에 실행하지 않는다. 기존 혼합7문서는 계속 보존한다.
+
+### 최종 전달·상태
+
+- source 후보/ASR confidence/언어를 revision으로 변조하는 저장 거부 검사 추가. FileSessionRepository20건 PASS (`.build/check-logs/operating-source-preservation.log`). 기존 전체143건과 이후 추가2건/해당 영향 범위 검사를 구분해 기록한다.
+- `/Applications/DAMA.app` **0.4.3(13)** 최종 설치. 실제 About UI에 `DAMA Version 0.4.3 (13)` 확인, 최신 결합본 재열기·검수 메모1건·감지3명·사건259개 복원 확인. 설치/빌드 실행 파일 및 debug dylib byte-equal. 0.3.0(9) 백업은 `.build/backups/` 보존.
+- 마지막 코드 변경 이후 추가 전사/모델 실행/원음 수정 없음. 품질·비용 목표 달성이 아니라 운영/비교/기록 기능 built다.
+- 마지막 status 실측: `work/m0-fixture-review`, 사용자/다른 트랙 혼합7문서만 기존 변경으로 남긴다. 앱 코드·신규 계약·본 plan은 이 작업 커밋에 포함. 원격 push 없음.
+
+## 다음 세션 착수 (2026-09-11 추가 요청)
+
+### 세션 종료·재개 기준 (2026-09-13)
+
+- **재개 작업 완료:** [soniox-p2-alignment T-06](../soniox-p2-alignment/plan.md)에서 승인 B2를 새 전사·저장 소스 재사용의 기본 정책에 연결했다. 새 Run에 `soniox-p2-word-v4`를 저장하고 기존 버전 미기록 Run은 v2로 재개한다. **DAMA0.5.5(23)** 실제 실행, 계약30/Swift198/Debug 및 실제 응답 사본2경로의 저장·재열기·Markdown·복구 PASS. 기존 Script7개/저장자료173개·사람 수정·AI 이력·다른 소유 문서7개 보존, 신규 전송 없음. 아래 세션 종료 기록의 ‘다음 첫 작업’은 완료됐다. AI 구조 변경/Qwen 학습/타 트랙은 기존 보류대로 별도다.
+
+- 사용자 요청으로 여기서 작업을 종료한다. 마지막 구현 커밋은 `3738131`, 브랜치는 `work/m0-fixture-review`, 설치·실행 확인된 앱은 **DAMA 0.5.4(22)**다. 화자 등록/재선택과 발화 삭제/취소는 [uiux-reading T-08](../uiux-reading/plan.md)에 완료·검증 근거를 남겼다. native 저장 패널 완료는 미확인이고 저장 actor의 Markdown 파일 검증은 PASS다.
+- **다음 첫 작업:** 승인된 B2 `soniox-p2-word-v4`를 새 전사 기본 처리에 연결한다. 현재 `ManagedProcessor.swift`는 `SonioxPrecisionNormalizer`의 `soniox-p2-v2`를 호출하며, `SonioxPrecisionReconciler.wordRepair`는 비교 경로에만 있다. [결합 정책·T-05](../soniox-p2-alignment/plan.md)와 실제 호출/복구 경로를 읽고 후속 구현·AC를 기존 plan에 구체화한다. B2 결과 선택이나 완료된 UI 승인은 다시 묻지 않는다.
+- 새 처리와 저장 응답 재사용 모두에서 정책 버전·출처·중단/재개를 검증한다. 기존 v2/A/B/B2, Soniox 원문·시간·화자 ID 및 사용자의 이름·본문·삭제·AI 이력은 덮어쓰지 않고 새 Run으로 분리한다. 저장된 소스 검증부터 진행하며 신규 과금 호출·음성/AI 전송은 건별 승인 경계를 유지한다.
+- 세션 종료 시 다른 소유 변경 7개(`.claude/commands/build.md`, `README.md`, `notes/qwen-local/evaluation.md`, `ssot/dev.md`, `versions/m0-fixture-review/plan.md`, `versions/m1-recording-safety/plan.md`, `versions/m2-managed-processing/plan.md`)는 그대로 보존했다. 재개 시 HEAD·dirty·앱 버전을 다시 실측한다. AI 화자 재배정/통합, Qwen 학습과 다른 트랙 보류는 이번 승인에 포함하지 않는다. main 머지·push·release는 실행하지 않았다.
+
+아래는 누적 진행 기록이며, 재개 순서는 위 기준을 따른다.
+
+등록 화자·삭제 전달 (2026-09-13): 사용자가 B2를 ‘이정도로 확정’하고 추가 요청한 두 기능을 [uiux-reading T-08](../uiux-reading/plan.md)에 반영했다. DAMA0.5.4(22) 실제 실행, 스크립트별 등록 화자 선택/같은 이름·색, 발화 삭제·취소/원문 보존 제공. 계약30/Swift195/Debug와 합성 native 등록→미배정 선택/수동 통합→삭제→재실행→취소 PASS. native 저장 패널 자동화는 timeout으로 완료 미확인, 저장 actor의 Markdown 파일 검증 PASS. 기존7개 불변. **B2 결과 선택은 승인됐으며 다음은 word-v4를 새 전사 기본값에 연결하는 작업**이다. 이번 UI 후속에서는 운영 v2를 변경하지 않았다. 아래 ‘원음 판정 후’는 승인 전 기록이다.
+
+부호·어절 후속 전달 (2026-09-13): 사용자 ‘수정하자’에 따라 `reading-v8`과 비교 B2 `soniox-p2-word-v4`를 앱0.5.3(21)에 전달했다. 기존 B294→279, B2 276문단이며 부호만 문단은 현재7개 Script 모두0. 00:27 한 어절은 미배정 유지,19:21 꼬리+물음표는 단일 문단으로 실제 화면 확인. B2 19:21을 열어두었고 기존6개/입력8개 불변, 계약30/Swift189/Debug PASS. [soniox-p2-alignment T-05](../soniox-p2-alignment/plan.md) built. 다음은 사용자 원음 판정 후 정책 채택/새 변환 연결이며 운영 v2와 AI 구조 기능 보류는 유지한다. 아래 T-04와 초기 비교 수치는 이전 단계 기록이다.
+
+읽기 후속 전달 (2026-09-13): 사용자 지적에 따라 `reading-v7`로 누락 의심 본문/전사 없는 감지 경계/문장별 분절을 제거했다. 앱0.5.2(20) 실제 실행, 비교 B 전체490→294문단, 두 예시 각각 단일 문단 확인. 기존 Soniox도 새 정책273문단이다. [soniox-p2-alignment T-04](../soniox-p2-alignment/plan.md) built, 원본Script6개 불변. 다음은 남은 실제 화자 귀속·미배정의 사용자 청취 판정과 채택 정책 연결이며 AI 후보정은 추후다. 운영 정규화v2는 아직 승격하지 않았다.
+
+비교본 전달 갱신 (2026-09-13): 사용자의 규칙 완화/결과 확인 승인에 따라 [soniox-p2-alignment](../soniox-p2-alignment/plan.md) 구현·검증 완료. 현재 Scripts의 비교 A/B는 새 Run으로 추가했고 원본은 유지했다. 사용자에게 B를 열어 전달, 운영 기본값 승격과 AI 후보정은 결과 판정 다음 단계다.
+
+최신 진단 갱신 (2026-09-13): 사용자가 UI 모두 확인 후 AI 보정 전 STT 결합 품질 해결 방안을 요청했다. [화자·결합 진단](../../notes/uiux-reading/speaker-context-diagnosis.md)의 2026-09-13 절에 현재Script4개·최신 결합본/소스/통합 비교와 실제 읽기 코드의 오프라인 실험을 기록했다. 원본55개 보존, 외부 호출/운영 코드 변경 없음. 아래 UI 스펙 확인 요청은 완료된 과거 기록이며 재승인을 요구하지 않는다.
+
+최신 UI 갱신 (2026-09-12 r5): 사용자가 Speeches를 확인할 수 없다고 지적했다. r4에서는 해당 탭이 안내만 띄우고 실제 화면을 생략했다. [같은 스펙](../../notes/uiux-reading/uiux-reading.html)을 r5로 보완해 녹음 목록·입력·변환 확인·진행/재개·결과 저장·Scripts 이동과 예외 상태를 조작 가능하게 추가했다. Scripts r4의 승인/톤/D-01/D-02는 유지하며 게이트①는 새 Speeches 화면만 확인 대상으로 연다. 아래 r4 기록의 즉시 /plan 착수 안내는 이 추가 확인 순서로 갱신한다. 네이티브 앱/계약을 수정한 것이 아니며 운영 built와 기존 보류는 유지한다.
+
+UI 진행 갱신 (2026-09-12 r4 확정): [진단](../../notes/uiux-reading/audit.md)과 r1~r3를 거쳐 [r4 확정 스펙](../../notes/uiux-reading/uiux-reading.html)의 게이트①를 닫았다. 사용자는 제목을 원 자리에서 입력/자동 저장하도록 추가하고 나머지 r3 전체를 승인했다. 제목에는 별도 저장/모달/탭이 없으며 본문은 기존 지시대로 같은 본문에서 수정 후 같은 버튼의 저장을 누른다. 로고·화자 모달·검수 기록 UI 제거·AI 참고/최종 실행/버전 조회와 D-01/D-02가 확정됐다. tone 편입 완료, 다음은 `/plan uiux-reading`에서 하위 호환 저장/읽기/AI 입력/내보내기 작업을 구체화한다. 승인된 화면·저장 방향은 다시 묻지 않는다. 안정 구간 P2 우선/불일치 경고72단어 중 미배정0의 r2 진단과 미배정662개의 원인별 우선권 비교 후속은 유지한다. 원본14파일/8Script를 보존하며 실제 앱0.4.7(17)과 본 운영 유닛 built는 유지한다.
+
+진행 갱신 (2026-09-12): 아래 순서1·2는 [backend-audit](../backend-audit/plan.md)에서 완료했다. [검수 결과](../../notes/backend-audit/audit.md)에 파일82개 검수 범위, 같은 원응답3경로 재구성, 분절 이유, 우선순위와 미검증을 기록했다. F-01/F-02는 [backend-hardening](../backend-hardening/plan.md), F-03은 [reading-performance](../reading-performance/plan.md), F-04 파일별 격리/F-07 검사 경로·실패 증거는 [storage-isolation](../storage-isolation/plan.md), F-06 공통 시간 근거 추출은 [normalization-evidence](../normalization-evidence/plan.md)에서 완료, 최신0.4.7(17)를 전달했다. 전체165/계약30/Debug PASS, 수정 전 합성21개·실제3경로 normalized/읽기/Markdown 동일 및 원본14파일 불변. 과거 signal11은 실패 바이너리 단독 재현/동일 코드 독립 빌드 통과로 범위를 좁혔으며 근본 원인은 미확정이다. 다음은 순서4의 UI/UX 실물 여정·시안 /spec, F-05 runtime 고정은 Mac-only 학습 선행이다. 아래 UI/학습 요구와 본 유닛 built 범위는 유지한다.
+
+### 상태와 입력
+
+- 사용자 요청에 따라 누적 기록이 긴 이번 세션에서는 요구·순서만 보존한다. 아래는 **후속 계획의 입력**이며 전수 검수 결과나 구현 완료가 아니다. 본 유닛의 `built`와 AC-01~06은 위 0.4.3(13) 범위에만 적용한다.
+- 재개 시 `~/CLAUDE.md` → `~/Vault/appdev/CLAUDE.md` → repo `CLAUDE.md`·현행 규율 → 본 절 → `ssot/contracts/operating-baseline.md`를 읽는다. 브랜치·dirty 파일·최근 커밋·앱/런타임을 사용 시점에 재실측한다. 이번 문서 갱신 직전 HEAD는 `ac02ce0`, 브랜치 `work/m0-fixture-review`, 위 혼합7문서만 기존 미커밋 상태였다. 타 소유 변경을 정리·스테이징하거나 브랜치를 자동 전환하지 않는다.
+- Qwen 필수 입력: `/Users/gazitofu/Downloads/DAMA_Qwen_Learning_Implementation_2026-09-11.md` (268줄, 이번에 전체 읽음). 구현 제안의 기술·약관 주장을 실검증 결과로 승계하지 않고, 해당 작업 착수 시 공식 출처와 실제 코드 버전을 확인한다. 문서가 언급하는 starter 코드·TEST_RESULTS.txt는 실제 위치/내용을 별도 확인하며 존재·완성도를 추정하지 않는다.
+- 기존 Qwen 결과를 재작업으로 초기화하지 않는다: `versions/qwen-local/plan.md`, `notes/qwen-local/runtime.md`, `notes/qwen-local/evaluation.md`, `.build/diagnostics/qwen-local/comparative-evaluation.md`. 기존 전사·정렬·비교 완료와 **학습 미실행**을 구분한다.
+
+### 확정된 사용자 요구
+
+- 운영 중심은 **Soniox + Precision-2**. 일반 사용 흐름의 모델 선택지를 제한하고, Qwen·기존 통합 전사는 실험/고급 영역으로 분리하는 방향으로 설계한다. 기존 Run·키·수정본·비교 결과를 삭제하는 요구가 아니다.
+- Soniox 자체 텍스트·시간·화자 결과는 독립적으로 계속 보존하고, 동일 원음 결합본과 비교한다. 저장 응답을 재사용할 수 있는 비교에 재호출을 요구하지 않는다.
+- 동일 화자가 이어 말하고 문장이 명확히 끝나지 않았으면 붙여 읽는 규칙을 **모든 경로의 기본 규칙**으로 적용한다. 다른 화자의 짧은 응답·A→B→A·겹말/누락 근거를 지우거나 미확정 화자를 추정해서 합치지 않는다.
+- 백엔드 전체를 검수한 뒤 근거가 있는 중복·비효율·결함을 단계적으로 정리한다. 코드가 이미 엉망이라는 가정으로 전면 재작성부터 시작하지 않는다.
+- UI/UX는 스크립트 읽기·재생·수정 편의 우선. TIRO의 디자인을 참고하되 DAMA 사용 여정에 맞춘다. 모던한 화면, 절제된 색상 사용, 과도하지 않은 글자 크기, 한 번에 적은 정보가 기준이다. 모델/진단/비용 상세는 필요할 때 펼치며 검수 기록 UI는 제거한다. 화자 이름 클릭은 모달, 대사는 같은 본문 직접 편집 후 변경 시 같은 수정→저장 버튼으로 저장. 제목은 원 자리에서 입력하고 별도 저장/모달/탭 없이 자동 저장한다. AI 참고 모달과 결과 버전을 포함한 r4 화면·문구/D-01/D-02가 2026-09-12 사용자 최종 승인으로 확정됐다.
+- 학습 장치는 **현재 MacBook Pro 한 대뿐**이다. 외부 GPU·추가 장치 구매를 전제하지 않는다. 사용자 표현 `QWEN 1.6B`에 대응하는 현재 설치/제안 모델은 `Qwen3-ASR-1.7B`, 정렬기는 `Qwen3-ForcedAligner-0.6B`다. 다음 계획은 이 실물 구성을 기준으로 하며 모델을 임의 교체하지 않는다.
+
+### 순차 진행 방법과 종료 기준
+
+| 순서 | 작업·측정 축 | 다음 단계로 넘길 산출물/종료 기준 |
+|---|---|---|
+| 1 | 백엔드 전수 검수의 모집단 고정: `App/`, `UI/`의 처리/저장 연결, `Packages/DamaCore/`, 로컬 worker·배포 scripts·계약·테스트. 녹음→원본 저장→제출/재개→정규화/결합→Script 저장→수정/내보내기의 데이터 흐름, 책임 경계, 상태 소유, 중복 코드, 메인 스레드 작업, 파일 I/O·캐시, 취소/실패 복구, 키·로그·개인정보 경계를 확인한다. | 파일/모듈별 검수 범위와 근거 위치, 결함 영향·우선순위, 회귀 위험, 변경할/유지할 책임 경계. 선언한 축을 다 검수하면 종료하고 새 추측 축은 Follow-ups로 분리한다. 현행 README 등 오래된 안내와 계약의 차이도 타 소유 변경을 보존하며 목록화한다. |
+| 2 | **첫 수정 대상은 분절 원인 진단**. 동일 저장 원응답으로 Soniox 단독·결합·Qwen+P2를 다시 읽기 구성한다. 원 ASR→정렬→화자 배정→Turn→읽기 문단→화면/내보내기 각 단계의 분할 원인을 추적한다. 화자 전환, null/0길이/역행 시간, 누락 장벽, 문장 종결, 수동 경계·수정 이력을 구분해 집계한다. | 공통 규칙이 우회되는 소비 경로인지, 결합/정렬의 미확정 증가인지, 종결 판단인지 근거로 구분. 같은 known-speaker 미완성 연속 발화의 병합과 A→짧은 B→A 보존을 함께 회귀 검증한다. ASR 텍스트 정확도와 표시 편의 평가를 분리한다. |
+| 3 | 검수 결과에 따라 운영 조정자·공급자 어댑터·캐시/저장·공통 결합/읽기 책임을 정리한다. 운영과 실험의 실행·실패·저장 경계를 분리하되 불필요한 새 추상화는 만들지 않는다. | 작은 변경 단위마다 원응답/시간/화자 근거/수정 이력 보존, 재개·재전사·캐시 동일성 확인. 정규화/표시 정책 변경은 버전과 같은 원음 전후 비교를 남긴다. 녹음·복구 안전성이 우선이다. |
+| 4 | 현행 스크립트 화면의 불편을 실제 여정으로 확인하고, 필요하면 TIRO 공개 화면/공식 자료를 조사한다. 본문·재생·편집을 중심으로 정보 위계, 적정 본문 크기/행간, 절제된 화자 색, 접히는 상세/검수/실험 영역을 시안화한다. | 구체 시안과 읽기→원음 이동→수정→저장→비교 여정을 제시해 `/spec` 화면 확인. 이후 전용 plan으로 구현하고 앱 실물에서 같은 여정·긴 스크립트 반응성을 검증한다. 정보 숨김을 경고 소실이나 정확도 향상으로 표현하지 않는다. |
+| 5 | 별도 Qwen 학습 경로: 아래 L0~L7을 Mac-only 조건으로 구체화한다. 운영 리팩터링에 학습 시스템 전체를 끼워 넣지 않는다. | 독립 데이터 출처/검수·스냅샷·평가 기반과 작은 학습 실행의 실제 가능성부터 확보. 운영본 변경은 검증된 후보와 사용자 승격 확인 이후다. |
+
+### 분절 진단의 출발 근거
+
+- 현행 `Packages/DamaCore/Sources/DamaCore/LibraryPresentation.swift`의 `reading-v5`·`canJoin`·`blocks()`는 공급자 공통 읽기 경로다. 따라서 **규칙이 없다는 가설은 아직 입증되지 않았다**. null 화자, 유효하지 않은 시간 순서, 다른 화자/누락 장벽, 문장 종결 등 실제 차단 이유와 화면/내보내기 소비 경로를 확인한다.
+- 위 2026-09-11의 같은 21분53.280초 녹음 측정에서 speech 문단은 Soniox 434/결합 1,123, 1초 미만은 146/886이었다. 이것은 읽기 결과의 분절 측정이며 E1/E2·ASR 정확도 측정이 아니다. 값의 재현 자료는 `.build/diagnostics/operating-baseline/`에 있다. Qwen도 같은 정의로 측정하고 원 ASR/정렬/결합/표시 원인을 분리한다.
+- 기존 source·사람 수정본을 덮지 않고 로컬 파생 결과로 비교한다. 경고를 감추거나 짧은 발화를 삭제해 문단 수만 줄이는 안은 채택하지 않는다.
+
+### Mac-only Qwen 학습의 후속 계약
+
+- 사용자 제공 학습 지침의 L0~L7 순서를 기반으로 한다: **출처·권한 → 독립 검수 자료실 → 불변 데이터 스냅샷 → 기존 Qwen worker 연결 → 작은 LoRA 역전파/저장/재로딩 검증 → 독립 품질 평가 → Mac 실행 검증 → 후보 승인·롤백**. 제안 모듈명/초기 하이퍼파라미터는 확정 아키텍처나 검증 성능이 아니다.
+- 기존 운영 검수 기록은 곧바로 학습 자료가 아니다. Soniox/P2 유래 출력·부분 수정·시간·표본 선별·문맥의 계보를 보존한다. 제공 지침을 반영한 초기 데이터 경로는 권한이 확인된 원음에서 **독립적으로 선정한 샘플 + 독립 인간 전사 또는 Qwen 초안의 전 구간 청취 검수**다. 제한 출처와 불명 출처는 train/dev/locked_test 편입을 차단하고 실제 계약 확인/허가 근거를 별도 관리한다. 재생 버튼 클릭이나 기존 `audioChecked` 하나로 학습 허용하지 않는다.
+- `ssot/contracts/operating-baseline.md`의 '정답 후보 검토 가능성' 및 검수 기록은 위 출처 요건을 충족한다는 뜻이 아니다. 학습 유닛에서 계약과 export gate를 명시적으로 보강한다. 기존 `[동작 확인]` QA 메모도 품질 정답·학습·능동 수정시간 데이터에서 제외한다.
+- 자료실은 운영 Soniox 전사를 노출하는 수정창과 분리하고, 텍스트/음성 변경 시 검수 승인 해시를 무효화한다. 원 회의/프로젝트와 중복 원음 hash로 train/dev/locked_test 누수를 막는다. 필러·반복·짧은 응답·숫자/단위·부정/조건을 보존하는 `verbatim-ko-v1`을 구체화한다. 첫 비겹말 학습 recipe와 겹말/무음/정상 발화 평가셋을 구분한다.
+- 기존 런타임 문서의 M5 Pro/48GB는 당시 추론 실측이다. 학습 착수 전 현재 칩/RAM·가용 메모리·저장 공간·런타임을 확인한다. Mac MLX 학습 구현의 실제 오디오 forward/backward, finite loss, adapter gradient, 동결 가중치 유지, 저장/새 프로세스 reload를 작은 실제 음성으로 검증한다. 추론 성공과 loss 감소만으로 학습 가능/품질 개선을 선언하지 않는다.
+- 처음에는 ASR만 학습하며 ForcedAligner/P2는 고정한다. 실제 peak 메모리·스왑·열 상태·처리시간을 기록하고 무진행 감시, 취소·체크포인트·재개, 녹음 우선 자원 정책을 정한다. 현재 운영 Python/모델 환경은 별도 보존한다. Mac에서 불가능하거나 병목이 정렬/화자/표시라면 해당 단계로 돌아가며 외부 GPU를 자동 발주하지 않는다.
+- Qwen 모델 개발용 평가는 독립 정답으로 기본/학습 × 문맥 없음/같은 독립 문맥의 4조건을 비교한다. Soniox 단독↔결합의 제품 선택 비교와 데이터 경로를 구분한다. E1/E2·짧은 발화/핵심 의미·정렬·완료율·능동 수정시간·정상 비용을 보며 문단 수 감소나 감지 인원 일치만으로 승격하지 않는다.
+
+재개 문장: **“`versions/operating-baseline/plan.md`의 ‘다음 세션 착수’와 지정된 Qwen 학습 지침을 읽고, 백엔드 전수 검수 방법론과 공통 문단 분절 진단부터 계획을 구체화해 순차 진행하자. 학습 장치는 현재 MacBook Pro만 사용한다.”**

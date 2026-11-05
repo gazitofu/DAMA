@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>usage-bundle1 스펙</title>
+<style>
+
+
+/* ══════════ 토큰 (ssot 디자인 시스템 정본 값 그대로. 임의 수정 금지) ══════════ */
+:root{
+  /* 지면 */
+  --paper:#FFFFFF; --paper-2:#F7F7F7; --paper-3:#EDEDED;
+  /* 잉크 */
+  --ink:#1A1A1A; --ink-2:#4A4A4A; --ink-3:#6A6A6A;
+  /* 선 */
+  --hair:#DDDDDD;
+  /* 포인트 6색 (apricot 은 본문 #태그 밑줄 전용) */
+  --rose:#FF4D79; --lilac:#8A4BFF; --sky:#1E8AFF; --lemon:#FFF056; --sage:#29C06E; --apricot:#FFC24D;
+  /* 소프트 14% */
+  --rose-soft:#FFE6EC; --lilac-soft:#EFE6FF; --sky-soft:#DFEFFF; --lemon-soft:#FFFDE7; --sage-soft:#E1F6EB; --apricot-soft:#FFF6E6;
+  /* 틴트 8% */
+  --rose-tint:#FFF1F4; --lilac-tint:#F6F1FF; --sky-tint:#EDF6FF; --lemon-tint:#FFFEF1; --sage-tint:#EEFAF3; --apricot-tint:#FFFAF1;
+  /* 스크림 (이미지 위 텍스트 받침) */
+  --scrim:rgba(34,28,22,.62);
+  /* 내비 모션 공통 이징 */
+  --ease-nav:cubic-bezier(.22,1,.36,1);
+  /* 폰트 */
+  --serif:'KoPub Batang',serif;
+  --sans:'KoPub Dotum',-apple-system,'Apple SD Gothic Neo',sans-serif;
+  --num:'Fraunces',Georgia,serif;
+  --w-num:400; --w-num-strong:600;
+  /* 선 굵기 */
+  --lw:0.5px; --lw-strong:1px;
+  /* 라운딩 */
+  --r:3px;
+  /* 여백 자리 */
+  --sp-page:24px; --sp-block:24px; --sp-el:12px;
+  --sp-sec-above:48px; --sp-sec-head:24px; --sp-sec-body:32px;
+  --sp-grid:24px; --sp-grid-tight:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;font-weight:300;line-height:1.8;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+img{max-width:100%;display:block}
+
+/* ── 라인 아이콘 (Phosphor, 잉크색 단색 에셋) ── */
+.ic{display:inline-block;width:22px;height:22px;background:var(--m) center/contain no-repeat;flex:0 0 auto}
+.ic.inv{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjRkZGRkZGIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjU2LDEzNmE4LDgsMCwwLDEtOCw4SDIzMnYxNmE4LDgsMCwwLDEtMTYsMFYxNDRIMjAwYTgsOCwwLDAsMSwwLTE2aDE2VjExMmE4LDgsMCwwLDEsMTYsMHYxNmgxNkE4LDgsMCwwLDEsMjU2LDEzNlptLTU3Ljg3LDU4Ljg1YTgsOCwwLDAsMS0xMi4yNiwxMC4zQzE2NS43NSwxODEuMTksMTM4LjA5LDE2OCwxMDgsMTY4cy01Ny43NSwxMy4xOS03Ny44NywzNy4xNWE4LDgsMCwwLDEtMTIuMjUtMTAuM2MxNC45NC0xNy43OCwzMy41Mi0zMC40MSw1NC4xNy0zNy4xN2E2OCw2OCwwLDEsMSw3MS45LDBDMTY0LjYsMTY0LjQ0LDE4My4xOCwxNzcuMDcsMTk4LjEzLDE5NC44NVpNMTA4LDE1MmE1Miw1MiwwLDEsMC01Mi01MkE1Mi4wNiw1Mi4wNiwwLDAsMCwxMDgsMTUyWiIvPjwvc3ZnPg==')}
+.ic-home{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjE5LjMxLDEwOC42OGwtODAtODBhMTYsMTYsMCwwLDAtMjIuNjIsMGwtODAsODBBMTUuODcsMTUuODcsMCwwLDAsMzIsMTIwdjk2YTgsOCwwLDAsMCw4LDhoNjRhOCw4LDAsMCwwLDgtOFYxNjBoMzJ2NTZhOCw4LDAsMCwwLDgsOGg2NGE4LDgsMCwwLDAsOC04VjEyMEExNS44NywxNS44NywwLDAsMCwyMTkuMzEsMTA4LjY4Wk0yMDgsMjA4SDE2MFYxNTJhOCw4LDAsMCwwLTgtOEgxMDRhOCw4LDAsMCwwLTgsOHY1Nkg0OFYxMjBsODAtODAsODAsODBaIi8+PC9zdmc+')}
+.ic-chat{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMTI4LDI0QTEwNCwxMDQsMCwwLDAsMzYuMTgsMTc2Ljg4TDI0LjgzLDIxMC45M2ExNiwxNiwwLDAsMCwyMC4yNCwyMC4yNGwzNC4wNS0xMS4zNUExMDQsMTA0LDAsMSwwLDEyOCwyNFptMCwxOTJhODcuODcsODcuODcsMCwwLDEtNDQuMDYtMTEuODEsOCw4LDAsMCwwLTYuNTQtLjY3TDQwLDIxNiw1Mi40NywxNzguNmE4LDgsMCwwLDAtLjY2LTYuNTRBODgsODgsMCwxLDEsMTI4LDIxNloiLz48L3N2Zz4=')}
+.ic-tools{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjIxLjI4LDM0Ljc1YTY0LDY0LDAsMCwwLTkwLjQ5LDBMNjAuNjksMTA0QTE1LjksMTUuOSwwLDAsMCw1NiwxMTUuMzF2NzMuMzhMMjYuMzQsMjE4LjM0YTgsOCwwLDAsMCwxMS4zMiwxMS4zMkw2Ny4zMiwyMDBIMTQwLjdBMTUuOTIsMTUuOTIsMCwwLDAsMTUyLDE5NS4zMmwwLDAsNjkuMjMtNzBBNjQsNjQsMCwwLDAsMjIxLjI4LDM0Ljc1Wk0xNDIuMDcsNDYuMDZBNDgsNDgsMCwwLDEsMjExLjc5LDExMkgxNTUuMzNsMzQuMzUtMzQuMzRhOCw4LDAsMCwwLTExLjMyLTExLjMyTDEyMCwxMjQuNjlWNjcuODdaTTcyLDExNS4zNWwzMi0zMS42N3Y1N2wtMzIsMzJaTTE0MC43LDE4NEg4My4zMmw1Ni01Nmg1Ni43NFoiLz48L3N2Zz4=')}
+.ic-world{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMTg0LDcySDQwQTE2LDE2LDAsMCwwLDI0LDg4VjIwMGExNiwxNiwwLDAsMCwxNiwxNkgxODRhMTYsMTYsMCwwLDAsMTYtMTZWODhBMTYsMTYsMCwwLDAsMTg0LDcyWm0wLDEyOEg0MFY4OEgxODRWMjAwWk0yMzIsNTZWMTc2YTgsOCwwLDAsMS0xNiwwVjU2SDY0YTgsOCwwLDAsMSwwLTE2SDIxNkExNiwxNiwwLDAsMSwyMzIsNTZaIi8+PC9zdmc+')}
+.ic-lounge{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjI0LDQ4SDMyYTgsOCwwLDAsMC04LDhWMTkyYTE2LDE2LDAsMCwwLDE2LDE2SDIxNmExNiwxNiwwLDAsMCwxNi0xNlY1NkE4LDgsMCwwLDAsMjI0LDQ4Wk0yMDMuNDMsNjQsMTI4LDEzMy4xNSw1Mi41Nyw2NFpNMjE2LDE5Mkg0MFY3NC4xOWw4Mi41OSw3NS43MWE4LDgsMCwwLDAsMTAuODIsMEwyMTYsNzQuMTlWMTkyWiIvPjwvc3ZnPg==')}
+.ic-add{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjU2LDEzNmE4LDgsMCwwLDEtOCw4SDIzMnYxNmE4LDgsMCwwLDEtMTYsMFYxNDRIMjAwYTgsOCwwLDAsMSwwLTE2aDE2VjExMmE4LDgsMCwwLDEsMTYsMHYxNmgxNkE4LDgsMCwwLDEsMjU2LDEzNlptLTU3Ljg3LDU4Ljg1YTgsOCwwLDAsMS0xMi4yNiwxMC4zQzE2NS43NSwxODEuMTksMTM4LjA5LDE2OCwxMDgsMTY4cy01Ny43NSwxMy4xOS03Ny44NywzNy4xNWE4LDgsMCwwLDEtMTIuMjUtMTAuM2MxNC45NC0xNy43OCwzMy41Mi0zMC40MSw1NC4xNy0zNy4xN2E2OCw2OCwwLDEsMSw3MS45LDBDMTY0LjYsMTY0LjQ0LDE4My4xOCwxNzcuMDcsMTk4LjEzLDE5NC44NVpNMTA4LDE1MmE1Miw1MiwwLDEsMC01Mi01MkE1Mi4wNiw1Mi4wNiwwLDAsMCwxMDgsMTUyWiIvPjwvc3ZnPg==')}
+.ic-player{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjMwLjkyLDIxMmMtMTUuMjMtMjYuMzMtMzguNy00NS4yMS02Ni4wOS01NC4xNmE3Miw3MiwwLDEsMC03My42NiwwQzYzLjc4LDE2Ni43OCw0MC4zMSwxODUuNjYsMjUuMDgsMjEyYTgsOCwwLDEsMCwxMy44NSw4YzE4Ljg0LTMyLjU2LDUyLjE0LTUyLDg5LjA3LTUyczcwLjIzLDE5LjQ0LDg5LjA3LDUyYTgsOCwwLDEsMCwxMy44NS04Wk03Miw5NmE1Niw1NiwwLDEsMSw1Niw1NkE1Ni4wNiw1Ni4wNiwwLDAsMSw3Miw5NloiLz48L3N2Zz4=')}
+.ic-turn{--m:url('data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjMUExQTFBIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjI0LDQ4Vjk2YTgsOCwwLDAsMS04LDhIMTY4YTgsOCwwLDAsMSwwLTE2aDI4LjY5TDE4Mi4wNiw3My4zN2E3OS41Niw3OS41NiwwLDAsMC01Ni4xMy0yMy40M2gtLjQ1QTc5LjUyLDc5LjUyLDAsMCwwLDY5LjU5LDcyLjcxLDgsOCwwLDAsMSw1OC40MSw2MS4yN2E5Niw5NiwwLDAsMSwxMzUsLjc5TDIwOCw3Ni42OVY0OGE4LDgsMCwwLDEsMTYsMFpNMTg2LjQxLDE4My4yOWE4MCw4MCwwLDAsMS0xMTIuNDctLjY2TDU5LjMxLDE2OEg4OGE4LDgsMCwwLDAsMC0xNkg0MGE4LDgsMCwwLDAtOCw4djQ4YTgsOCwwLDAsMCwxNiwwVjE3OS4zMWwxNC42MywxNC42M0E5NS40Myw5NS40MywwLDAsMCwxMzAsMjIyLjA2aC41M2E5NS4zNiw5NS4zNiwwLDAsMCw2Ny4wNy0yNy4zMyw4LDgsMCwwLDAtMTEuMTgtMTEuNDRaIi8+PC9zdmc+')}
+
+.col{max-width:920px;margin:0 auto;padding:0 24px}
+
+/* ── 문서 헤더 ── */
+header.doc{padding:64px 0 40px;border-bottom:var(--lw-strong) solid var(--ink)}
+.doc .date{font-family:var(--num);font-weight:var(--w-num-strong);font-size:64px;line-height:.95;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.doc .meta{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-top:10px;letter-spacing:.03em}
+.doc h1{font-family:var(--serif);font-weight:700;font-size:30px;line-height:1.35;margin-top:22px;letter-spacing:-.01em}
+.doc .sub{margin-top:12px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.hl{background:linear-gradient(transparent 60%, var(--lemon) 60%);font-weight:500;color:var(--ink)}
+code{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;background:var(--paper-2);padding:1px 5px}
+
+/* ── 00 판정 블록 (헤더 바로 아래 · 사용자가 답할 것만 · 열림/닫힘 2상태) ── */
+.verdict{margin-top:28px;border:var(--lw-strong) solid var(--ink);background:var(--paper)}
+.verdict .vh{display:flex;align-items:baseline;gap:12px;padding:14px 20px;border-bottom:var(--lw) solid var(--ink);background:var(--paper-2)}
+.verdict .vh h2{font-family:var(--serif);font-size:18px;font-weight:700}
+.verdict .vh .cnt{font-family:var(--num);font-size:13px;color:var(--ink-3)}
+.verdict .vh .stamp{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--lemon);padding:2px 8px}
+.verdict[data-state="open"] .stamp{display:none}
+.verdict .vb{padding:6px 20px 18px}
+.vitem{padding:14px 0;border-bottom:var(--lw) solid var(--hair)}
+.vitem:last-child{border-bottom:0}
+.vitem .vt{display:flex;gap:10px;align-items:baseline;font-weight:700;font-size:14.5px}
+.vitem .vt .id{font-family:var(--num);font-weight:400;color:var(--ink-3);font-size:13px;min-width:44px;flex:0 0 auto}
+.vitem .vq{margin:6px 0 0 54px;color:var(--ink-2);font-size:13.5px;max-width:66ch}
+.vitem .vq b{color:var(--ink)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 54px}
+.opts label{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer;user-select:none;line-height:1.4}
+.opts label:has(input:checked){background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.opts label code{color:inherit}
+.opts label:has(input:checked) code{background:rgba(255,255,255,.18)}
+.opts input{position:absolute;opacity:0;width:0;height:0}
+.memo{margin:8px 0 0 54px}
+.memo input{font-family:var(--sans);font-weight:300;font-size:13.5px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--hair);background:none;padding:6px 2px;width:100%;outline:none;border-radius:0}
+.memo input:focus{border-bottom-color:var(--ink)}
+.memo input::placeholder{color:var(--ink-3)}
+.vfoot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 20px;border-top:var(--lw-strong) solid var(--ink);background:var(--paper-2)}
+.vfoot .ok{font-size:12.5px;color:var(--ink-3)}
+.verdict pre.md{margin:0;padding:14px 20px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6;color:var(--ink-2);background:var(--paper);border-top:var(--lw) solid var(--hair);white-space:pre-wrap;user-select:all}
+.verdict[data-state="closed"] .opts,.verdict[data-state="closed"] .memo,.verdict[data-state="closed"] .vfoot,.verdict[data-state="closed"] pre.md{display:none}
+
+/* ── 문서 내비 ── */
+.tabs{position:sticky;top:0;z-index:40;background:var(--paper);border-bottom:var(--lw) solid var(--hair)}
+.tabs .row{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;padding:0 24px;max-width:920px;margin:0 auto}
+.tabs .row::-webkit-scrollbar{display:none}
+.tabs a{text-decoration:none;font-family:var(--sans);font-size:13.5px;font-weight:700;color:var(--ink-3);padding:14px 0 12px;white-space:nowrap}
+.tabs a:hover{color:var(--ink)}
+
+/* ── 섹션 문법 ── */
+section.sec{padding-top:88px}
+.sec>.rule{border-top:var(--lw-strong) solid var(--ink);padding-top:20px;display:flex;align-items:baseline;gap:14px}
+.sec>.rule .no{font-family:var(--num);font-weight:var(--w-num);font-size:15px;color:var(--ink-3)}
+.sec>.rule h2{font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.01em}
+.sec .intro{margin-top:14px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.sec p:not([class]){margin-top:14px;max-width:66ch}
+.sec h3{font-family:var(--sans);font-weight:700;font-size:15px;margin-top:46px;padding-top:12px;border-top:var(--lw) solid var(--ink)}
+.sec h4{font-family:var(--serif);font-weight:700;font-size:15.5px;margin-top:22px}
+.note{margin-top:12px;font-size:12.5px;color:var(--ink-3);max-width:66ch}
+
+/* ── 리스트 (병렬 항목은 본문·표 셀 어디서든 한 항목 한 줄 · 가운뎃점 연결 금지) ── */
+.sec ol,.sec ul{margin:10px 0 0;padding-left:1.6em;max-width:66ch}
+.sec li{margin-top:5px;padding-left:.2em}
+.sec li::marker{font-family:var(--num);color:var(--ink-3);font-size:13px}
+td ol,td ul{margin:0;padding-left:1.5em;max-width:none}
+td li{margin-top:3px}
+td li:first-child{margin-top:0}
+.sec td p:not([class]){margin-top:6px;max-width:none}
+.sec td p:not([class]):first-child{margin-top:0}
+.then{display:block;margin-top:6px}
+
+/* ── 표 (2차원 데이터만 · 셀 안 병렬 항목은 리스트) ── */
+.twrap{overflow-x:auto;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.65}
+th{text-align:left;font-weight:700;font-size:12px;color:var(--ink-3);background:var(--paper-2);padding:8px 12px;border-bottom:var(--lw) solid var(--ink);white-space:nowrap}
+td{padding:10px 12px;border-bottom:var(--lw) solid var(--hair);vertical-align:top;font-weight:300}
+td strong,td b{font-weight:700}
+td.num,.tnum{font-family:var(--num);font-weight:var(--w-num);font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap}
+
+/* ── 각주 (본문에는 번호만 · 정보는 최하단 · 클릭 팝오버. 저자는 span.fn 으로 근거를 쓰고 빌드가 번호를 단다) ── */
+sup.fn{font-family:var(--num);font-size:11px;line-height:0;vertical-align:super;margin-left:1px}
+sup.fn a{color:var(--sky);text-decoration:none;padding:0 2px;border-radius:2px;cursor:pointer}
+sup.fn a:hover,sup.fn a.open{background:var(--sky-soft)}
+.pop{position:absolute;z-index:50;max-width:400px;min-width:220px;padding:10px 12px 11px;background:var(--paper);border:var(--lw) solid var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.10);font-size:12.5px;line-height:1.65;color:var(--ink-2);font-weight:300}
+.pop .pn{font-family:var(--num);color:var(--ink-3);margin-right:6px}
+.pop::after{content:'';position:absolute;left:10px;bottom:-6px;width:10px;height:10px;background:var(--paper);border-right:var(--lw) solid var(--ink);border-bottom:var(--lw) solid var(--ink);transform:rotate(45deg)}
+.pop.below::after{bottom:auto;top:-6px;transform:rotate(225deg)}
+.fnlist{margin-top:14px;padding-left:0;list-style:none;font-size:12.5px;color:var(--ink-2);line-height:1.65;max-width:72ch}
+.fnlist li{display:flex;gap:10px;padding:5px 0;border-bottom:var(--lw) solid var(--hair)}
+.fnlist li:target{background:var(--sky-soft)}
+.fnlist .n{font-family:var(--num);color:var(--ink-3);min-width:22px;flex:0 0 auto}
+.fnlist .t{flex:1 1 auto}
+.fnlist .back{margin-left:6px;color:var(--sky);text-decoration:none;flex:0 0 auto}
+details.audit{margin-top:28px;border-top:var(--lw) solid var(--hair);padding-top:10px}
+details.audit summary{cursor:pointer;font-size:12.5px;color:var(--ink-3);font-weight:500}
+details.audit .body{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.65}
+details.audit table{font-size:12.5px}
+
+/* ── 데모 프레임과 스펙 ── */
+.stage{display:flex;flex-wrap:wrap;gap:24px;margin-top:20px;align-items:flex-start}
+.frame{width:400px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);flex:0 0 auto}
+.frame .fbody{padding:20px 18px 24px}
+.spec{flex:1 1 260px;min-width:240px;font-size:13px}
+.spec dt{font-weight:700;font-size:12.5px;margin-top:12px}
+.spec dd{color:var(--ink-2);margin-top:2px;line-height:1.65}
+
+/* ── 컴포넌트 (디자인 시스템 정본 발췌) ── */
+.btn{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:14px;line-height:1;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.fill{background:var(--ink);color:var(--paper);border:var(--lw) solid var(--ink);height:44px;padding:0 22px}
+.btn.line{background:var(--paper);color:var(--ink);border:var(--lw) solid var(--ink);height:40px;padding:0 18px}
+.btn.soft{background:var(--paper-2);color:var(--ink);border:0;height:40px;padding:0 18px}
+.btn.sm{height:34px;padding:0 14px;font-size:13px}
+.btn.text{background:none;border:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;height:auto;padding:4px 2px;font-weight:500}
+.btn:disabled{background:var(--paper-3);border-color:var(--paper-3);color:var(--ink-3);cursor:default}
+.btn:not(:disabled):active{transform:translateY(1px)}
+.btnrow{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.chip.sel{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.htag{display:inline-block;font-size:12px;font-weight:500;color:var(--ink-2);line-height:1.5;padding:0 2px;background:linear-gradient(transparent 62%, var(--lemon) 62%)}
+.in-line{font-family:var(--sans);font-weight:300;font-size:16px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--ink-3);background:none;padding:7px 2px;width:100%;outline:none;border-radius:0}
+.in-line:focus{border-bottom:var(--lw-strong) solid var(--ink)}
+.in-line::placeholder{color:var(--ink-3)}
+.in-area{font-family:var(--sans);font-weight:300;font-size:14.5px;color:var(--ink);background:var(--paper-2);border:var(--lw) solid transparent;border-radius:var(--r);padding:12px 14px;width:100%;outline:none;line-height:1.7;resize:vertical}
+.in-area:focus{border-color:var(--ink)}
+.in-area::placeholder{color:var(--ink-3)}
+.in-label{display:block;font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:6px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:var(--lw) solid var(--hair);font-size:13px}
+.kv .k{color:var(--ink-3);font-weight:500}
+.kv .v{font-weight:500;color:var(--ink)}
+.stat{display:inline-flex;align-items:center;gap:5px;font-family:var(--num);font-weight:var(--w-num);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.stat .ic{width:14px;height:14px;opacity:.72}
+.sechead h4{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.01em}
+.sechead .sub{font-size:13px;color:var(--ink-2);margin-top:4px}
+
+/* ── 폰 프레임 (모바일 프로토타입) ── */
+.phone{width:390px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;position:relative;overflow:hidden}
+.phone .pbody{padding:18px 20px 120px}
+.pdock{position:absolute;left:0;right:0;bottom:0;height:118px;pointer-events:none;background:linear-gradient(to top, var(--paper) 0%, var(--paper) 34%, rgba(255,255,255,0) 100%);display:flex;align-items:flex-end}
+.pdock .icons{width:100%;display:flex;justify-content:space-around;align-items:center;padding:0 10px 18px}
+.pdock .icons .ic{opacity:.38}
+.pdock .icons .ic.on{opacity:1}
+
+/* ── 데스크탑 조합 목업 ── */
+.mock{border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;overflow:hidden}
+.mock .mkhead{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:var(--lw) solid var(--hair)}
+.mock .mkhead .lg{height:16px;width:auto;display:block}
+.mock .mkhead nav{display:flex;gap:20px;font-size:14px;font-weight:700}
+.mock .mkhead nav span{color:var(--ink-3)}
+.mock .mkhead nav span.on{color:var(--ink)}
+.mock .mkhead .util{display:flex;gap:14px;align-items:center;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.mock .mkbody{padding:26px 24px 34px}
+
+/* ── 데스크탑 실척 스테이지 (맥북 뷰포트 1440x820 을 가로폭에 맞춰 비율 그대로 축소.
+     내부는 1440px 고정 가상 뷰포트라 실서비스 데스크탑 레이아웃이 그대로 재현된다.
+     문서 본문 col(920px)보다 넓게 브레이크아웃해 화면 가로폭을 최대로 쓴다) ── */
+.deskwrap{width:calc(100vw - 48px);max-width:1440px;margin:20px auto 0;margin-left:calc(50% - min(50vw - 24px, 720px))}
+.deskstage{position:relative;width:100%;aspect-ratio:1440/820;border:var(--lw) solid var(--ink);background:var(--paper);overflow:hidden}
+.deskvp{position:absolute;left:0;top:0;width:1440px;height:820px;transform-origin:0 0;transform:scale(var(--ds,1));overflow-y:auto;overscroll-behavior:contain}
+.deskcap{font-size:12.5px;color:var(--ink-3);margin-top:10px;font-weight:500}
+
+/* 상태 세그 (프로토타입 상태 전환 컨트롤) */
+.segrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.seg{height:32px;padding:0 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center}
+.seg.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+
+/* ── usage-bundle1 네이티브 목업 (macOS 창 모사 · 토큰 값만 사용) ── */
+[hidden]{display:none!important}
+.mac{border:1px solid var(--hair);border-radius:10px;overflow:hidden;background:var(--paper);margin-top:14px;font:13px/1.55 -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;color:var(--ink);max-width:760px}
+.mac .tb{height:32px;background:var(--paper-2);border-bottom:1px solid var(--hair);display:flex;align-items:center;gap:7px;padding:0 12px}
+.mac .tb i{width:10px;height:10px;border-radius:50%;background:var(--paper-3);border:1px solid var(--hair)}
+.mac .tb b{margin-left:8px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.mac .bd{padding:16px 18px}
+.mac .split{display:grid;grid-template-columns:minmax(0,1fr) 250px;border-top:1px solid var(--hair)}
+.mac .split>.ins{border-left:1px solid var(--hair);background:var(--paper-2);padding:14px;font-size:12px}
+.mac h5{font-size:20px;font-weight:600;letter-spacing:-.02em;margin:0}
+.mac .cap{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.mac .bar{display:flex;align-items:center;gap:10px;padding:9px 18px;border-top:1px solid var(--hair);font-size:12px;color:var(--ink-2);flex-wrap:wrap}
+.mac .bar .sp{flex:1}
+.mb{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--hair);border-radius:5px;padding:2px 10px;background:var(--paper);font-size:12px;color:var(--ink);white-space:nowrap}
+.mb.pri{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.mb.off{color:var(--ink-3);background:var(--paper-2)}
+.para{padding:11px 12px;border-radius:7px;margin-bottom:6px}
+.para.sel{background:var(--sky-tint);outline:1px solid var(--sky-soft)}
+.para .top{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.para .top .nm{font-weight:600}
+.para .top .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-3)}
+.para .top .t{margin-left:auto;font:11px ui-monospace,'SF Mono',Menlo,monospace;color:var(--ink-3)}
+.para .tx{margin-top:5px;font-size:14px;line-height:1.75}
+.chipw{font-size:11px;color:var(--ink-2);border:1px solid var(--apricot);background:var(--apricot-tint);border-radius:4px;padding:0 6px}
+.warnline{display:flex;gap:6px;align-items:baseline;margin-top:7px;font-size:12px;color:var(--ink-2)}
+.warnline::before{content:'⚠';font-size:12px;color:var(--ink)}
+.disc{margin-top:10px;border-top:1px solid var(--hair);padding-top:8px}
+.disc summary{cursor:pointer;font-weight:600;font-size:12px}
+.disc .k{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--hair)}
+.disc .k span:last-child{white-space:nowrap;color:var(--ink-3)}
+.fld{display:block;width:100%;border:1px solid var(--hair);border-radius:5px;padding:5px 8px;font:inherit;background:var(--paper)}
+.fld.ph{color:var(--ink-3)}
+.fld.ttl{font-size:19px;font-weight:600;border-color:transparent;padding:2px 4px;margin-left:-4px}
+.fld.ttl.on{border-color:var(--sky)}
+.panel{width:380px;max-width:100%;border:1px solid var(--hair);border-radius:12px;background:var(--paper);box-shadow:0 12px 40px rgba(0,0,0,.10);padding:18px;font:13px/1.55 -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;margin-top:14px}
+.panel b.h{display:block;font-size:15px}
+.panel .row{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.err{font-size:12px;color:var(--rose);margin-top:6px}
+.err::before{content:'오류 · ';color:var(--ink-2)}
+.kvr{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--hair)}
+.kvr>span:first-child{width:200px;flex:0 0 auto;color:var(--ink-2)}
+.kvr .fld{max-width:160px}
+pre.mdx{margin-top:12px;padding:12px 14px;background:var(--paper-2);border:1px solid var(--hair);font:11.5px/1.6 ui-monospace,'SF Mono',Menlo,monospace;white-space:pre-wrap;color:var(--ink-2);max-width:760px}
+pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
+.sx{font-size:12.5px;color:var(--ink-3);margin-top:8px}
+.vdone{padding:10px 0 12px;border-bottom:var(--lw) solid var(--hair);font-size:13.5px;color:var(--ink-2)}
+
+@media (max-width:760px){
+  .col{padding:0 18px}
+  header.doc{padding:44px 0 30px}
+  .doc .date{font-size:46px}
+  .doc h1{font-size:23px}
+  .sec>.rule h2{font-size:19px}
+  .vitem .vq,.opts,.memo{margin-left:0}
+  .pop{max-width:calc(100vw - 36px)}
+}
+</style>
+</head>
+<body>
+
+<div class="col">
+<header class="doc">
+  <div class="date">11.05</div>
+  <div class="meta">DAMA UNIT SPEC · usage-bundle1 · r1</div>
+  <h1>사용 복기 묶음 1: 검수 표시·녹음 제목·설정·AI 교정 실패</h1>
+  <p class="sub">2026-09-09부터 11-05까지의 사용 기록을 복기해 정한 개선 중 바로 체감되는 다섯 가지(T1·T3·T5·T4-1·T4-2)를 한 유닛으로 묶는다. 사람이 볼 수 없는 양의 자동 경고를 화면과 Markdown에서 걷고, 녹음에 제목을 붙이게 하고, 퇴역한 pyannote 설정을 정리하고, AI 교정이 실패해도 원인과 진행분이 남게 한다.</p>
+</header>
+
+<section class="verdict" id="s-verdict" data-unit="usage-bundle1" data-round="r1" data-gate="①" data-state="closed">
+  <div class="vh"><h2>판정</h2><span class="cnt">결정 4 · 판정 축 6 · 전부 확정</span><span class="stamp">게이트 ① 컨펌 11.05</span></div>
+  <div class="vb">
+    <div class="vitem" data-k="D-01">
+      <div class="vt"><span class="id">D-01</span>제목을 쓰는 곳: 녹음 인덱스만, 또는 연결 스크립트 파일까지</div>
+      <p class="vq">ⓐ 확정. 녹음 제목은 인덱스(<code>library-index.json</code>)의 <code>displayTitle</code>에만 쓰고, 연결 스크립트는 읽을 때 그 제목을 쓴다. 스크립트 파일 안 <code>title</code>은 고쳐 쓰지 않는다.<sup class="fn" id="fnr-1"><a href="#fn-1" data-fn="1">1</a></sup></p>
+    </div>
+    <div class="vitem" data-k="D-02">
+      <div class="vt"><span class="id">D-02</span>제목 저장 시점(T2a-5)을 이 유닛으로 당길지</div>
+      <p class="vq">ⓐ 확정. T2a-5(Enter 또는 입력칸 이탈 때만 저장, 0.5초 자동 저장 폐지)를 이 유닛에서 녹음·스크립트 두 제목칸에 적용한다.<sup class="fn" id="fnr-2"><a href="#fn-2" data-fn="2">2</a></sup></p>
+    </div>
+    <div class="vitem" data-k="D-03">
+      <div class="vt"><span class="id">D-03</span>교정 설정의 공급자 선택(T5-3)을 언제 할지</div>
+      <p class="vq">ⓐ 확정. 교정 설정은 현행대로 두고, 공급자 선택(T5-3)은 T4-5와 함께 묶음 3에서 한다.<sup class="fn" id="fnr-3"><a href="#fn-3" data-fn="3">3</a></sup></p>
+    </div>
+    <div class="vitem" data-k="D-04">
+      <div class="vt"><span class="id">D-04</span>«주의» 숨김에 다시 켜는 설정을 둘지</div>
+      <p class="vq">ⓐ 확정. «주의» 표시는 설정 없이 항상 숨기고, 원 이슈는 구간 정보에서만 연다. 녹음 중단·일부 결과·화자 미배정 표시는 남는다.<sup class="fn" id="fnr-4"><a href="#fn-4" data-fn="4">4</a></sup></p>
+    </div>
+    <div class="vitem" data-k="①">
+      <div class="vt"><span class="id">①</span>검수 이슈 표시와 내보내기 (§02-1 · §03 S1·S2·S9)</div>
+      <p class="vq">확정. 문단 «주의» 없음, 구간 정보 «자동 경고 N건» 종류별 접힘, Markdown 문단 줄 제거와 머리말 1줄, 녹음 중단·일부 결과는 화면과 Markdown 양쪽에 남김, 경고 문구는 uiux-reading 확정본.</p>
+    </div>
+    <div class="vitem" data-k="②">
+      <div class="vt"><span class="id">②</span>녹음 제목 흐름 (§02-2 · §03 S3–S5)</div>
+      <p class="vq">확정. 녹음 직후 입력창(Speeches 저장 뒤 한 번에 하나씩), Speech 상세 제목칸, 스크립트 제목칸 양방향, 기존 제목 자동 합치기 없음.</p>
+    </div>
+    <div class="vitem" data-k="③">
+      <div class="vt"><span class="id">③</span>AI 교정 실패 기록·이어하기·의미 보호 (§02-3 · §02-4 · §03 S8)</div>
+      <p class="vq">확정. 실패 분류 8종, 시도 기록은 내부 <code>CorrectionAttempts/</code>, 이어하기는 청크 계획이 같을 때만, 의미 보호 <code>context-correction-6</code> 4분류.</p>
+    </div>
+    <div class="vitem" data-k="④">
+      <div class="vt"><span class="id">④</span>설정 정리 (§02-5 · §03 S6·S7)</div>
+      <p class="vq">확정. API 키는 Soniox만, pyannote 키가 있을 때만 삭제 줄, 월 비용 새 공식과 «AI CLI 구독료» 칸, pyannote 3항목 접기.</p>
+    </div>
+    <div class="vitem" data-k="⑤">
+      <div class="vt"><span class="id">⑤</span>계약·문구 개정 문안 (§05)</div>
+      <p class="vq">확정. §05의 계약 4곳·월 비용 1곳 문안을 /build가 반영하고, 확정 문구는 <code>ssot/tone/usage-bundle1.md</code>로 편입했다.</p>
+    </div>
+    <div class="vitem" data-k="⑥">
+      <div class="vt"><span class="id">⑥</span>검산 자와 안 재는 축 (§04)</div>
+      <p class="vq">확정. §04 검산 자 18축과 안 재는 축 5개를 이 문서대로 쓴다.</p>
+    </div>
+  </div>
+  <div class="vfoot">
+    <button class="btn fill sm" type="button" data-act="copy">MD 복사</button>
+    <button class="btn line sm" type="button" data-act="reset">초기화</button>
+    <span class="ok">고른 대로 아래 회신이 만들어진다. 복사해 채팅에 붙이면 된다.</span>
+  </div>
+  <pre class="md"></pre>
+</section>
+</div>
+
+<nav class="tabs" aria-label="문서 목차">
+  <div class="row">
+    <a href="#s-verdict">판정</a>
+    <a href="#s-dir">방향</a>
+    <a href="#s-policy">정책</a>
+    <a href="#s-screen">화면</a>
+    <a href="#s-spec">규격</a>
+    <a href="#s-impact">시스템 영향</a>
+    <a href="#s-fn">각주</a>
+  </div>
+</nav>
+
+<div class="col">
+
+<!-- ═════════ 01 방향 ═════════ -->
+<section class="sec" id="s-dir">
+  <div class="rule"><span class="no">01</span><h2>방향</h2></div>
+  <p class="intro">녹음 33건 25.2시간을 쓰는 동안 사람이 확인 처리한 검수 이슈는 0건이었고, 앱에는 이슈를 확인 처리하는 경로도 없다.<sup class="fn" id="fnr-5"><a href="#fn-5" data-fn="5">5</a></sup> 녹음 제목은 바꿀 수 없어 나중에 무슨 녹음인지 알 수 없었고, 설정에는 퇴역한 pyannote가 기본으로 남아 있으며, AI 교정 6회 중 3회는 원인 기록 없이 실패했다.<sup class="fn" id="fnr-6"><a href="#fn-6" data-fn="6">6</a></sup> 이 유닛은 결정 기록의 묶음 1을 화면·데이터·문구로 옮긴다.<sup class="fn" id="fnr-7"><a href="#fn-7" data-fn="7">7</a></sup></p>
+
+  <h4>요구사항</h4>
+  <ol>
+    <li><b>R1</b> (T1-1) 문단의 «주의» 표시를 걷는다. 원 이슈는 구간 정보에서만 연다. 녹음 중단과 화자 미배정 표시는 남긴다.</li>
+    <li><b>R2</b> (T1-2) Markdown의 문단별 <code>&gt; 검수: …</code> 줄을 걷고, 머리말에 자동 경고 생략 사실을 한 줄로 적는다.</li>
+    <li><b>R3</b> (T1-3) <code>reviewIssues</code>의 생성과 보존은 그대로 두고, 계약에 두 번째 읽기 레이어 예외로 적는다.</li>
+    <li><b>R4</b> (T3-1·2) 녹음에 표시 제목을 붙인다. 녹음이 끝나 원본이 저장된 뒤 제목 입력창을 띄우고, Speech 상세에서도 고친다.</li>
+    <li><b>R5</b> (T3-3·4) 녹음 제목과 연결 스크립트 제목은 하나다. 어느 쪽을 고쳐도 같이 바뀐다.</li>
+    <li><b>R6</b> (T4-1) AI 교정이 실패하면 원문 없이 실패 분류를 남기고, 성공한 청크를 쌓아 두었다가 «이어서 교정»으로 남은 청크만 보낸다.</li>
+    <li><b>R7</b> (T4-2) 숫자·단위·부정·조건을 바꾸는 교정은 자동 반영하지 않고 «확인 필요»로 둔다.</li>
+    <li><b>R8</b> (T5-1) API 키 화면은 Soniox만 보인다. 키체인에 pyannote 키가 있을 때만 «pyannote 키 삭제»를 보인다.</li>
+    <li><b>R9</b> (T5-2) 월 비용 화면은 pyannote 3항목을 «퇴역 서비스(기록용)»로 접고, 합계를 Soniox 사용액 + AI CLI 구독료 + 기타로 바꾼다.</li>
+    <li><b>R10</b> (T2a-5, D-02로 당김) 녹음·스크립트 제목은 Enter 또는 입력칸 이탈 때만 저장한다.</li>
+  </ol>
+
+  <h4>원칙</h4>
+  <ol>
+    <li>숨기는 것은 화면과 Markdown의 표시뿐이다. 이슈 데이터·평가 JSON·원문·시간·화자 ID는 그대로 둔다(최상위 경계 4).</li>
+    <li>숨기는 이유는 양이다. 문장이 자연스러워 보여서 숨기는 것이 아니므로, Markdown을 받는 쪽에 «자동 경고를 생략했다»는 사실과 건수를 남긴다(제품 정의의 E1/E2 원칙).</li>
+    <li>녹음과 원본 저장이 제목 입력보다 먼저다. 입력창은 저장이 끝난 뒤에만 뜨고 녹음을 막지 않는다(최상위 경계 1).</li>
+    <li>교정 실패 기록에는 원문·stderr 내용·프롬프트를 남기지 않는다(함정 7).</li>
+    <li>자동 재호출은 없다. 이어서 교정은 사용자가 누르고 확인창을 거친다(함정 2의 정신 · 현행 교정 계약).</li>
+  </ol>
+
+  <h4>반론과 실패 경로</h4>
+  <ul>
+    <li>자동 경고를 숨기면 실제 화자 귀속 오류가 있는 구간도 표시 없이 읽힌다. 화자 직결 경고 504건/시간 중 두 모델이 실제로 충돌한 몫은 22%이고, 이 몫도 함께 숨는다.<sup class="fn" id="fnr-8"><a href="#fn-8" data-fn="8">8</a></sup> 이를 대신할 AI 화자 의심 목록(T4-6)은 묶음 3이라, 이 유닛 출하부터 묶음 3까지는 화면에 화자 의심 신호가 없다.</li>
+    <li>머리말의 «사람이 원음으로 검수하지 않음»은 앱에 남은 기록 기준이다. 사용자가 앱 밖에서 원음을 들었는지는 앱이 모른다.</li>
+    <li>Markdown에서 문단별 경고를 빼는 것은 INV-10(«내보내기는 불확실 marker를 삭제하지 않는다»)과 맞닿는다. INV-10의 대상은 JSON/TXT이고 Markdown 본문은 2026-09-13 missingSpeech 숨김 선례가 있으며, 평가 JSON에는 이슈 전부가 남는다.<sup class="fn" id="fnr-9"><a href="#fn-9" data-fn="9">9</a></sup></li>
+    <li>스크립트 파일 안 <code>title</code>은 고쳐 쓰지 않으므로(D-01), <code>.dama.json</code>을 앱 밖에서 여는 도구는 만들 때의 제목을 본다.</li>
+    <li>의미 보호 표식은 글자 대조라 «전면 → 전반»처럼 무관한 변경도 보류하고(오탐), «하나 → 둘» 같은 고유어 수사는 못 잡는다(누락). 현 Scripts의 완료 교정 3건, 반영 변경 140건에 새 규칙을 대 보면 보류가 0건이라 이 표본에서는 비용도 효과도 드러나지 않는다.<sup class="fn" id="fnr-10"><a href="#fn-10" data-fn="10">10</a></sup></li>
+    <li>실패 분류 중 인증·네트워크·설정은 Codex CLI의 실제 오류 문구로 판정하는데, 그 문구를 아직 재지 않았다. 표식이 안 맞으면 «미분류»로 떨어진다.</li>
+    <li>이어서 교정은 실패 뒤 문단을 하나라도 고치면 쓸 수 없다. 청크 계획이 바뀌기 때문이다.</li>
+  </ul>
+  <p class="note">비범위: 별도 조사 I-01(0길이 토큰)·I-02(중복 계상), T2a 저장 정리(제목 저장 시점 T2a-5만 이 유닛에 포함), T2b Drive 이전, T5-3 교정 공급자 선택(묶음 3), T4-3–T4-7, AI 화자 의심 목록, Dock·Cmd+Tab 실기기 QA, 기존 녹음 제목의 일괄 이관, 쓰지 않는 <code>ReviewShell</code>·<code>RecordingPanel</code> 정리.</p>
+</section>
+
+<!-- ═════════ 02 정책 ═════════ -->
+<section class="sec" id="s-policy">
+  <div class="rule"><span class="no">02</span><h2>정책</h2></div>
+
+  <h3>02-1 검수 이슈 표시 (T1)</h3>
+  <div class="twrap"><table>
+    <tr><th>대상</th><th>읽기 화면 문단</th><th>구간 정보</th><th>Markdown</th><th>데이터</th></tr>
+    <tr><td><b>자동 경고 8종</b><ul><li><code>ambiguous_speaker</code></li><li><code>overlapping_speech</code></li><li><code>missing_speech</code></li><li><code>boundary_conflict</code></li><li><code>unrepresented_speaker</code></li><li><code>invalid_timestamp</code></li><li><code>low_confidence</code></li><li><code>provider_disagreement</code></li></ul></td><td>표시 없음</td><td>«자동 경고 N건» 접힘 안에 종류별 문구와 건수</td><td>문단 줄 없음. 머리말 «검수» 줄에 총수와 종류별 건수</td><td>생성·보존 현행</td></tr>
+    <tr><td><code>capture_interrupted</code></td><td>그 문단 아래 경고 줄 (항상)</td><td>맨 위 경고 줄</td><td>머리말 «녹음 중단» 줄과 그 문단 아래 1줄</td><td>현행</td></tr>
+    <tr><td><code>partial_result</code></td><td>그 문단 아래 경고 줄 (항상)</td><td>맨 위 경고 줄</td><td>머리말 «일부 결과» 줄과 그 문단 아래 1줄</td><td>현행</td></tr>
+    <tr><td>화자 미배정 (<code>speakerId</code> null)</td><td>이름 자리 «화자 미배정» (현행)</td><td>현행</td><td>이름 «화자 미확정» (현행)</td><td>null 유지</td></tr>
+  </table></div>
+  <p class="note">현 데이터의 종류별 건수: boundary_conflict 14,803 · overlapping_speech 14,426 · invalid_timestamp 9,716 · provider_disagreement 4,002 · missing_speech 3,974 · unrepresented_speaker 3,655 · ambiguous_speaker 3,645 · capture_interrupted 3 (Script 3개) · partial_result 0 · low_confidence 0.<sup class="fn" id="fnr-11"><a href="#fn-11" data-fn="11">11</a></sup></p>
+
+  <h4>규칙</h4>
+  <ol>
+    <li>화면의 대상은 각 문단의 <code>block.issues</code> 중 상태 open이다. acknowledged·resolved는 화면에 안 보이고 데이터에 남는다(현 데이터 0건).</li>
+    <li>구간 정보의 «자동 경고 N건»은 기본 닫힘이다. 종류는 건수 내림차순, 같으면 종류 이름 오름차순으로 놓고, 0건인 종류는 뺀다. 자동 경고가 0건인 문단은 이 줄 자체가 없다.</li>
+    <li>구간 정보는 하단 도구막대의 «정보»로 연다. «주의» 버튼이 하던 열기 경로는 없어진다.</li>
+    <li>녹음 중단·일부 결과 줄은 그 이슈가 붙은 문단 아래에 뜬다. 시간·단어 참조가 없는 이슈가 붙는 문단은 현행 규칙(시간상 대응 문단, 녹음 끝 중단은 마지막 문단)을 따른다.<sup class="fn" id="fnr-12"><a href="#fn-12" data-fn="12">12</a></sup> 사용자가 그 문단을 삭제하면 화면에서도 함께 빠지고, Markdown 머리말에는 남는다.</li>
+    <li>Markdown 머리말의 «검수» 줄은 기존 줄 자리(<code>- 검수: …</code>)를 바꾼다.<sup class="fn" id="fnr-13"><a href="#fn-13" data-fn="13">13</a></sup>
+      <ul>
+        <li>원음 확인 기록(<code>reviewRecords</code> 중 <code>audioChecked</code>)이 0건이면 사용자 문장을 그대로 쓴다. 현 데이터는 38개 모두 0건이다.<sup class="fn" id="fnr-14"><a href="#fn-14" data-fn="14">14</a></sup></li>
+        <li>1건 이상이면 기존 요약(<code>reviewSummary</code>) 뒤에 생략 문장을 붙인다.</li>
+        <li>총수는 <code>transcript.reviewIssues</code> 중 자동 경고 8종 전부다. 상태와 삭제 문단 여부를 따지지 않는다.</li>
+        <li>종류별 건수는 화면과 같은 순서로, 천 단위 쉼표를 쓴다.</li>
+      </ul>
+    </li>
+    <li>읽기 정책 <code>reading-v8</code>, <code>blocks()</code>, <code>ScriptReviewEvent</code>, 편집·교정·평가 JSON은 바뀌지 않는다. 바뀌는 것은 표시와 Markdown 형식이다.</li>
+    <li>구간 정보의 경고 문구는 <code>ssot/tone/uiux-reading.md</code> «원문 해석에 필요한 경고» 확정본으로 맞춘다. 지금 코드는 그보다 앞선 <code>review-workspace.md</code> 문구를 쓴다.<sup class="fn" id="fnr-15"><a href="#fn-15" data-fn="15">15</a></sup> <code>issueLabel</code>은 쓰지 않는 <code>ReviewShell</code>·<code>EvidencePanel</code>과 공유하므로 그쪽 문구도 같이 바뀐다.</li>
+  </ol>
+
+  <h3>02-2 녹음 제목 (T3)</h3>
+  <h4>데이터</h4>
+  <p>인덱스 항목 <code>LibrarySpeech</code>에 선택 필드 <code>displayTitle: String?</code>를 더한다. 없는 항목은 nil로 읽는다. 녹음 파일 이름·<code>capture-manifest.json</code>·기존 <code>title</code>은 건드리지 않는다.<sup class="fn" id="fnr-16"><a href="#fn-16" data-fn="16">16</a></sup></p>
+  <h4>해석</h4>
+  <ol>
+    <li><b>녹음 제목</b> = <code>displayTitle</code>, 없으면 기존 <code>title</code>(자동 제목 또는 가져온 파일 이름).<sup class="fn" id="fnr-17"><a href="#fn-17" data-fn="17">17</a></sup></li>
+    <li><b>연결</b> = 인덱스 항목 <code>id</code>가 스크립트의 <code>transcript.sessionId</code>와 같다. Speech 파일이 휴지통에 가 있어도 인덱스 항목이 있으면 연결이다.<sup class="fn" id="fnr-18"><a href="#fn-18" data-fn="18">18</a></sup></li>
+    <li><b>스크립트 제목</b> = 연결 녹음의 <code>displayTitle</code>, 없으면 스크립트 파일의 <code>title</code>. 연결 녹음이 있어도 <code>displayTitle</code>이 없으면 파일 제목을 쓴다(이미 고친 스크립트 제목을 잃지 않기 위해).</li>
+    <li>AI 버전 보기(읽기 전용)는 그 버전 파일에 저장된 당시 제목을 그대로 보인다(현행).</li>
+  </ol>
+  <h4>고치는 곳과 쓰는 곳</h4>
+  <div class="twrap"><table>
+    <tr><th>고치는 곳</th><th>쓰는 곳</th></tr>
+    <tr><td>녹음 직후 입력창</td><td>인덱스 <code>displayTitle</code></td></tr>
+    <tr><td>Speech 상세 제목칸</td><td>인덱스 <code>displayTitle</code></td></tr>
+    <tr><td>스크립트 제목칸 (연결 있음)</td><td>인덱스 <code>displayTitle</code>. 스크립트 파일은 쓰지 않는다</td></tr>
+    <tr><td>스크립트 제목칸 (연결 없음)</td><td>스크립트 파일 <code>title</code> (현행 <code>saveTitle</code>)</td></tr>
+    <tr><td>AI 버전 보기</td><td>편집 불가 (현행)</td></tr>
+  </table></div>
+  <h4>같은 제목을 쓰는 자리</h4>
+  <ul>
+    <li>Speech 목록·상세 머리.<sup class="fn" id="fnr-19"><a href="#fn-19" data-fn="19">19</a></sup></li>
+    <li>Script 목록·읽기 화면 제목칸.<sup class="fn" id="fnr-20"><a href="#fn-20" data-fn="20">20</a></sup></li>
+    <li>AI 검수/보정 창 머리, Speech·Script 삭제 확인창.<sup class="fn" id="fnr-21"><a href="#fn-21" data-fn="21">21</a></sup></li>
+    <li>변환·재전사 확인창의 첫 줄(지금은 manifest 제목).<sup class="fn" id="fnr-22"><a href="#fn-22" data-fn="22">22</a></sup></li>
+    <li>Markdown <code># 제목</code>과 내보내기 파일 이름.<sup class="fn" id="fnr-23"><a href="#fn-23" data-fn="23">23</a></sup></li>
+    <li>새 스크립트를 만들 때 파일에 넣는 <code>title</code>.<sup class="fn" id="fnr-24"><a href="#fn-24" data-fn="24">24</a></sup></li>
+  </ul>
+  <span class="then">평가 JSON의 <code>script.title</code>은 파일 기록 그대로 둔다(원 기록 계약).</span>
+
+  <h4>저장 시점 (T2a-5)</h4>
+  <ol>
+    <li>저장 계기는 Enter, 입력칸 이탈(포커스 이동), 입력창의 «저장» 셋이다. 0.5초 자동 저장은 없다.</li>
+    <li>한글 조합 중에는 저장하지 않는다(현행 조합 검사).</li>
+    <li>Esc는 마지막 저장값으로 되돌린다.</li>
+    <li>빈값·공백뿐이면 저장하지 않고 «제목을 입력해 주세요.»를 보이며 입력을 유지한다. 저장 값은 입력 그대로다(앞뒤 공백도 현행처럼 다듬지 않는다).</li>
+    <li>입력이 저장값과 다르거나 저장 중이면 다른 Speech·Script로 옮기지 않는다(현행 <code>titlePending</code>·<code>canLeave</code>).<sup class="fn" id="fnr-25"><a href="#fn-25" data-fn="25">25</a></sup></li>
+  </ol>
+
+  <h4>녹음 직후 입력창</h4>
+  <div class="twrap"><table>
+    <tr><th>상태</th><th>조건</th><th>표시</th><th>다음</th></tr>
+    <tr><td>기다림</td><td>마이크 녹음이 saved 또는 interrupted로 끝남</td><td>없음</td><td>Speeches 저장 뒤 목록 새로고침에서 그 녹음의 인덱스 항목을 확인하면 «표시» 또는 «줄 섬»</td></tr>
+    <tr><td>건너뜀</td><td><ul><li>Speeches 폴더 미선택</li><li>Speeches 저장 실패</li><li>파일 가져오기</li><li>«내부에 보존된 녹음을 Speeches에 저장»</li></ul></td><td>없음 (기존 안내 문구만)</td><td>자동 제목 유지</td></tr>
+    <tr><td>표시</td><td>다른 녹음의 입력창이 열려 있지 않음</td><td>입력창 (S3)</td><td>저장 또는 나중에</td></tr>
+    <tr><td>줄 섬</td><td>다른 녹음의 입력창이 열려 있음</td><td>없음</td><td>앞 창이 닫히면 표시. 먼저 끝난 녹음부터</td></tr>
+    <tr><td>저장 중</td><td>«저장» 또는 Enter</td><td>입력칸·버튼 비활성</td><td>성공이면 닫힘. 실패면 오류 문구, 입력 유지</td></tr>
+    <tr><td>닫힘</td><td>«나중에», Esc, 창 닫기</td><td>없음</td><td>쓰기 없음, 자동 제목 유지</td></tr>
+  </table></div>
+  <ol>
+    <li>입력창은 다른 창 위에 뜨는 작은 패널(<code>NSPanel</code>)이다. 열려 있어도 메뉴바 녹음 토글과 새 녹음은 그대로 동작한다.</li>
+    <li>패널이므로 Dock·Cmd+Tab 노출 계산에 들어가지 않는다(현행 규칙).<sup class="fn" id="fnr-26"><a href="#fn-26" data-fn="26">26</a></sup></li>
+    <li>앱을 끝내면 열린 입력창은 저장 없이 닫힌다. 줄 선 입력창도 버린다.</li>
+    <li>입력창이 뜨는 계기는 인덱스 항목 확인이다. Speeches 저장이 몇 초 걸려도 녹음 저장 자체는 이미 끝난 상태다.<sup class="fn" id="fnr-27"><a href="#fn-27" data-fn="27">27</a></sup></li>
+  </ol>
+
+  <h4>기존 데이터</h4>
+  <p>자동으로 합치지 않는다. 연결된 녹음 20건 중 14건은 스크립트 제목이 녹음 제목과 다르고, 10건은 같은 녹음의 스크립트끼리도 제목이 다르다.<sup class="fn" id="fnr-28"><a href="#fn-28" data-fn="28">28</a></sup> <code>displayTitle</code>이 없는 녹음은 지금처럼 보이고(녹음은 자동 제목, 스크립트는 각자 제목), 녹음이나 연결 스크립트 중 어느 쪽이든 제목을 한 번 고치면 그때부터 하나가 된다.</p>
+
+  <h3>02-3 AI 교정 실패 기록과 이어하기 (T4-1)</h3>
+  <h4>실패 분류</h4>
+  <p>위에서부터 처음 맞는 분류 하나를 남긴다.</p>
+  <div class="twrap"><table>
+    <tr><th>분류</th><th>판정</th><th>하단 짧은 표시</th></tr>
+    <tr><td>취소</td><td>사용자가 «보정 취소»</td><td>취소함</td></tr>
+    <tr><td>실행 불가</td><td>실행 파일 없음, 실행 권한 없음, 프로세스 시작 실패</td><td>실행 불가</td></tr>
+    <tr><td>시간 초과</td><td>한 청크가 300초 안에 안 끝남 (앱이 잰다)</td><td>시간 초과</td></tr>
+    <tr><td>인증</td><td>종료 코드 0 아님, stderr에 인증 표식</td><td>로그인 필요로 보임</td></tr>
+    <tr><td>네트워크</td><td>종료 코드 0 아님, stderr에 네트워크 표식</td><td>연결 문제로 보임</td></tr>
+    <tr><td>설정</td><td>종료 코드 0 아님, stderr에 설정 표식</td><td>설정 거부</td></tr>
+    <tr><td>형식</td><td><ul><li>종료 코드 0인데 결과 파일 없음·2MB 초과·해석 실패·새 필드 누락</li><li>응답 검증(<code>ContextCorrection.validated</code>) 실패</li></ul></td><td>응답 형식 불일치</td></tr>
+    <tr><td>미분류</td><td>나머지 (표식 없는 비정상 종료, 신호로 종료)</td><td>원인 미분류 (종료 코드 N)</td></tr>
+  </table></div>
+  <p class="note">결정 기록의 5종(인증·설정·네트워크·시간 초과·형식)에 셋을 더했다. 실행 불가와 취소는 현행 오류 종류에 이미 있고(<code>unavailable</code>, 취소), 표식이 안 맞는 실패를 다른 분류로 억지로 넣지 않으려고 미분류를 둔다.<sup class="fn" id="fnr-29"><a href="#fn-29" data-fn="29">29</a></sup></p>
+
+  <h4>기록하는 것</h4>
+  <ul>
+    <li>청크 번호(저장 0부터, 표시 1부터)와 전체 청크 수</li>
+    <li>분류</li>
+    <li>종료 코드 (없으면 null: 시간 초과·실행 불가·취소)</li>
+    <li>청크 시작부터 실패 판정까지 경과 ms</li>
+    <li>stderr 바이트 수</li>
+    <li>시각</li>
+  </ul>
+  <span class="then">원문, 교정 입력, stderr·stdout 내용은 어디에도 남기지 않는다.</span>
+
+  <h4>stderr 처리</h4>
+  <ol>
+    <li>지금은 stdout·stderr를 둘 다 버린다.<sup class="fn" id="fnr-30"><a href="#fn-30" data-fn="30">30</a></sup> stdout은 계속 버린다.</li>
+    <li>stderr는 파이프로 끝까지 읽어 바이트 수를 세고, 앞 64 KiB만 메모리에 두고 표식을 대조한 뒤 버린다. 파일·로그·화면에 내용을 쓰지 않는다.</li>
+    <li>인증·네트워크·설정 표식 문자열은 /plan에서 설치된 Codex CLI 0.166.0의 실제 오류 출력으로 정한다. 재현 방법은 사용자 데이터를 보내지 않고 과금이 없는 것만 쓰고, 실행 전에 사용자 승인을 받는다. 재현하지 못한 분류는 표식 없이 두며, 그 실패는 «미분류»로 남는다.<sup class="fn" id="fnr-31"><a href="#fn-31" data-fn="31">31</a></sup></li>
+  </ol>
+
+  <h4>시도 기록</h4>
+  <p>진행 중이거나 끝나지 않은 교정은 스크립트 파일이 아니라 내부 저장소의 <code>CorrectionAttempts/&lt;스크립트 ID&gt;.json</code>에 둔다(<code>LibraryRevisions</code> 옆). 스크립트 파일에 청크마다 쓰면 저장마다 전체 사본이 생겨 12청크 교정 하나가 사본 12개를 만든다.<sup class="fn" id="fnr-32"><a href="#fn-32" data-fn="32">32</a></sup> 스크립트당 하나다.</p>
+  <ul>
+    <li>담는 것: 형식 버전, 스크립트 ID, 시도 ID, 엔진 문자열, 교정 입력 스냅숏(확인한 발췌 포함), 청크 계획 SHA256, 청크별 SHA256, 끝난 청크의 검증된 결과(수정·이름·이름 근거), 실패 기록(최근 20건).</li>
+    <li>쓰는 때: 시작, 청크 하나 성공할 때마다, 실패·취소 때. 원자 쓰기.</li>
+    <li>지우는 때: 모든 청크가 끝나 교정 결과를 스크립트에 저장한 직후, 그리고 사용자가 처음부터 새 교정을 시작할 때(새 시도로 바꿈).</li>
+    <li>스크립트를 휴지통으로 보내도 지우지 않는다(내부 기록을 남기는 현행 원칙). 정리는 묶음 2.</li>
+  </ul>
+  <span class="then">청크 계획 SHA256은 AI 교정 겹을 뺀 현재 스크립트로 만든 청크 목록 전체(JSON, 키 정렬)의 해시다. 사람 수정·삭제가 바뀌면 청크 내용이 바뀌어 해시가 달라진다.<sup class="fn" id="fnr-33"><a href="#fn-33" data-fn="33">33</a></sup></span>
+
+  <h4>이어서 교정</h4>
+  <p>아래를 모두 만족할 때만 «이어서 교정»을 보인다.</p>
+  <ol>
+    <li>지금 연 것이 현재 결과다(AI 버전 보기가 아님).</li>
+    <li>그 스크립트의 시도 기록이 있고 남은 청크가 1개 이상이다.</li>
+    <li>다른 교정이 돌고 있지 않다.</li>
+    <li>지금 스크립트로 다시 만든 청크 계획 SHA256이 기록과 같다.</li>
+    <li>엔진 문자열이 지금 앱의 것과 같다.</li>
+  </ol>
+  <span class="then">4·5가 안 맞으면 버튼 대신 «이어서 교정할 수 없습니다» 줄을 보인다. 시도 기록은 사용자가 새 교정을 시작할 때까지 남는다.</span>
+  <ol>
+    <li>버튼을 누르면 확인창(S8)을 띄운다. 기본 버튼은 «취소»다.</li>
+    <li>확인하면 남은 청크만 순서대로 보낸다. 입력은 기록된 스냅숏이고 다시 만들지 않는다.</li>
+    <li>청크마다 성공하면 시도 기록에 더한다. 실패하면 실패 기록을 더하고 멈춘다. 자동 재시도는 없다.</li>
+    <li>모든 청크가 끝나면 기록된 모든 청크의 결과를 합친다. 청크 사이 이름 충돌은 현행처럼 그 화자의 자동 이름을 뺀다.<sup class="fn" id="fnr-34"><a href="#fn-34" data-fn="34">34</a></sup> 그 뒤 현행 저장(<code>storeCorrection</code>: 최신 파일을 다시 읽어 AI 겹만 병합, AI 버전 기록)으로 넣고 시도 기록을 지운다.</li>
+    <li>끝난 청크가 0개면 버튼 이름은 «같은 입력으로 다시 시도»이고 동작은 같다(전체 청크를 기록된 입력으로 보냄).</li>
+    <li>새 교정을 «AI 검수/보정»에서 시작하면 기존 시도 기록을 버린다. 그때 입력 창 아래에 그 사실을 알린다.</li>
+  </ol>
+  <h4>그 밖</h4>
+  <ul>
+    <li>이전 성공 교정이 있으면 실패해도 그대로 보인다(현행). 시도 기록은 그 위에 «미완료» 줄만 더한다.</li>
+    <li>앱을 다시 켜도 시도 기록은 남고, 조건을 만족하면 «이어서 교정»이 보인다. 스크립트 파일 안 <code>running</code> 상태를 미완료로 보이는 현행 처리는 그대로다.</li>
+    <li>엔진 문자열은 <code>Codex CLI · GPT-5.6 Luna · context-correction-6</code>이다(02-4로 버전이 오른다).</li>
+  </ul>
+
+  <h3>02-4 의미 보호 (T4-2)</h3>
+  <p>교정 반영 정책 <code>context-correction-6</code>. 수정(<code>change</code>) 하나마다 아래 순서로 판정한다.<sup class="fn" id="fnr-35"><a href="#fn-35" data-fn="35">35</a></sup></p>
+  <ol>
+    <li>certain이 아니거나 미해결 인용과 겹치면 원문 유지(현행).</li>
+    <li>원문에 이 수정 하나만 적용한 결과가 원문과 형식 동등하면 반영(현행 동등 규칙, 예 <code>1 ,000억 → 1,000억</code>).</li>
+    <li>인용(<code>quote</code>)과 대체(<code>replacement</code>)의 보호 표식이 아래 4분류 중 하나라도 다르면 원문 유지. 근거 문장에 바뀐 분류를 적는다.</li>
+    <li>나머지는 반영(현행).</li>
+  </ol>
+  <div class="twrap"><table>
+    <tr><th>분류</th><th>대조하는 것</th><th>보류되는 예</th><th>통과하는 예</th></tr>
+    <tr><td>숫자</td><td>공백·쉼표를 지운 뒤 차례대로 뽑은 <code>0–9</code>, <code>십 백 천 만 억 조</code>, 숫자 사이의 <code>.</code></td><td><ul><li>삼십억 → 30억</li><li>1.5배 → 15배</li></ul></td><td>1 ,000억 → 1,000억 (2항)</td></tr>
+    <tr><td>단위</td><td>숫자 바로 뒤(공백 0–1칸)에 오는 단위 목록의 최장 일치, 대소문자 무시</td><td><ul><li>30억원 → 30억 달러</li><li>10% → 10퍼센트</li></ul></td><td>에스엠알 → SMR</td></tr>
+    <tr><td>부정</td><td><ul><li>공백을 지운 뒤 센 <code>않 없 아니 아닌 아냐 아님 말고 마세요 마라 말아 못</code>의 개수</li><li>낱말 첫머리 <code>안</code>의 개수</li><li>영어 낱말 not, no, never, ~n't</li></ul></td><td><ul><li>안 됩니다 → 됩니다</li><li>할 수 없다 → 할 수 있다</li></ul></td><td>안 되니까 → 안되니까 (2항)</td></tr>
+    <tr><td>조건</td><td><ul><li>공백을 지운 뒤 센 <code>면 거든 경우 만약 만일 조건 한해 한하여 한정 이상 이하 미만 초과 까지 부터 전제</code>의 개수</li><li>영어 낱말 if, unless</li></ul></td><td>하면 된다 → 하고 된다</td><td>측면 → 측면에서</td></tr>
+  </table></div>
+  <p class="note">단위 목록: <code>% 퍼센트 프로 원 달러 불 엔 유로 위안 배 kwh kw mwh mw gwh gw kg mg km cm mm 톤 명 개월 개 건 년 시간 분기</code>. 표식 목록은 신규 후보이며 한국어 실측 전이다. 기존 용어 대응의 보호 토큰(<code>CorrectionTerms.swift</code> <code>spellingOnly</code>)을 넓힌 것이다.<sup class="fn" id="fnr-36"><a href="#fn-36" data-fn="36">36</a></sup></p>
+  <h4>범위</h4>
+  <ul>
+    <li>새 응답 검증과 «저장된 AI 교정 반영»(사용자가 누르는 재검증) 둘 다 이 규칙을 쓴다. 재검증은 이미 현재 정책으로 다시 판정하는 동작이다.<sup class="fn" id="fnr-37"><a href="#fn-37" data-fn="37">37</a></sup></li>
+    <li>열기·과거 버전 조회만으로 저장된 판정을 바꾸지 않는다(현행).</li>
+    <li>보류된 수정은 구간 정보에서 «보류»와 근거로 보이고, 문단의 «전체 교정안 적용»으로 사람이 반영할 수 있다(현행).</li>
+    <li>잡지 못하는 것: 고유어 수사(하나·둘·셋), 낱자로 쓴 한자어 수사(일·이·삼), 숫자 없이 쓴 단위, 표식 글자를 쓰지 않는 의미 변경.</li>
+  </ul>
+
+  <h3>02-5 설정 (T5)</h3>
+  <h4>API 키</h4>
+  <ol>
+    <li>서비스 선택(Picker)을 없애고 Soniox 키 입력·저장·삭제만 둔다. 문구와 동작은 현행 그대로다.<sup class="fn" id="fnr-38"><a href="#fn-38" data-fn="38">38</a></sup></li>
+    <li>설정을 열 때와 삭제 뒤에 키체인의 pyannote 항목이 있는지만 확인한다(키 값은 읽지 않는다). 있으면 안내 줄과 «pyannote 키 삭제»를 보인다.</li>
+    <li>삭제 확인창의 기본 버튼은 «취소»다. 삭제하면 줄이 사라진다.</li>
+    <li>pyannote와 Qwen 경로는 같은 키체인 항목을 쓰므로 함께 지워진다. 두 경로 모두 새 요청을 만들지 않는다.<sup class="fn" id="fnr-39"><a href="#fn-39" data-fn="39">39</a></sup></li>
+  </ol>
+  <h4>월 비용</h4>
+  <p>주 항목: Soniox 정상 단가 사용액, AI CLI 구독료(신규), 기타 현금 비용, 실제 청구 합계, TIRO 등 실제 비교 청구액. 그 아래 «Nemotron 3 화자 분리 · 로컬 실행» 한 줄(입력칸 없음). pyannote 3항목은 «퇴역 서비스 (기록용)» 접힘 안에 두고 기본 닫힘이다. 무료 혜택 종료일·포함량·근거 칸은 현행 그대로다.</p>
+  <div class="twrap"><table>
+    <tr><th>퇴역 3항목 입력 상태</th><th>혜택 종료 후 정상 월 비용</th><th>예</th></tr>
+    <tr><td>셋 다 빈칸</td><td>Soniox 사용액 + AI CLI 구독료 + 기타. 셋 중 하나라도 빈칸이면 미측정</td><td>9.75 + 20 + 0 = 29.75</td></tr>
+    <tr><td>셋 다 입력</td><td>위 + pyannote 구독료 + max(0, pyannote 사용액 − 포함 크레딧)</td><td><ul><li>위 + 19 + max(0, 13.2 − 19) = 48.75</li><li>위 + 19 + max(0, 25 − 19) = 54.75</li></ul></td></tr>
+    <tr><td>한두 칸만 입력</td><td>미측정, 안내 문구</td><td>Soniox·AI CLI·기타 입력 + pyannote 구독료만 → 미측정</td></tr>
+  </table></div>
+  <ul>
+    <li>빈칸은 미측정이고 확인한 무료 청구만 0이다(현행 원칙).<sup class="fn" id="fnr-40"><a href="#fn-40" data-fn="40">40</a></sup></li>
+    <li><code>MonthlyOperatingCost</code>의 기존 필드와 저장된 기록은 그대로 읽고 쓴다. 선택 필드 <code>aiCLISubscriptionUSD: Double?</code>를 더하고, 검증(0 이상·유한)에 넣는다. 구 기록은 nil로 읽는다.</li>
+    <li>평가 JSON의 <code>cost</code>에 새 키가 하나 늘어난다. 기존 키는 그대로다.</li>
+    <li>예시 금액은 계산 검산용 가정값이며 실제 요금이 아니다.</li>
+  </ul>
+  <h4>교정 설정</h4>
+  <p>현행 그대로다(모델 표시, 실행 파일 경로, «Codex 실행 파일 선택…», 안내 문장). 공급자 선택(T5-3)은 T4-5와 함께 묶음 3에서 한다.</p>
+</section>
+
+<!-- ═════════ 03 화면 ═════════ -->
+<section class="sec" id="s-screen">
+  <div class="rule"><span class="no">03</span><h2>화면</h2></div>
+  <p class="intro">목업의 이름·문장은 합성 예시다. 실제 녹음·전사가 아니다. 치수는 현행 네이티브 화면을 따르고 이 유닛이 새로 정하지 않는다.</p>
+
+  <h3>S1 읽기 화면 문단</h3>
+  <div class="segrow" data-target="s1"><button class="seg on" data-st="after" type="button">변경 후</button><button class="seg" data-st="before" type="button">현행</button></div>
+  <div class="mac" id="s1">
+    <div class="tb"><i></i><i></i><i></i><b>DAMA</b></div>
+    <div class="bd" style="padding-bottom:6px">
+      <h5>투자 검토 회의</h5>
+      <div class="cap" data-st="after">녹음 제목과 같이 바뀝니다.</div>
+      <div class="cap">2026. 11. 3. 오후 2:00 · 00:41:12.000</div>
+    </div>
+    <div class="bar" style="border-bottom:1px solid var(--hair)">현재 결과<span class="sp"></span><span class="mb">다른 결과 보기</span><span class="mb">정보</span></div>
+    <div class="bd">
+      <div class="para sel">
+        <div class="top"><span class="dot"></span><span class="nm">진행자</span><span class="chipw" data-st="before">주의</span><span class="t">00:12:03.120</span></div>
+        <div class="tx">그럼 지난번에 말씀하신 일정부터 다시 보겠습니다.</div>
+      </div>
+      <div class="para">
+        <div class="top"><span class="dot"></span><span class="nm">화자 미배정</span><span class="chipw" data-st="before">주의</span><span class="t">00:12:09.880</span></div>
+        <div class="tx">네, 그 부분은</div>
+      </div>
+      <div class="para">
+        <div class="top"><span class="dot"></span><span class="nm">참석자 B</span><span class="chipw" data-st="before">주의</span><span class="t">00:40:58.200</span></div>
+        <div class="tx">다음 주에 자료를 보내 드리겠습니다.</div>
+        <div class="warnline" data-st="after">녹음이 중단되어 이후 구간이 녹음되지 않았을 수 있습니다.</div>
+      </div>
+    </div>
+  </div>
+  <dl class="spec">
+    <dt>바뀌는 것</dt><dd>이름 옆 «주의» 버튼 없음. 녹음 중단·일부 결과만 그 문단 본문 아래 경고 줄(⚠ 기호와 문장, 색만으로 구분하지 않음).</dd>
+    <dt>그대로</dt><dd>«화자 미배정» 이름, «사용자 수정», 시각, 선택 시 원음 듣기·수정·삭제 줄.</dd>
+    <dt>제목칸 캡션</dt><dd>«녹음 제목과 같이 바뀝니다.»는 연결 녹음이 있는 스크립트에만. 연결이 없으면 캡션 없음.</dd>
+  </dl>
+
+  <h3>S2 구간 정보</h3>
+  <div class="segrow" data-target="s2"><button class="seg on" data-st="closed" type="button">접힘</button><button class="seg" data-st="open" type="button">펼침</button><button class="seg" data-st="cut" type="button">녹음 중단 문단</button><button class="seg" data-st="none" type="button">경고 없는 문단</button></div>
+  <div class="mac" id="s2" style="max-width:300px">
+    <div class="tb"><i></i><i></i><i></i><b>구간 정보</b></div>
+    <div class="bd" style="font-size:12px">
+      <div style="display:flex"><b>구간 정보</b><span style="margin-left:auto" class="mb">닫기</span></div>
+      <div style="font-family:ui-monospace,Menlo,monospace;margin-top:8px">00:12:03.120 – 00:12:41.800</div>
+      <div>연결된 원구간 14개</div>
+      <div class="warnline" data-st="cut">녹음이 중단되어 이후 구간이 녹음되지 않았을 수 있습니다.</div>
+      <div class="disc" data-st="closed cut"><span style="font-weight:600">▸ 자동 경고 37건</span></div>
+      <div class="disc" data-st="open">
+        <div style="font-weight:600">▾ 자동 경고 37건</div>
+        <div class="cap" style="margin:4px 0 6px">화자 분리와 시간 정렬이 남긴 자동 판정입니다. 원음으로 확인한 결과가 아닙니다.</div>
+        <div class="k"><span>단어 시간이 화자 전환 경계에 걸쳐 있습니다.</span><span>12건</span></div>
+        <div class="k"><span>여러 화자의 음성 구간이 겹칩니다. 원음으로 확인해 주세요.</span><span>11건</span></div>
+        <div class="k"><span>시간을 확인할 수 없습니다. 원문은 보존되어 있습니다.</span><span>8건</span></div>
+        <div class="k"><span>제공자 간 화자 구분 충돌</span><span>6건</span></div>
+      </div>
+      <div class="cap" style="margin-top:10px">(아래 AI 교정·모델 원문·녹음·변환 정보는 현행)</div>
+    </div>
+  </div>
+  <dl class="spec">
+    <dt>접힘 줄</dt><dd>«자동 경고 N건». 기본 닫힘. 0건이면 줄 없음.</dd>
+    <dt>펼침</dt><dd>안내 한 줄, 종류별 «문구 · N건». 종류 순서는 §02-1 규칙 2.</dd>
+    <dt>녹음 중단·일부 결과</dt><dd>접힘 위에 항상 보이는 경고 줄.</dd>
+  </dl>
+
+  <h3>S3 녹음 직후 제목 입력창</h3>
+  <div class="segrow" data-target="s3"><button class="seg on" data-st="empty" type="button">처음</button><button class="seg" data-st="typed" type="button">입력함</button><button class="seg" data-st="fail" type="button">저장 실패</button></div>
+  <div id="s3">
+    <div class="panel">
+      <b class="h">녹음 제목</b>
+      <div class="cap">2026. 11. 5. 오후 3:12 · 00:33:30.000</div>
+      <div style="margin-top:10px" data-st="empty"><span class="fld ph">2026. 11. 5. 오후 3:12 녹음</span></div>
+      <div style="margin-top:10px" data-st="typed fail"><span class="fld">투자 검토 회의</span></div>
+      <div class="cap" style="margin-top:6px">녹음은 이미 저장했습니다. 제목은 나중에 Speeches에서도 바꿀 수 있습니다.</div>
+      <div class="err" data-st="fail">제목을 저장하지 못했습니다. 입력한 내용은 유지됩니다.</div>
+      <div class="row"><span class="mb">나중에</span><span class="mb off" data-st="empty">저장</span><span class="mb pri" data-st="typed fail">저장</span></div>
+    </div>
+  </div>
+  <dl class="spec">
+    <dt>입력칸</dt><dd>처음엔 비어 있고 자동 제목을 회색 안내 글자로 보인다. 비었거나 공백뿐이면 «저장» 비활성.</dd>
+    <dt>키</dt><dd>Enter = 저장(조합 중이 아닐 때), Esc = 나중에.</dd>
+    <dt>위치</dt><dd>다른 창 위에 뜨는 작은 패널. 화면 가운데 위쪽. 녹음 토글을 가리지 않는다.</dd>
+  </dl>
+
+  <h3>S4 Speech 상세 제목칸</h3>
+  <div class="segrow" data-target="s4"><button class="seg on" data-st="view" type="button">보기</button><button class="seg" data-st="edit" type="button">입력 중</button><button class="seg" data-st="saving" type="button">저장 중</button><button class="seg" data-st="saved" type="button">저장됨</button><button class="seg" data-st="blank" type="button">빈값</button></div>
+  <div class="mac" id="s4">
+    <div class="tb"><i></i><i></i><i></i><b>DAMA</b></div>
+    <div class="bd">
+      <div class="cap" style="margin:0 0 4px">Speeches</div>
+      <span class="fld ttl" data-st="view saved saving">투자 검토 회의</span>
+      <span class="fld ttl on" data-st="edit">투자 검토 회의 (2차)</span>
+      <span class="fld ttl on" data-st="blank">&nbsp;</span>
+      <div class="cap">2026. 11. 5. 오후 3:12 · 00:33:30.000 <span data-st="edit">· Enter를 누르면 저장합니다.</span><span data-st="saving">· 제목 저장 중…</span><span data-st="saved">· 제목 저장됨</span><span data-st="blank">· 제목을 입력해 주세요.</span></div>
+    </div>
+  </div>
+  <dl class="spec">
+    <dt>바뀌는 것</dt><dd>제목 글자(<code>Text</code>)가 같은 자리의 한 줄 입력이 된다. 스크립트 제목칸과 같은 부품(<code>InlineScriptText</code>, 제목 모드)이다. 접근성 이름 «녹음 제목».</dd>
+    <dt>상태 문구</dt><dd>날짜 줄 뒤에 붙는다. 저장 실패는 «제목을 저장하지 못했습니다. 입력한 내용은 유지됩니다.»</dd>
+  </dl>
+
+  <h3>S5 스크립트 제목칸</h3>
+  <p>S1 머리와 같다. 저장 계기와 상태 문구는 S4와 같고, 쓰는 곳은 §02-2 표를 따른다. 캡션 «녹음 제목과 같이 바뀝니다.»는 연결 녹음이 있을 때만 날짜 줄 위에 보인다.</p>
+
+  <h3>S6 설정 · API 키</h3>
+  <div class="segrow" data-target="s6"><button class="seg on" data-st="has" type="button">pyannote 키 있음</button><button class="seg" data-st="no" type="button">없음 · 삭제 뒤</button></div>
+  <div class="mac" id="s6" style="max-width:420px">
+    <div class="tb"><i></i><i></i><i></i><b>DAMA 설정</b></div>
+    <div class="bd">
+      <b>Soniox API 키</b>
+      <div style="margin-top:6px"><span class="fld ph">API 키</span></div>
+      <div class="cap">입력한 키는 이 Mac의 키체인에 저장합니다. 저장만으로 연결 확인이나 음성 전송을 하지 않습니다.</div>
+      <div style="display:flex;gap:8px;margin-top:8px"><span class="mb off">키 저장</span><span class="mb">키 삭제</span></div>
+      <div data-st="has" style="margin-top:12px;padding-top:10px;border-top:1px solid var(--hair)">
+        <div class="cap" style="color:var(--ink-2)">저장된 pyannote API 키가 있습니다. pyannote는 더 이상 사용하지 않습니다.</div>
+        <div style="margin-top:6px"><span class="mb">pyannote 키 삭제</span></div>
+      </div>
+      <div data-st="no" class="cap" style="margin-top:10px">(pyannote 줄 없음 · 삭제 직후에는 «pyannote 키 삭제됨»)</div>
+    </div>
+  </div>
+  <dl class="spec">
+    <dt>없어지는 것</dt><dd>«API 키 서비스» 선택.</dd>
+    <dt>확인창</dt><dd>«이 Mac의 pyannote API 키를 삭제할까요?» · «pyannote는 더 이상 사용하지 않습니다. 녹음 원본·스크립트·이미 만든 pyannote 결과는 유지됩니다.» · 취소 / 키 삭제.</dd>
+  </dl>
+
+  <h3>S7 설정 · 월 비용</h3>
+  <div class="segrow" data-target="s7"><button class="seg on" data-st="fold" type="button">접힘</button><button class="seg" data-st="unfold" type="button">퇴역 서비스 펼침</button><button class="seg" data-st="partial" type="button">퇴역 일부만 입력</button></div>
+  <div class="mac" id="s7" style="max-width:540px">
+    <div class="tb"><i></i><i></i><i></i><b>월 비용·무료 혜택 기록</b></div>
+    <div class="bd">
+      <div class="cap" style="margin:0 0 8px">USD · 계정 대시보드/청구서 기준 수동 입력. 빈칸은 미측정이며, 확인한 무료 청구액만 0으로 입력하세요.</div>
+      <div class="kvr"><span>대상 월 (YYYY-MM)</span><span class="fld">2026-11</span></div>
+      <div class="kvr"><span>Soniox 정상 단가 사용액</span><span class="fld">9.75</span></div>
+      <div class="kvr"><span>AI CLI 구독료</span><span class="fld">20</span></div>
+      <div class="kvr"><span>기타 현금 비용</span><span class="fld">0</span></div>
+      <div class="kvr"><span>실제 청구 합계</span><span class="fld ph">미입력</span></div>
+      <div class="kvr"><span>TIRO 등 실제 비교 청구액</span><span class="fld ph">미입력</span></div>
+      <div class="cap" style="margin-top:6px">Nemotron 3 화자 분리 · 로컬 실행</div>
+      <div class="disc" data-st="fold"><span style="font-weight:600">▸ 퇴역 서비스 (기록용) · pyannote</span></div>
+      <div class="disc" data-st="unfold partial">
+        <div style="font-weight:600">▾ 퇴역 서비스 (기록용) · pyannote</div>
+        <div class="kvr"><span>pyannote 정상 월 구독료</span><span class="fld" data-st="unfold">19</span><span class="fld" data-st="partial">19</span></div>
+        <div class="kvr"><span>pyannote 포함 크레딧</span><span class="fld" data-st="unfold">19</span><span class="fld ph" data-st="partial">미입력</span></div>
+        <div class="kvr"><span>pyannote 정상 단가 사용액</span><span class="fld" data-st="unfold">13.2</span><span class="fld ph" data-st="partial">미입력</span></div>
+      </div>
+      <div class="cap" style="margin-top:8px">정상 월 비용 = Soniox 사용액 + AI CLI 구독료 + 기타 비용<span data-st="unfold partial"> + pyannote 구독료 + max(0, pyannote 사용액 − 포함 크레딧)</span></div>
+      <div style="font-weight:600;margin-top:4px" data-st="fold">혜택 종료 후 정상 월 비용: $29.75</div>
+      <div style="font-weight:600;margin-top:4px" data-st="unfold">혜택 종료 후 정상 월 비용: $48.75</div>
+      <div data-st="partial"><div style="font-weight:600;margin-top:4px">혜택 종료 후 정상 월 비용: 미측정</div><div class="cap">pyannote 항목은 세 칸을 모두 입력해야 합계에 넣습니다.</div></div>
+      <div class="cap" style="margin-top:8px">(무료 혜택 종료일·포함량·근거 칸, 안내 문장, 취소·비용 기록 저장은 현행)</div>
+    </div>
+  </div>
+
+  <h3>S8 AI 교정 실패와 이어하기</h3>
+  <div class="segrow" data-target="s8"><button class="seg on" data-st="run" type="button">실행 중</button><button class="seg" data-st="fail" type="button">미완료 · 이어하기 가능</button><button class="seg" data-st="zero" type="button">첫 청크 실패</button><button class="seg" data-st="moved" type="button">스크립트 바뀜</button><button class="seg" data-st="confirm" type="button">확인창</button></div>
+  <div id="s8">
+    <div class="mac" data-st="run fail zero moved">
+      <div class="bar">
+        <span>⌃</span><span>⌄</span><span class="mb">원음 듣기</span><span class="sp"></span>
+        <span data-st="run">◌ AI 보정 중… 5/12</span><span class="mb" data-st="run">보정 취소</span>
+        <span data-st="fail">AI 보정 미완료 · 4/12 구간 완료 · 시간 초과</span><span class="mb" data-st="fail">이어서 교정 (4/12)</span>
+        <span data-st="zero">AI 보정 미완료 · 0/12 구간 완료 · 로그인 필요로 보임</span><span class="mb" data-st="zero">같은 입력으로 다시 시도</span>
+        <span data-st="moved" style="max-width:380px">스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.</span>
+        <span class="mb" data-st="fail zero moved">✦ AI 검수/보정</span>
+      </div>
+    </div>
+    <div class="panel" data-st="confirm" style="width:440px">
+      <b class="h">이어서 교정할까요?</b>
+      <div style="margin-top:8px;color:var(--ink-2)">완료한 4개 구간은 다시 보내지 않습니다. 남은 8개 구간의 전사와 처음 확인한 참석자·맥락·참고 내용을 OpenAI로 전송합니다. 계정 사용량이 소모될 수 있습니다. 원음은 보내지 않습니다.</div>
+      <div class="row"><span class="mb pri">취소</span><span class="mb">이어서 교정</span></div>
+    </div>
+  </div>
+  <dl class="spec">
+    <dt>미완료 줄</dt><dd>«AI 보정 미완료 · k/n 구간 완료 · 짧은 원인». 짧은 원인은 §02-3 표. 실패 순간에는 화면 위 안내 띠에 분류별 문장(§04)이 함께 뜬다(현행 안내 띠).</dd>
+    <dt>확인창</dt><dd>기본 버튼 «취소»(강조). 0개 완료면 제목 «같은 입력으로 다시 시도할까요?», 첫 문장 «처음 확인한 입력으로 12개 구간 전부를 다시 보냅니다.».</dd>
+    <dt>AI 검수/보정 창</dt><dd>시도 기록이 있으면 전송 고지 위에 «미완료 교정(4/12)은 버리고 처음부터 다시 보정합니다.» 한 줄.</dd>
+  </dl>
+
+  <h3>S9 Markdown</h3>
+  <div class="segrow" data-target="s9"><button class="seg on" data-st="after" type="button">변경 후</button><button class="seg" data-st="before" type="button">현행</button></div>
+  <div id="s9">
+<pre class="mdx" data-st="after">## 녹음 정보
+
+- 결과: 현재 결과 · revision …
+- 결합/정규화: soniox-nemotron-word-v3
+<b>- 검수: 자동 화자 분리 결과이며 사람이 원음으로 검수하지 않음. 자동 경고 5,312건(화자 경계 걸침 1,402, 겹침 1,388, 시간 불명 900, 제공자 화자 불일치 610, 누락 의심 402, 본문에 없는 화자 330, 화자 미확정 280)은 생략</b>
+<b>- 녹음 중단: 녹음이 중단되어 이후 구간이 녹음되지 않았을 수 있습니다.</b>
+- 화자 수: …
+
+## 스크립트
+
+### [00:12:03.120 – 00:12:08.900] 진행자
+
+그럼 지난번에 말씀하신 일정부터 다시 보겠습니다\.
+
+### [00:40:58.200 – 00:41:02.000] 참석자 B
+
+다음 주에 자료를 보내 드리겠습니다\.
+
+<b>&gt; 녹음 중단: 녹음이 중단되어 이후 구간이 녹음되지 않았을 수 있습니다.</b></pre>
+<pre class="mdx" data-st="before">## 녹음 정보
+
+- 결과: 현재 결과 · revision …
+- 결합/정규화: soniox-nemotron-word-v3
+- 검수: 검수 기록 0건 · 원음 확인 0건 · 수정 시간 미측정
+- 화자 수: …
+
+## 스크립트
+
+### [00:12:03.120 – 00:12:08.900] 진행자
+
+그럼 지난번에 말씀하신 일정부터 다시 보겠습니다\.
+
+&gt; 검수: boundary\_conflict
+
+&gt; 검수: overlapping\_speech
+
+&gt; 검수: boundary\_conflict
+
+### [00:40:58.200 – 00:41:02.000] 참석자 B
+
+다음 주에 자료를 보내 드리겠습니다\.
+
+&gt; 검수: capture\_interrupted</pre>
+  </div>
+  <p class="sx">머리말 숫자는 형식을 보이는 합성 값이다. 사람 수정·AI 교정 줄(«사용자 수정 발화…», «&gt; AI …»)은 현행 그대로 남는다.</p>
+</section>
+
+<!-- ═════════ 04 규격 ═════════ -->
+<section class="sec" id="s-spec">
+  <div class="rule"><span class="no">04</span><h2>규격</h2></div>
+
+  <h3>문구 (신규 · 변경 · 재배치)</h3>
+  <p class="intro">«유지»는 확정 문구를 다른 자리에서 그대로 쓰는 것이다. 검수 이슈 6종의 이 유닛 표기는 아래 줄 1–3이고, <code>result_expired</code>는 이 유닛 화면에 뜨지 않으며 확정 문구 «서버 결과를 가져오지 못했습니다. 원본은 보존되어 있습니다.»를 그대로 둔다.</p>
+  <div class="twrap"><table>
+    <tr><th>#</th><th>자리</th><th>문구</th><th>구분</th></tr>
+    <tr><td class="num">1</td><td>구간 정보·문단 아래 경고 줄</td><td><ul><li>녹음이 중단되어 이후 구간이 녹음되지 않았을 수 있습니다.</li><li>일부 전사 결과를 받지 못했습니다.</li></ul></td><td>유지 (uiux-reading · review-workspace)</td></tr>
+    <tr><td class="num">2</td><td>구간 정보 종류 문구 (uiux-reading 확정본으로 맞춤)</td><td><ul><li>ambiguous_speaker: 화자가 미확정이거나 후보가 비슷합니다.</li><li>overlapping_speech: 여러 화자의 음성 구간이 겹칩니다. 원음으로 확인해 주세요.</li><li>missing_speech: [음성 감지 / 전사 누락 의심]</li><li>boundary_conflict: 단어 시간이 화자 전환 경계에 걸쳐 있습니다.</li></ul></td><td>변경 (코드 → 확정본)</td></tr>
+    <tr><td class="num">3</td><td>구간 정보 종류 문구 (현행 유지)</td><td><ul><li>unrepresented_speaker: 음성에서 감지된 화자가 스크립트에 나타나지 않습니다.</li><li>invalid_timestamp: 시간을 확인할 수 없습니다. 원문은 보존되어 있습니다.</li><li>low_confidence: 공급자 화자 점수가 낮아 확인이 필요합니다.</li><li>provider_disagreement: 제공자 간 화자 구분 충돌</li></ul></td><td>유지</td></tr>
+    <tr><td class="num">4</td><td>구간 정보 접힘 제목</td><td>자동 경고 {N}건</td><td>신규</td></tr>
+    <tr><td class="num">5</td><td>구간 정보 접힘 안내</td><td>화자 분리와 시간 정렬이 남긴 자동 판정입니다. 원음으로 확인한 결과가 아닙니다.</td><td>신규</td></tr>
+    <tr><td class="num">6</td><td>구간 정보 종류 행</td><td>{종류 문구} · {N}건</td><td>신규</td></tr>
+    <tr><td class="num">7</td><td>Markdown 머리말 검수 줄</td><td><ul><li>원음 확인 0건: <code>- 검수: 자동 화자 분리 결과이며 사람이 원음으로 검수하지 않음. 자동 경고 {N}건({이름} {n}, …)은 생략</code></li><li>자동 경고 0건: <code>- 검수: 자동 화자 분리 결과이며 사람이 원음으로 검수하지 않음. 자동 경고 0건 (경고 없음이 정확도를 보장하지 않음)</code></li><li>원음 확인 1건 이상: <code>- 검수: {현행 요약}. 자동 경고 {N}건({이름} {n}, …)은 생략</code></li></ul></td><td>신규 (사용자 자구)</td></tr>
+    <tr><td class="num">8</td><td>Markdown 종류 짧은 이름</td><td><ul><li>boundary_conflict: 화자 경계 걸침</li><li>overlapping_speech: 겹침</li><li>invalid_timestamp: 시간 불명</li><li>provider_disagreement: 제공자 화자 불일치</li><li>missing_speech: 누락 의심</li><li>unrepresented_speaker: 본문에 없는 화자</li><li>ambiguous_speaker: 화자 미확정</li><li>low_confidence: 낮은 화자 점수</li></ul></td><td>신규</td></tr>
+    <tr><td class="num">9</td><td>Markdown 녹음 중단·일부 결과</td><td><ul><li>머리말: <code>- 녹음 중단: 녹음이 중단되어 이후 구간이 녹음되지 않았을 수 있습니다.</code></li><li>머리말: <code>- 일부 결과: 일부 전사 결과를 받지 못했습니다.</code></li><li>문단 아래: <code>&gt; 녹음 중단: …</code> / <code>&gt; 일부 결과: …</code> (같은 문장)</li></ul></td><td>신규 (문장은 유지)</td></tr>
+    <tr><td class="num">10</td><td>녹음 직후 입력창</td><td><ul><li>제목: 녹음 제목</li><li>부제: {녹음 날짜·시각} · {길이}</li><li>입력 안내 글자: {자동 제목}</li><li>안내: 녹음은 이미 저장했습니다. 제목은 나중에 Speeches에서도 바꿀 수 있습니다.</li><li>버튼: 나중에 / 저장</li></ul></td><td>신규</td></tr>
+    <tr><td class="num">11</td><td>제목 저장 상태 (녹음·스크립트 공통)</td><td><ul><li>입력 중: Enter를 누르면 저장합니다.</li><li>저장 중: 제목 저장 중…</li><li>성공: 제목 저장됨</li><li>빈값: 제목을 입력해 주세요.</li><li>실패: 제목을 저장하지 못했습니다. 입력한 내용은 유지됩니다.</li></ul></td><td><ul><li>신규 (입력 중)</li><li>변경 «자동 저장됨» → «제목 저장됨»</li><li>나머지 유지</li></ul></td></tr>
+    <tr><td class="num">12</td><td>제목칸 접근성·캡션</td><td><ul><li>Speech: 녹음 제목</li><li>스크립트: 스크립트 제목 (유지)</li><li>스크립트 캡션: 녹음 제목과 같이 바뀝니다.</li></ul></td><td>신규 · 유지</td></tr>
+    <tr><td class="num">13</td><td>교정 하단 미완료 줄</td><td>AI 보정 미완료 · {k}/{n} 구간 완료 · {짧은 원인}</td><td>신규</td></tr>
+    <tr><td class="num">14</td><td>짧은 원인</td><td><ul><li>취소함</li><li>실행 불가</li><li>시간 초과</li><li>로그인 필요로 보임</li><li>연결 문제로 보임</li><li>설정 거부</li><li>응답 형식 불일치</li><li>원인 미분류 (종료 코드 {N})</li></ul></td><td>신규</td></tr>
+    <tr><td class="num">15</td><td>교정 버튼</td><td><ul><li>이어서 교정 ({k}/{n})</li><li>같은 입력으로 다시 시도</li></ul></td><td>신규</td></tr>
+    <tr><td class="num">16</td><td>이어하기 불가</td><td>스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.</td><td>신규</td></tr>
+    <tr><td class="num">17</td><td>이어하기 확인창</td><td><ul><li>제목: 이어서 교정할까요? (0개 완료: 같은 입력으로 다시 시도할까요?)</li><li>본문: 완료한 {k}개 구간은 다시 보내지 않습니다. 남은 {m}개 구간의 전사와 처음 확인한 참석자·맥락·참고 내용을 OpenAI로 전송합니다. 계정 사용량이 소모될 수 있습니다. 원음은 보내지 않습니다.</li><li>0개 완료 본문 첫 문장: 처음 확인한 입력으로 {n}개 구간 전부를 다시 보냅니다.</li><li>버튼: 취소 / 이어서 교정 (0개 완료: 다시 시도)</li></ul></td><td>신규 (전송 고지 문장은 유지)</td></tr>
+    <tr><td class="num">18</td><td>실패 안내 띠 (분류별)</td><td><ul><li>실행 불가: Codex를 실행하지 못했습니다. 설정에서 Codex 실행 파일을 확인해 주세요. 기존 결과는 유지됩니다.</li><li>인증: Codex 로그인이 필요해 보입니다. 터미널에서 Codex에 로그인한 뒤 이어서 교정해 주세요. 기존 결과는 유지됩니다.</li><li>네트워크: 연결 문제로 보입니다. 네트워크를 확인한 뒤 이어서 교정해 주세요. 기존 결과는 유지됩니다.</li><li>설정: Codex가 실행 설정을 받아들이지 않았습니다. Codex 버전이 바뀌었을 수 있습니다. 기존 결과는 유지됩니다.</li><li>시간 초과: 한 구간이 300초 안에 끝나지 않았습니다. 이어서 교정으로 그 구간부터 다시 보낼 수 있습니다. 기존 결과는 유지됩니다.</li><li>형식: AI 응답이 요구한 형식과 맞지 않아 쓰지 않았습니다. 이어서 교정으로 그 구간부터 다시 보낼 수 있습니다. 기존 결과는 유지됩니다.</li><li>미분류: AI 보정을 완료하지 못했습니다. 종료 코드 {N}. 기존 결과는 유지됩니다.</li><li>취소: AI 보정을 취소했습니다. 기존 결과는 유지됩니다. (완료 구간이 있으면 뒤에 «완료한 구간은 이어서 교정에 남아 있습니다.»)</li></ul></td><td><ul><li>신규 6</li><li>변경: 기존 «AI 보정을 완료하지 못했습니다. … Codex 설치·로그인·앱 접근 권한 또는 연결을 확인해 주세요.»를 대체</li><li>취소 유지 + 덧붙임</li></ul></td></tr>
+    <tr><td class="num">19</td><td>AI 검수/보정 창 (시도 기록 있음)</td><td>미완료 교정({k}/{n})은 버리고 처음부터 다시 보정합니다.</td><td>신규</td></tr>
+    <tr><td class="num">20</td><td>의미 보호 보류 근거</td><td>{분류} 표현이 바뀌는 수정이라 자동 반영하지 않았습니다. 원음으로 확인해 주세요. (분류 = 숫자·단위·부정·조건 중 바뀐 것을 «·»로 이음)</td><td>신규</td></tr>
+    <tr><td class="num">21</td><td>API 키</td><td><ul><li>Soniox API 키 (유지 형식)</li><li>저장된 pyannote API 키가 있습니다. pyannote는 더 이상 사용하지 않습니다.</li><li>pyannote 키 삭제</li><li>확인창 본문: pyannote는 더 이상 사용하지 않습니다. 녹음 원본·스크립트·이미 만든 pyannote 결과는 유지됩니다.</li></ul></td><td><ul><li>유지</li><li>신규</li><li>신규</li><li>변경 (현행 «녹음 원본과 스크립트는 유지됩니다.»)</li></ul></td></tr>
+    <tr><td class="num">22</td><td>월 비용</td><td><ul><li>AI CLI 구독료</li><li>Nemotron 3 화자 분리 · 로컬 실행</li><li>퇴역 서비스 (기록용) · pyannote</li><li>정상 월 비용 = Soniox 사용액 + AI CLI 구독료 + 기타 비용 (퇴역 항목 입력 시 + pyannote 구독료 + max(0, pyannote 사용액 − 포함 크레딧))</li><li>pyannote 항목은 세 칸을 모두 입력해야 합계에 넣습니다.</li></ul></td><td><ul><li>신규</li><li>신규</li><li>신규</li><li>변경</li><li>신규</li></ul></td></tr>
+  </table></div>
+
+  <h3>값</h3>
+  <div class="twrap"><table>
+    <tr><th>값</th><th>내용</th><th>등급</th></tr>
+    <tr><td>청크 시간 제한</td><td>300초 (현행)</td><td>계약의 초기 자원 한도 · 실측 아님<sup class="fn" id="fnr-41"><a href="#fn-41" data-fn="41">41</a></sup></td></tr>
+    <tr><td>stderr 대조 범위</td><td>앞 64 KiB (바이트 수는 전부 셈)</td><td>신규 후보</td></tr>
+    <tr><td>실패 기록 보관</td><td>시도당 최근 20건</td><td>신규 후보</td></tr>
+    <tr><td>입력창 줄 서기</td><td>먼저 끝난 녹음부터 한 번에 하나</td><td>신규</td></tr>
+    <tr><td>구간 정보 종류 순서</td><td>건수 내림차순, 같으면 종류 이름 오름차순</td><td>신규</td></tr>
+    <tr><td>의미 보호 표식 목록</td><td>§02-4 표와 단위 목록</td><td>신규 후보 · 한국어 실측 전 (자기 검증 11쌍만)</td></tr>
+    <tr><td>교정 반영 정책 버전</td><td><code>context-correction-6</code></td><td>신규</td></tr>
+  </table></div>
+
+  <h3>검산 자</h3>
+  <p class="intro">QA 판정은 GPT-6.1-sol이 한다. 키체인·마이크·설치 앱 실행이 필요한 호출은 메인이 하고 판정만 넘긴다.<sup class="fn" id="fnr-42"><a href="#fn-42" data-fn="42">42</a></sup></p>
+  <div class="twrap"><table>
+    <tr><th>#</th><th>축</th><th>자 (무엇을 세는가)</th><th>모집단</th><th>문턱</th><th>기준선 1점</th></tr>
+    <tr><td class="num">1</td><td>문단 경고 표시</td><td>읽기 화면 문단 행의 «주의» 수</td><td>합성 Script 1개(자동 경고 8종·중단·미배정) 단위 + 설치 앱의 실제 결합본 1개 화면</td><td>0</td><td>현행 = 이슈 있는 문단마다 1</td></tr>
+    <tr><td class="num">2</td><td>중단 표시 유지</td><td>경고 줄 수</td><td>합성 + 중단 이슈가 있는 실제 Script 3개 중 1개</td><td>이슈 1건당 1</td><td>현행 = «주의» 안에만</td></tr>
+    <tr><td class="num">3</td><td>구간 정보 건수</td><td>종류별 건수 합 = 그 문단 open 자동 경고 수</td><td>합성</td><td>일치</td><td>현행 = 이슈마다 한 줄</td></tr>
+    <tr><td class="num">4</td><td>Markdown 문단 줄</td><td><code>&gt; 검수:</code> 줄 수</td><td>현 Scripts 38개 전부를 임시 폴더에 내보내는 모의</td><td>0</td><td>현행 = 문단 이슈 수만큼</td></tr>
+    <tr><td class="num">5</td><td>Markdown 머리말 건수</td><td>38개 머리말 자동 경고 총수의 합</td><td>같음</td><td>54,221</td><td>2026-11-05 집계 54,224 − 중단 3</td></tr>
+    <tr><td class="num">6</td><td>Markdown 중단 줄</td><td>머리말·문단 중단 줄 수</td><td>같음</td><td>중단 Script 3개에 각각 머리말 1·문단 1, 나머지 0</td><td>2026-11-05 집계</td></tr>
+    <tr><td class="num">7</td><td>사용자 파일 불변</td><td>Scripts 38개 SHA256 전후 차이</td><td>4–6의 모의 전후</td><td>0</td><td>해당 없음 (새 동작)</td></tr>
+    <tr><td class="num">8</td><td>제목 해석</td><td>사례별 해석 제목</td><td>합성 인덱스: 연결·미연결·<code>displayTitle</code> 없음·Speech 휴지통·AI 버전 보기</td><td>§02-2 해석 규칙과 일치</td><td>해당 없음 (새 동작)</td></tr>
+    <tr><td class="num">9</td><td>제목 쓰기 범위</td><td>녹음 제목 저장 1회 전후 내부 저장소·Scripts 파일 목록과 해시</td><td>합성 저장소 단위 + 설치 앱 여정 1회</td><td><code>library-index.json</code>만 바뀜. Scripts·<code>LibraryRevisions</code> 변화 0</td><td>현행 스크립트 제목 1회 = 스크립트 파일 1 + 사본 1</td></tr>
+    <tr><td class="num">10</td><td>녹음 직후 입력창</td><td>10초 녹음 → 입력창 → 저장 → Speech·Script 목록과 Markdown 제목</td><td>설치 앱 1회 (마이크, 메인)</td><td>세 곳 일치, 녹음 저장이 입력창보다 먼저</td><td>해당 없음 (새 동작)</td></tr>
+    <tr><td class="num">11</td><td>실패 분류</td><td>가짜 CLI로 8분류를 하나씩 일으켜 기록된 분류</td><td>합성 (현행 <code>CodexCorrectionTests</code> 방식)</td><td>8/8</td><td>현행 = 분류 없음</td></tr>
+    <tr><td class="num">12</td><td>원문 미기록</td><td>가짜 CLI가 stderr에 쓴 고유 표식 문자열의 출현 수</td><td>내부 저장소·Scripts·앱 로그 전수 검색</td><td>0 (양성 대조: 기록된 stderr 바이트 수 &gt; 0)</td><td>해당 없음 (새 동작)</td></tr>
+    <tr><td class="num">13</td><td>이어하기</td><td>12청크 중 5번째에서 실패 → 이어서 교정 → 가짜 CLI 호출 수와 결과</td><td>합성</td><td>호출 5 + 8 = 13, 결과가 한 번에 끝낸 경우와 같음</td><td>현행 = 실패 시 처음부터</td></tr>
+    <tr><td class="num">14</td><td>계획 바뀜</td><td>실패 뒤 문단 1개 수정 → 이어서 버튼 유무</td><td>합성</td><td>없음, «이어서 교정할 수 없습니다» 줄</td><td>해당 없음 (새 동작)</td></tr>
+    <tr><td class="num">15</td><td>의미 보호 표식</td><td>§02-4 표의 보류 7쌍·통과 4쌍 판정</td><td>자기 검증 세트</td><td>11/11</td><td>2026-11-05 Python 모의 11/11</td></tr>
+    <tr><td class="num">16</td><td>기존 교정 영향</td><td>현 Scripts 완료 교정의 반영 변경을 새 규칙으로 다시 판정한 보류 수</td><td>완료 교정 3건, 변경 140건</td><td>문턱 없음 (보고만)</td><td>2026-11-05 모의 0/140</td></tr>
+    <tr><td class="num">17</td><td>월 비용</td><td>§02-5 표 4사례 계산값</td><td>단위</td><td>29.75 · 48.75 · 54.75 · 미측정</td><td>현행 예 28.75 (<code>ScriptEvaluationTests.swift:40</code>)</td></tr>
+    <tr><td class="num">18</td><td>pyannote 키 줄</td><td>키 있음·없음·삭제 뒤 줄 표시</td><td>설치 앱 (키체인, 메인)</td><td>있을 때만 보이고 삭제 뒤 사라짐</td><td>해당 없음 (새 동작)</td></tr>
+  </table></div>
+  <h4>안 재는 축</h4>
+  <ul>
+    <li>숨긴 자동 경고 중 실제 E1/E2인 것의 수. 원음 청취가 없다.</li>
+    <li>의미 보호가 교정 정확도에 주는 효과. T4-7(묶음 3) 평가 대상이다.</li>
+    <li>실제 Codex 실패 3회의 원인. 실제 호출은 건별 승인 사항이고, 이 유닛은 기록 장치만 만든다.</li>
+    <li>녹음 직후 입력창의 실제 입력률.</li>
+    <li>Claude CLI (묶음 3).</li>
+  </ul>
+</section>
+
+<!-- ═════════ 05 시스템 영향 ═════════ -->
+<section class="sec" id="s-impact">
+  <div class="rule"><span class="no">05</span><h2>시스템 영향</h2></div>
+  <p class="intro">기준은 HEAD <code>0258ba8</code>과 작업 트리다. 작업 트리에는 다른 세션의 미커밋 변경 14파일이 있고(<code>App/LibraryWorkspace.swift</code>, <code>UI/SpeechDetailView.swift</code> 포함), 이 스펙은 그것을 고치거나 커밋하지 않는다.<sup class="fn" id="fnr-43"><a href="#fn-43" data-fn="43">43</a></sup></p>
+
+  <h3>재사용</h3>
+  <ul>
+    <li>이슈 생성(정규화·결합기), <code>blocks()</code>, <code>ScriptReviewEvent</code>, 평가 JSON</li>
+    <li><code>InlineScriptText</code> 제목 모드 (Speech 제목칸)</li>
+    <li><code>FolderLibraryStore</code> 인덱스 읽기·원자 쓰기(<code>saveNotes</code>와 같은 방식)</li>
+    <li><code>CorrectionSpans.validated</code>·<code>canonicalFormat</code>·<code>CorrectionReapplication</code></li>
+    <li><code>CodexCorrectionClient.arguments</code> (플래그 변경 없음)</li>
+    <li><code>KeychainStore.delete(provider: .pyannote)</code></li>
+    <li><code>storeCorrection</code>·<code>saveCorrection</code> (AI 겹 병합·버전 기록)</li>
+  </ul>
+
+  <h3>변경</h3>
+  <ul>
+    <li><code>UI/ScriptReadingView.swift</code>: 250행 «주의» 제거, 문단 아래 경고 줄, 196행 이슈 목록을 종류별 접힘으로, 33행 제목칸의 값·저장 대상·캡션, 하단 도구막대의 미완료 줄·이어하기 버튼</li>
+    <li><code>UI/ReviewShell.swift</code> <code>issueLabel</code>: 4종 문구를 확정본으로</li>
+    <li><code>Packages/DamaCore/Sources/DamaCore/LibraryScript.swift</code> <code>markdown()</code>: 226행 검수 줄, 중단·일부 결과 머리말, 253–255행 문단 줄 제거와 중단·일부 결과 줄</li>
+    <li><code>App/ScriptEditingSession.swift</code>: 0.5초 대기 저장 제거, 저장 대상 분기(연결 있음 = 인덱스, 없음 = 파일)</li>
+    <li><code>App/LibraryWorkspace.swift</code>: 해석 제목 공급, 제목 저장 경로, <code>recordingSaved</code> 뒤 입력창 계기, 내보내기 파일 이름</li>
+    <li><code>Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift</code>: <code>LibrarySpeech.displayTitle</code>, 표시 제목 저장 API, 인덱스 전체(찾지 못한 파일 포함) 제목 조회, <code>createScript</code>의 제목</li>
+    <li><code>UI/SpeechDetailView.swift</code> 21행: 제목 입력칸</li>
+    <li><code>UI/LibraryShell.swift</code>: 139·163행 목록 제목, 272행 API 키, 294–347행 월 비용 시트</li>
+    <li><code>App/ProcessingWorkspace.swift</code>: 194·211·217·227행 확인창 제목, 371–403행 <code>APIKeySettings</code></li>
+    <li><code>Packages/DamaCore/Sources/DamaManaged/KeychainStore.swift</code>: 값을 읽지 않는 존재 확인 함수</li>
+    <li><code>Packages/DamaCore/Sources/DamaCore/ScriptEvaluation.swift</code>: <code>MonthlyOperatingCost.aiCLISubscriptionUSD</code>, 합계 공식, 검증</li>
+    <li><code>Packages/DamaCore/Sources/DamaManaged/CodexCorrectionClient.swift</code>: stderr 파이프·바이트 수·표식 대조, 실패 상세(분류·종료 코드·경과)를 담는 오류</li>
+    <li><code>App/CorrectionWorkspace.swift</code>: 시도 기록 쓰기·읽기, 이어서 교정, 분류별 안내 띠</li>
+    <li><code>UI/ScriptModalSheets.swift</code>: 시도 기록이 있을 때 안내 한 줄, 머리 제목</li>
+    <li><code>Packages/DamaCore/Sources/DamaCore/ScriptCorrection.swift</code> 98행 버전, <code>CorrectionSpans.swift</code> 판정에 의미 보호 단계</li>
+  </ul>
+
+  <h3>신규</h3>
+  <ul>
+    <li>녹음 제목 입력 패널(<code>NSPanel</code> + SwiftUI)과 줄 서기</li>
+    <li>교정 시도 기록 타입과 내부 저장(<code>CorrectionAttempts/</code>)</li>
+    <li>의미 보호 표식 함수(4분류)</li>
+    <li>테스트: 경고 표시·Markdown 머리말, 제목 해석·저장, 실패 분류 8종, 이어하기, 의미 보호 11쌍, 월 비용 4사례</li>
+    <li>확정 문구 파일 <code>ssot/tone/usage-bundle1.md</code> (게이트 ① 뒤)</li>
+  </ul>
+
+  <h3>가드 이동 (기존 단정)</h3>
+  <ul>
+    <li><code>Packages/DamaCore/Tests/DamaCoreTests/LibraryPresentationTests.swift:81</code> <code>md.contains("overlapping\\_speech")</code> → 머리말 건수 단정으로 옮긴다.</li>
+    <li><code>Packages/DamaCore/Tests/DamaCoreTests/ScriptEvaluationTests.swift:37</code>–43 <code>normalTotalUSD</code> 예시 → 새 공식 4사례로 옮긴다.</li>
+    <li>제목 저장 단정(<code>ScriptVersionTests.swift:74</code>·<code>:91</code>·<code>:122</code>, <code>ScriptSummaryCacheTests.swift:138</code>)은 파일 <code>saveTitle</code> API를 직접 부르므로 그대로 선다. 앱 경로 변경은 새 테스트로 덮는다.</li>
+    <li><code>scripts/</code>의 여정·UI 픽스처에서 «주의»·<code>issueLabel</code> 검색 0건(2026-11-05).</li>
+  </ul>
+  <span class="then">/plan은 핵심 변경을 얹은 사본에서 테스트 붉음 전수를 위 목록과 대조해 확정한다.</span>
+
+  <h3>계약·문구 개정 문안</h3>
+  <ol>
+    <li><code>ssot/contracts/library-script.md</code> 새 절 «검수 이슈 표시 (2026-11-05 사용자 확정 · usage-bundle1)»: 읽기 화면 문단에 자동 경고 8종을 표시하지 않고 구간 정보의 «자동 경고 N건»에서 종류별 건수로 연다. 녹음 중단·일부 결과·화자 미배정은 계속 표시한다. Markdown은 문단별 이슈 줄을 쓰지 않고 머리말 한 줄에 총수와 종류별 건수를 적으며, 녹음 중단·일부 결과는 머리말과 그 문단에 남긴다. <code>reviewIssues</code> 생성·보존·평가 JSON은 바뀌지 않는다. 두 번째 읽기 레이어 예외이고(선례 2026-09-13 missingSpeech), 경고를 숨긴 것은 그 구간이 맞다고 확정한 것이 아니다. 이 절은 «연속 발화 표시»의 «open 이슈만 노란 이벤트 아이콘으로 노출» 항과 «Markdown 내보내기» 4항의 «검수 이슈» 부분보다 우선한다.</li>
+    <li>같은 파일 새 절 «녹음 표시 제목 (2026-11-05 · usage-bundle1)»: §02-2의 데이터·해석·쓰는 곳(인덱스에만 씀, 스크립트 파일 <code>title</code> 불변)·기존 데이터 무이관.</li>
+    <li>같은 파일 AI 교정 절: 현행 기본 반영 정책을 <code>context-correction-6</code>(§02-4)으로 바꾸고, «진단 stdout/stderr는 … 버린다»를 «stdout은 버리고 stderr는 메모리에서 분류 표식만 대조한 뒤 버린다. 바이트 수만 기록한다»로 바꾼다. «최초 시작 상태를 먼저 저장하며 모든 청크 성공 후 …» 항에 시도 기록·이어서 교정(§02-3)을 더한다.</li>
+    <li><code>ssot/contracts/operating-baseline.md:97</code> 월 비용 공식과 예를 §02-5로 바꾼다.</li>
+    <li><code>ssot/tone/uiux-reading.md</code>: «원문 해석에 필요한 경고» 첫 문장을 «자동 경고는 구간 정보의 ‘자동 경고 N건’에만 보존한다. 녹음 중단·일부 결과는 본문 아래와 정보 영역에 보존한다.»로, 제목 저장 3줄을 §04 문구 11로, «AI 실패» 줄을 §04 문구 18로 바꾼다. 새 문구는 <code>ssot/tone/usage-bundle1.md</code>에 편입한다.</li>
+  </ol>
+  <p class="note">CLAUDE.md 최상위 경계는 이 유닛에서 바꾸지 않는다. 경계 4 개정(AI 화자 의심 표시)은 T4-6, 묶음 3이다.</p>
+</section>
+
+<!-- ═════════ 각주 ═════════ -->
+<section class="sec" id="s-fn">
+  <div class="rule"><span class="no">주</span><h2>각주 · 근거</h2></div>
+  <ol class="fnlist" id="fnlist">
+    <li id="fn-1"><span class="n">1</span><span class="t">기각안 = 연결 스크립트 파일까지 고쳐 쓰기 · 녹음당 연결 스크립트 1–4개, 스크립트 중앙값 6.4MB, 저장마다 전체 사본 (<code>FolderLibraryStore.swift:342</code>) · 결정 기록 T3-4의 «T2a 저장 규칙을 따른다»는 이 결정으로 쓸 일이 없어졌다.</span><a class="back" href="#fnr-1" title="본문으로">↩</a></li>
+    <li id="fn-2"><span class="n">2</span><span class="t">현행 0.5초 대기 저장 <code>App/ScriptEditingSession.swift:30</code>–38 · 기각안 = 묶음 2에 둠.</span><a class="back" href="#fnr-2" title="본문으로">↩</a></li>
+    <li id="fn-3"><span class="n">3</span><span class="t">설계 01 §6 가짜 컨트롤 금지 · 기각안 = T4-5를 이 유닛으로 당김.</span><a class="back" href="#fnr-3" title="본문으로">↩</a></li>
+    <li id="fn-4"><span class="n">4</span><span class="t">기각안 = 설정 토글(기본 끔) · 이슈 54,224건 전부 open, 사람이 확인 처리한 Turn 0 (<code>notes/usage-review/brief.md</code> T1).</span><a class="back" href="#fnr-4" title="본문으로">↩</a></li>
+    <li id="fn-5"><span class="n">5</span><span class="t">사용 기록 2026-09-09–11-05 메타데이터 집계 (<code>notes/usage-review/brief.md</code>) · 이슈 탐색 화면 <code>UI/ReviewShell.swift</code>는 어디서도 만들지 않는다 (<code>git grep "ReviewShell("</code> 0건, 2026-11-05).</span><a class="back" href="#fnr-5" title="본문으로">↩</a></li>
+    <li id="fn-6"><span class="n">6</span><span class="t">교정 실패 3회 = 0번째 청크 2회, 12청크 중 4에서 정지 1회 · 실패 시 stderr를 버리고 <code>edits = []</code> (<code>Packages/DamaCore/Sources/DamaManaged/CodexCorrectionClient.swift:54</code> · <code>App/CorrectionWorkspace.swift:130</code>–135).</span><a class="back" href="#fnr-6" title="본문으로">↩</a></li>
+    <li id="fn-7"><span class="n">7</span><span class="t">입력 = <code>notes/usage-review/decisions.md</code> (status decided, 2026-11-05) · 진행 묶음 1 = T1·T3·T5·T4-1·T4-2.</span><a class="back" href="#fnr-7" title="본문으로">↩</a></li>
+    <li id="fn-8"><span class="n">8</span><span class="t">원인 구성: Nemotron 겹침 판정 58% (boundary_conflict와 overlapping_speech가 같은 단어에 중복) · 배정 실패 13% · Soniox 시간 7% · 실제 충돌 22% (<code>notes/usage-review/decisions.md</code> T1 근거 실측).</span><a class="back" href="#fnr-8" title="본문으로">↩</a></li>
+    <li id="fn-9"><span class="n">9</span><span class="t"><code>ssot/design/04_DATA_AND_RECONCILIATION.md</code> §3 INV-10 · 선례 <code>ssot/contracts/library-script.md</code> «화자 기준 연속 발화 (2026-09-13 T-04)» 둘째 항 · 평가 JSON은 <code>script</code> 전체를 담는다 (<code>Packages/DamaCore/Sources/DamaCore/ScriptEvaluation.swift:81</code>).</span><a class="back" href="#fnr-9" title="본문으로">↩</a></li>
+    <li id="fn-10"><span class="n">10</span><span class="t">2026-11-05 읽기 전용 모의 · 스크립트 <code>notes/usage-bundle1/measure-b1.py</code> (<code>--selftest</code>로 자기 검증) · 집계만 출력, 본문 미출력 · 140건 중 숫자를 포함한 변경 4건, 십·백·천·만·억·조 포함 3건 · 자기 검증 11쌍(양성 7·음성 4) 통과.</span><a class="back" href="#fnr-10" title="본문으로">↩</a></li>
+    <li id="fn-11"><span class="n">11</span><span class="t">2026-11-05 <code>~/DAMA/Scripts</code> 38개 <code>transcript.reviewIssues</code> 집계, 상태 전부 open · 합계 54,224 = brief 수치와 일치.</span><a class="back" href="#fnr-11" title="본문으로">↩</a></li>
+    <li id="fn-12"><span class="n">12</span><span class="t"><code>Packages/DamaCore/Sources/DamaCore/LibraryPresentation.swift</code> <code>blocks()</code>의 미부착 이슈 연결 · 계약 <code>library-script.md</code> «연속 발화 표시» 노란 이벤트 항.</span><a class="back" href="#fnr-12" title="본문으로">↩</a></li>
+    <li id="fn-13"><span class="n">13</span><span class="t">현행 <code>Packages/DamaCore/Sources/DamaCore/LibraryScript.swift:226</code> <code>- 검수: \(reviewSummary)</code> · 문단 줄 <code>:254</code> <code>&gt; 검수: \(issue.kind.rawValue)</code>.</span><a class="back" href="#fnr-13" title="본문으로">↩</a></li>
+    <li id="fn-14"><span class="n">14</span><span class="t">2026-11-05 집계 <code>reviewRecords</code> 총 0건 · 앱 안에서 이 기록을 만드는 화면 없음 (<code>git grep reviewRecords -- App UI</code> 0건).</span><a class="back" href="#fnr-14" title="본문으로">↩</a></li>
+    <li id="fn-15"><span class="n">15</span><span class="t"><code>UI/ReviewShell.swift:318</code> <code>issueLabel</code> · <code>ssot/tone/uiux-reading.md</code> 머리 «Scripts 읽기 화면은 이 문구가 기존 library-workspace/review-workspace의 같은 위치 문구보다 우선한다».</span><a class="back" href="#fnr-15" title="본문으로">↩</a></li>
+    <li id="fn-16"><span class="n">16</span><span class="t"><code>Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift:5</code> <code>LibrarySpeech</code> (현재 키 8개: dateSource·durationUs·fileURL·id·notes·recordedAt·sourceHash·title, 2026-11-05 인덱스 실측) · 인덱스 대조 키 = 경로+해시 (<code>:149</code>) · 결정 기록 T3-1.</span><a class="back" href="#fnr-16" title="본문으로">↩</a></li>
+    <li id="fn-17"><span class="n">17</span><span class="t">자동 제목 = <code>Date().formatted(date: .numeric, time: .shortened) + " 녹음"</code> (<code>Packages/DamaCore/Sources/DamaAudio/MicrophoneCapture.swift:58</code>) · 가져오기 = 파일 이름 (<code>AudioStorage.swift:181</code>).</span><a class="back" href="#fnr-17" title="본문으로">↩</a></li>
+    <li id="fn-18"><span class="n">18</span><span class="t">현행 연결 판정도 <code>sessionId == speech.id</code> (<code>App/LibraryWorkspace.swift:244</code>) · 인덱스는 Speech 삭제 때 남긴다 (<code>library-script.md</code> «재전사·라이브러리 삭제»).</span><a class="back" href="#fnr-18" title="본문으로">↩</a></li>
+    <li id="fn-19"><span class="n">19</span><span class="t"><code>UI/LibraryShell.swift:139</code> · <code>UI/SpeechDetailView.swift:21</code>.</span><a class="back" href="#fnr-19" title="본문으로">↩</a></li>
+    <li id="fn-20"><span class="n">20</span><span class="t"><code>UI/LibraryShell.swift:163</code> · <code>UI/ScriptReadingView.swift:33</code>.</span><a class="back" href="#fnr-20" title="본문으로">↩</a></li>
+    <li id="fn-21"><span class="n">21</span><span class="t"><code>UI/ScriptModalSheets.swift:94</code> · <code>App/LibraryWorkspace.swift:289</code>, <code>:303</code>.</span><a class="back" href="#fnr-21" title="본문으로">↩</a></li>
+    <li id="fn-22"><span class="n">22</span><span class="t"><code>App/ProcessingWorkspace.swift:194</code>, <code>:211</code>, <code>:217</code>, <code>:227</code> <code>record.title</code>.</span><a class="back" href="#fnr-22" title="본문으로">↩</a></li>
+    <li id="fn-23"><span class="n">23</span><span class="t"><code>LibraryScript.swift:214</code> · <code>App/LibraryWorkspace.swift:462</code>.</span><a class="back" href="#fnr-23" title="본문으로">↩</a></li>
+    <li id="fn-24"><span class="n">24</span><span class="t"><code>FolderLibraryStore.swift:337</code> <code>title: speech.title</code>.</span><a class="back" href="#fnr-24" title="본문으로">↩</a></li>
+    <li id="fn-25"><span class="n">25</span><span class="t"><code>App/LibraryWorkspace.swift:43</code> <code>canLeave</code> · <code>App/ScriptEditingSession.swift:30</code>.</span><a class="back" href="#fnr-25" title="본문으로">↩</a></li>
+    <li id="fn-26"><span class="n">26</span><span class="t"><code>App/AppLifecycle.swift:88</code> <code>!(window is NSPanel)</code>.</span><a class="back" href="#fnr-26" title="본문으로">↩</a></li>
+    <li id="fn-27"><span class="n">27</span><span class="t">흐름 = <code>capture.onSaved</code> → <code>LibraryWorkspace.recordingSaved</code> → <code>publishRecording</code> → <code>refresh</code> → <code>scanSpeeches</code>가 인덱스 항목 추가 (<code>App/RecordingWorkspace.swift:25</code>–28 · <code>App/LibraryWorkspace.swift:500</code> · <code>FolderLibraryStore.swift:176</code>–181).</span><a class="back" href="#fnr-27" title="본문으로">↩</a></li>
+    <li id="fn-28"><span class="n">28</span><span class="t">2026-11-05 인덱스 33항목 · Scripts 38개 메타데이터 집계, 제목 문자열 미출력 · 연결 없는 스크립트 0.</span><a class="back" href="#fnr-28" title="본문으로">↩</a></li>
+    <li id="fn-29"><span class="n">29</span><span class="t"><code>CodexCorrectionFailure</code> = unavailable·failed·timeout·invalidResponse (<code>CodexCorrectionClient.swift:5</code>) · 시간 제한 300초는 계약의 초기 자원 한도 (<code>library-script.md</code> AI 교정 절 «한 청크 요청 제한 300초»).</span><a class="back" href="#fnr-29" title="본문으로">↩</a></li>
+    <li id="fn-30"><span class="n">30</span><span class="t"><code>CodexCorrectionClient.swift:54</code> <code>FileHandle.nullDevice</code>.</span><a class="back" href="#fnr-30" title="본문으로">↩</a></li>
+    <li id="fn-31"><span class="n">31</span><span class="t">로컬 설치 <code>~/.local/bin/codex</code> <code>codex-cli 0.166.0</code> (2026-11-05 <code>--version</code>) · 계약이 확인한 판은 0.154.0 · 앱이 쓰는 <code>exec</code> 플래그 10개는 0.166.0 <code>exec --help</code>에 모두 있음 (2026-11-05) · <code>-c features.*</code> 키는 미확인.</span><a class="back" href="#fnr-31" title="본문으로">↩</a></li>
+    <li id="fn-32"><span class="n">32</span><span class="t"><code>FolderLibraryStore.swift:342</code> <code>saveScript</code>가 매번 <code>writeRevision</code> · 스크립트 중앙값 6.4MB.</span><a class="back" href="#fnr-32" title="본문으로">↩</a></li>
+    <li id="fn-33"><span class="n">33</span><span class="t">청크는 <code>source.correction = nil; source.showsOriginal = nil</code>로 만든다 (<code>App/CorrectionWorkspace.swift:104</code>) · 사람 소유·삭제 Turn 제외 (<code>ScriptCorrection.swift:100</code>–110).</span><a class="back" href="#fnr-33" title="본문으로">↩</a></li>
+    <li id="fn-34"><span class="n">34</span><span class="t">현행 이름 충돌 처리 <code>App/CorrectionWorkspace.swift:113</code>–124.</span><a class="back" href="#fnr-34" title="본문으로">↩</a></li>
+    <li id="fn-35"><span class="n">35</span><span class="t">현행 <code>context-correction-5</code> = certain이고 미해결과 안 겹치면 반영 (<code>Packages/DamaCore/Sources/DamaCore/CorrectionSpans.swift:66</code>–100 · <code>library-script.md</code> «현행 기본 반영 정책 (2026-09-13)») · 형식 동등 비교 <code>ContextCorrection.canonicalFormat</code> (<code>ScriptCorrection.swift:221</code>).</span><a class="back" href="#fnr-35" title="본문으로">↩</a></li>
+    <li id="fn-36"><span class="n">36</span><span class="t">기존 보호 토큰 = 안·못·않다·아니다·없다·있다·이상·이하·미만·초과·억·만·천·백·조·원·kw 등 (<code>Packages/DamaCore/Sources/DamaCore/CorrectionTerms.swift</code> <code>spellingOnly</code>) · 표 «예» 11쌍은 <code>measure-b1.py --selftest</code> 세트와 같다.</span><a class="back" href="#fnr-36" title="본문으로">↩</a></li>
+    <li id="fn-37"><span class="n">37</span><span class="t"><code>CorrectionReapplication.swift</code> <code>reapplyingPending</code>이 <code>CorrectionSpans.validated</code>를 다시 부름 · 계약 «저장된 구조화 후보는 … 로컬에서 재검증».</span><a class="back" href="#fnr-37" title="본문으로">↩</a></li>
+    <li id="fn-38"><span class="n">38</span><span class="t">현행 기본 선택 pyannote, 목록 pyannote·Soniox (<code>App/ProcessingWorkspace.swift:371</code>–403).</span><a class="back" href="#fnr-38" title="본문으로">↩</a></li>
+    <li id="fn-39"><span class="n">39</span><span class="t">Qwen 키 서비스 이름이 pyannote로 대응 (<code>Packages/DamaCore/Sources/DamaManaged/KeychainStore.swift:7</code>) · 경계 6 pyannote 새 요청 없음 · Qwen 비교는 선택 목록에서 제외 (nemotron-diarization D-04).</span><a class="back" href="#fnr-39" title="본문으로">↩</a></li>
+    <li id="fn-40"><span class="n">40</span><span class="t"><code>ssot/contracts/operating-baseline.md:97</code> · 현행 공식은 pyannote 3항목이 모두 있어야 계산 (<code>Packages/DamaCore/Sources/DamaCore/ScriptEvaluation.swift:118</code>).</span><a class="back" href="#fnr-40" title="본문으로">↩</a></li>
+    <li id="fn-41"><span class="n">41</span><span class="t"><code>library-script.md</code> AI 교정 절 «한 청크 요청 제한 300초 … 초기 자원 한도».</span><a class="back" href="#fnr-41" title="본문으로">↩</a></li>
+    <li id="fn-42"><span class="n">42</span><span class="t">전역 규칙 «QA는 반드시 GPT-6.1-sol» (사용자 확정 2026-10-09) · 직전 미완료 «QA 판정 주체 부재로 QA 판정 미수행» (<code>notes/usage-review/decisions.md</code> 미완료 확인) · /plan에서 실행 가능한 모델 ID와 도구 지원을 먼저 확인한다.</span><a class="back" href="#fnr-42" title="본문으로">↩</a></li>
+    <li id="fn-43"><span class="n">43</span><span class="t">2026-11-05 <code>git status --short</code> · <code>App/LibraryWorkspace.swift</code> +5줄(재전사 분기) · <code>UI/SpeechDetailView.swift</code> 버튼 이름 분기 · 소유는 이 세션이 아님.</span><a class="back" href="#fnr-43" title="본문으로">↩</a></li>
+  </ol>
+  <details class="audit">
+    <summary>참조 근거 (읽은 목록)</summary>
+    <div class="body">
+      <div class="twrap"><table>
+        <tr><th style="width:300px">문서·코드</th><th>확인한 것</th></tr>
+        <tr><td>규율 메모리 14종 (<code>~/.claude/projects/-Users-gazitofu/memory/</code>)</td><td>rule-purpose-first · rule-ambiguous-instructions · rule-scope-stop · rule-gate-hygiene · rule-measurement · rule-negative-claims · rule-carryover-remeasure · rule-verify-at-consumption · rule-delegation-artifacts · rule-destructive-writes · rule-shared-tree-commits · rule-numeric-test-integrity · rule-external-media-verify · rule-longrun-watchdog. 추가로 rule-spec-threshold-selfcheck · rule-ui-removal-updates-journeys</td></tr>
+        <tr><td><code>notes/usage-review/decisions.md</code> · <code>brief.md</code></td><td>입력 결정 T1·T3·T4-1·T4-2·T5와 묶음 순서, 실측 수치</td></tr>
+        <tr><td><code>ssot/doc-template/README.md</code> · <code>template.src.html</code></td><td>양식</td></tr>
+        <tr><td><code>ssot/design/00_README.md</code> · <code>01_PRODUCT_AND_UX.md</code></td><td>채택 범위, §6 가짜 컨트롤 금지, §8 이슈 문구</td></tr>
+        <tr><td><code>ssot/design/04_DATA_AND_RECONCILIATION.md</code> §3 · <code>07_SECURITY_AND_DECISIONS.md</code> §6</td><td>INV-01–10, 오해 방지 항목</td></tr>
+        <tr><td><code>ssot/api/pyannote-verified.md</code></td><td>퇴역 경로 과금 기록 (T5 맥락), 이 유닛과 충돌 없음</td></tr>
+        <tr><td><code>ssot/contracts/library-script.md</code> · <code>operating-baseline.md</code></td><td>Markdown 내보내기, 읽기 레이어 예외 선례, AI 교정 절, 월 비용 공식(97행)</td></tr>
+        <tr><td><code>ssot/tone/</code> 4파일</td><td>uiux-reading 경고 문구 우선 규칙, 제목 저장 문구, AI 문구</td></tr>
+        <tr><td><code>notes/nemotron-diarization/nemotron-diarization.src.html</code></td><td>최근 스펙 형식</td></tr>
+        <tr><td>코드 (App · UI · DamaCore)</td><td><code>ScriptReadingView</code> · <code>ReviewShell.issueLabel</code> · <code>LibraryPresentation</code> · <code>LibraryScript.markdown</code> · <code>ScriptEditingSession</code> · <code>LibraryWorkspace</code> · <code>FolderLibraryStore</code> · <code>SpeechDetailView</code> · <code>LibraryShell</code> · <code>ProcessingWorkspace.APIKeySettings</code> · <code>KeychainStore</code> · <code>ScriptEvaluation</code> · <code>CodexCorrectionClient</code> · <code>CorrectionWorkspace</code> · <code>ScriptModalSheets</code> · <code>ScriptCorrection</code> · <code>CorrectionSpans</code> · <code>CorrectionTerms</code> · <code>CorrectionReapplication</code> · <code>MicrophoneCapture</code> · <code>RecordingWorkspace</code> · <code>StatusBarController</code> · <code>AppLifecycle</code></td></tr>
+        <tr><td>테스트 grep</td><td>Markdown·제목·비용·교정 버전 단정 (가드 이동 목록)</td></tr>
+        <tr><td>사용자 데이터 (읽기 전용, 집계만)</td><td><code>~/DAMA/Scripts</code> 38개의 이슈 종류·상태, <code>reviewRecords</code>, 완료 교정 변경 140건 재판정, 인덱스 33항목의 키와 제목 연결 수. 본문·제목 문자열 미출력</td></tr>
+        <tr><td>로컬 도구</td><td><code>codex --version</code> 0.166.0, <code>codex exec --help</code> 플래그 10개 존재</td></tr>
+      </table></div>
+    </div>
+  </details>
+  <p class="note">r1 (11.05) 초판. 커맨드 인자 «묶음 1»을 유닛 슬러그 <code>usage-bundle1</code>로 정했다.</p>
+  <p class="note">r1 게이트 ① (11.05) D-01–D-04 권고안 확정, 판정 축 ①–⑥ 확정. 기각안 서술(D-01 ⓑ 쓰기 경로·문구, D-02 ⓑ, D-03 ⓑ)을 본문에서 지움.</p>
+</section>
+
+<div style="height:140px"></div>
+</div>
+
+<script>
+// 00 판정 블록: 고른 선택지·메모로 MD 회신을 만든다 (data-state="open" 일 때만)
+(function(){
+  const v = document.getElementById('s-verdict');
+  if (!v || v.dataset.state !== 'open') return;
+  const md = v.querySelector('pre.md'), ok = v.querySelector('.ok');
+  const items = [...v.querySelectorAll('.vitem')];
+  const d = new Date();
+  const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  function build(){
+    const L = ['## ' + v.dataset.unit + ' 스펙 ' + v.dataset.round + ' · 게이트 ' + v.dataset.gate + ' 회신 (' + date + ')', ''];
+    items.forEach(it => {
+      const k = it.dataset.k;
+      const sel = it.querySelector('input[type=radio]:checked');
+      const memoEl = it.querySelector('input[type=text]');
+      const memo = memoEl ? memoEl.value.trim() : '';
+      const title = it.querySelector('.vt').textContent.replace(k, '').trim();
+      L.push('- ' + k + ' ' + title + ': ' + (sel ? sel.value : '(미선택)') + (memo ? ' · ' + memo : ''));
+    });
+    md.textContent = L.join('\n');
+  }
+  v.addEventListener('input', build);
+  v.querySelector('[data-act=copy]').onclick = async () => {
+    build();
+    try { await navigator.clipboard.writeText(md.textContent); ok.textContent = '복사됨.'; }
+    catch { const r = document.createRange(); r.selectNodeContents(md); const s = getSelection(); s.removeAllRanges(); s.addRange(r); ok.textContent = '클립보드 권한 없음. 선택된 텍스트를 복사하면 된다.'; }
+  };
+  v.querySelector('[data-act=reset]').onclick = () => {
+    items.forEach(it => { const r = it.querySelector('input[type=radio]'); if (r) r.checked = true; const m = it.querySelector('input[type=text]'); if (m) m.value = ''; });
+    build(); ok.textContent = '초기화됨.';
+  };
+  build();
+})();
+
+// 각주 팝오버: 번호 클릭 → 마커 우상단에 상자. 바깥 클릭·ESC·재클릭·스크롤에 닫힌다
+(function(){
+  let pop = null, cur = null;
+  function close(){ if (pop) pop.remove(); pop = null; if (cur) cur.classList.remove('open'); cur = null; }
+  document.querySelectorAll('sup.fn a[data-fn]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    if (cur === a) { close(); return; }
+    close();
+    const src = document.getElementById('fn-' + a.dataset.fn);
+    if (!src) return;
+    const t = src.querySelector('.t');
+    pop = document.createElement('div'); pop.className = 'pop';
+    pop.innerHTML = '<span class="pn">' + a.dataset.fn + '</span>' + (t ? t.innerHTML : src.innerHTML);
+    document.body.appendChild(pop);
+    const r = a.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = r.left + scrollX - 8, top = r.top + scrollY - ph - 10, below = false;
+    if (left + pw > scrollX + innerWidth - 12) left = scrollX + innerWidth - 12 - pw;
+    if (left < scrollX + 12) left = scrollX + 12;
+    if (r.top - ph - 10 < 8) { top = r.bottom + scrollY + 10; below = true; }
+    pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.classList.toggle('below', below);
+    cur = a; a.classList.add('open');
+  }));
+  document.addEventListener('click', e => { if (pop && !pop.contains(e.target) && !e.target.closest('sup.fn')) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  addEventListener('scroll', () => { if (pop) close(); }, {passive:true});
+})();
+
+// 데스크탑 실척 스테이지: 컨테이너 폭 / 1440 비율로 가상 뷰포트를 축소한다
+(function(){
+  const fit = () => document.querySelectorAll('.deskstage').forEach(st => {
+    st.querySelectorAll(':scope > .deskvp').forEach(vp => vp.style.setProperty('--ds', st.clientWidth / 1440));
+  });
+  addEventListener('resize', fit);
+  addEventListener('DOMContentLoaded', fit);
+  fit();
+})();
+// 상태 세그: [data-target] 행의 버튼이 대상 안 [data-st] 요소를 고른 상태만 보이게 한다
+(function(){
+  document.querySelectorAll('.segrow[data-target]').forEach(row => {
+    const target = document.getElementById(row.dataset.target);
+    if (!target) return;
+    const show = st => {
+      row.querySelectorAll('.seg').forEach(b => b.classList.toggle('on', b.dataset.st === st));
+      target.querySelectorAll('[data-st]').forEach(el => { el.hidden = !el.dataset.st.split(' ').includes(st); });
+    };
+    row.querySelectorAll('.seg').forEach(b => b.addEventListener('click', () => show(b.dataset.st)));
+    const first = row.querySelector('.seg.on') || row.querySelector('.seg');
+    if (first) show(first.dataset.st);
+  });
+})();
+</script>
+
+</body>
+</html>

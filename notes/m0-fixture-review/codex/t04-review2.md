@@ -1,0 +1,9 @@
+# T04 final integration review
+
+Limited T04 follow-up, same allowed files/no delegation/no git/plan/SSOT changes. Update result and run check.sh after fixes. Reuse already read unchanged context.
+
+1. Current cancel recovery creates a local `restoration` then awaits commit, but only stores its identity in session after success. If this compensating commit itself persists and throws, active disk is restoration while in-memory committed/draft are still old/intended. Both retry and cancel then reject active forever. Retain a pending cancellation/restoration snapshot and identity across its own failure; retry/cancel must reconcile/reuse it just like any pending save. Test a real-file repository wrapper throwing after the initial edit commit AND after the first restoration commit, then retry/cancel successfully resolves to original content; no infinite dirty state, no unexpected Undo stack mutation, no overwritten revisions. Also cover restoration failing before pointer install if your implementation uses a separate pending transition. Do not claim saved or canExport until disk and committed agree.
+
+2. `segmentRange` currently returns first.start/last.end. Valid overlapping words may have decreasing end times (validator orders start only); a subdivided group must enclose all of its own timed words. Use minimum start and maximum end of timed members, with both nil when empty. Add a valid in-memory fixture variant with three same-model same-speaker Words in a Turn, where first.end > second.end, then split before third or reassign third. Check first group encloses both timed Words, no Word timing mutation and validation succeeds. This is a bounds regression, not new diarization logic.
+
+Finish with the actual final Core test count, all4 backpressure axes and documented recovery API for T06. No other refactors.

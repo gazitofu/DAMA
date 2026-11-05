@@ -1,0 +1,408 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000024 = {isa = PBXBuildFile; fileRef = 200000000000000000000024; };
+		100000000000000000000023 = {isa = PBXBuildFile; fileRef = 200000000000000000000023; };
+		100000000000000000000022 = {isa = PBXBuildFile; fileRef = 200000000000000000000022; };
+		100000000000000000000019 = {isa = PBXBuildFile; fileRef = 200000000000000000000019; };
+		100000000000000000000020 = {isa = PBXBuildFile; fileRef = 200000000000000000000020; };
+		100000000000000000000021 = {isa = PBXBuildFile; fileRef = 200000000000000000000021; };
+		100000000000000000000013 = {isa = PBXBuildFile; fileRef = 200000000000000000000013; };
+		100000000000000000000014 = {isa = PBXBuildFile; productRef = B00000000000000000000004; };
+		100000000000000000000040 /* DamaNemotron */ = {isa = PBXBuildFile; productRef = B00000000000000000000006 /* DamaNemotron */; };
+		100000000000000000000009 = {isa = PBXBuildFile; fileRef = 200000000000000000000010; };
+		100000000000000000000010 = {isa = PBXBuildFile; fileRef = 200000000000000000000011; };
+		100000000000000000000011 = {isa = PBXBuildFile; fileRef = 200000000000000000000012; };
+		100000000000000000000012 = {isa = PBXBuildFile; productRef = B00000000000000000000003; };
+		100000000000000000000004 = {isa = PBXBuildFile; fileRef = 200000000000000000000005; };
+		100000000000000000000005 = {isa = PBXBuildFile; fileRef = 200000000000000000000006; };
+		100000000000000000000006 = {isa = PBXBuildFile; fileRef = 200000000000000000000007; };
+		100000000000000000000007 = {isa = PBXBuildFile; fileRef = 200000000000000000000008; };
+		100000000000000000000008 = {isa = PBXBuildFile; fileRef = 200000000000000000000009; };
+		100000000000000000000001 /* DamaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* DamaApp.swift */; };
+		100000000000000000000002 /* ReviewShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* ReviewShell.swift */; };
+		100000000000000000000003 /* DamaCore in Frameworks */ = {isa = PBXBuildFile; productRef = B00000000000000000000002 /* DamaCore */; };
+		100000000000000000000015 = {isa = PBXBuildFile; fileRef = 200000000000000000000015; };
+		100000000000000000000016 = {isa = PBXBuildFile; fileRef = 200000000000000000000016; };
+		100000000000000000000017 = {isa = PBXBuildFile; fileRef = 200000000000000000000017; };
+		100000000000000000000018 = {isa = PBXBuildFile; fileRef = 200000000000000000000018; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		200000000000000000000023 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechDetailView.swift; sourceTree = "<group>"; };
+		200000000000000000000022 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptModalSheets.swift; sourceTree = "<group>"; };
+		200000000000000000000019 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptEditingSession.swift; sourceTree = "<group>"; };
+		200000000000000000000024 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitlePromptPanel.swift; sourceTree = "<group>"; };
+		200000000000000000000020 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineScriptText.swift; sourceTree = "<group>"; };
+		200000000000000000000021 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReadingView.swift; sourceTree = "<group>"; };
+		200000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingWorkspace.swift; sourceTree = "<group>"; };
+		200000000000000000000010 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingWorkspace.swift; sourceTree = "<group>"; };
+		200000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarController.swift; sourceTree = "<group>"; };
+		200000000000000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPanel.swift; sourceTree = "<group>"; };
+		200000000000000000000005 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewWorkspace.swift; sourceTree = "<group>"; };
+		200000000000000000000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLifecycle.swift; sourceTree = "<group>"; };
+		200000000000000000000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvidencePanel.swift; sourceTree = "<group>"; };
+		200000000000000000000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditDialog.swift; sourceTree = "<group>"; };
+		200000000000000000000009 = {isa = PBXFileReference; lastKnownFileType = text.json; path = fixtures/normalized-transcript.json; sourceTree = SOURCE_ROOT; };
+		200000000000000000000001 /* DamaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DamaApp.swift; sourceTree = "<group>"; };
+		200000000000000000000002 /* ReviewShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewShell.swift; sourceTree = "<group>"; };
+		200000000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		200000000000000000000004 /* DAMA.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DAMA.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000015 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryWorkspace.swift; sourceTree = "<group>"; };
+		200000000000000000000016 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryShell.swift; sourceTree = "<group>"; };
+		200000000000000000000017 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrectionWorkspace.swift; sourceTree = "<group>"; };
+		200000000000000000000018 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		300000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000003 /* DamaCore in Frameworks */,
+				100000000000000000000012 /* DamaAudio */,
+				100000000000000000000014 /* DamaManaged */,
+				100000000000000000000040 /* DamaNemotron */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		400000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				400000000000000000000002 /* App */,
+				400000000000000000000003 /* UI */,
+				400000000000000000000004 /* Resources */,
+				400000000000000000000005 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		400000000000000000000002 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000019,
+				200000000000000000000024,
+				200000000000000000000015,
+				200000000000000000000017,
+				200000000000000000000001 /* DamaApp.swift */,
+				200000000000000000000005 /* ReviewWorkspace.swift */,
+				200000000000000000000006 /* AppLifecycle.swift */,
+				200000000000000000000010,
+				200000000000000000000011,
+				200000000000000000000013,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		400000000000000000000003 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000023,
+				200000000000000000000022,
+				200000000000000000000020,
+				200000000000000000000021,
+				200000000000000000000016,
+				200000000000000000000002 /* ReviewShell.swift */,
+				200000000000000000000007 /* EvidencePanel.swift */,
+				200000000000000000000008 /* EditDialog.swift */,
+				200000000000000000000012,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		400000000000000000000004 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000003 /* Info.plist */,
+				200000000000000000000018 /* Assets.xcassets */,
+				200000000000000000000009 /* normalized-transcript.json */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		400000000000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				200000000000000000000004 /* DAMA.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		500000000000000000000001 /* Dama */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000002 /* Build configuration list for PBXNativeTarget "Dama" */;
+			buildPhases = (
+				600000000000000000000004 /* Verify Core Contract Copy */,
+				600000000000000000000001 /* Sources */,
+				300000000000000000000001 /* Frameworks */,
+				600000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Dama;
+			packageProductDependencies = (
+				B00000000000000000000002 /* DamaCore */,
+				B00000000000000000000003 /* DamaAudio */,
+				B00000000000000000000004 /* DamaManaged */,
+				B00000000000000000000006 /* DamaNemotron */,
+			);
+			productName = Dama;
+			productReference = 200000000000000000000004 /* DAMA.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		700000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					500000000000000000000001 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+				};
+			};
+			buildConfigurationList = A00000000000000000000001 /* Build configuration list for PBXProject "Dama" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 400000000000000000000001;
+			packageReferences = (
+				B00000000000000000000001 /* XCLocalSwiftPackageReference "Packages/DamaCore" */,
+				B00000000000000000000005 /* XCLocalSwiftPackageReference "Packages/DamaNemotron" */,
+			);
+			productRefGroup = 400000000000000000000005 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				500000000000000000000001 /* Dama */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		600000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000008 /* normalized-transcript.json in Resources */,
+				100000000000000000000018 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		600000000000000000000004 /* Verify Core Contract Copy */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/ssot/contracts/DomainContracts.swift",
+				"$(SRCROOT)/Packages/DamaCore/Sources/DamaCore/DomainContracts.swift",
+				"$(SRCROOT)/scripts/check_contract_copy.py",
+			);
+			name = "Verify Core Contract Copy";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/check_contract_copy.py\"";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		600000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000023,
+				100000000000000000000022,
+				100000000000000000000019,
+				100000000000000000000020,
+				100000000000000000000021,
+				100000000000000000000016,
+				100000000000000000000017,
+				100000000000000000000015,
+				100000000000000000000001 /* DamaApp.swift in Sources */,
+				100000000000000000000002 /* ReviewShell.swift in Sources */,
+				100000000000000000000004 /* ReviewWorkspace.swift in Sources */,
+				100000000000000000000005 /* AppLifecycle.swift in Sources */,
+				100000000000000000000006 /* EvidencePanel.swift in Sources */,
+				100000000000000000000007 /* EditDialog.swift in Sources */,
+				100000000000000000000009,
+				100000000000000000000010,
+				100000000000000000000011,
+				100000000000000000000013,
+				100000000000000000000024,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		800000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.6.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		800000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.6.2;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		800000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = Resources/Dama.entitlements;
+				CURRENT_PROJECT_VERSION = 36;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.5.18;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gazitofu.Dama;
+				PRODUCT_NAME = DAMA;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		800000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = Resources/Dama.entitlements;
+				CURRENT_PROJECT_VERSION = 36;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.5.18;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gazitofu.Dama;
+				PRODUCT_NAME = DAMA;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000001 /* Build configuration list for PBXProject "Dama" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				800000000000000000000001 /* Debug */,
+				800000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000002 /* Build configuration list for PBXNativeTarget "Dama" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				800000000000000000000003 /* Debug */,
+				800000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B00000000000000000000001 /* XCLocalSwiftPackageReference "Packages/DamaCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/DamaCore;
+		};
+		B00000000000000000000005 /* XCLocalSwiftPackageReference "Packages/DamaNemotron" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/DamaNemotron;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B00000000000000000000004 = {
+			isa = XCSwiftPackageProductDependency;
+			package = B00000000000000000000001;
+			productName = DamaManaged;
+		};
+		B00000000000000000000003 = {
+			isa = XCSwiftPackageProductDependency;
+			package = B00000000000000000000001;
+			productName = DamaAudio;
+		};
+		B00000000000000000000002 /* DamaCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B00000000000000000000001 /* XCLocalSwiftPackageReference "Packages/DamaCore" */;
+			productName = DamaCore;
+		};
+		B00000000000000000000006 /* DamaNemotron */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B00000000000000000000005 /* XCLocalSwiftPackageReference "Packages/DamaNemotron" */;
+			productName = DamaNemotron;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 700000000000000000000001 /* Project object */;
+}
