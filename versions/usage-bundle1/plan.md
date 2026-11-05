@@ -3,7 +3,7 @@ unit: usage-bundle1
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "다음 세션 재개 (게이트 ② 회신 2026-11-05). ① 화면 확인 진행: 착수 시 screencapture·System Events 창 조회로 화면 기록·접근성 권한부터 실측(권한 부여는 사용자 몫), 되면 합성 QA 앱(.build/xcode-qa, fixture /private/tmp/dama-reading-qa-ub1-a)으로 AC-04·08·09ⓑ·10·11·14 실화면. ② 설치 앱 교체 승인: 실행 중 0.5.15(33) 정상 종료 확인 → .build/backups/DAMA-0.5.15-33-before-usage-bundle1.app 백업 → Debug 0.5.16(34) ditto → launcher·dylib SHA256 대조 → 실행 Bundle 0.5.16(34) 확인. ③ 막힘 2–5(마이크·Soniox·pyannote 키 삭제·실기기 교정 실패)는 별도 승인 전 실행 금지. F-04–F-07 결정 미회신. check.sh는 대문자 절대경로"
+resume: "게이트 ② 2차 상신 대기 (2026-11-05). ①② 완료: 합성 QA 앱 접근성 실화면(화면 기록 권한 없음, 픽셀 0) + 결함 1건 수정 b3bce1b + 설치 0.5.16(34) 실행 확인, QA 판정 .build/qa/usage-bundle1/D-verdict.md. 남은 것 = 사용자 회신: 설치 앱 창을 열어 실제 결합본 «주의» 0·설정 머리 재확인(사용자가 키보드를 쓰지 않는 시간에만, 열기 전 확인), 막힘 2–5 승인, 결정 F-04–F-07·F-10·F-11. 회신 전 실행 금지. check.sh는 대문자 절대경로"
 spec: notes/usage-bundle1/usage-bundle1.src.html
 ---
 ## 근거
@@ -178,7 +178,7 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 
 ### 전달
 
-- [ ] AC-15 check.sh PASS · SKIP 0 (대문자 절대경로). `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION` Debug/Release 0.5.15(33) → 0.5.16(34)(작업 트리만, 타 소유 상향과 같은 줄). 설치(막힘 1) 뒤 실행 중 Bundle 0.5.16(34) 확인. pathspec 커밋, 타 소유 헝크 바이트 보존, 마감 `git status` = 타 소유 14 + untracked 3.
+- [x] AC-15 check.sh PASS · SKIP 0 (대문자 절대경로). `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION` Debug/Release 0.5.15(33) → 0.5.16(34)(작업 트리만, 타 소유 상향과 같은 줄). 설치(막힘 1) 뒤 실행 중 Bundle 0.5.16(34) 확인. pathspec 커밋, 타 소유 헝크 바이트 보존, 마감 `git status` = 타 소유 14 + untracked 3.
 - [x] AC-16 QA: 차수마다 GPT-6.1-sol 판정 파일 `.build/qa/usage-bundle1/{A,B,C}-verdict.md`. QA 전후 `git status --short`·`git diff --stat` 동일. 브리프에 사용자 데이터 경로 열람 금지를 명시한다. 판정 «부분·실패»는 해당 결함과 영향 범위만 재검증한다.
 
 ## /build 결과 (2026-11-05 · 게이트 ② 상신)
@@ -203,6 +203,25 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 | 14 | 부분 | QA C D-3·D-4 해소. 막힘 5 미실행, F-07 |
 | 15 | 부분 | 작업 트리 0.5.16(34), check.sh PASS·SKIP 0. 설치(막힘 1)·실행 Bundle 확인 미실행 |
 | 16 | 통과 | 부분·실패는 해당 결함만 재판정 |
+
+### 게이트 ② 회신 뒤 (2026-11-05 · 화면 확인·설치 승인분)
+
+증거 `.build/qa/usage-bundle1/D-evidence.md` · 덤프 `D-ax/` · 판정 `D-verdict.md` (GPT-6.1-sol, QA 전후 `git status --short`·`git diff --stat` 동일).
+
+- 권한: 접근성 있음, 화면 기록 없음(`screencapture` exit 1). 실화면 = 합성 QA 앱(0.5.16(34), ReadingQA, fixture `/private/tmp/dama-reading-qa-ub1-b` + 가짜 CLI로 만든 auth 실패 시도 기록 2건)의 접근성 트리. 시각 속성(⚠ 글리프·배치·잘림)은 안 잼.
+- 결함 1건 수정 `b3bce1b`: 설정 API 키 머리가 «Soniox 단독 (비교) API 키»(`provider.title` 보간). 문구 21 «Soniox API 키»로 고침. C차 증거가 이를 «Soniox API 키»로 잘못 적어 QA C가 놓쳤다. 저장·삭제 문구는 AC-10 «현행 그대로»라 남김(F-10). 수정 뒤 화면 재확인은 안 함(QA 앱은 수정 전 빌드, 설치 앱 창은 안 열었다). 전달 바이너리에 «Soniox API 키» 1건.
+- check.sh `run-20261105T125104Z-LT4x0k` (HEAD `b3bce1b`): 계약 31 · byte-exact · SmokeCheck · swift test Core 199 / Audio 44 / Managed 60 · xcodebuild Debug PASS, SKIP 0.
+- 설치: 0.5.15(33)은 21:34:57 이미 정상 종료 상태(통합 로그 QUITTING, 충돌 없음, 원인 미확정·메인 종료 명령 아님, 내부 저장소 21:00 이후 쓰기 0) → 백업 `.build/backups/DAMA-0.5.15-33-before-usage-bundle1.app` 11파일 일치 → `/Applications/DAMA.app` 교체, launcher·dylib 포함 11파일 SHA256 일치 → 실행 pid의 Bundle `com.gazitofu.Dama` 0.5.16(34), 적재 경로 `/Applications`, 메뉴바 툴팁 «DAMA 0.5.16 · 빌드 34».
+- 사건: QA 앱 확인창(문구 17)이 열린 사이 «다시 시도»로 닫혔다(도구 입력 아님, 사용 중이던 사용자 입력으로 추정·미확정). QA 앱 차단 가드가 막아 시도 기록 변화 0, 외부 전송 0. 이후 확인창 여는 여정 중단, 키체인 삭제 경로는 열지 않음.
+
+| AC | 판정 (D) | 남은 것 |
+|---|---|---|
+| 04 | 부분 | ⓐⓑ 합성 화면 «주의» 0·경고 줄 2 확인, 설치 앱 실제 결합본 미검증, ⚠ 시각 미검증. ⓒ 기본 닫힘·안내·종류 행·동률 순서·0건 줄 없음 확인, 접힘 라벨 글자·경고 줄과 접힘 공존 문단 순서 미검증, «하단 «정보»» 문언 불일치(F-11). ⓓ 통과 |
+| 08 | 부분 | 이탈·Enter 저장, 인덱스만 쓰기(Scripts·LibraryRevisions 0), 공백 거부·입력 유지, 이동 차단, Esc 되돌림, 녹음↔스크립트 양방향 확인. 저장 중·실패·IME·미연결 미검증 |
+| 10 | 부분 | Picker 없음, pyannote 줄·버튼 확인. 머리 결함 `b3bce1b` 코드 통과·화면 미검증. 키 없음 상태·삭제 확인창·삭제 뒤(막힘 4) 미검증 |
+| 11 | 통과 | 시트 구성·4사례(29.75 · 미측정+문구 22 · 48.75 · 54.75). 3사례는 메인 관측 기록 |
+| 14 | 부분 | 하단 줄 13·14, 버튼 «같은 입력으로 다시 시도», 확인창 문구 17(완료 0), 문단 수정 뒤 문구 16·버튼 없음, AI 창 문구 19 확인. AXDefaultButton 미조회, 완료 ≥1·엔진 불일치 화면·실패 띠(문구 18)·실기기(막힘 5) 미검증 |
+| 15 | 통과 | |
 
 
 ## 작업 분해
@@ -237,7 +256,7 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 
 ## 막힘 (사용자 실행·승인 항목)
 
-1. 설치 앱 교체 1회 (차수 C 뒤 0.5.16(34)). 차수 A·B의 실제 데이터 화면 축은 이때 한꺼번에 잰다.
+1. 설치 앱 교체 1회 (차수 C 뒤 0.5.16(34)). 차수 A·B의 실제 데이터 화면 축은 이때 한꺼번에 잰다. **교체 완료 2026-11-05 21:54.** 실제 데이터 화면 축은 미실행(창을 열면 앱이 앞으로 나와 사용 중인 사용자 입력이 실제 스크립트에 들어갈 수 있음).
 2. 마이크 10초 녹음 1회 (AC-09ⓒ, 메인 실행). 녹음은 Speeches에 남고 정리는 사용자가 한다.
 3. 새 녹음 Script 생성 = Soniox 전송 10초 (AC-09ⓓ, 건별 승인). 미승인 시 합성 fixture로 대체하고 미검증으로 표시.
 4. pyannote 키 삭제 (AC-10). 키가 있으면 사용자가 직접 누르거나 승인한다.
@@ -253,5 +272,8 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 - F-05 (AC-05, 문언) «구 바이트 왕복 동일» → «키 정렬 왕복 동일 + nil 키 생략». 기본 인코더는 이 유닛 전부터 바이트 정본이 아님(프로브).
 - F-06 (AC-13, 문언) 정상 종료는 EOF까지 전수, 자식이 stderr를 제한 시각 넘어 붙잡으면 판정 시점(제한 시각 또는 강제 종료 + 2초 + 정리 최대 1.2초)까지 도착분. QA C4 «부분».
 - F-07 (AC-14, 결정) 실패 기록 없이 끊긴 시도(앱 종료 등)의 하단 줄: 짧은 원인을 생략함. 정본 문구 없음.
-- F-08 이 세션 터미널에 화면 기록·접근성 권한이 없어 `screencapture`·System Events 창 조회가 불가. 합성 QA 앱(`com.gazitofu.Dama.ReadingQA`, `.build/xcode-qa`)과 fixture `/private/tmp/dama-reading-qa-ub1-a`는 준비됨, 실화면 축 전부 미검증.
+- F-08 (갱신 11.05 게이트 ② 회신 뒤) 접근성은 열림, 화면 기록은 여전히 없음. 접근성 트리로 잰 축과 미검증 축은 «게이트 ② 회신 뒤» 표.
+- F-10 (AC-10, 결정) 저장·삭제 문구의 서비스 이름이 «Soniox 단독 (비교)»로 남는다(«Soniox 단독 (비교) 키 저장됨 · 연결 유효성 미검증», «이 Mac의 Soniox 단독 (비교) API 키를 삭제할까요?», «Soniox 단독 (비교) 키 삭제됨»). 머리 «Soniox API 키»와 이름이 갈린다. 권고: 세 문구도 «Soniox»로 통일(운영 기본값의 키라 «비교»가 틀린 설명). QA D는 현행 유지가 AC-10 문자 해석으로 타당, 통일은 사용자 결정이라고 판정.
+- F-11 (AC-04ⓒ, 문언) 스펙 417행 «구간 정보는 하단 도구막대의 «정보»로 연다». 실제 «정보» 버튼은 `74b774e`(2026-09-12)부터 상단 결과 줄이고 이 유닛은 옮기지 않았다. 스펙이 기존 위치를 잘못 적은 것으로 본다. 권고: 문언을 «결과 줄의 «정보»»로 정정, 버튼 이동 없음.
+- F-12 (절차) 사용자가 쓰는 중인 Mac에서 접근성으로 QA 앱을 조작하면 확인창이 사용자 입력을 받는다(이번 사건). QA 앱의 설정은 실제 로그인 키체인 항목의 존재를 조회하고, 삭제 버튼은 실제 항목을 지운다(Bundle ID 분리로 격리되지 않음). 다음 실화면 검증은 사용자 부재 시간을 합의하고, 키 삭제 여정은 격리 키체인이 생기기 전까지 보류한다.
 - F-09 `FileHandle.read(upToCount:)`는 파이프에서 개수를 채우거나 EOF까지 블록한다(역뮤테이션에서 관측). 다른 파이프 읽기 코드(Qwen·Nemotron 실행기)에 같은 가정이 있는지 별도 점검.
