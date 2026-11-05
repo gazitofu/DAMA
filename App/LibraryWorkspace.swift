@@ -38,6 +38,9 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     /// usage-bundle1 녹음 표시 제목: 인덱스 전체(휴지통 항목 포함)의 id → displayTitle, 연결 판정용 id 집합.
     @Published private(set) var displayTitles: [String: String] = [:]
     @Published private(set) var indexedSpeechIDs: Set<String> = []
+    /// usage-bundle1 녹음 직후 제목 입력창 줄. 끝난 마이크 녹음만 들어오고 인덱스에서 확인된 것만 보인다.
+    @Published private(set) var titlePrompts = TitlePromptQueue()
+    private(set) var promptRecords: [String: AudioManifest] = [:]
     private var store: FolderLibraryStore?
     private var root: URL?
     private var started = false
@@ -176,6 +179,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             busy = false
             // 녹음 표시 제목: Speeches 스캔이 새 항목을 인덱스에 더한 뒤 읽는다 (usage-bundle1).
             await loadTitles()
+            titlePrompts.confirmed(indexedSpeechIDs)
             guard let url = folders[.scripts] else { return }
             scriptsLoading = true
             do {
@@ -528,11 +532,23 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         guard let store, let destination = folders[.speeches] else {
             message = "녹음 원본은 내부에 보존했습니다. Speeches 폴더를 선택한 뒤 보존된 녹음을 저장할 수 있습니다."; return
         }
+        // 제목 입력창은 원본 저장이 끝난 뒤 줄 선다. 끝난 순서를 지키려고 Speeches 저장 전에 순번을 받는다.
+        titlePrompts.finished(record.id); promptRecords[record.id] = record
         Task {
             do { try await store.publishRecording(record, to: destination); refresh() }
-            catch { message = "Speeches에 저장하지 못했습니다. 내부 원본은 보존되어 있습니다." }
+            catch {
+                titlePrompts.drop(record.id); promptRecords[record.id] = nil
+                message = "Speeches에 저장하지 못했습니다. 내부 원본은 보존되어 있습니다."
+            }
         }
     }
+    /// 보이는 제목 입력창을 닫는다(저장 성공·나중에·Esc·창 닫기). 쓰기는 하지 않는다.
+    func dismissTitlePrompt() {
+        if let id = titlePrompts.current { promptRecords[id] = nil }
+        titlePrompts.dismissCurrent()
+    }
+    /// 앱 종료: 열린 입력창과 줄 선 것을 저장 없이 버린다.
+    func discardTitlePrompts() { titlePrompts.terminate(); promptRecords = [:] }
     func recoverRecordings() {
         guard !foldersLocked, let root, let store, let destination = folders[.speeches] else { return }
         busy = true

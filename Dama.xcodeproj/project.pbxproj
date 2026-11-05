@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		100000000000000000000024 = {isa = PBXBuildFile; fileRef = 200000000000000000000024; };
 		100000000000000000000023 = {isa = PBXBuildFile; fileRef = 200000000000000000000023; };
 		100000000000000000000022 = {isa = PBXBuildFile; fileRef = 200000000000000000000022; };
 		100000000000000000000019 = {isa = PBXBuildFile; fileRef = 200000000000000000000019; };
@@ -37,6 +38,7 @@
 		200000000000000000000023 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechDetailView.swift; sourceTree = "<group>"; };
 		200000000000000000000022 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptModalSheets.swift; sourceTree = "<group>"; };
 		200000000000000000000019 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptEditingSession.swift; sourceTree = "<group>"; };
+		200000000000000000000024 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitlePromptPanel.swift; sourceTree = "<group>"; };
 		200000000000000000000020 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineScriptText.swift; sourceTree = "<group>"; };
 		200000000000000000000021 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptReadingView.swift; sourceTree = "<group>"; };
 		200000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingWorkspace.swift; sourceTree = "<group>"; };
@@ -87,6 +89,7 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000019,
+				200000000000000000000024,
 				200000000000000000000015,
 				200000000000000000000017,
 				200000000000000000000001 /* DamaApp.swift */,
@@ -253,6 +256,7 @@
 				100000000000000000000010,
 				100000000000000000000011,
 				100000000000000000000013,
+				100000000000000000000024,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

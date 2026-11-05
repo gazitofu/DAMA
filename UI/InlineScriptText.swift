@@ -12,6 +12,10 @@ struct InlineScriptText: NSViewRepresentable {
     var commit: () -> Void = {}
     var cancel: () -> Void = {}
     var activated: () -> Void = {}
+    /// false면 입력칸 이탈로 commit하지 않는다(녹음 직후 제목 입력창: Enter·«저장»만 저장, usage-bundle1).
+    var commitOnEndEditing = true
+    /// 제목 모드 글자 크기. nil이면 기존 값(제목 27, 본문 17).
+    var fontSize: CGFloat? = nil
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> ScriptTextView {
         let view = ScriptTextView()
@@ -26,7 +30,7 @@ struct InlineScriptText: NSViewRepresentable {
         view.textContainer?.widthTracksTextView = true
         let paragraph = NSMutableParagraphStyle(); paragraph.lineSpacing = title ? 0 : 7
         view.defaultParagraphStyle = paragraph
-        view.font = .systemFont(ofSize: title ? 27 : 17, weight: title ? .medium : .regular)
+        view.font = .systemFont(ofSize: fontSize ?? (title ? 27 : 17), weight: title ? .medium : .regular)
         view.textColor = .labelColor
         view.string = text; view.delegate = context.coordinator
         updateNSView(view, context: context)
@@ -69,7 +73,7 @@ struct InlineScriptText: NSViewRepresentable {
             view.invalidateIntrinsicContentSize()
         }
         func textDidEndEditing(_ notification: Notification) {
-            guard parent.title, let view = notification.object as? NSTextView, !view.hasMarkedText() else { return }
+            guard parent.title, parent.commitOnEndEditing, let view = notification.object as? NSTextView, !view.hasMarkedText() else { return }
             parent.commit()
         }
     }

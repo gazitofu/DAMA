@@ -8,6 +8,11 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
         AppAppearance.applySaved()
         statusBar = StatusBarController()
         DockPresence.start()
+        TitlePromptPanelController.shared.start()
+    }
+    func applicationWillTerminate(_ notification: Notification) {
+        // usage-bundle1: 열린 녹음 제목 입력창과 줄 선 입력창은 저장 없이 버린다.
+        TitlePromptPanelController.shared.discardAll()
     }
     /// A Dock click with no visible window (only minimized ones keep the icon) reuses the menu-bar open path.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
