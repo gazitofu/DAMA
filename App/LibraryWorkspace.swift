@@ -171,12 +171,14 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         refreshGeneration += 1
         let generation = refreshGeneration
         Task {
+            // 녹음 제목 입력창의 «인덱스 누락» 판정은 Speeches 스캔과 인덱스 읽기가 둘 다 성공한 새로고침에서만 한다 (QA B N-1).
+            var speechesScanned = false
             do {
                 try await persistNotes()
                 if let url = folders[.speeches] {
                     do {
                         let scan = try await store.scanSpeeches(in: url)
-                        speeches = scan.items; scanIssues[.speeches] = scan.issues
+                        speeches = scan.items; scanIssues[.speeches] = scan.issues; speechesScanned = true
                         if !speeches.contains(where: { $0.id == selectedSpeechID }) { setSpeech(speeches.first?.id) }
                     } catch { scanIssues[.speeches] = [FileScanIssue(url: url)] }
                 }
@@ -184,8 +186,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             // Speeches are usable from here; Script-dependent actions wait for the listing below.
             busy = false
             // 녹음 표시 제목: Speeches 스캔이 새 항목을 인덱스에 더한 뒤 읽는다 (usage-bundle1).
-            await loadTitles()
-            confirmTitlePrompts(refreshedAt: generation)
+            let titlesLoaded = await loadTitles()
+            confirmTitlePrompts(refreshedAt: generation, verified: speechesScanned && titlesLoaded)
             guard let url = folders[.scripts] else { return }
             scriptsLoading = true
             do {
@@ -221,12 +223,12 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             }
         }
     }
-    /// 인덱스에서 표시 제목·연결 id를 다시 읽는다. 실패하면 이전 값을 유지한다.
-    private func loadTitles() async {
-        guard let store else { return }
-        if let titles = try? await store.displayTitles(), let ids = try? await store.indexedSpeechIDs() {
-            displayTitles = titles; indexedSpeechIDs = ids
-        }
+    /// 인덱스에서 표시 제목·연결 id를 다시 읽는다. 실패하면 이전 값을 유지하고 false.
+    @discardableResult private func loadTitles() async -> Bool {
+        guard let store else { return false }
+        guard let titles = try? await store.displayTitles(), let ids = try? await store.indexedSpeechIDs() else { return false }
+        displayTitles = titles; indexedSpeechIDs = ids
+        return true
     }
     /// 녹음 표시 제목을 인덱스에만 쓴다. 스크립트 파일·사본은 쓰지 않는다.
     func saveDisplayTitle(_ title: String, speechID: String) async throws {
@@ -563,13 +565,14 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             self?.promptRefresh = nil
         }
     }
-    /// 인덱스에서 확인된 녹음을 표시 가능으로 바꾼다. Speeches 저장 뒤 시작한 새로고침에서도 인덱스에 없으면 건너뛴다.
-    private func confirmTitlePrompts(refreshedAt generation: Int) {
+    /// 인덱스에서 확인된 녹음을 표시 가능으로 바꾼다. Speeches 저장 뒤 시작한 새로고침이 스캔·인덱스 읽기에
+    /// 성공(`verified`)했는데도 인덱스에 없으면 건너뛴다. 실패한 새로고침은 줄을 그대로 둔다(다음 새로고침에서 확인).
+    private func confirmTitlePrompts(refreshedAt generation: Int, verified: Bool) {
         titlePrompts.confirmed(indexedSpeechIDs)
         for id in titlePrompts.awaiting {
             guard let published = publishedPrompts[id] else { continue }
             if indexedSpeechIDs.contains(id) { publishedPrompts[id] = nil }
-            else if published < generation { titlePrompts.drop(id); publishedPrompts[id] = nil; promptRecords[id] = nil }
+            else if verified && published < generation { titlePrompts.drop(id); publishedPrompts[id] = nil; promptRecords[id] = nil }
         }
         for id in publishedPrompts.keys where indexedSpeechIDs.contains(id) { publishedPrompts[id] = nil }
     }
