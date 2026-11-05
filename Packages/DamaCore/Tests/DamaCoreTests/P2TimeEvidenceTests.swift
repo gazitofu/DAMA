@@ -25,6 +25,21 @@ final class P2TimeEvidenceTests: XCTestCase {
         XCTAssertThrowsError(try P2TimeEvidence.intervals(source, prefix: "d", mapping: ["A": "run-0"], durationUs: 1_000_000))
     }
 
+    func testFrameGridEndOverrunIsClampedOnlyWithinTolerance() throws {
+        // Observed shape: final P2 interval ends 9ms past the analysis audio.
+        let values = try P2TimeEvidence.intervals(
+            [PyannoteDiarizationDTO(start: 0.5, end: 1.009, speaker: "A", confidence: nil),
+             PyannoteDiarizationDTO(start: 0.9, end: 1.020, speaker: "A", confidence: nil)],
+            prefix: "e", mapping: ["A": "run-0"], durationUs: 1_000_000)
+        XCTAssertEqual(values.map(\.startUs), [500_000, 900_000])
+        XCTAssertEqual(values.map(\.endUs), [1_000_000, 1_000_000])
+        for (start, end) in [(0.5, 1.021), (1.005, 1.010), (1.0, 1.010)] {
+            XCTAssertThrowsError(try P2TimeEvidence.intervals(
+                [PyannoteDiarizationDTO(start: start, end: end, speaker: "A", confidence: nil)],
+                prefix: "e", mapping: ["A": "run-0"], durationUs: 1_000_000))
+        }
+    }
+
     func testUnionDoesNotDoubleCountAndDistinguishesBoundaryFromOverlap() throws {
         let regular = [interval("d0", "A", 0, 600), interval("d1", "B", 600, 1000)]
         // Deliberate duplicate/nested exclusive ranges exercise the pure union calculation.

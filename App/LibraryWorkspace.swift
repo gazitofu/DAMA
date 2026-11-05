@@ -375,6 +375,11 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             // pyannote is retired: a stalled P2 run is replaced by a new local run, never resumed.
             if processing.isRetired(run), canRetranscribe(speech.id) { retranscribeSpeech(); return }
             if processing.canResume(run) { processing.resume(run) }
+            else if run.canRetranscribe {
+                // Terminal failures are never resumed; a new run reuses completed provider results when eligible.
+                if canRetranscribe(speech.id) { retranscribeSpeech() }
+                else { message = processing.label(run) + " 다른 작업이 끝난 뒤 다시 전사할 수 있습니다." }
+            }
             else { message = processing.label(run) }
             return
         }

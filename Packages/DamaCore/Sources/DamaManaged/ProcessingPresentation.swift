@@ -60,7 +60,7 @@ public struct ProcessingPresentation: Sendable {
         case "paused":
             title = "처리 상태 확인을 일시 정지했습니다"; detail = "서버 작업은 계속될 수 있습니다. 변환 재개로 같은 작업을 확인하세요."; step = nil
         case "partialResult":
-            title = "변환 결과를 완전히 읽지 못했습니다"; detail = "원본 응답은 보존되어 있습니다."; step = nil
+            title = "변환 결과를 완전히 읽지 못했습니다"; detail = "원본 응답은 보존되어 있습니다. 다시 전사로 새 스크립트를 만들 수 있습니다."; step = nil
         case "resultExpired":
             title = "서버 결과를 가져오지 못했습니다"; detail = "결과 보관 기간이나 계정 상태를 확인해 주세요."; step = nil
         default:

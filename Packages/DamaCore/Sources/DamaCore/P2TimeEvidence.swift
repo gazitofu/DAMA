@@ -18,13 +18,24 @@ enum P2TimeEvidence {
                           mapping: [String: String], durationUs: Int64) throws -> [DiarizationInterval] {
         try source.enumerated().map { i, value in
             guard value.start.isFinite, value.end.isFinite, value.start >= 0, value.end > value.start,
-                  value.end * 1e6 <= Double(durationUs), let speaker = mapping[value.speaker] else {
+                  let endUs = endUs(value.end, durationUs: durationUs), let speaker = mapping[value.speaker] else {
                 throw ManagedNormalizationError.invalidIntervals
             }
             // Preserve source order/IDs and the existing seconds-to-microseconds rounding.
-            return DiarizationInterval(id: "\(prefix)\(i)", startUs: Int64((value.start * 1e6).rounded()),
-                endUs: Int64((value.end * 1e6).rounded()), speakerId: speaker, confidence: value.confidence)
+            let startUs = Int64((value.start * 1e6).rounded())
+            guard startUs < endUs else { throw ManagedNormalizationError.invalidIntervals }
+            return DiarizationInterval(id: "\(prefix)\(i)", startUs: startUs,
+                endUs: endUs, speakerId: speaker, confidence: value.confidence)
         }
+    }
+    /// P2 frame grid can end slightly past the analysis audio (observed 9–11.7ms, 2026-10-02).
+    /// Initial design value, not a provider spec: larger overruns still reject the result.
+    static let endOverrunToleranceUs: Int64 = 20_000
+    static func endUs(_ seconds: Double, durationUs: Int64) -> Int64? {
+        guard seconds.isFinite, seconds * 1e6 < Double(Int64.max) else { return nil }
+        let value = Int64((seconds * 1e6).rounded())
+        if value <= durationUs { return value }
+        return value - durationUs <= endOverrunToleranceUs ? durationUs : nil
     }
     static func token(startUs: Int64?, endUs: Int64?, regular: [DiarizationInterval],
                       exclusive: [DiarizationInterval]) -> Token {

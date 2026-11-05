@@ -148,7 +148,8 @@ struct SpeechDetailView: View {
         if let run {
             if run.stage == "readyForReview" { return workspace.scripts.contains { $0.id == run.id } ? "스크립트 열기" : "스크립트 저장 다시 시도" }
             if processing.isRetired(run) { return "다시 전사…" }
-            return processing.canResume(run) ? "변환 재개" : "처리 상태 확인"
+            if processing.canResume(run) { return "변환 재개" }
+            return run.canRetranscribe ? "다시 전사…" : "처리 상태 확인"
         }
         if workspace.completedScript(for: speech) != nil { return "스크립트 열기" }
         return [.sonioxPrecision, .sonioxNemotron].contains(provider) ? "결합본 만들기" : "변환하기"
