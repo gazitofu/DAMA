@@ -35,6 +35,9 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published private(set) var preparingSpeechID: String?
     @Published private(set) var needsDefaultFolderAccess = false
     @Published private(set) var savingRunIDs: Set<String> = []
+    /// usage-bundle1 녹음 표시 제목: 인덱스 전체(휴지통 항목 포함)의 id → displayTitle, 연결 판정용 id 집합.
+    @Published private(set) var displayTitles: [String: String] = [:]
+    @Published private(set) var indexedSpeechIDs: Set<String> = []
     private var store: FolderLibraryStore?
     private var root: URL?
     private var started = false
@@ -44,6 +47,16 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     var speech: LibrarySpeech? { speeches.first { $0.id == selectedSpeechID } }
     var scriptFile: LibraryScriptFile? { openedScript.flatMap { $0.id == selectedScriptID ? $0 : nil } }
     var displayedScript: LibraryScriptFile? { historicalFile ?? scriptFile }
+    /// 녹음 제목 = displayTitle, 없으면 기존 title (계약 library-script.md «녹음 표시 제목»).
+    func speechTitle(_ speech: LibrarySpeech) -> String { displayTitles[speech.id] ?? LibraryTitles.speech(speech) }
+    func speechTitle(id: String, fallback: String) -> String { displayTitles[id] ?? fallback }
+    /// 스크립트 제목 = 연결 녹음의 displayTitle, 없으면 파일 title. AI 버전 보기는 당시 제목.
+    func scriptTitle(_ summary: LibraryScriptSummary) -> String {
+        LibraryTitles.script(fileTitle: summary.title, sessionID: summary.sessionId, displayTitles: displayTitles)
+    }
+    func scriptTitle(_ script: LibraryScript) -> String { LibraryTitles.script(script, displayTitles: displayTitles) }
+    /// 연결 = 인덱스 항목 id가 스크립트 sessionId와 같음(Speech 파일이 휴지통에 있어도). AI 버전 보기는 제외.
+    func isLinked(_ script: LibraryScript) -> Bool { script.snapshotTitle == nil && indexedSpeechIDs.contains(script.transcript.sessionId) }
     var primaryScripts: [LibraryScriptSummary] { ScriptResultPresentation.primaryFiles(in: scripts) }
     var notesValid: Bool { speakerCount.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (Int(speakerCount).map { $0 > 0 } == true) }
     var notes: ConversionNotes {
@@ -161,6 +174,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             } catch { message = "입력 정보를 저장하지 못해 Speeches 갱신을 보류했습니다. 입력값과 기존 목록은 유지됩니다." }
             // Speeches are usable from here; Script-dependent actions wait for the listing below.
             busy = false
+            // 녹음 표시 제목: Speeches 스캔이 새 항목을 인덱스에 더한 뒤 읽는다 (usage-bundle1).
+            await loadTitles()
             guard let url = folders[.scripts] else { return }
             scriptsLoading = true
             do {
@@ -195,6 +210,21 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 refresh()
             }
         }
+    }
+    /// 인덱스에서 표시 제목·연결 id를 다시 읽는다. 실패하면 이전 값을 유지한다.
+    private func loadTitles() async {
+        guard let store else { return }
+        if let titles = try? await store.displayTitles(), let ids = try? await store.indexedSpeechIDs() {
+            displayTitles = titles; indexedSpeechIDs = ids
+        }
+    }
+    /// 녹음 표시 제목을 인덱스에만 쓴다. 스크립트 파일·사본은 쓰지 않는다.
+    func saveDisplayTitle(_ title: String, speechID: String) async throws {
+        guard let store else { throw LibraryFailure.invalidInput }
+        let saved = try await store.saveDisplayTitle(title, speechID: speechID)
+        displayTitles[speechID] = saved.displayTitle
+        indexedSpeechIDs.insert(speechID)
+        for i in speeches.indices where speeches[i].id == speechID { speeches[i].displayTitle = saved.displayTitle }
     }
     private func updated(_ file: LibraryScriptFile) {
         if let i = scripts.firstIndex(where: { $0.id == file.id }) { scripts[i] = LibraryScriptSummary(file) }
@@ -286,7 +316,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     func deleteSpeech(_ speech: LibrarySpeech) {
         guard !foldersLocked, let store, let folder = folders[.speeches] else { return }
         busy = true; playback.stop()
-        guard confirmDeletion(title: speech.title, kind: "Speech", detail: "선택한 녹음 파일 또는 녹음 묶음을 휴지통으로 이동합니다. 연결된 Scripts와 내부 원음 사본은 남아 재생·재전사에 사용할 수 있습니다.") else { busy = false; return }
+        guard confirmDeletion(title: speechTitle(speech), kind: "Speech", detail: "선택한 녹음 파일 또는 녹음 묶음을 휴지통으로 이동합니다. 연결된 Scripts와 내부 원음 사본은 남아 재생·재전사에 사용할 수 있습니다.") else { busy = false; return }
         Task {
             defer { busy = false }
             do {
@@ -300,7 +330,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     func deleteScript(_ file: LibraryScriptSummary) {
         guard !foldersLocked, let store, let folder = folders[.scripts] else { return }
         busy = true; playback.stop()
-        guard confirmDeletion(title: file.title, kind: "Script", detail: "선택한 스크립트 파일을 휴지통으로 이동합니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 내부 복구 이력은 남습니다.") else { busy = false; return }
+        guard confirmDeletion(title: scriptTitle(file), kind: "Script", detail: "선택한 스크립트 파일을 휴지통으로 이동합니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 내부 복구 이력은 남습니다.") else { busy = false; return }
         Task {
             defer { busy = false }
             do {
@@ -452,9 +482,11 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     }
     func exportMarkdown() {
         guard canLeave, let file = displayedScript, let store else { return }
+        // 현재 결과는 해석한 녹음 제목, AI 버전 보기는 당시 제목 (usage-bundle1).
+        let title = scriptTitle(file.script)
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
-        panel.nameFieldStringValue = file.script.title.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-") + ".md"
+        panel.nameFieldStringValue = title.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-") + ".md"
         panel.title = "Markdown 내보내기"
         panel.message = "녹음 정보·변환 전 입력·화자·대화·타임스탬프를 저장합니다."
         guard panel.runModal() == .OK, let destination = panel.url else { return }
@@ -463,7 +495,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             defer { busy = false }
             let accessed = destination.startAccessingSecurityScopedResource()
             defer { if accessed { destination.stopAccessingSecurityScopedResource() } }
-            do { try await store.exportMarkdown(file, to: destination); message = "Markdown 파일을 저장했습니다." }
+            do { try await store.exportMarkdown(file, title: title, to: destination); message = "Markdown 파일을 저장했습니다." }
             catch { message = "내보내지 못했습니다. 원본 스크립트의 변경 여부와 저장 권한을 확인해 주세요." }
         }
     }

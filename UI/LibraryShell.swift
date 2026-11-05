@@ -136,7 +136,7 @@ struct LibraryShell: View {
                             VStack(alignment: .leading, spacing: 9) {
                                 Button { workspace.selectSpeech(speech.id) } label: {
                                     VStack(alignment: .leading, spacing: 6) {
-                                        Text(speech.title).font(.body.weight(.medium)).lineLimit(2)
+                                        Text(workspace.speechTitle(speech)).font(.body.weight(.medium)).lineLimit(2)
                                         Text(date(speech.recordedAt)).font(.caption).foregroundStyle(.secondary)
                                     }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
                                 }.buttonStyle(.plain)
@@ -160,7 +160,7 @@ struct LibraryShell: View {
                         ForEach(workspace.primaryScripts) { file in
                             Button { workspace.selectScript(file.id) } label: {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(file.title).font(.body.weight(.medium)).lineLimit(2)
+                                    Text(workspace.scriptTitle(file)).font(.body.weight(.medium)).lineLimit(2)
                                     Text(date(file.createdAt)).font(.caption).foregroundStyle(.secondary)
                                     Text(file.engine.title).font(.caption2).foregroundStyle(.secondary)
                                 }.frame(maxWidth: .infinity, alignment: .leading).padding(12)

@@ -49,7 +49,7 @@ struct RecordingPanel: View {
                 if let message = workspace.message { Text(message).font(.callout) }
                 ForEach(workspace.records) { record in
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(record.title).font(.headline)
+                        Text(LibraryWorkspace.shared.speechTitle(id: record.id, fallback: record.title)).font(.headline)
                         Text("\(record.durationUs / 1_000_000)초 · \(recordLabel(record))").font(.caption)
                         if record.interruption != nil {
                             Text("녹음이 중단되었습니다. 이후 구간은 녹음되지 않았을 수 있습니다.").font(.caption)

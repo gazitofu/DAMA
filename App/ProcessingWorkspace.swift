@@ -158,6 +158,8 @@ final class ProcessingWorkspace: ObservableObject {
     }
 
     func reviewTransmission(_ record: AudioManifest, input original: ConversionNotes = ConversionNotes(), retranscribing: Bool = false) async {
+        // usage-bundle1: 확인창 첫 줄은 해석한 녹음 제목(인덱스 displayTitle, 없으면 manifest 제목).
+        let recordTitle = LibraryWorkspace.shared.speechTitle(id: record.id, fallback: record.title)
         var input=original
         guard !busy, let processor, record.analysis != nil, !localOnly.contains(record.id) else { return }
         await refreshRuns(recover: true)
@@ -191,7 +193,7 @@ final class ProcessingWorkspace: ObservableObject {
         if retranscribing && !canRetranscribe(record.id) { message = "진행 중이거나 일시 정지된 전사를 먼저 완료해 주세요."; return }
         let alert = NSAlert()
         alert.messageText = retranscribing ? "음성을 다시 전송해 재전사할까요?" : "음성을 전송할까요?"
-        alert.informativeText = "\(record.title) · \(record.durationUs / 1_000_000)초\n\n이 녹음의 음성을 \(input.provider.destination)로 보내 화자별 스크립트를 만듭니다. 모델: \(input.provider.model). 계정에 따라 비용이 발생할 수 있습니다. 원본은 이 Mac에 보관합니다.\n\n계정의 처리 지역과 보관 정책을 확인해 주세요. 앱에서 지워도 서버에서 즉시 삭제되지는 않습니다."
+        alert.informativeText = "\(recordTitle) · \(record.durationUs / 1_000_000)초\n\n이 녹음의 음성을 \(input.provider.destination)로 보내 화자별 스크립트를 만듭니다. 모델: \(input.provider.model). 계정에 따라 비용이 발생할 수 있습니다. 원본은 이 Mac에 보관합니다.\n\n계정의 처리 지역과 보관 정책을 확인해 주세요. 앱에서 지워도 서버에서 즉시 삭제되지는 않습니다."
         if input.provider.usesSoniox {
             alert.informativeText += "\n\n한국어·영어 힌트, 화자 분리·언어 감지를 사용합니다. 화자 수는 자동 판단합니다. 앱은 서버 파일·작업을 자동 삭제하지 않습니다. Soniox 정책상 30일 후 자동 삭제됩니다."
             alert.informativeText += input.sonioxContext == true ? "\n아래 맥락·참석자·용어와 선택된 참고 발췌도 Soniox에 전송합니다." : "\n맥락·참고 정보·화자 수 힌트는 Soniox에 전송하지 않습니다."
@@ -208,13 +210,13 @@ final class ProcessingWorkspace: ObservableObject {
         }
         if input.provider == .qwen {
             alert.messageText="로컬 Qwen 비교 전사를 시작할까요?"
-            alert.informativeText="\(record.title) · \(record.durationUs/1_000_000)초\n\n이 Mac에서 Qwen3-ASR-1.7B와 ForcedAligner-0.6B로 한국어 전사·정렬을 실행합니다. 맥락·참석자·용어는 로컬 모델에만 입력합니다. AI 교정은 끕니다.\n\n" +
+            alert.informativeText="\(recordTitle) · \(record.durationUs/1_000_000)초\n\n이 Mac에서 Qwen3-ASR-1.7B와 ForcedAligner-0.6B로 한국어 전사·정렬을 실행합니다. 맥락·참석자·용어는 로컬 모델에만 입력합니다. AI 교정은 끕니다.\n\n" +
                 (input.qwenDiarizationRunID != nil ? "같은 오디오·화자 수 설정의 Precision-2 결과를 재사용합니다. 새 음성 전송·화자 분리 과금은 없습니다." : "화자 분리를 위해 전체 음성을 pyannote.ai로 전송합니다. Precision-2 요금이 발생할 수 있습니다. Whisper 전사는 요청하지 않습니다.") +
                 "\n\n새 스크립트로 저장하며 기존 결과와 사람 수정은 보존합니다. 경계·겹말의 화자는 미확정으로 남길 수 있습니다."
         }
         if input.provider == .sonioxPrecision {
             alert.messageText = "운영 스크립트를 만들까요?"
-            alert.informativeText = "\(record.title) · \(record.durationUs / 1_000_000)초\n\nSoniox: " +
+            alert.informativeText = "\(recordTitle) · \(record.durationUs / 1_000_000)초\n\nSoniox: " +
                 (input.sonioxSourceRunID.map { "동일 음성·문맥 결과 재사용 (\($0))" } ?? "전체 음성 전송 · stt-async-v5 전사 및 자체 화자분리") +
                 "\nPrecision-2: " + (input.precisionSourceRunID.map { "동일 음성·화자 수 설정 결과 재사용 (\($0))" } ?? "전체 음성을 pyannote.ai에 전송 · 화자분리만 (전사 OFF)") +
                 "\n\n새 요청에만 해당 서비스 사용량이 발생합니다. 완료된 결과는 보존하고, Soniox 단독과 결합본을 따로 엽니다. AI 교정 OFF. 화자 충돌·경계·겹말은 검수 대상으로 남습니다.\n\n" +
@@ -224,7 +226,7 @@ final class ProcessingWorkspace: ObservableObject {
         }
         if input.provider == .sonioxNemotron {
             alert.messageText = "운영 스크립트를 만들까요?"
-            alert.informativeText = "\(record.title) · \(record.durationUs / 1_000_000)초\n\nSoniox: " +
+            alert.informativeText = "\(recordTitle) · \(record.durationUs / 1_000_000)초\n\nSoniox: " +
                 (input.sonioxSourceRunID.map { "동일 음성·문맥 결과 재사용 (\($0))" } ?? "전체 음성 전송 · stt-async-v5 전사 및 자체 화자분리") +
                 "\nNemotron 3: " + (input.nemotronSourceRunID.map { "동일 음성·모델 결과 재사용 (\($0))" } ?? "이 Mac에서 화자 분리 · 음성 전송 없음") +
                 "\n\n새 Soniox 요청에만 사용량이 발생합니다. 완료된 결과는 보존하고, Soniox 단독과 결합본을 따로 엽니다. AI 교정 OFF. 화자 충돌·경계·겹말은 검수 대상으로 남습니다.\n\n" +

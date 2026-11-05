@@ -33,6 +33,10 @@ struct ScriptReadingView: View {
                     InlineScriptText(text: $editor.title, editable: !readOnly && editor.block == nil && !workspace.editing,
                         title: true, label: "스크립트 제목", changed: editor.titleChanged,
                         commit: editor.commitTitle, cancel: editor.cancelTitle)
+                    // usage-bundle1: 연결 녹음이 있는 현재 결과에만 캡션 (문구 12).
+                    if !readOnly && workspace.isLinked(file.script) {
+                        Text("녹음 제목과 같이 바뀝니다.").font(.caption).foregroundStyle(.secondary)
+                    }
                     HStack {
                         Text(file.script.recordedAt?.formatted(date: .numeric, time: .shortened) ?? "녹음 날짜 미확인")
                         Text("· \(LibraryScript.timestamp(file.script.transcript.durationUs))")
@@ -115,6 +119,7 @@ struct ScriptReadingView: View {
             }
         }
         .onChange(of: file.hash) { _, _ in editor.receive(file) }
+        .onChange(of: workspace.displayTitles) { _, _ in editor.refreshTitle() }
         .task(id: file.hash) {
             let script = file.script
             hasSavedCorrections = await Task.detached(priority: .utility) {

@@ -43,12 +43,15 @@ final class LibraryTitleTests: XCTestCase {
     }
 
     func testOldIndexEntryDecodesWithoutDisplayTitleAndRoundTripsBytes() throws {
-        let old = try JSONEncoder().encode([speech("a")])
+        // 인덱스 쓰기(JSONEncoder 기본)는 키 순서가 실행마다 달라 바이트 비교 자로 쓸 수 없다. 키 정렬 인코더로 왕복 바이트를 본다.
+        let canonical = JSONEncoder(); canonical.outputFormatting = [.sortedKeys]
+        let old = try canonical.encode([speech("a")])
         let keys = try XCTUnwrap((try JSONSerialization.jsonObject(with: old) as? [[String: Any]])?.first?.keys)
         XCTAssertEqual(Set(keys), ["dateSource", "durationUs", "fileURL", "id", "notes", "recordedAt", "sourceHash", "title"])
         let decoded = try JSONDecoder().decode([LibrarySpeech].self, from: old)
         XCTAssertNil(decoded[0].displayTitle)
-        XCTAssertEqual(try JSONEncoder().encode(decoded), old)
+        XCTAssertEqual(try canonical.encode(decoded), old)
+        XCTAssertFalse(String(decoding: try JSONEncoder().encode(decoded), as: UTF8.self).contains("displayTitle"))
         let titled = try JSONEncoder().encode([speech("a", display: "표시")])
         let titledKeys = try XCTUnwrap((try JSONSerialization.jsonObject(with: titled) as? [[String: Any]])?.first?.keys)
         XCTAssertEqual(titledKeys.count, 9)
@@ -97,6 +100,22 @@ final class LibraryTitleTests: XCTestCase {
         try writeIndex([speech("trashed", display: "휴지통 녹음"), speech("plain")], root: root)
         let titles = try await FolderLibraryStore(root: root).displayTitles()
         XCTAssertEqual(titles, ["trashed": "휴지통 녹음"])
+    }
+
+    func testIndexedIDsCoverUntitledEntriesAndMarkdownExportUsesResolvedTitle() async throws {
+        let (folder, root, model) = try setup()
+        try writeIndex([speech(model.sessionId), speech("trashed", display: "휴지통")], root: root)
+        let store = FolderLibraryStore(root: root)
+        let ids = try await store.indexedSpeechIDs()
+        XCTAssertEqual(ids, [model.sessionId, "trashed"])
+        let file = try await store.createScript(model, speech: speech(model.sessionId), input: ConversionNotes(), in: folder)
+        let out = folder.deletingLastPathComponent().appendingPathComponent("out")
+        try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        try await store.exportMarkdown(file, title: "해석한 제목", to: out.appendingPathComponent("a.md"))
+        try await store.exportMarkdown(file, to: out.appendingPathComponent("b.md"))
+        let first = { (name: String) in String(decoding: try Data(contentsOf: out.appendingPathComponent(name)), as: UTF8.self).components(separatedBy: "\n").first }
+        XCTAssertEqual(try first("a.md"), "# 해석한 제목")
+        XCTAssertEqual(try first("b.md"), "# 자동 제목")
     }
 
     func testResolutionCases() throws {

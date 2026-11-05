@@ -210,6 +210,8 @@ public actor FolderLibraryStore {
         try writeIndex(index)
         return index[first]
     }
+    /// 인덱스 전체(찾지 못한 파일·휴지통 항목 포함)의 녹음 id. 스크립트 연결 판정(sessionId == id)에 쓴다.
+    public func indexedSpeechIDs() throws -> Set<String> { Set(try readIndex().map(\.id)) }
     /// 인덱스 전체(찾지 못한 파일·휴지통 항목 포함)의 표시 제목. id → displayTitle.
     public func displayTitles() throws -> [String: String] {
         Dictionary(try readIndex().compactMap { entry in entry.displayTitle.map { (entry.id, $0) } }, uniquingKeysWith: { first, _ in first })
@@ -480,12 +482,13 @@ public actor FolderLibraryStore {
               try script.sourceFingerprint() == current.script.sourceFingerprint() else { throw LibraryFailure.invalidScript }
         return LibraryScriptFile(url: url, hash: version.sha256, script: script)
     }
-    public func exportMarkdown(_ file: LibraryScriptFile, to destination: URL) throws {
+    /// `title` = 해석한 표시 제목(usage-bundle1). nil이면 파일 제목.
+    public func exportMarkdown(_ file: LibraryScriptFile, title: String? = nil, to destination: URL) throws {
         try safe(destination)
         guard destination.pathExtension.lowercased() == "md",
               !destination.path.hasPrefix(root.path + "/"),
               try AudioFiles.hash(file.url) == file.hash else { throw LibraryFailure.changedFile }
-        try TranscriptExporter().write(file.script.markdown(), to: destination)
+        try TranscriptExporter().write(file.script.markdown(title: title), to: destination)
     }
 
     public func exportEvaluation(_ file: LibraryScriptFile, cost: MonthlyOperatingCost,

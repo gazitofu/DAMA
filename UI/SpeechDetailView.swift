@@ -10,6 +10,11 @@ struct SpeechDetailView: View {
     @ObservedObject private var processing = ProcessingWorkspace.shared
     @ObservedObject private var correction = CorrectionWorkspace.shared
     @State private var information = false
+    @StateObject private var titleSession: SpeechTitleSession
+    init(speech: LibrarySpeech, workspace: LibraryWorkspace, settings: @escaping () -> Void) {
+        self.speech = speech; self.workspace = workspace; self.settings = settings
+        _titleSession = StateObject(wrappedValue: SpeechTitleSession(speech: speech, workspace: workspace))
+    }
     private var run: ManagedRun? { processing.run(for: speech.id) }
     private var provider: TranscriptionProvider { processing.selectedProvider }
     private var contextUsed: Bool { provider.consumesContext(sonioxEnabled: processing.sonioxContext) }
@@ -18,11 +23,17 @@ struct SpeechDetailView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Speeches").font(.caption).foregroundStyle(.secondary)
-                    Text(speech.title).font(.title)
-                    Text("\(speech.recordedAt?.formatted(date: .numeric, time: .shortened) ?? "녹음 날짜 미확인") · \(LibraryScript.timestamp(speech.durationUs))").font(.caption).foregroundStyle(.secondary)
+                    // usage-bundle1: 녹음 제목 입력칸(스크립트 제목칸과 같은 부품). Enter·이탈 때만 인덱스에 저장.
+                    InlineScriptText(text: $titleSession.title, editable: !workspace.editing, title: true, label: "녹음 제목",
+                        changed: titleSession.changed, commit: titleSession.commit, cancel: titleSession.cancel)
+                    HStack {
+                        Text("\(speech.recordedAt?.formatted(date: .numeric, time: .shortened) ?? "녹음 날짜 미확인") · \(LibraryScript.timestamp(speech.durationUs))")
+                        if let message = titleSession.message { Text("· \(message)") }
+                    }.font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(); Button("정보", systemImage: "info.circle") { information.toggle() }
             }.padding(28)
+            .onChange(of: workspace.displayTitles) { _, _ in titleSession.receive(workspace.speechTitle(speech)) }
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {

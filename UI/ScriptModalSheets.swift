@@ -91,7 +91,7 @@ struct CorrectionInputSheet: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("AI 검수/보정").font(.title2)
-                Text(request.file.script.title).font(.headline)
+                Text(workspace.scriptTitle(request.file.script)).font(.headline)
                 Text("현재 결과의 원문을 보정합니다. 사용자 수정은 보존됩니다.").font(.caption).foregroundStyle(.secondary)
             }.padding(24)
             Divider()
