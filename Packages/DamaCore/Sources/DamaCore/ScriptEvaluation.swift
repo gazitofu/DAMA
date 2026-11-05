@@ -102,6 +102,7 @@ extension LibraryScript {
 }
 
 /// Account-entered monthly figures. USD only; unknown values stay nil, including actual free usage.
+/// 단위: 입력·내부·출력 모두 USD Double (배율 변환 없음, 화면 출력은 `%.2f`). 음수·무한은 검증에서 거부한다.
 public struct MonthlyOperatingCost: Codable, Sendable {
     public var month = ""
     public var trialEnds = ""
@@ -114,14 +115,29 @@ public struct MonthlyOperatingCost: Codable, Sendable {
     public var actualBilledUSD: Double?
     public var referenceBillUSD: Double?
     public var evidence = ""
+    /// usage-bundle1 AI CLI 구독료. 구 기록(키 없음)은 nil = 미측정.
+    public var aiCLISubscriptionUSD: Double?
     public init() {}
+    /// 퇴역 pyannote 3항목(구독료·포함 크레딧·정상 사용액) 중 입력한 칸 수.
+    public var retiredFilledCount: Int { [normalSubscriptionUSD, includedCreditUSD, precisionUsageUSD].compactMap { $0 }.count }
+    /// 퇴역 항목을 한두 칸만 입력했다(합계 미측정, 안내 문구).
+    public var retiredPartial: Bool { (1...2).contains(retiredFilledCount) }
+    /// 혜택 종료 후 정상 월 비용 (operating-baseline.md:97, 2026-11-05).
+    /// = Soniox 사용액 + AI CLI 구독료 + 기타 [+ pyannote 구독료 + max(0, pyannote 사용액 − 포함 크레딧), 퇴역 3칸 모두 입력 시].
+    /// 주 3항목 중 하나라도 빈칸이거나 퇴역 항목이 한두 칸이면 nil(미측정).
     public var normalTotalUSD: Double? {
-        guard let base = normalSubscriptionUSD, let credit = includedCreditUSD, let p2 = precisionUsageUSD,
-              let soniox = sonioxUsageUSD, let other = otherCostUSD else { return nil }
-        return base + max(0, p2 - credit) + soniox + other
+        guard let soniox = sonioxUsageUSD, let ai = aiCLISubscriptionUSD, let other = otherCostUSD else { return nil }
+        let base = soniox + ai + other
+        switch retiredFilledCount {
+        case 0: return base
+        case 3:
+            guard let subscription = normalSubscriptionUSD, let credit = includedCreditUSD, let usage = precisionUsageUSD else { return nil }
+            return base + subscription + max(0, usage - credit)
+        default: return nil
+        }
     }
     public func validate() throws {
-        guard [normalSubscriptionUSD, includedCreditUSD, precisionUsageUSD, sonioxUsageUSD,
-               otherCostUSD, actualBilledUSD, referenceBillUSD].compactMap({ $0 }).allSatisfy({ $0.isFinite && $0 >= 0 }) else { throw LibraryFailure.invalidInput }
+        guard [normalSubscriptionUSD, includedCreditUSD, precisionUsageUSD, sonioxUsageUSD, otherCostUSD,
+               actualBilledUSD, referenceBillUSD, aiCLISubscriptionUSD].compactMap({ $0 }).allSatisfy({ $0.isFinite && $0 >= 0 }) else { throw LibraryFailure.invalidInput }
     }
 }

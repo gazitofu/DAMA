@@ -19,6 +19,13 @@ public enum KeychainStore {
               let key = String(data: data, encoding: .utf8) else { throw ManagedFailure.missingKey }
         return key
     }
+    /// usage-bundle1: 항목이 있는지만 확인한다. 값을 읽지 않는다(`kSecReturnData` 없음, 반환값은 Bool).
+    /// 확인 실패(권한 등)는 «있음»으로 말하지 않는다.
+    public static func exists(provider: TranscriptionProvider) -> Bool {
+        var q = query(provider)
+        q[kSecMatchLimit as String] = kSecMatchLimitOne
+        return SecItemCopyMatching(q as CFDictionary, nil) == errSecSuccess
+    }
     public static func save(_ key: String, provider: TranscriptionProvider = .pyannote) throws {
         let query = query(provider)
         guard !key.isEmpty, !key.contains("\n"), !key.contains("\r") else { throw ManagedFailure.missingKey }

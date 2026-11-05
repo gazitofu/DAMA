@@ -297,10 +297,16 @@ struct OperatingCostSheet: View {
     @State private var cost: MonthlyOperatingCost
     @State private var values: [String: String]
     @State private var error: String?
-    private static let fields: [(String, WritableKeyPath<MonthlyOperatingCost, Double?>)] = [
+    /// usage-bundle1 주 항목 5 (operating-baseline.md:97 새 공식).
+    private static let mainFields: [(String, WritableKeyPath<MonthlyOperatingCost, Double?>)] = [
+        ("Soniox 정상 단가 사용액", \.sonioxUsageUSD), ("AI CLI 구독료", \.aiCLISubscriptionUSD), ("기타 현금 비용", \.otherCostUSD),
+        ("실제 청구 합계", \.actualBilledUSD), ("TIRO 등 실제 비교 청구액", \.referenceBillUSD)]
+    /// 퇴역 서비스(기록용) pyannote 3항목. 기본 닫힘.
+    private static let retiredFields: [(String, WritableKeyPath<MonthlyOperatingCost, Double?>)] = [
         ("pyannote 정상 월 구독료", \.normalSubscriptionUSD), ("pyannote 포함 크레딧", \.includedCreditUSD),
-        ("pyannote 정상 단가 사용액", \.precisionUsageUSD), ("Soniox 정상 단가 사용액", \.sonioxUsageUSD),
-        ("기타 현금 비용", \.otherCostUSD), ("실제 청구 합계", \.actualBilledUSD), ("TIRO 등 실제 비교 청구액", \.referenceBillUSD)]
+        ("pyannote 정상 단가 사용액", \.precisionUsageUSD)]
+    private static var fields: [(String, WritableKeyPath<MonthlyOperatingCost, Double?>)] { mainFields + retiredFields }
+    @State private var retiredExpanded = false
     init(workspace: LibraryWorkspace) {
         self.workspace = workspace
         let saved = workspace.monthlyCost
@@ -319,19 +325,27 @@ struct OperatingCostSheet: View {
         }
         return result
     }
+    private func field(_ label: String) -> some View {
+        HStack {
+            Text(label).frame(width: 210, alignment: .leading)
+            TextField("미입력", text: Binding(get: { values[label] ?? "" }, set: { values[label] = $0 })).textFieldStyle(.roundedBorder)
+        }
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("월 비용·무료 혜택 기록").font(.title2)
             Text("USD · 계정 대시보드/청구서 기준 수동 입력. 빈칸은 미측정이며, 확인한 무료 청구액만 0으로 입력하세요.").font(.caption)
             TextField("대상 월 (YYYY-MM)", text: $cost.month).textFieldStyle(.roundedBorder)
-            ForEach(Self.fields, id: \.0) { label, _ in
-                HStack {
-                    Text(label).frame(width: 210, alignment: .leading)
-                    TextField("미입력", text: Binding(get: { values[label] ?? "" }, set: { values[label] = $0 })).textFieldStyle(.roundedBorder)
-                }
+            ForEach(Self.mainFields, id: \.0) { label, _ in field(label) }
+            Text("Nemotron 3 화자 분리 · 로컬 실행").font(.caption).foregroundStyle(.secondary)
+            DisclosureGroup("퇴역 서비스 (기록용) · pyannote", isExpanded: $retiredExpanded) {
+                VStack(alignment: .leading, spacing: 8) { ForEach(Self.retiredFields, id: \.0) { label, _ in field(label) } }.padding(.top, 6)
             }
-            Text("정상 월 비용 = 구독료 + max(0, pyannote 사용액 − 포함 크레딧) + Soniox 사용액 + 기타 비용").font(.caption)
+            Text("정상 월 비용 = Soniox 사용액 + AI CLI 구독료 + 기타 비용 (퇴역 항목 입력 시 + pyannote 구독료 + max(0, pyannote 사용액 − 포함 크레딧))").font(.caption)
             Text((try? parsed().normalTotalUSD).map { String(format: "혜택 종료 후 정상 월 비용: $%.2f", $0) } ?? "혜택 종료 후 정상 월 비용: 미측정").font(.headline)
+            if (try? parsed())?.retiredPartial == true {
+                Text("pyannote 항목은 세 칸을 모두 입력해야 합계에 넣습니다.").font(.caption)
+            }
             TextField("무료 혜택 종료일 (확인 전은 빈칸)", text: $cost.trialEnds).textFieldStyle(.roundedBorder)
             TextField("무료 포함량·조건", text: $cost.trialAllowance).textFieldStyle(.roundedBorder)
             TextField("청구서/단가 근거·기록일·재처리 사용량 메모", text: $cost.evidence).textFieldStyle(.roundedBorder)

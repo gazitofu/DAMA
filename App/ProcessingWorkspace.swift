@@ -370,15 +370,15 @@ final class ProcessingWorkspace: ObservableObject {
     }
 }
 
+/// usage-bundle1 API 키: Soniox만 입력·저장·삭제한다(서비스 선택 없음). 퇴역 pyannote 키는 키체인에 있을 때만
+/// 안내 줄과 «pyannote 키 삭제»를 보인다. 존재 확인은 값을 읽지 않는다(`KeychainStore.exists`).
 struct APIKeySettings: View {
-    @State private var provider: TranscriptionProvider = .pyannote
+    private let provider = TranscriptionProvider.soniox
     @State private var key = ""
     @State private var message: String?
+    @State private var pyannoteKeyStored = false
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Picker("API 키 서비스", selection: $provider) {
-                ForEach([TranscriptionProvider.pyannote, .soniox], id: \.self) { Text($0.title).tag($0) }
-            }.onChange(of: provider) { key = ""; message = nil }
             Text("\(provider.title) API 키").font(.headline)
             SecureField("API 키", text: $key).textFieldStyle(.roundedBorder)
             Text("입력한 키는 이 Mac의 키체인에 저장합니다. 저장만으로 연결 확인이나 음성 전송을 하지 않습니다.")
@@ -397,10 +397,28 @@ struct APIKeySettings: View {
                     guard alert.runModal() == .alertSecondButtonReturn else { return }
                     do { try KeychainStore.delete(provider: provider); message = "\(provider.title) 키 삭제됨" }
                     catch { message = "키를 삭제하지 못했습니다." }
+                    checkPyannoteKey()
+                }
+            }
+            if pyannoteKeyStored {
+                Text("저장된 pyannote API 키가 있습니다. pyannote는 더 이상 사용하지 않습니다.").font(.caption)
+                Button("pyannote 키 삭제") {
+                    let alert = NSAlert()
+                    alert.messageText = "이 Mac의 pyannote API 키를 삭제할까요?"
+                    alert.informativeText = "pyannote는 더 이상 사용하지 않습니다. 녹음 원본·스크립트·이미 만든 pyannote 결과는 유지됩니다."
+                    alert.addButton(withTitle: "취소")
+                    alert.addButton(withTitle: "키 삭제")
+                    guard alert.runModal() == .alertSecondButtonReturn else { return }
+                    do { try KeychainStore.delete(provider: .pyannote); message = "pyannote 키 삭제됨" }
+                    catch { message = "키를 삭제하지 못했습니다." }
+                    checkPyannoteKey()
                 }
             }
             if let message { Text(message).font(.callout) }
         }.padding(20).frame(width: 360)
+            .onAppear(perform: checkPyannoteKey)
             .onDisappear { key = "" }
     }
+    /// 설정을 열 때와 삭제 뒤에 확인한다. 값은 읽지 않는다.
+    private func checkPyannoteKey() { pyannoteKeyStored = KeychainStore.exists(provider: .pyannote) }
 }
