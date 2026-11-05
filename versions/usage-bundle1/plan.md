@@ -1,9 +1,10 @@
 ---
 unit: usage-bundle1
 branch: work/m0-fixture-review
-status: built
+status: released
+released_at: 2026-11-06
 decisions_resolved: true
-resume: "built (2026-11-06 01:2x). AC-01–AC-16 전부 통과(QA H·I·J), 설치 0.5.18(36) 실행 확인. 다음 = /ship (GO 1회). 브랜치 work/m0-fixture-review는 main보다 129+ 커밋 앞서고 16유닛이 함께 있다. 공유 트리 타 소유 미커밋 14·미추적 3. check.sh는 대문자 절대경로"
+resume: "released v0.5.18 (2026-11-06). main 머지·태그·origin push(main·태그). 작업 브랜치 work/m0-fixture-review는 building 유닛 5개 때문에 유지(main과 같은 지점으로 맞춤)."
 spec: notes/usage-bundle1/usage-bundle1.src.html
 ---
 ## 근거
