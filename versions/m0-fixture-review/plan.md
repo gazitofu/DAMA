@@ -3,7 +3,7 @@ unit: m0-fixture-review
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-04 완료 (Core54·Debug PASS); T-05 JSON/TXT 내보내기 구현"
+resume: "기본 수정→저장→재실행→내보내기는 사용자 확인 완료, 재검사 없음. M0 미측정 AC는 유지. 사용자 후속 구현 지시로 M1·M2 코드와 합성/mock 검증 진행; 각각의 plan 참조. 남은 실제 UI·접근성만 한 묶음으로 확인."
 spec: notes/review-workspace/review-workspace.src.html
 spec_sections: "02 검수·수정·내보내기; 03 검수 창; 04 검수 관련 규격·문구; 05; 06"
 deployment_target: "26.6.2"
@@ -106,15 +106,15 @@ public protocol TranscriptRepository: Sendable {
 
 ## 수용 기준
 
-- [ ] AC-01 프로젝트: DamaCore의 pure tests와 Dama Debug 컴파일 성공. module cache `.build/modulecache` 고정. 파일 경로 존재에 따른 SKIP 2개가 M0 완료 시 남지 않음. 서명 없는 compile을 배포 검증으로 표시하지 않음.
-- [ ] AC-02 계약: 원본 schema와 Swift 파생물 일치; normalized 재인코딩의 모든 required nullable 키 존재. unknown provider status 문자열 보존. d4 confidence 합 125(65+60), d5 confidence=null 그대로. 모집단: 기존 normalized·vendor 2파일과 메모리 변형. INV-01·02·08, RC-07·12.
-- [ ] AC-03 데이터 보존: normalized fixture Words 5, Turns 4, 이슈 2. t1 → t-marker → t2 분리; t-marker 850000–990000µs, wordIds=[]; w5 speakerId=null/modelSpeakerId=speaker-b. 로드·수정·저장·재실행·두 포맷 출력 모두 대조. INV-03–07·10, RC-01·03·11.
-- [ ] AC-04 수정 범위: w5를 speaker-c로 변경해도 text='네', modelSpeakerId=speaker-b, overlap=true 유지. speaker-a 이름 변경은 B/C와 다른 Run 불변. 한 Word editedText 변경은 원문·prefix 보존; Undo/Redo·재실행 후 동일. INV-05·08·09, RC-13·15.
-- [ ] AC-05 장벽: t1 내부 w1/w2 경계 수동 분리 → 5 Turns; 후속 화자 변경·Undo/Redo·재실행에서도 marker와 수동 경계 보존. Word 한 개가 정확히 한 speech Turn에 속하는지 전수 확인. INV-04–06.
+- [x] AC-01 프로젝트: DamaCore의 pure tests와 Dama Debug 컴파일 성공. module cache `.build/modulecache` 고정. 파일 경로 존재에 따른 SKIP 2개가 M0 완료 시 남지 않음. 서명 없는 compile을 배포 검증으로 표시하지 않음.
+- [x] AC-02 계약: 원본 schema와 Swift 파생물 일치; normalized 재인코딩의 모든 required nullable 키 존재. unknown provider status 문자열 보존. d4 confidence 합 125(65+60), d5 confidence=null 그대로. 모집단: 기존 normalized·vendor 2파일과 메모리 변형. INV-01·02·08, RC-07·12.
+- [x] AC-03 데이터 보존: normalized fixture Words 5, Turns 4, 이슈 2. t1 → t-marker → t2 분리; t-marker 850000–990000µs, wordIds=[]; w5 speakerId=null/modelSpeakerId=speaker-b. 로드·수정·저장·재실행·두 포맷 출력 모두 대조. INV-03–07·10, RC-01·03·11.
+- [x] AC-04 수정 범위: w5를 speaker-c로 변경해도 text='네', modelSpeakerId=speaker-b, overlap=true 유지. speaker-a 이름 변경은 B/C와 다른 Run 불변. 한 Word editedText 변경은 원문·prefix 보존; Undo/Redo·재실행 후 동일. INV-05·08·09, RC-13·15.
+- [x] AC-05 장벽: t1 내부 w1/w2 경계 수동 분리 → 5 Turns; 후속 화자 변경·Undo/Redo·재실행에서도 marker와 수동 경계 보존. Word 한 개가 정확히 한 speech Turn에 속하는지 전수 확인. INV-04–06.
 - [ ] AC-06 이슈: i1만 확인하면 acknowledged, i2는 open, w5는 null, marker 유지. 다음 이슈는 850000µs의 i1이 2100000µs의 i2보다 먼저. 동일 시간은 ID 순, null 시간은 유효 시간 뒤. 확인 이슈 없음/검색 없음/선택 없음 상태에서 조작이 잘못 활성화되지 않음. INV-08·10.
 - [ ] AC-07 저장 실패: (a) 임시 작성 중 (b) revision 확정 후 pointer 직전 (c) pointer 손상 세 지점 fault injection. 기존 model/raw/유효 revision 해시 보존, 이전 또는 복구된 유효 active 로드. 실패 중 ‘저장됨’·내보내기 금지. 전원 손실 내구성을 이 검사로 주장하지 않음.
-- [ ] AC-08 시간·TXT: 내부 Int64 µs→화면/TXT 밀리초 표시만 변환. 850000→00:00:00.850, 990000→00:00:00.990; 140000µs=140ms. null은 ‘시간 미확인’; 음수·역전 범위는 검증 실패. 정수 표시 반올림은 모델 시간을 수정하지 않음. INV-02, RC-07. 고정 테스트 필수.
-- [ ] AC-09 export: 자동본/현재 수정본×JSON/TXT 4조합; null 화자는 ‘화자 미확정’, marker 보존, 정답 확률(%) 미표시. output에 API 키·서명 URL·내부 저장소 절대경로 없음. 합성 provenance 유지. INV-08–10, G-04 중 export 층위.
+- [x] AC-08 시간·TXT: 내부 Int64 µs→화면/TXT 밀리초 표시만 변환. 850000→00:00:00.850, 990000→00:00:00.990; 140000µs=140ms. null은 ‘시간 미확인’; 음수·역전 범위는 검증 실패. 정수 표시 반올림은 모델 시간을 수정하지 않음. INV-02, RC-07. 고정 테스트 필수.
+- [x] AC-09 export: 자동본/현재 수정본×JSON/TXT 4조합; null 화자는 ‘화자 미확정’, marker 보존, 정답 확률(%) 미표시. output에 API 키·서명 URL·내부 저장소 절대경로 없음. 합성 provenance 유지. INV-08–10, G-04 중 export 층위.
 - [ ] AC-10 UI: 기본 1180×760, 최소 900×600에서 원문·명령이 겹치지 않음. 목록 220pt, Inspector 260pt, 최소 폭 접기·근거 보기 overlay 실제 열기/닫기. 합성 fixture 배지, marker·unknown·confidence 미제공 표시를 육안 확인. HTML mock PASS로 대체하지 않음.
 - [ ] AC-11 사용자 여정: Debug 합성 데이터 열기 → 단어/범위 선택 → 화자 변경 → 이름 변경 → Undo/Redo → 저장 → 종료·재실행 → JSON/TXT 저장. 저장 파일 재로딩으로 같은 데이터 확인. 녹음·원음 재생·키 입력·전사 버튼은 미지원 안내/비활성, 권한 요청·API 호출 없음.
 - [ ] AC-12 접근성: 검수 창의 선택·화자 변경·이슈 이동·내보내기를 키보드로 1회 완주; VoiceOver의 화자·시간·이슈·선택 이름 확인. 밝은/어두운 모드에서 label·focus 가독성 육안 기록. 실행 불가 시 미측정으로 남기고 built 처리 금지.
@@ -132,9 +132,10 @@ public protocol TranscriptRepository: Sendable {
 | T-07 | 메뉴바·설정·Debug fixture 진입 및 앱 재실행 여정 통합; 실제 미지원 기능 노출 차단 | T-06 | AC-11; 설계 T-001·003 |
 | T-08 | M0 전체 검산과 게이트 ②: 회귀/저장 fault/실행 여정, README·dev 실제 결과 갱신 | T-07 | AC 전 항목과 미측정 층위 보고 |
 
-- 태스크별 `bash scripts/check.sh` 통과 후 다음 단계. 새 검사 실패를 삭제·완화해 통과시키지 않음. 한 의도 단위 pathspec 커밋.
+- QA 지점은 여정 2개다. **① 데이터 여정** (T-02~T-05, 헤드리스): 합성 데이터 열기 → 수정 → 저장 → 재실행 → JSON/TXT 내보내기. AC-02·03·04·05·06·07·08·09. **② 앱 여정** (T-01·T-06~T-08): 앱 실행 → 검수 창 조작 → 저장 → 종료·재실행 → 파일 저장. AC-01·10·11·12. 파일·계층·태스크·커밋은 QA 경계가 아니다.
+- 태스크마다 도는 것은 샌드박스 안 층(`check.sh` 1·2, DamaCore pure test)이다. 앱 빌드·`xcodebuild test`·실기기·접근성은 여정 경계에서 메인이 1회. 수탁자가 결과 파일에 명령·출력을 남긴 층은 재실행하지 않는다. 새 검사 실패를 삭제·완화해 통과시키지 않음. 한 의도 단위 pathspec 커밋.
 - 코딩은 Codex CLI GPT 5.6 sol에 위임. 메인은 분할·diff 리뷰·통합·검증 판단. 이 plan 작성에서는 코딩 위임/구현을 실행하지 않음.
-- /build 발주 파일: `notes/m0-fixture-review/codex/contract.md`, `t01.md`…`t08.md`; 결과 `t01-result.md` 등. 입력·수정 허용 경로·보존 파일·명령·출력 경로를 명시.
+- /build 발주 파일: `notes/m0-fixture-review/codex/contract.md` + 차수 발주문. 기착지 `t01`~`t05`와 미착수 초안 `t06`~`t08`은 이력으로 보존하고, 남은 발주는 여정 단위로 묶는다(T-05 마감 1건, T-06~T-08 앱 여정 1건). 태스크마다 발주문·결과 보고서·리뷰 파일을 새로 만들지 않는다. 입력·수정 허용 경로·보존 파일·명령·출력 경로를 명시.
 - 순차 발주. 후속 병행이 필요하면 메인이 실제 타입·함수와 파일 소유를 먼저 고정. 장기 실행은 진행 신호·정상 소요 대비 워치독을 발주에 포함.
 
 ## 검증 실행 주체
@@ -162,12 +163,60 @@ public protocol TranscriptRepository: Sendable {
 
 | 항목 | 상태·사용자 실행 | M0에 미치는 영향 |
 |---|---|---|
-| API 키·유료 호출·음성 전송 | 미제공/이번 턴 승인 없음 | M0 필요 없음. M2 실연동에서 건별 확인 |
-| 마이크 권한·실제 회의 파일 | 미요청/미준비 | M0 필요 없음. M1·한국어 평가에서 확인 |
+| API 키·유료 호출·음성 전송 | 사용자 pyannote.ai 가입·키 보유 확인. 키 값 미수신·유효성 미검증, 실전송·유료 호출 승인 없음 | M0 필요 없음. M2에서 앱 키 입력과 건별 실행 확인 |
+| 마이크 권한·평가용 녹음 | 마이크 미요청. 사용자 1시간 30분 녹음 보유 진술; 파일 실측·외부 전송 동의 미확인 | M1 반입·M2 한국어 평가에서 확인 |
 | 서명·키체인·testmanagerd | 현재 수탁 세션 실행 제외 | 앱 실물·xcodebuild test 확인이 남으면 해당 AC 미체크 유지; 외부 메인 결과 수신 필요 |
 | HTML 시각 검수 | file URL 정책 차단, 우회 없음 | 스펙 입력은 사용자 /plan 지시로 채택. M0의 실제 앱 시각·접근성 검수로 확인 |
 
+## 앱 여정 구현·검증 근거 (2026-09-09 재개)
+
+- 사용자 “별도 세션에서 고쳤음. DAMA 프로젝트 다시 이어하자”에 따라 갱신된 공통·도메인·build 규칙을 확인했다. T-06~08은 이 Codex 세션이 직접 구현했고 하위 CLI·태스크별 결과 보고서는 새로 만들지 않았다. T-06~08 기존 발주 초안은 실행 근거가 아닌 과거 이력으로 보존한다.
+- T-05 `e05d0b0`: 자동본/현재 수정본 JSON·TXT, 저장 실패·동시 export 방지, 내부 저장소 및 symlink 목적지 보호. 기존 63건 PASS 기록을 이월했으며 담당자가 바뀌었다는 이유로 재검사하지 않았다.
+- T-06·07: `App/ReviewWorkspace.swift`의 앱 공용 editor, `UI/ReviewShell.swift` 검수 창, 단어·Shift 범위 선택/화자·이름·텍스트·분리/Undo·Redo/이슈 확인/검색, `EvidencePanel` 구간별 원점수, `EditDialog` 자동 교정 없는 텍스트 입력을 구현했다. 자동본은 읽기 전용이며 실패한 수정은 재시도·변경 취소 전까지 export·종료를 막는다.
+- 메뉴바/단일 검수 창/설정, 명시적 Debug 합성 반입, 저장 세션 재로딩, NSSavePanel의 표시 버전×포맷 선택을 연결했다. Release 반입 버튼은 `#if DEBUG`로 제외한다. 실제 녹음·원음·키 입력·전사 기능을 제공한 것으로 표시하지 않는다.
+- 통합 `bash scripts/check.sh`: exit 0, 합성 계약 29건·Core 63건·Swift 계약·서명 없는 Debug PASS, SKIP 없음. Core 구성은 loader 17 + time 3 + repository 19 + editor 16 + exporter 8이다. 앱 로직은 이 Core 테스트 수에 포함하지 않는다.
+- 이후 검색 변경 시 이전 선택 해제 및 저장 상태 문구·창 delegate 메인 액터 지정을 보완했다. 변경된 앱 컴파일만 재검증했다. 안쪽 첫 실행의 exit 74는 `~/Library/Logs/CoreSimulator` 거부와 `sandbox_apply` 실패로 소스 검사 전 중단된 환경 제한이었다. 승인된 동일 명령의 외부 실행은 통과했다. 소스 assertion 실패로 분류하지 않았다.
+- 로그는 `.build/check-logs/`; 환경 거부 원본은 `xcodebuild-sandbox-denied.log`, 최종 앱 출력은 `xcodebuild.log`다. module cache는 `.build/modulecache`, 서명은 `CODE_SIGNING_ALLOWED=NO`. `xcodebuild test`·서명·공증·실제 앱 실행·마이크·음성·유료 API 호출은 하지 않았다.
+- fixture와 앱 번들 `Contents/Resources/normalized-transcript.json` SHA256 모두 `37e41f2055156d2b591cd10ba25165b5d24c1cbb23b2edd41710594d047bfdf8`. 계약 Swift 원본·Core 사본 모두 `7be81c3301184397b14b284019946c66394750bb5cdbce2c1234504642791535`. 원본 수정 없음.
+- SDK 26.5가 사용자 지정 deployment target 26.6.2를 지원 범위 밖으로 경고하지만 Debug compile/link는 성공했다. 타깃을 임의로 낮추지 않았다. 실제 실행·배포 호환성은 미측정이다.
+
+| AC | 현재 판정·근거 |
+|---|---|
+| 01 | PASS: 위 계약·Core·Debug 실제 실행, SKIP 없음. 네이티브 실행 증거 아님 |
+| 02·03·04·05 | PASS: 기존 loader/repository/editor/exporter 고정 테스트; 원본/null/map/장벽/수정 범위·불변 revision 재로드 확인 |
+| 06 | Core 이슈 순서·ack 범위 PASS. 화면의 선택 없음·검색 없음·이슈 없음 조작은 구현했으나 실제 Mac 확인 미측정으로 체크 보류 |
+| 07 | Core 저장 fault·해시 보존·dirty export 차단 PASS. native 실패 안내·종료 방지 실제 확인은 미측정으로 체크 보류 |
+| 08·09 | PASS: 고정 µs→ms/140ms/null·역전 테스트, 4개 export 조합 및 실제 임시 저장 경로로 데이터 보존 검사. 앱에 API 키·서명 URL 입력 경로 없음 |
+| 11 | 사용자 확인: DAMA.app에서 합성 데이터 수정→저장→재실행→내보내기 “막힌 부분 없었음”. 기본 앱 여정 통과. 범위 선택·이름 변경·Undo/Redo·각 포맷 재로드를 개별 확인했다는 진술까지 확대하지 않아 전체 AC 체크는 보류 |
+| 10·12 | 창 크기/팝오버·키보드·VoiceOver·밝은/어두운 모드의 개별 확인 결과는 미수신 |
+
+T-08은 기본 정상 여정을 제외한 위 미측정 축만 한 묶음으로 확인해 보충한다. `building`을 유지하며 게이트 ②·`built`로 승격하지 않는다. 과거 후속 착수 보류는 2026-09-09 사용자의 명시적인 M1 계획·구현 및 M2 연결 요청으로 대체됐다. 후속 구현 완료와 M0 미측정 AC는 별개다.
+
+- 로컬 커밋: T-05 `e05d0b0`, 앱 여정 `24c081d`. 마지막 실측 branch `work/m0-fixture-review`, HEAD `24c081d`. 작업 트리의 `.claude/commands/build.md`는 다른 세션 규칙 변경이며, `ssot/dev.md`·이 plan은 그 세션의 QA 규칙 변경과 이번 실측 갱신이 함께 있어 미커밋으로 보존했다. 코드 변경과 섞어 일괄 커밋하지 않았다.
+
 ## Follow-ups
+
+### 다음 세션: 실사용까지의 재개 순서 (사용자 요청 2026-09-09)
+
+- 명칭: **DAMA(다마)**. 앱 화면·저장 기본 파일명은 다마, 앱 번들은 `DAMA.app`, TXT 제품 헤더는 DAMA. repo/Xcode 프로젝트 경로·scheme `Dama`·`DamaCore`·bundle ID는 기존 기술 식별자를 유지하여 저장 데이터 경로를 바꾸지 않는다.
+- 명칭 변경 후 최종 검사: `bash scripts/check.sh` 1회, 계약 29건·Core 63건·Swift 계약·Debug PASS, SKIP 없음. 빌드된 `DAMA.app/Contents/Info.plist`에서 `CFBundleName=DAMA`, `CFBundleDisplayName=다마` 실측. 기존 실제 UI 미측정 판정은 유지한다.
+- 현재 가능한 범위: 합성 원문 검수·수정·저장·export. 아직 실제 회의를 녹음하거나 실제 전사를 얻는 앱은 아니다. 다음 세션은 새 핸드오프를 만들지 않고 이 plan의 resume·미체크 AC와 실제 git 상태를 먼저 확인한다.
+- **① M0 마감:** 사용자에게서 DAMA.app의 합성 데이터 수정→저장→재실행→export “막힌 부분 없었음” 결과를 받았다. 이 정상 여정을 다시 요구하거나 자동 검사를 재실행하지 않는다. 남은 개별 AC(빈 상태/저장 실패 UI, 크기·팝오버, 키보드·VoiceOver 등)는 별도 미측정으로 유지하고 마감 때 한 묶음으로 확인한다. SDK 경고가 기본 앱 실행을 막지는 않았다는 사용자 실행 근거가 생겼으며 배포 호환성 전체 검증으로 확대하지 않는다.
+- **② M1 계획·구현:** `ssot/design/05_IMPLEMENTATION_PLAN.md` M1·설계 T-004~006과 녹음 화면 스펙을 읽고 `m1-recording-safety` plan을 만든다. 기본 마이크 권한→메뉴바 시작/종료→원본 저장→중단/재실행 복구, M4A/WAV 반입·분석 시간축을 하나의 녹음 여정으로 구현한다. API 키·네트워크 없이 원본 보존이 먼저다. 시스템 오디오 캡처·입력 장치 선택은 현재 P0 비범위다.
+- **③ M2 계획·구현:** 실제 원본을 보존한 뒤 managed API의 Keychain 키 저장·건별 전송 동의·업로드/제출/조회·normalized 변환과 검수 창을 연결한다. 과금 POST의 접수 불명은 자동 재제출하지 않는다. 원음 재생/검수까지 연결한 뒤 실제 짧은 한국어 대화로 E1/E2·누락·미확정 화자를 확인한다. 현재 fixture를 정확도 증거로 쓰지 않는다.
+- M1/M2는 이번 턴에 착수·완료한 것으로 기록하지 않는다. M0 확인 후 후속 단계 커맨드가 요구하는 실제 선행 조건을 충족해서 진행한다. 서명·공증·배포는 별도 단계다.
+
+| 사용자가 준비할 것 | 시점·방법 |
+|---|---|
+| M0 앱 실행 결과 | 수신 완료: `.build/xcode/Build/Products/Debug/DAMA.app`의 합성 데이터 수정→저장→재실행→내보내기에 막힘 없음. 동일 여정 재확인 요청 불필요. |
+| 테스트용 마이크 | M1 실기기 확인 때 M5 MacBook Pro의 마이크를 사용하고, 앱이 요청할 때 접근을 허용한다. 지금 M0에는 마이크 권한 요청이 없다. |
+| pyannote 계정·API 키 | 준비 완료(사용자 진술): 가입·키 보유. 다음 세션에서 다시 준비 요청하지 않는다. 키 유효성은 미검증이며 구현된 앱 입력 화면에서 Keychain에 저장한다. 지금은 입력 화면이 없다. |
+| 평가용 녹음 | 1시간 30분 파일 보유(사용자 진술, 실제 길이 미측정). 실연동 시 경로·포맷·언어·화자 수와 테스트·외부 전송 동의를 확인한다. 최초 연결은 이 파일의 짧은 구간으로 확인한 뒤 전체 90분 처리로 진행한다. 원본 보존, 저장소 반입 금지. |
+| 실제 API 실행 승인 | M2가 준비되면 해당 파일의 외부 전송·유료 호출을 건별 확인한다. 키 준비만으로 업로드가 승인되는 것은 아니다. |
+
+사용자에게 요청했던 기본 앱 여정 확인은 완료됐다. API 키와 테스트 음성은 M1 구현을 시작하기 위한 선행 조건이 아니다. 다음 세션 요청 예: “DAMA 이어서. m0-fixture-review plan의 다음 세션 절부터 진행. 기본 수정·저장·재실행·내보내기는 문제없었음. 마이크 녹음·원본 보존을 먼저 구현하자.”
+
+사용자 준비 상태 추가: 1시간 30분 녹음과 pyannote.ai 계정·API 키 보유를 확인했다. 파일·키를 실제로 열거나 API를 호출한 것은 아니며, 준비 완료를 외부 전송 승인으로 해석하지 않는다. 다음 세션은 이 준비 상태를 이월한다.
 
 | 후속 유닛 후보 | 이전 단계 입력 | 남은 전체 스펙 범위·설계 티켓 |
 |---|---|---|

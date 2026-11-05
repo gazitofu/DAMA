@@ -3,7 +3,7 @@ unit: m1-recording-safety
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-01–03 구현, 오디오 6건과 Debug compile 확인. 실마이크·장기·접근성 미측정. M2 코드·mock 연결을 이어 진행."
+resume: "T-01–03 구현, 오디오 6건·Debug compile 및 사용자 실파일 96분53.5초 로컬 반입·변환 PASS. 실마이크·장기 녹음·접근성 미측정. M2 첫5분 실전송 승인 대기."
 spec: notes/review-workspace/review-workspace.src.html
 created: 2026-09-09
 updated: 2026-09-09
@@ -64,8 +64,8 @@ updated: 2026-09-09
 ## 결정·막힘·Follow-ups
 
 - 열린 제품 D-NN 없음. 화면 기존 closed spec 사용; 새 스펙 승인 요청 없음.
-- 서명 identity 변경·공증·배포 제외. 사용자 키와 90분 파일은 보유 진술만 이월, 저장소·로그 반입 없음.
-- 실기기·90분 파일 경로·외부 전송은 구현/합성 검사와 구분. 실제 API 호출은 M2 코드·mock 준비 뒤 별도 확인.
+- 서명 identity 변경·공증·배포 제외. 사용자 실파일은 아래 로컬 검사 완료, 원본 음성·키는 저장소에 반입하지 않음.
+- 실기기 녹음·외부 전송은 로컬 파일 검사와 구분. 실제 API 호출은 M2 샘플 제시 후 별도 확인.
 - M2는 이 모듈이 보존한 원본/분석 manifest를 입력으로 이어서 계획한다.
 
 ## 구현 검증 (2026-09-09)
@@ -76,3 +76,11 @@ updated: 2026-09-09
 - 계약 29건 및 Swift 파생물 SHA256 일치. MicrophoneCapture Swift 6 컴파일 PASS. Debug 앱은 샌드박스 package 해석 exit 74, 승인된 외부 동일 빌드 `BUILD SUCCEEDED`. 기존 deployment target·AppIntents 경고만. 후속 M2 통합 build에서 마지막 연결 변경도 함께 컴파일한다.
 - 로그 `.build/check-logs/m1-{audio-tests,aac-external,control-compile,finalization,xcodebuild,xcodebuild-external,contracts}.log`. AAC 외부 명령은 `--skip-build --filter AudioJourneyTests.testM4AImportAndUnsupportedInput`.
 - 실제 마이크/TCC·앱 UI·10분/2시간·강제 종료·sleep·VoiceOver 안 잼. entitlement 파일 연결은 선언이며 서명된 sandbox 효력·기존 비sandbox 저장소 이관은 배포 단계 확인. 코드 서명·identity 변경·유료 API 실행 없음.
+
+### 사용자 실파일 로컬 검증 (2026-09-09)
+
+- 사용자 제공 Downloads M4A 1건. 파일명으로 내용을 추정하지 않고 afinfo·SHA256 및 현행 `AudioLibrary.importFile`→`prepareAnalysis`를 Swift harness로 실행. 앱 UI는 조작하지 않음.
+- 48,681,815bytes, AAC mono 16,000Hz, 전체 디코딩 93,016,000frames=5,813.5초(1:36:53.5), RMS 0.0827728374. 원본 SHA256 `22cf9a99f23005c94bd919bd24fae187786444205d107941df4093c59389e34e`와 반입 사본 일치, 전체 처리 뒤 원본 해시 불변.
+- 분석 WAV mono 16kHz 16-bit, 93,016,000frames로 길이 동일, RMS 0.0827728406. 오류·trim 없이 전체 변환 완료. M1 파일 반입 경로의 실파일 검증이며 96분 실마이크 녹음 검증이 아님.
+- 샌드박스 AAC 디코딩에서 OSStatus 1718449215/NSException으로 중단. 사용자 승인 후 동일 실행을 샌드박스 밖에서 완료(exit 0). 실패 시 생성된 별도 session/원본 사본도 삭제하지 않음. 마이크·네트워크 접근 없음.
+- 임시 루트 `/private/tmp/dama-audio-pilot.nkeaOi/`: 실행 근거 `Inspect.swift`, `inspect`, `full-file-measurement.json`, `pilot-measurement.json`, library의 capture manifest/원본/분석 WAV. 저장소 밖 로컬 보존. 첫5분 샘플과 전송 승인 상태는 M2 plan에 기록. 기존 M0 기본 여정·합성 suite 재실행 없음.

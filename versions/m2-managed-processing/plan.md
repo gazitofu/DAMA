@@ -3,7 +3,7 @@ unit: m2-managed-processing
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-01–03 구현·Core+managed 71건·Debug build PASS. 실제 마이크와 키체인/API는 미측정. 사용자 파일 경로를 받은 뒤 짧은 구간을 정하고 실전송·유료 호출을 건별 확인."
+resume: "T-01–03 구현·Core+managed 71건·Debug build PASS. 사용자 실파일 96분53.5초 전체 로컬 반입·변환 PASS, 첫5분 WAV 준비. 그 샘플의 pyannote 전송·유료 호출 별도 승인 대기. 마이크·키체인/API 미측정."
 spec: notes/review-workspace/review-workspace.src.html
 created: 2026-09-09
 updated: 2026-09-09
@@ -43,7 +43,7 @@ QA는 ① mock 전송→저장→검수 ② 앱 설정→건별 동의→처리�
 
 ## Follow-ups·막힘
 
-- 사용자 90분 파일 경로 요청 중. 파일 경로·실측·사용할 짧은 구간을 정한 뒤 전송/유료 호출 건별 확인.
+- 사용자 실파일 경로 수신·로컬 검사 완료. 첫 00:00–05:00 샘플 준비, 전송/유료 호출 건별 확인 대기. API 키는 앱 키 설정으로 등록하며 채팅·로그로 수신하지 않음.
 - M1 10분·장기·접근성, M0 미측정 UI는 기존 plan에 유지. 원음 seek·재생·Run 전환·자동 전송·화자 수 설정 확장·삭제·release gate는 m2-review-release 후속. 이 단계에서 미지원 컨트롤을 만들지 않음.
 
 ## 검증·현재 제한 (2026-09-09)
@@ -58,4 +58,6 @@ QA는 ① mock 전송→저장→검수 ② 앱 설정→건별 동의→처리�
 - 계약 29건·Swift 계약 smoke·nullable 왕복·파생물 SHA256 일치. 새로운 모델 임계값의 정확도 benchmark는 없고 초기값을 유지한다. `language=und`는 공급자 언어 응답 부재 표시이며 한국어 고정 전사 요청을 추가한 것이 아니다.
 - **AC-01–05 체크는 구현·합성/mock·compile 층위다.** 실제 앱 키 입력·동의/전송·마이크·한국어 품질은 미측정이며 AC-06 미체크, status building 유지.
 - 재시작 후 알려진 jobId는 패널에서 조회 재개. 접수 불명·최종 실패·부분 결과의 새 Run 재제출 UI와 자동 재개는 후속. 기존 기록을 다시 보내는 우회 버튼을 만들지 않았다. 원음 검수와 종합 release gate는 아직 끝나지 않았다.
-- 다음 실행에 필요한 사용자 입력은 실제 파일 경로와 짧은 평가 구간이며, 전송/유료 호출은 그 파일·구간을 제시한 뒤 별도로 확인한다. 실제 파일·키를 아직 읽지 않았다.
+- 사용자 실파일 로컬 반입·변환: M1 plan의 실파일 검증 기록 참조. 키 조회·원격 통신은 0회. 언어·화자 수·E1/E2 품질은 아직 미측정이다.
+- 준비된 샘플: `/private/tmp/dama-audio-pilot.nkeaOi/pilot-000000-000500.wav`, 원본의 00:00–05:00. mono 16kHz 16-bit PCM, 4,800,000frames=300초, 9,604,096bytes, RMS 0.0760545523. SHA256 `f87ff605ab3f1ab9f4e97070edc68c21fa5c8a8c6f55845f1ecd5e99e7458ddf`. 임시 경로이므로 재개 때 존재·해시 확인. 실음성은 repo 밖에만 보존.
+- 이 샘플의 pyannote.ai 업로드 및 과금 가능한 처리 1회에 대해 별도 사용자 확인을 요청한다. 경로 제공과 로컬 코덱 검사 권한은 외부 전송 승인이 아니다. AC-06·status는 그대로 유지한다.

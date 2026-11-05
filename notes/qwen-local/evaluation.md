@@ -38,3 +38,11 @@ Qwen 2,587개 정렬 항목 중 336개(12.99%)의 시간이 사용할 수 없어
 - 실제 UI: 엔진 선택→문맥 preview→P2 재사용 확인→로컬 실행→별도 Script 저장→최종 앱 재시작·원문 표시 확인. 내보내기 대화상자 열기 확인; 저장된 실제 Script의 Markdown 생성은 Core 경로로 검증했다.
 - 실제 앱 중단/재개 및 추론 중 앱 종료 시 child 종료는 아직 실기기 검증하지 않았다. 합성 재개 검사와 구현/빌드 검증만 완료했다. 이를 정상 완료 실행 실측과 구분한다.
 - private 근거: ignored `.build/diagnostics/qwen-local/`, `.build/check-logs/qwen-*.log`, 실제 Run의 `qwen/`와 `raw/`. 원음·발언·회사/참석자 문맥은 이 보고서 및 Git에 복제하지 않는다.
+
+## 추가 비교 평가: 같은 날 사용자 후속 요청
+
+- 원문 6개 시간창 약 359초 대조. 원음 정답/정확도 수치 없이 의미 오류·누락 후보로 기록했다. 같은 오디오지만 Whisper 저장 맥락은 다르고, Soniox/Qwen 맥락·참석자 hash는 동일하다.
+- Qwen 미정렬 336항목은 upstream 후처리 뒤 원정렬에서 전부 0길이였다. 모델 예측과 timestamp repair 기여는 기존 raw만으로 구분 불가. 같은 어절에 유효 시간이 있는 미정렬 항목 79개, 전부 미정렬인 어절 242개. 단순 후병합만으로 해결 불가.
+- 문제 시간창 4개(총 265.4초)를 동일 모델·맥락의 기본 Session 분할 경로(13청크·최대 28.66초)로 실제 로컬 재전사. 일부 문장 복원과 회귀가 함께 발생했고 핵심 누락/부정 표현 문제가 남았다. 30초 일괄 전환 채택 근거 불충분. ASR 호출 합 13.48초는 로딩/정렬 제외값이다.
+- 결론: Soniox 실사용 우선, Qwen 비교 후보 유지. 정렬 pre/post 진단 → 읽기/정렬 단위 분리 → 누락 선별 재전사 → 표기 중심 context 시험 → 동일 P2 및 원음 정답 평가 순서. 앱/기존 Script 변경 없음.
+- 실제 발언을 포함한 상세 평가는 Git 제외 `.build/diagnostics/qwen-local/comparative-evaluation.md`, 실험 입출력은 같은 폴더의 `evaluate-short.py`·`short-chunk-experiment.json`·`short-experiment.log`.

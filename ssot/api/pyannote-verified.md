@@ -62,7 +62,7 @@ POST /v1/live             GET  /v1/live/{id}
 
 2026-09-10 진행 UI 보완 조회: 공식 OpenAPI의 `DiarizationJob`은 `jobId/status/createdAt/updatedAt/output`을 정의하며 숫자 진행률·ETA 필드는 없다. DAMA는 실제 상태·클라이언트에서 정상 응답을 받은 시각(`ManagedRun.lastServerCheckAt`, optional)·이번 추적 경과만 표시한다. 오디오 길이 대비 처리시간 실측이 없어 예상 완료율은 산출하지 않는다. 기존 Run 파일은 새 optional 필드가 없어도 읽는다. 공급자의 `updatedAt`과 클라이언트 확인 시각을 혼동하지 않는다. 실서버 조회 없이 [공식 OpenAPI](https://docs.pyannote.ai/openapi.json)만 확인했다.
 
-## 4. 요금 (2026-09-10 갱신)
+## 4. 요금 (2026-09-10 작성 · 2026-09-19 갱신)
 
 ### 공식 Billing 문서 확인
 
@@ -83,9 +83,14 @@ US$19 크레딧이 실제 포함되고 전부 이 서비스에 쓰인다는 조�
 
 공개 Pricing은 현재 Developer €19/월·€19 사용 크레딧, STT Orchestration €0.168/h를 표시하지만 이 EUR 값을 사용자 USD 계정에 대입하지 않는다. 지역별 통화 차이가 발생한 이유는 확인하지 않았다. [공개 Pricing](https://www.pyannote.ai/pricing)
 
+2026-09-19 같은 페이지 재조회: Diarization batch €0.112/h, STT Orchestration €0.168/h, Bring Your Own STT €0.146/h, Community-1 €0.035/h를 표시한다. 같은 조회에서 배치 모델 표기가 **Precision-3**로 바뀌어 있어 €0.112/h는 Precision-3 기준값이며, Precision-2 단독 diarization 단가와 API enum의 `precision-3` 추가 여부는 확인하지 않았다. DAMA는 `precision-2` 고정을 유지한다. EUR 표시를 USD 계정에 대입하지 않는 원칙은 그대로이고 Dashboard Plans가 정본이다.
+
 ### DAMA 적용
 
-- 현재 managed `precision-2` + `transcription=true` + `faster-whisper-large-v3-turbo` 경로 유지. 중간 폴더·다른 서비스 모드·로컬 WhisperKit은 이번 참고자료 수령만으로 추가하지 않는다.
+- **경로마다 `transcription` 값이 다르다** (2026-09-19 코드·로컬 Run 실측으로 갱신). 운영 결합본 `sonioxPrecision`이 만드는 Precision-2 자식 Run과 Qwen 비교 Run은 `transcription=false`로 제출하므로 **Diarization 단가** 대상이다. `transcription=true` + `faster-whisper-large-v3-turbo`는 `pyannote + Whisper (비교)` 모드에만 남아 있고, **STT Orchestration 단가가 붙는 경로는 이것 하나**다. 분기는 `Packages/DamaCore/Sources/DamaManaged/ManagedProcessor.swift`의 diarize payload에 있다.
+- 비교 모드의 `transcription`을 끄는 것으로 STT Orchestration을 없앨 수 없다. `ManagedNormalizer`가 `output.wordLevelTranscription`을 요구해 정상 응답에도 `partialResult`로 떨어진다. 이 경로의 텍스트 공급원이 pyannote 쪽 Whisper뿐이기 때문이며, 없애려면 플래그가 아니라 provider 선택지에서 빼는 별도 결정이 필요하다.
+- 2026-09-12까지의 결합본은 `transcription=true`로 접수했던 구 `pyannote` Run을 Precision-2 소스로 재사용했다 (`reusableDiarization`이 `.pyannote` Run을 소스로 허용). 그 소스 작업 자체가 STT Orchestration으로 과금된 것이고 재사용은 추가 호출이 아니다. 2026-09-14 이후 결합본은 전사 없는 전용 `precision` Run을 새로 만든다.
+- 중간 폴더·다른 서비스 모드·로컬 WhisperKit은 참고자료 수령만으로 추가하지 않는다.
 - App/UI 및 Packages/DamaCore/Sources 검색에서 고정 과금 단가 없음. 가격·크레딧·계정 한도는 처리 로직에 하드코딩하지 않는다(03 §5 유지).
 - 추후 로컬 STT 경로는 비용 절약만으로 채택하지 않고 한국어 화자 경계·원문 보존 성능 비교와 별도 승인으로 판단한다.
 - 사용자 실사용 검증 중 앱 코드·실행 프로세스 변경 없음. 비용 수용은 실제 음성 업로드·유료 호출의 건별 승인을 대체하지 않는다.
@@ -109,3 +114,5 @@ US$19 크레딧이 실제 포함되고 전부 이 서비스에 쓰인다는 조�
 ---
 
 부칙: 2026-09-09 최초 작성 (Dama 문서 정리 세션 · 외부 설계 패키지 채택 검증).
+
+부칙: 2026-09-19 §4 DAMA 적용·요금 갱신. 결합 운영 경로는 `transcription=false`(Diarization)임을 코드와 로컬 Run 저장분으로 실측하고, 09-10 기록의 `transcription=true` 유지 서술을 대체했다. 공개 Pricing 재조회 1건 포함. 앱 코드 변경 없음.
