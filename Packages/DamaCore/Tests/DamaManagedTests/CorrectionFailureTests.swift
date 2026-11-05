@@ -133,6 +133,13 @@ final class CorrectionFailureTests: XCTestCase {
         let settled = ContinuousClock.now + .seconds(2)
         while StderrMonitor.liveReaders.withLock({ $0 }) > 0 && ContinuousClock.now < settled { try await Task.sleep(for: .milliseconds(50)) }
         XCTAssertEqual(StderrMonitor.liveReaders.withLock { $0 }, 0)
+        // 계속 쓰는 자식: 부모는 정상 종료, 자식이 재연결 표식을 계속 씀 → 제한 시각에 network(이미 읽은 표식 반영), 스레드 정리.
+        let chatty = try await failure(readArgs + writeReply + "\n( for i in $(seq 1 120); do echo 'ERROR: Reconnecting... waiting for network' >&2; sleep 0.05; done ) &\nexit 0", timeout: .seconds(1))
+        XCTAssertEqual(chatty.kind, .network)
+        XCTAssertGreaterThan(chatty.stderrBytes, 0)
+        let quiet = ContinuousClock.now + .seconds(2)
+        while StderrMonitor.liveReaders.withLock({ $0 }) > 0 && ContinuousClock.now < quiet { try await Task.sleep(for: .milliseconds(50)) }
+        XCTAssertEqual(StderrMonitor.liveReaders.withLock { $0 }, 0)
         // 취소도 같은 경로: 자식이 stderr를 붙잡은 채 취소 → cancelled, 스레드 정리.
         let chunk = try chunk()
         let holding = try fake("( sleep 6; echo held >&2 ) &\nexec /bin/sleep 20", at: dir)

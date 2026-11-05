@@ -84,12 +84,11 @@ final class StderrMonitor: @unchecked Sendable {
             let fd = handle.fileDescriptor
             var buffer = [UInt8](repeating: 0, count: 65_536)
             reading: while true {
+                // 매 반복 정지 신호를 본다. 정지면 그 시점에 파이프에 쌓인 분량만 비우고 끝낸다(QA C3).
+                if lock.withLock({ stopRequested }) { drain(fd, &buffer); break reading }
                 var target = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
                 let ready = poll(&target, 1, 100)
-                if ready == 0 {
-                    if lock.withLock({ stopRequested }) { break reading }
-                    continue
-                }
+                if ready == 0 { continue }
                 if ready < 0 { if errno == EINTR { continue }; break reading }
                 let count = buffer.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress, $0.count) }
                 if count > 0 { lock.withLock { scan.consume(buffer[0..<count]) } }
@@ -103,10 +102,29 @@ final class StderrMonitor: @unchecked Sendable {
         thread.qualityOfService = .utility
         thread.start()
     }
+    /// 정지 시점에 이미 도착한 바이트를 비운다(최대 200ms, 그 뒤 계속 쓰는 자식은 기다리지 않는다).
+    private func drain(_ fd: Int32, _ buffer: inout [UInt8]) {
+        let limit = ContinuousClock.now + .milliseconds(200)
+        while ContinuousClock.now < limit {
+            var target = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+            let ready = poll(&target, 1, 0)
+            if ready == 0 { return }
+            if ready < 0 { if errno == EINTR { continue }; return }
+            let count = buffer.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress, $0.count) }
+            if count > 0 { lock.withLock { scan.consume(buffer[0..<count]) } }
+            else if count < 0 && (errno == EINTR || errno == EAGAIN) { continue }
+            else { return }
+        }
+    }
     var snapshot: StderrScan { lock.withLock { scan } }
     var finished: Bool { lock.withLock { done } }
-    /// 판정을 끝냈다. 이후 도착하는 바이트는 세지 않고 읽기 스레드를 끝낸다.
+    /// 판정을 끝냈다. 이미 도착한 바이트를 비우고 읽기 스레드를 끝낸다.
     func stop() { lock.withLock { stopRequested = true } }
+    /// 정지시키고 읽기 스레드가 끝날 때까지(최대 1초, 취소 무관) 기다린 뒤 집계를 돌려준다.
+    func stopAndSettle() async -> StderrScan {
+        if !finished { stop(); _ = await settle(until: .now + .seconds(1), cancellable: false) }
+        return snapshot
+    }
     /// EOF까지 기다린다. `deadline`이 지나면 false (그때까지 센 값은 `snapshot`). `cancellable`이면 취소 시에도 false.
     /// 정상 종료 경로는 청크 제한 시각까지 기다려 끝까지 센다(QA C D-2). 강제 종료 경로는 취소와 무관하게 2초 유예.
     func settle(until deadline: ContinuousClock.Instant, cancellable: Bool = true) async -> Bool {
@@ -190,15 +208,13 @@ public actor CodexCorrectionClient {
             }
             if process.isRunning { kill(process.processIdentifier, SIGKILL) }
             // 강제 종료 뒤에는 취소와 무관하게 2초만 기다린다(자식이 stderr를 붙잡아도 보고를 늦추지 않는다).
-            if !(await monitor.settle(until: .now + .seconds(2), cancellable: false)) { monitor.stop() }
-            let scan = monitor.snapshot
+            let scan = await monitor.settle(until: .now + .seconds(2), cancellable: false) ? monitor.snapshot : await monitor.stopAndSettle()
             if stop == .cancelled { throw failure(.cancelled, stderrBytes: scan.bytes) }
             throw failure(StderrScan.classify(timedOut: true, exitStatus: nil, signaled: false, scan: scan), stderrBytes: scan.bytes)
         }
         // 프로세스가 끝나도 stderr를 붙잡은 자식이 있으면 EOF가 늦다. 청크 제한 시각까지 끝까지 읽는다.
         guard await monitor.settle(until: deadline) else {
-            monitor.stop()
-            let scan = monitor.snapshot
+            let scan = await monitor.stopAndSettle()
             if Task.isCancelled { throw failure(.cancelled, stderrBytes: scan.bytes) }
             throw failure(StderrScan.classify(timedOut: true, exitStatus: nil, signaled: false, scan: scan), stderrBytes: scan.bytes)
         }
