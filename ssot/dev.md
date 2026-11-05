@@ -114,3 +114,4 @@ python3 ssot/doc-template/_build.py notes/<유닛>/<유닛>.src.html
 ---
 
 부칙: 2026-09-09 최초 작성 (환경 실측 · check.sh 신설).
+부칙: 2026-11-06 (usage-bundle1 /ship) 실화면 QA 환경 실측: 이 세션 터미널은 접근성 있음·화면 기록 없음(`screencapture` 실패) → 픽셀은 합성 QA 앱 전용 `QASnapshot`(분산 알림 `com.gazitofu.Dama.ReadingQA.snapshot`, `<fixture>/qa-snapshots/`). 이 셸의 `defaults com.gazitofu.Dama`는 앱과 다른 설정 저장소를 보므로 앱 설정은 `defaults … ~/Library/Preferences/com.gazitofu.Dama.plist` 경로 도메인으로만 바꾼다. 접근성은 현재 Space의 창만 보인다.
