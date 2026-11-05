@@ -4,6 +4,8 @@
 
 기본 앱은 메뉴바 에이전트로 설계하며 LSUIElement를 사용한다. [Apple LSUIElement](https://developer.apple.com/documentation/bundleresources/information-property-list/lsuielement)
 
+예외: 제목 표시줄이 있는 일반 창(DAMA·설정, 패널·시트 제외)이 보이거나 최소화돼 있는 동안만 activation policy를 `.regular`로 올려 Dock·Cmd+Tab·상단 메뉴바에 노출하고, 그런 창이 모두 닫히면 `.accessory`로 되돌린다. Cmd+H로 숨긴 동안은 Cmd+Tab 복귀를 위해 유지한다. Cmd+Tab 목록은 Dock 노출과 묶여 있어 따로 켤 수 없다. 사용자 확정 2026-11-05 (항상 Dock 노출안은 녹음만 돌리는 시간에 빈 항목이 남아 기각). 구현 `App/AppLifecycle.swift` `DockPresence`.
+
 샌드박스 설정에는 마이크 입력, 외부 API 통신, 사용자가 선택한 파일 읽기/쓰기가 필요하다. 실제 Xcode target에 entitlement를 설정하고 서명 결과로 검증한다. [audio-input](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.device.audio-input), [network.client](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.network.client), [user-selected.read-write](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.files.user-selected.read-write)
 
 ```xml

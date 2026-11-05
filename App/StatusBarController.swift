@@ -71,8 +71,11 @@ import SwiftUI
         NSApp.activate(ignoringOtherApps: true)
     }
     @objc private func quit() { NSApp.terminate(nil) }
-    @objc private func showWindow() {
-        if let window = NSApp.windows.first(where: { $0.title == "DAMA" && !($0 is NSPanel) }) { window.makeKeyAndOrderFront(nil) }
+    @objc func showWindow() {
+        if let window = NSApp.windows.first(where: { $0.title == "DAMA" && !($0 is NSPanel) }) {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        }
         else {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 760),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -80,6 +83,8 @@ import SwiftUI
             window.contentView = NSHostingView(rootView: LibraryShell(workspace: .shared))
             window.center(); window.makeKeyAndOrderFront(nil); mainWindow = window
         }
+        // Become a regular app before activating so the activation brings the menu bar and Cmd+Tab entry with it.
+        DockPresence.refresh()
         NSApp.activate(ignoringOtherApps: true)
     }
 }

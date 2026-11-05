@@ -7,6 +7,13 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppAppearance.applySaved()
         statusBar = StatusBarController()
+        DockPresence.start()
+    }
+    /// A Dock click with no visible window (only minimized ones keep the icon) reuses the menu-bar open path.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if flag { return true }
+        statusBar?.showWindow()
+        return false
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let lifecycle = RecordingWorkspace.shared.lifecycle
@@ -54,6 +61,33 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
         return .terminateNow
     }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+}
+
+/// LSUIElement keeps DAMA a menu-bar agent. While a DAMA window is open or minimized the app joins
+/// the Dock and Cmd+Tab; once every such window is closed it returns to the menu bar only.
+@MainActor enum DockPresence {
+    static func start() {
+        let names: [Notification.Name] = [NSWindow.didBecomeKeyNotification, NSWindow.didChangeOcclusionStateNotification,
+                                          NSWindow.didMiniaturizeNotification, NSWindow.didDeminiaturizeNotification,
+                                          NSWindow.willCloseNotification]
+        for name in names {
+            // willClose arrives while the window is still on screen, so re-evaluate on a later main-actor turn.
+            _ = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+                Task { @MainActor in DockPresence.refresh() }
+            }
+        }
+        refresh()
+    }
+    static func refresh() {
+        // Cmd+H orders windows out without closing them; keep the Dock entry so Cmd+Tab can bring them back.
+        guard !NSApp.isHidden else { return }
+        let policy: NSApplication.ActivationPolicy = NSApp.windows.contains { isUserWindow($0) } ? .regular : .accessory
+        if NSApp.activationPolicy() != policy { NSApp.setActivationPolicy(policy) }
+    }
+    private static func isUserWindow(_ window: NSWindow) -> Bool {
+        window.styleMask.contains(.titled) && !(window is NSPanel) && window.sheetParent == nil
+            && (window.isVisible || window.isMiniaturized)
+    }
 }
 
 struct LibraryWindowGuard: NSViewRepresentable {
