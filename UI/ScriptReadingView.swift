@@ -1,6 +1,7 @@
 import AppKit
 import DamaAudio
 import DamaCore
+import DamaManaged
 import SwiftUI
 
 struct ScriptReadingView: View {
@@ -17,6 +18,8 @@ struct ScriptReadingView: View {
     @State private var deletionError: String?
     @State private var hasSavedCorrections = false
     @State private var correctionError: String?
+    /// usage-bundle1 교정 시도 기록 상태(이어서 교정).
+    @State private var attempt: CorrectionRunner.Resume = .none
     init(file: LibraryScriptFile, workspace: LibraryWorkspace,
          rename: @escaping (LibraryScriptFile, ScriptBlock) -> Void, correct: @escaping (LibraryScriptFile) -> Void) {
         self.file = file; self.workspace = workspace; self.rename = rename; self.correct = correct
@@ -103,6 +106,7 @@ struct ScriptReadingView: View {
                         Text("AI 보정 중… \(correction.completed)/\(correction.total)").font(.caption)
                         Button("보정 취소", action: correction.cancel)
                     } else {
+                        if !readOnly { attemptControls }
                         if !readOnly && hasSavedCorrections {
                             Button("저장된 AI 교정 반영") {
                                 correctionError = nil
@@ -126,6 +130,9 @@ struct ScriptReadingView: View {
                 (try? ContextCorrection.reapplyingPending(in: script)) != nil
             }.value
         }
+        .task(id: "\(file.hash):\(correction.attemptVersion):\(correction.activeID ?? "")") {
+            attempt = readOnly ? .none : await correction.attemptStatus(for: file.script)
+        }
         .onReceive(workspace.playback.$playingID.removeDuplicates()) { playingID = $0 }
         .onReceive(workspace.playback.$positionUs) { position in
             guard playingID != nil, editor.block == nil,
@@ -134,6 +141,35 @@ struct ScriptReadingView: View {
             selected = active.id
         }
         .onDisappear { workspace.playback.stop() }
+    }
+    /// 하단 미완료 줄·이어서 교정 버튼·이어하기 불가 줄 (tone 문구 13–16).
+    @ViewBuilder private var attemptControls: some View {
+        switch attempt {
+        case .none: EmptyView()
+        case .available(let done, let total, let last):
+            Text(Self.unfinished(done, total, last)).font(.caption).foregroundStyle(.secondary)
+            Button(done == 0 ? "같은 입력으로 다시 시도" : "이어서 교정 (\(done)/\(total))") { confirmResume(done: done, total: total) }
+                .disabled(!workspace.canLeave || correction.busy)
+        case .planChanged(let done, let total, let last):
+            Text(Self.unfinished(done, total, last)).font(.caption).foregroundStyle(.secondary)
+            Text("스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.").font(.caption)
+        }
+    }
+    private static func unfinished(_ done: Int, _ total: Int, _ last: CorrectionFailureRecord?) -> String {
+        // 실패 기록이 없으면(앱 종료 등으로 끊긴 시도) 짧은 원인을 쓰지 않는다.
+        "AI 보정 미완료 · \(done)/\(total) 구간 완료" + (last.map { " · " + $0.kind.shortLabel(exitCode: $0.exitCode) } ?? "")
+    }
+    /// 이어하기 확인창 (tone 문구 17). 기본 버튼 «취소».
+    private func confirmResume(done: Int, total: Int) {
+        guard workspace.canLeave, !correction.busy, !readOnly else { return }
+        let alert = NSAlert()
+        alert.messageText = done == 0 ? "같은 입력으로 다시 시도할까요?" : "이어서 교정할까요?"
+        alert.informativeText = (done == 0 ? "처음 확인한 입력으로 \(total)개 구간 전부를 다시 보냅니다." : "완료한 \(done)개 구간은 다시 보내지 않습니다.") +
+            " 남은 \(total - done)개 구간의 전사와 처음 확인한 참석자·맥락·참고 내용을 OpenAI로 전송합니다. 계정 사용량이 소모될 수 있습니다. 원음은 보내지 않습니다."
+        alert.addButton(withTitle: "취소")
+        alert.addButton(withTitle: done == 0 ? "다시 시도" : "이어서 교정")
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        correction.resume(file)
     }
     private var currentLabel: String {
         let number = workspace.scriptFile?.script.versions?.last?.number ?? 0

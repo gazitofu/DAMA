@@ -14,7 +14,11 @@ import SwiftUI
     @Published var message: String?
     @Published var automatic: Bool { didSet { UserDefaults.standard.set(automatic, forKey: "correction.automatic") } }
     @Published private(set) var executable: URL
-    private var queue: [(LibraryScriptFile, ConversionNotes)] = []
+    /// 시도 기록이 바뀔 때 올린다. 화면은 이 값이 바뀌면 «이어서 교정» 상태를 다시 읽는다.
+    @Published private(set) var attemptVersion = 0
+    /// 새 교정(확인한 입력) 또는 이어서 교정(기록된 입력).
+    private enum Job: Sendable { case fresh(ConversionNotes), resume }
+    private var queue: [(LibraryScriptFile, Job)] = []
     private var task: Task<Void, Never>?
     private var accessed: [URL] = []
     var busy: Bool { activeID != nil || !queue.isEmpty }
@@ -88,50 +92,71 @@ import SwiftUI
             message = "합성 UI 검증에서는 AI 실행과 외부 전송을 차단합니다."; return
         }
         guard input.aiCorrection == true, activeID != file.id, !queue.contains(where: { $0.0.id == file.id }) else { return }
-        queue.append((file, input)); runNext()
+        queue.append((file, .fresh(input))); runNext()
     }
+    /// usage-bundle1 이어서 교정: 확인창을 거친 뒤에만 부른다. 기록된 입력으로 남은 청크만 보낸다. 자동 재시도는 없다.
+    func resume(_ file: LibraryScriptFile) {
+        guard AudioFiles.uiFixtureFolder == nil else {
+            message = "합성 UI 검증에서는 AI 실행과 외부 전송을 차단합니다."; return
+        }
+        guard !busy else { return }
+        queue.append((file, .resume)); runNext()
+    }
+    private func makeRunner() throws -> CorrectionRunner {
+        CorrectionRunner(store: CorrectionAttemptStore(root: try AudioFiles.root()), executable: executable)
+    }
+    /// «이어서 교정» 상태(청크 계획 해시를 다시 만들므로 메인 밖에서 계산한다).
+    func attemptStatus(for script: LibraryScript) async -> CorrectionRunner.Resume {
+        guard let runner = try? makeRunner() else { return .none }
+        return await Task.detached(priority: .utility) { runner.resumeState(for: script) }.value
+    }
+    private func setCompleted(_ value: Int) { completed = value }
     func cancel() { queue = []; task?.cancel() }
     private func runNext() {
         guard task == nil, !queue.isEmpty else { return }
-        let (file, input) = queue.removeFirst()
+        let (file, job) = queue.removeFirst()
         activeID = file.id; completed = 0; total = 0; message = nil
-        let executable = self.executable
         task = Task {
-            var correction = ScriptCorrection(input: input, engine: "Codex CLI · \(CodexCorrectionClient.modelTitle) · " + ContextCorrection.version)
+            var correction = ScriptCorrection(input: file.script.input, engine: CorrectionRunner.engine)
             let hasPreviousResult = file.script.correction?.state == .completed
-            defer { activeID = nil; task = nil; runNext() }
+            defer { activeID = nil; task = nil; attemptVersion += 1; runNext() }
             do {
-                let chunks = try await Task.detached(priority: .utility) {
-                    var source = file.script; source.correction = nil; source.showsOriginal = nil
-                    return try ContextCorrection.chunks(source)
-                }.value
-                guard !chunks.isEmpty else { throw LibraryFailure.invalidInput }
-                total = chunks.count; correction.totalChunks = total
-                if !hasPreviousResult { try await LibraryWorkspace.shared.storeCorrection(correction, file: file) }
-                var conflicts = Set<String>()
-                let client = CodexCorrectionClient()
-                for chunk in chunks {
-                    try Task.checkCancellation()
-                    let response = try await client.correct(chunk: chunk, input: input, executable: executable).reply
-                    let validated = try ContextCorrection.validated(response, chunk: chunk, input: input)
-                    correction.edits += validated.edits
-                    for (id, name) in validated.names {
-                        if let previous = correction.speakerNames[id], previous != name { conflicts.insert(id) }
-                        correction.speakerNames[id] = name
-                        correction.nameEvidence[id] = validated.evidence[id]
+                let runner = try makeRunner(), script = file.script
+                // 새 교정은 기존 시도 기록을 버리고 새로 만든다. 이어서 교정은 계획·엔진이 같을 때만 기록을 그대로 쓴다.
+                let (attempt, chunks) = try await Task.detached(priority: .utility) {
+                    switch job {
+                    case .fresh(let input): return try runner.begin(script: script, input: input)
+                    case .resume: return try runner.prepareResume(script: script)
                     }
-                    completed += 1; correction.completedChunks = completed
+                }.value
+                attemptVersion += 1
+                correction = ScriptCorrection(input: attempt.input, engine: attempt.engine)
+                total = attempt.totalChunks; completed = attempt.completedChunks
+                correction.totalChunks = total; correction.completedChunks = completed
+                if !hasPreviousResult { try await LibraryWorkspace.shared.storeCorrection(correction, file: file) }
+                let outcome = await runner.run(attempt, chunks: chunks) { [weak self] done in await self?.setCompleted(done) }
+                switch outcome {
+                case .completed(let finished):
+                    let merged = finished.merged()
+                    correction.edits = merged.edits; correction.speakerNames = merged.names; correction.nameEvidence = merged.evidence
+                    correction.completedChunks = finished.totalChunks
+                    correction.state = .completed; correction.completedAt = Date()
+                    try await LibraryWorkspace.shared.storeCorrection(correction, file: file)
+                    // 성공 저장 직후 시도 기록을 지운다.
+                    try? runner.discard(scriptID: file.id)
+                    message = "AI 보정 결과를 저장했습니다. 다른 결과 보기에서 이전 버전을 확인할 수 있습니다."
+                case .failed(let failed, let error):
+                    correction.state = .failed; correction.edits = []; correction.speakerNames = [:]; correction.nameEvidence = [:]
+                    correction.completedChunks = failed.completedChunks
+                    if !hasPreviousResult { try? await LibraryWorkspace.shared.storeCorrection(correction, file: file) }
+                    // 분류별 안내 띠 (tone 문구 18). 원문·stderr 내용은 쓰지 않는다.
+                    message = error.kind.bannerMessage(exitCode: error.exitCode, hasCompletedChunks: failed.completedChunks > 0)
                 }
-                try Task.checkCancellation()
-                for id in conflicts { correction.speakerNames.removeValue(forKey: id); correction.nameEvidence.removeValue(forKey: id) }
-                correction.state = .completed; correction.completedAt = Date()
-                try await LibraryWorkspace.shared.storeCorrection(correction, file: file)
-                message = "AI 보정 결과를 저장했습니다. 다른 결과 보기에서 이전 버전을 확인할 수 있습니다."
             } catch {
+                // 청크 계획·시도 기록·저장 단계 실패(프로세스 실행 전). 원문을 쓰지 않는다.
                 correction.state = .failed; correction.edits = []; correction.speakerNames = [:]; correction.nameEvidence = [:]
                 if !hasPreviousResult { try? await LibraryWorkspace.shared.storeCorrection(correction, file: file) }
-                message = Task.isCancelled ? "AI 보정을 취소했습니다. 기존 결과는 유지됩니다." :
-                    "AI 보정을 완료하지 못했습니다. 기존 결과는 유지됩니다. Codex 설치·로그인·앱 접근 권한 또는 연결을 확인해 주세요."
+                message = "AI 보정을 완료하지 못했습니다. 기존 결과는 유지됩니다."
             }
         }
     }

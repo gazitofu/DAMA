@@ -1,5 +1,6 @@
 import DamaAudio
 import DamaCore
+import DamaManaged
 import SwiftUI
 
 struct SpeakerNameSheet: View {
@@ -87,6 +88,8 @@ struct CorrectionInputSheet: View {
     @State private var error: String?
     @State private var preparing = true
     @State private var submitting = false
+    /// usage-bundle1 문구 19: 미완료 교정 시도 기록이 있으면 새 교정이 그것을 버린다는 고지.
+    @State private var unfinished: (done: Int, total: Int)?
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
@@ -123,6 +126,9 @@ struct CorrectionInputSheet: View {
             }.frame(minHeight: 220, maxHeight: 330).disabled(submitting)
             Divider()
             VStack(alignment: .leading, spacing: 14) {
+                if let unfinished {
+                    Text("미완료 교정(\(unfinished.done)/\(unfinished.total))은 버리고 처음부터 다시 보정합니다.").font(.caption)
+                }
                 Text("이 스크립트의 전사·참석자·맥락·참고 내용을 OpenAI로 전송합니다. 계정 사용량이 소모될 수 있습니다. 원음은 보내지 않습니다.").font(.caption).foregroundStyle(.secondary)
                 HStack {
                     Spacer(); Button("취소") { dismiss() }.keyboardShortcut(.cancelAction).disabled(submitting)
@@ -131,6 +137,12 @@ struct CorrectionInputSheet: View {
             }.padding(24)
         }.frame(width: 550).interactiveDismissDisabled()
             .task { await prepare() }
+            .task {
+                switch await correction.attemptStatus(for: request.file.script) {
+                case .none: unfinished = nil
+                case .available(let done, let total, _), .planChanged(let done, let total, _): unfinished = (done, total)
+                }
+            }
             .onChange(of: correction.referenceURL) { _, _ in Task { await prepare() } }
     }
     private func prepare() async {
