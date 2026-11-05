@@ -1,9 +1,9 @@
 ---
 unit: usage-bundle1
 branch: work/m0-fixture-review
-status: building
+status: built
 decisions_resolved: true
-resume: "게이트 ② 4차 상신 대기 (2026-11-05 23:0x). 막힘 1–5 전부 실행(2·3 사용자, 4·5 메인 승인 실행), QA F·G 판정, 설치 0.5.17(35). 남은 것 = 사용자 회신: ① 실제 스크립트 1개에 남은 가짜 실패 시도 기록(F-13) 둘지 치울지 ② 남은 미검증 축(AC-04 픽셀·전체 문단, AC-08 저장 중·실패·IME·미연결, AC-14 완료 1개 이상·엔진 불일치·인증 외 실패 띠 화면)을 잔여로 받고 status built → /ship 할지. 회신 전 실행 금지. check.sh는 대문자 절대경로"
+resume: "built (2026-11-06 01:2x). AC-01–AC-16 전부 통과(QA H·I·J), 설치 0.5.18(36) 실행 확인. 다음 = /ship (GO 1회). 브랜치 work/m0-fixture-review는 main보다 129+ 커밋 앞서고 16유닛이 함께 있다. 공유 트리 타 소유 미커밋 14·미추적 3. check.sh는 대문자 절대경로"
 spec: notes/usage-bundle1/usage-bundle1.src.html
 ---
 ## 근거
@@ -94,7 +94,7 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
     - `ContextCorrectionTests:219` → 머리말 «시간 불명 n».
     - 골든 3종 → 새 경로에 다시 포착한 뒤, 엔트리 키 집합과 `normalized`·`reading` 값이 전후 같음을 확인하고 `markdown` 값만 교체한다(엔트리 15·21·35 = 71개 전부 markdown 바뀜 예상, 이유 = 머리말 형식 변경).
     - 역뮤테이션: 옛 문단 줄을 원본 바이트 보관 방식으로 복원했을 때 붉어지는 단정 수를 기록한다.
-- [ ] AC-04 읽기 화면 (UI):
+- [x] AC-04 읽기 화면 (UI):
   - ⓐ 문단 행 «주의» 0 (합성 UI fixture Debug 빌드 + 설치 앱 실제 결합본 1개, 읽기만). 기준선 = open 이슈가 있는 문단마다 1.
   - ⓑ 중단·일부 결과는 문단 본문 아래 ⚠ 기호 + 문구 1 줄, 이슈 1건당 1, open만.
   - ⓒ 구간 정보는 맨 위 경고 줄 → «자동 경고 N건» 접힘(기본 닫힘) 순서다. 펼치면 문구 5 + «{문구} · {N}건»이 나오고, 0건이면 줄 없음. 결과 줄의 «정보»로 연다(F-11 정정, 원문 «하단»).
@@ -112,8 +112,8 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
   - 합성 5사례: 연결 + displayTitle · 연결 + 없음 · 미연결 · Speech 휴지통(인덱스만 있음) · AI 버전 보기(스냅숏 파일 제목 그대로).
   - `createScript`의 새 파일 `title` = 해석 녹음 제목.
 - [x] AC-07 쓰는 자리 전수: 해석 제목을 쓰는 자리는 Speech 목록·상세 · Script 목록·읽기 제목칸 · AI 검수/보정 창 머리 · 삭제 확인 2곳 · 변환·재전사 확인창 4곳 · Markdown `# 제목`(`markdown(title: String? = nil)`, nil = 파일 제목) · 내보내기 파일 이름. 평가 JSON `script.title`은 파일 값 그대로. 자 = `git grep -nE '(speech|record|file)\.title|script\.title' -- App UI` 남은 줄 전수를 «해석 함수 입력 / 평가 JSON / AI 버전 보기»로 분류해 결과 파일에 기록.
-- [ ] AC-08 저장 시점·양방향:
-  - pure `TitleDraft` (DamaCore). 사건 = 편집(조합 여부) · Enter · 이탈 · Esc. 동작 = 없음 · 저장(값) · 되돌림(마지막 저장값) · 거부(«제목을 입력해 주세요.», 입력 유지). 조합 중 Enter·이탈 = 없음. 합성 단정 8개 이상.
+- [x] AC-08 저장 시점·양방향:
+  - pure `TitleDraft` (DamaCore). 사건 = 편집(조합 여부) · Enter · 이탈 · Esc. 동작 = 없음 · 저장(값) · 되돌림(마지막 저장값) · 거부(«제목을 입력해 주세요.», 입력 유지). 조합 중 Enter·이탈 = 없음. 합성 단정 8개 이상. 화면: 반쪽 글자(조합 중 문자열)는 저장하지 않는다. 입력기가 조합 중 Enter로 글자를 확정한 뒤 넘겨준 Enter는 확정된 값을 저장한다(한 번 Enter로 저장, 사용자 결정 2026-11-06).
   - `git grep -n 'milliseconds(500)' -- App/ScriptEditingSession.swift` = 0.
   - 상태 문구 11 (입력 중 «Enter를 누르면 저장합니다.» · «제목 저장 중…» · «제목 저장됨» · 빈값 · 실패).
   - 연결 스크립트 제목칸 저장 = 인덱스만 쓰고 스크립트 파일 쓰기 0. 미연결 = 현행 `saveTitle`.
@@ -166,7 +166,7 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
   - 막힘 방지: 가짜 CLI가 stderr 1 MiB를 쓰고 exit 0 → 시간 초과 없이 정상, `stderrBytes` = 1,048,576.
   - 단위 고정 테스트: Duration → Int64 ms 절삭, 0 이상. `.milliseconds(1500)` → 1500, `.microseconds(1999)` → 1.
   - 원문 미기록: 가짜 CLI가 stderr에 쓴 고유 표식 문자열이 임시 내부 저장소·임시 Scripts 전수 검색에서 0 (양성 대조 `stderrBytes` > 0). `git grep -nE 'os_log|Logger\(|NSLog|print\(' -- App/CorrectionWorkspace.swift Packages/DamaCore/Sources/DamaManaged` = 0.
-- [ ] AC-14 시도 기록·이어서 교정:
+- [x] AC-14 시도 기록·이어서 교정:
   - `CorrectionAttempt` Codable (`formatVersion` 1 · scriptID · attemptID · engine · 입력 스냅숏 · `planSHA256` · `chunkSHA256s` · 끝난 청크 결과 · 실패 최근 20).
   - 저장 위치 `<내부 root>/CorrectionAttempts/<scriptID>.json`, 원자 쓰기. `planSHA256` = `JSONEncoder` `.sortedKeys`로 인코드한 `[CorrectionChunk]`(AI 겹 제외)의 SHA256.
   - 실행: `CorrectionRunner` (DamaManaged, 가짜 CLI 테스트 가능), 앱은 이것을 부른다.
@@ -259,6 +259,23 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 | 14 | 완료 1개 이상 버튼·확인창, 엔진 불일치 화면(합성은 문단 수정으로만), 인증 외 실패 띠. 성공·이어하기 실행은 막힘 5 문언상 합성 테스트로 한정 |
 
 
+### 잔여 축 마감 (2026-11-06 · «남은 미검증 축도 모두 수정후 배포로 넘어가자»)
+
+증거 `.build/qa/usage-bundle1/{H,I,J}-evidence.md` · 이미지 `H-shots/` · 판정 `{H,I,J}-verdict.md` (GPT-6.1-sol, 매회 QA 전후 git 상태 동일). 화면 작업은 사용자가 Mac을 비운 시간(25분 · 3분 · 1분, 매번 사용자 허락)에만 했다.
+
+- QA 장치 `843be59`: 합성 QA 앱(Debug · ReadingQA · fixture 인자)만 자기 창을 PNG로 저장(화면 기록 권한 불필요, 운영 Bundle·Release에서 꺼짐 = QA H 코드 확인). fixture 확장: 경고 줄과 자동 경고가 함께 있는 문단, 2청크 연결 결과, 미연결 결과.
+- 결함 수정 `e9ebcd1`: 안내 띠가 `workspace.message`를 먼저 보여 남아 있던 작업 공간 안내가 교정 실패 띠를 가림(실기기에서 «Script를 휴지통으로 이동했습니다» 안내가 가린 것 관측) → 새 교정 안내가 생기면 작업 공간 안내를 지움. 합성 앱에서 확인(`s08`).
+- 사용자 결정 2026-11-06 «한 번 Enter로 저장»: 반쪽 글자는 저장하지 않고, 입력기가 조합 중 Enter로 확정한 뒤 넘겨준 Enter는 확정된 값을 저장한다(AC-08 문언·계약·스펙 반영). 조합 중 이탈도 입력기 확정 뒤 완성된 값 저장(반쪽 글자 0).
+- check.sh `run-20261105T154341Z-A1NzJx` (HEAD `e9ebcd1` + 작업 트리 0.5.18(36)): 계약 31 · byte-exact · SmokeCheck · swift test Core 199 / Audio 44 / Managed 60 · xcodebuild Debug PASS, SKIP 0.
+- 설치 0.5.18(36): 0.5.17(35) 대기 상태 확인 → 정상 종료 → 백업 `.build/backups/DAMA-0.5.17-35-before-0.5.18.app` 11파일 일치 → 교체 11파일 해시 일치 → 실행 Bundle 0.5.18(36), 툴팁 «DAMA 0.5.18 · 빌드 36».
+
+| AC | 판정 | 근거 요약 |
+|---|---|---|
+| 04 | 통과 (J) | 합성 창 이미지: ⚠ 경고 줄·«주의» 없음·구간 정보 순서(경고 줄 → «자동 경고 9건» 닫힘 → 모델 원문)·펼친 내용. 실제 결합본 1,411문단을 «다음 문단» 1,410회로 순회(데이터 1,411), «주의» 0, 경고 줄 문단 1(데이터 1). 선택 키 불변 26회 = 데이터의 같은 내용 연속 쌍 26 |
+| 08 | 통과 (J) | 미연결 저장(스크립트 파일 1 + 사본 1, 인덱스 0)·캡션 없음, 저장 실패 문구·입력 유지, «제목 저장 중…»(인덱스를 키워 쓰기를 늦춰 관측), IME 두벌식 실키 입력(한 번 Enter 저장·반쪽 글자 0), 조합 중 이탈(완성 값 저장) |
+| 14 | 통과 (I) | 완료 1개 이상 «이어서 교정 (1/2)»·확인창 기본 «취소», 엔진 불일치 문구 16, 실기기 실패 띠 8종(auth·network·config·format·미분류 3·실행 불가·취소·시간 초과 300초) 문구 14·18 일치, 하위 프로세스 = 가짜 CLI, 스크립트 쓰기 0. 띠 우선순위 결함 `e9ebcd1`로 해소 |
+
+
 ## 작업 분해
 
 - T-01 계약·문구 개정 (AC-01): §05 문안 5항. AI 교정 절 stderr 항은 «stdout은 버리고 stderr는 줄 시작이 `ERROR: `·`error: `인 줄만 메모리에서 분류 표식과 대조한 뒤 버린다(줄당 64 KiB). 바이트 수만 기록한다. 시간 초과 중 네트워크 표식이 있었으면 네트워크로 분류한다»로 쓴다 (D-01 ⓐ · D-02 ⓐ).
@@ -311,5 +328,7 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 - F-10 (AC-10, 결정) 저장·삭제 문구의 서비스 이름이 «Soniox 단독 (비교)»로 남는다(«Soniox 단독 (비교) 키 저장됨 · 연결 유효성 미검증», «이 Mac의 Soniox 단독 (비교) API 키를 삭제할까요?», «Soniox 단독 (비교) 키 삭제됨»). 머리 «Soniox API 키»와 이름이 갈린다. 권고: 세 문구도 «Soniox»로 통일(운영 기본값의 키라 «비교»가 틀린 설명). QA D는 현행 유지가 AC-10 문자 해석으로 타당, 통일은 사용자 결정이라고 판정. → **해소** (사용자 «결정은 권고대로» 2026-11-05, 반영 `90e079e`·`002fffe`, QA E 일치).
 - F-11 (AC-04ⓒ, 문언) 스펙 417행 «구간 정보는 하단 도구막대의 «정보»로 연다». 실제 «정보» 버튼은 `74b774e`(2026-09-12)부터 상단 결과 줄이고 이 유닛은 옮기지 않았다. 스펙이 기존 위치를 잘못 적은 것으로 본다. 권고: 문언을 «결과 줄의 «정보»»로 정정, 버튼 이동 없음. → **해소** (사용자 «결정은 권고대로» 2026-11-05, 반영 `90e079e`·`002fffe`, QA E 일치).
 - F-12 (절차) 사용자가 쓰는 중인 Mac에서 접근성으로 QA 앱을 조작하면 확인창이 사용자 입력을 받는다(이번 사건). QA 앱의 설정은 실제 로그인 키체인 항목의 존재를 조회하고, 삭제 버튼은 실제 항목을 지운다(Bundle ID 분리로 격리되지 않음). 다음 실화면 검증은 사용자 부재 시간을 합의하고, 키 삭제 여정은 격리 키체인이 생기기 전까지 보류한다. 추가 11.05: 메인 셸의 `defaults`는 앱과 다른 설정 저장소를 본다(앱 설정은 파일 경로 도메인 `defaults … ~/Library/Preferences/com.gazitofu.Dama.plist`로만 닿음). 열기 패널 전체 덤프는 최근 항목 파일 이름을 드러내므로 경로 칸·선택 결과만 읽는다.
-- F-13 (결정) 막힘 5로 실제 스크립트 1개에 가짜 인증 실패 시도 기록 `CorrectionAttempts/A9B577CB-….json`이 남았다. 그 스크립트 하단에 «AI 보정 미완료 · 0/4 구간 완료 · 로그인 필요로 보임»과 «같은 입력으로 다시 시도»가 보이고, 누르면(확인창 뒤) 기록된 실제 입력이 실제 Codex로 전송된다. 권고: 치움(기록 파일을 `.build/backups/`로 옮김, 스크립트 파일 무변경).
+- F-13 (결정) 막힘 5로 실제 스크립트 1개에 가짜 인증 실패 시도 기록 `CorrectionAttempts/A9B577CB-….json`이 남았다. 그 스크립트 하단에 «AI 보정 미완료 · 0/4 구간 완료 · 로그인 필요로 보임»과 «같은 입력으로 다시 시도»가 보이고, 누르면(확인창 뒤) 기록된 실제 입력이 실제 Codex로 전송된다. 권고: 치움(기록 파일을 `.build/backups/`로 옮김, 스크립트 파일 무변경). → **해소** (사용자 «모두 수정» 2026-11-06): 기록 파일을 `.build/backups/correction-attempts-ub1-device-qa/`로 옮김, 내부 `CorrectionAttempts/` 0개.
+- F-14 (후속, QA I) 새 교정 안내가 작업 공간 안내를 지우므로, 아직 해결되지 않은 저장 실패 안내도 새 교정 안내가 오면 사라질 수 있다. 안내 띠를 최신 우선 대기열로 바꿀지는 별도 유닛.
+- F-15 (기록) 실기기 검증 중 사용자 Mac 사용과 겹침: 접근성은 현재 Space의 창만 보이고, IME 확인은 실제 키 입력이 필요해 사용자 부재 시간을 매번 합의했다. 가짜 CLI·fixture 원본은 `.build/qa/usage-bundle1/`와 `/private/tmp/dama-reading-qa-ub1-c`(합성).
 - F-09 `FileHandle.read(upToCount:)`는 파이프에서 개수를 채우거나 EOF까지 블록한다(역뮤테이션에서 관측). 다른 파이프 읽기 코드(Qwen·Nemotron 실행기)에 같은 가정이 있는지 별도 점검.
