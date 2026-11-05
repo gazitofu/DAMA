@@ -1,4 +1,5 @@
 import AppKit
+import DamaAudio
 import SwiftUI
 
 @MainActor
@@ -9,6 +10,7 @@ final class DamaAppDelegate: NSObject, NSApplicationDelegate {
         statusBar = StatusBarController()
         DockPresence.start()
         TitlePromptPanelController.shared.start()
+        QASnapshot.start()
     }
     func applicationWillTerminate(_ notification: Notification) {
         // usage-bundle1: 열린 녹음 제목 입력창과 줄 선 입력창은 저장 없이 버린다.
@@ -154,4 +156,44 @@ struct ReviewWindowGuard: NSViewRepresentable {
         }
         override func forwardingTarget(for selector: Selector!) -> Any? { prior }
     }
+}
+
+/// 합성 QA 앱(Debug · `com.gazitofu.Dama.ReadingQA` · `--reading-fixture-root`)만 자기 창을 PNG로 남긴다.
+/// 화면 기록 권한 없이 앱 자신의 뷰를 그린다. 운영 Bundle·Release에서는 켜지지 않는다 (usage-bundle1 게이트 ② 화면 검증).
+/// 요청: 분산 알림 `com.gazitofu.Dama.ReadingQA.snapshot`, object = 파일 이름(영숫자·`-`·`_` 64자 이하).
+/// 결과: `<fixture>/qa-snapshots/<이름>-<창 번호>.png`. 모달 경고창은 기본 런루프가 멈춰 담기지 않는다.
+@MainActor enum QASnapshot {
+    static func start() {
+        #if DEBUG
+        guard let fixture = AudioFiles.uiFixtureFolder else { return }
+        let folder = fixture.appendingPathComponent("qa-snapshots", isDirectory: true)
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.gazitofu.Dama.ReadingQA.snapshot"),
+                                                            object: nil, queue: .main) { note in
+            let requested = note.object as? String ?? ""
+            let name = requested.range(of: "^[A-Za-z0-9_-]{1,64}$", options: .regularExpression) != nil ? requested : "snapshot"
+            MainActor.assumeIsolated { capture(name: name, folder: folder) }
+        }
+        #endif
+    }
+    #if DEBUG
+    private static func capture(name: String, folder: URL) {
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for (index, window) in NSApp.windows.enumerated() where window.isVisible {
+            guard let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds),
+                  let out = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: rep.pixelsWide, pixelsHigh: rep.pixelsHigh,
+                      bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                      bytesPerRow: 0, bitsPerPixel: 0) else { continue }
+            // 뷰만 그리면 창 배경이 빠져 투명해지고 글자 혼합이 사라진다. 창의 외관으로 배경색을 먼저 칠한 비트맵에 뷰를 직접 그린다.
+            out.size = rep.size
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: out)
+            window.effectiveAppearance.performAsCurrentDrawingAppearance {
+                window.backgroundColor.setFill(); NSRect(origin: .zero, size: rep.size).fill()
+            }
+            NSGraphicsContext.restoreGraphicsState()
+            view.cacheDisplay(in: view.bounds, to: out)
+            try? out.representation(using: .png, properties: [:])?.write(to: folder.appendingPathComponent("\(name)-\(index).png"))
+        }
+    }
+    #endif
 }

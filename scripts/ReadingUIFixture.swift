@@ -15,7 +15,7 @@ import Foundation
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480_000)!
         buffer.frameLength = 480_000
         for i in 0..<Int(buffer.frameLength) { buffer.floatChannelData![0][i] = 0 }
-        for name in ["제품 검토 회의 · 합성", "변환 전 녹음 · 합성"] {
+        for name in ["제품 검토 회의 · 합성", "변환 전 녹음 · 합성", "긴 회의 · 합성"] {
             let audio = try AVAudioFile(forWriting: speechFolder.appendingPathComponent(name + ".wav"), settings: format.settings)
             try audio.write(from: buffer)
         }
@@ -48,6 +48,8 @@ import Foundation
         }
         for kind in [IssueKind.ambiguous_speaker, .overlapping_speech, .missing_speech, .provider_disagreement, .boundary_conflict,
                      .unrepresented_speaker, .invalid_timestamp, .low_confidence, .boundary_conflict] { try attach(0, kind) }
+        // 게이트 ② 보충: 경고 줄과 자동 경고 접힘이 한 문단에 함께 있는 경우(구간 정보 순서 확인용).
+        try attach(0, .partial_result)
         for kind in [IssueKind.overlapping_speech, .overlapping_speech, .boundary_conflict, .boundary_conflict] { try attach(3, kind) }
         try attach(4, .partial_result)
         try attach(model.turns.count - 1, .capture_interrupted)
@@ -67,6 +69,31 @@ import Foundation
         var comparisonInput = notes
         comparisonInput.transcriptionProvider = .soniox
         _ = try await store.createScript(comparison, speech: speech, input: comparisonInput, in: scriptFolder)
-        print("Synthetic UI fixture created: 2 speeches, 2 results for 1 Speech, 2 historical snapshots; no external requests.")
+        // 게이트 ② 보충 1: 원구간 120개(교정 청크 2개)인 연결 결과. 이어서 교정 (k/n) 화면 확인용.
+        let longSpeech = speeches.first { $0.title.contains("긴 회의") }!
+        _ = try await AudioLibrary(root: root).prepareAnalysis(longSpeech.id)
+        var longIntervals: [[String: Any]] = [], longWords: [[String: Any]] = []
+        for i in 0..<120 {
+            let start = Double(i) * 0.25, end = start + 0.2, label = i % 2 == 0 ? "A" : "B"
+            longIntervals.append(["start": start, "end": end, "speaker": label])
+            longWords.append(["start": start, "end": end, "speaker": label, "text": "합성 발화 \(i + 1)번입니다."])
+        }
+        let longPayload = try JSONSerialization.data(withJSONObject: ["jobId": "synthetic-ui-long", "status": "succeeded", "output": ["diarization": longIntervals, "exclusiveDiarization": longIntervals, "wordLevelTranscription": longWords]])
+        var longModel = try ManagedNormalizer.normalize(longPayload, sessionID: longSpeech.id, runID: UUID().uuidString, durationUs: 30_000_000,
+            audioSHA256: longSpeech.sourceHash, synthetic: true, createdAt: "2026-09-12T00:00:00Z")
+        longModel.provenance.engine = .hybridSonioxNemotron
+        try await store.saveNotes(notes, speechID: longSpeech.id)
+        _ = try await store.createScript(longModel, speech: longSpeech, input: notes, in: scriptFolder)
+        // 게이트 ② 보충 2: 인덱스에 없는 녹음 id의 결과(연결 없음). 제목 저장은 스크립트 파일로 간다.
+        let orphanID = UUID().uuidString
+        let orphanValue: [String: Any] = ["id": orphanID, "fileURL": speechFolder.appendingPathComponent("보관된 녹음 · 합성.wav").absoluteString,
+            "sourceHash": speech.sourceHash, "title": "연결 없는 결과 · 합성", "dateSource": "합성 검증", "durationUs": 30_000_000,
+            "notes": ["context": "", "reference": ""]]
+        let orphanSpeech = try JSONDecoder().decode(LibrarySpeech.self, from: JSONSerialization.data(withJSONObject: orphanValue))
+        var orphanModel = try ManagedNormalizer.normalize(payload, sessionID: orphanID, runID: UUID().uuidString, durationUs: 30_000_000,
+            audioSHA256: speech.sourceHash, synthetic: true, createdAt: "2026-09-12T00:00:00Z")
+        orphanModel.provenance.engine = .hybridSonioxNemotron
+        _ = try await store.createScript(orphanModel, speech: orphanSpeech, input: notes, in: scriptFolder)
+        print("Synthetic UI fixture created: 3 speeches, 4 results (2 for 1 Speech, 1 two-chunk, 1 unlinked), 2 historical snapshots; no external requests.")
     }
 }
