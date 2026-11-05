@@ -67,14 +67,18 @@ final class TitleEditingTests: XCTestCase {
         XCTAssertNil(queue.current) // 인덱스 확인 전에는 보이지 않는다.
         XCTAssertEqual(queue.count, 3)
         queue.confirmed(["c"])
-        XCTAssertEqual(queue.current, "c")
-        queue.confirmed(["a", "b", "zzz"]) // 보이는 입력창은 바꾸지 않는다.
-        XCTAssertEqual(queue.current, "c")
-        queue.dismissCurrent()
-        XCTAssertEqual(queue.current, "a") // 뒤에 선 것은 끝난 순서.
-        queue.dismissCurrent()
+        XCTAssertNil(queue.current) // 뒤에 끝난 것이 먼저 확인돼도 끝난 순서를 지킨다 (QA B D-1).
+        queue.confirmed(["a", "zzz"])
+        XCTAssertEqual(queue.current, "a")
+        queue.dismiss("a")
+        XCTAssertNil(queue.current) // b는 아직 확인 전.
+        queue.confirmed(["b"])
         XCTAssertEqual(queue.current, "b")
-        queue.dismissCurrent()
+        queue.dismiss("c") // 보이지 않는 것을 닫으려 하면 아무 일도 없다.
+        XCTAssertEqual(queue.current, "b")
+        queue.dismiss("b")
+        XCTAssertEqual(queue.current, "c")
+        queue.dismiss("c")
         XCTAssertNil(queue.current)
         XCTAssertEqual(queue.count, 0)
     }
@@ -85,17 +89,19 @@ final class TitleEditingTests: XCTestCase {
         XCTAssertNil(queue.current)
         queue.finished("a"); queue.finished("a")
         XCTAssertEqual(queue.count, 1)
-        queue.finished("failed")
-        queue.drop("failed") // Speeches 저장 실패 → 건너뜀.
-        queue.confirmed(["a", "failed"])
-        XCTAssertEqual(queue.current, "a")
-        XCTAssertEqual(queue.count, 1)
-        queue.finished("b"); queue.confirmed(["b"])
+        queue.finished("failed"); queue.finished("b")
+        queue.confirmed(["b"])
+        queue.drop("a") // 줄 맨 앞이 저장 실패 → 건너뜀. 다음 맨 앞(failed)은 확인 전이라 아직 안 보인다.
+        XCTAssertNil(queue.current)
+        XCTAssertEqual(queue.awaiting, ["failed"])
+        queue.drop("failed")
+        XCTAssertEqual(queue.current, "b")
+        queue.finished("c"); queue.confirmed(["c"])
         XCTAssertEqual(queue.count, 2)
         queue.terminate()
         XCTAssertNil(queue.current)
         XCTAssertEqual(queue.count, 0)
-        queue.confirmed(["a", "b"]) // 종료 뒤 늦은 확인은 아무것도 띄우지 않는다.
+        queue.confirmed(["b", "c"]) // 종료 뒤 늦은 확인은 아무것도 띄우지 않는다.
         XCTAssertNil(queue.current)
     }
 }

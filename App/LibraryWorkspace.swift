@@ -41,6 +41,10 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     /// usage-bundle1 녹음 직후 제목 입력창 줄. 끝난 마이크 녹음만 들어오고 인덱스에서 확인된 것만 보인다.
     @Published private(set) var titlePrompts = TitlePromptQueue()
     private(set) var promptRecords: [String: AudioManifest] = [:]
+    /// Speeches 저장을 마친 녹음 → 그때의 새로고침 세대. 그 뒤에 시작한 새로고침에서도 인덱스에 없으면 건너뛴다.
+    private var publishedPrompts: [String: Int] = [:]
+    private var refreshGeneration = 0
+    private var promptRefresh: Task<Void, Never>?
     private var store: FolderLibraryStore?
     private var root: URL?
     private var started = false
@@ -164,6 +168,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         guard canLeave, !scriptsLoading, let store else { return }
         ProcessingWorkspace.shared.refresh()
         busy = true
+        refreshGeneration += 1
+        let generation = refreshGeneration
         Task {
             do {
                 try await persistNotes()
@@ -179,7 +185,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             busy = false
             // 녹음 표시 제목: Speeches 스캔이 새 항목을 인덱스에 더한 뒤 읽는다 (usage-bundle1).
             await loadTitles()
-            titlePrompts.confirmed(indexedSpeechIDs)
+            confirmTitlePrompts(refreshedAt: generation)
             guard let url = folders[.scripts] else { return }
             scriptsLoading = true
             do {
@@ -535,20 +541,49 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         // 제목 입력창은 원본 저장이 끝난 뒤 줄 선다. 끝난 순서를 지키려고 Speeches 저장 전에 순번을 받는다.
         titlePrompts.finished(record.id); promptRecords[record.id] = record
         Task {
-            do { try await store.publishRecording(record, to: destination); refresh() }
-            catch {
+            do {
+                try await store.publishRecording(record, to: destination)
+                publishedPrompts[record.id] = refreshGeneration
+                requestPromptRefresh()
+            } catch {
                 titlePrompts.drop(record.id); promptRecords[record.id] = nil
                 message = "Speeches에 저장하지 못했습니다. 내부 원본은 보존되어 있습니다."
             }
         }
     }
-    /// 보이는 제목 입력창을 닫는다(저장 성공·나중에·Esc·창 닫기). 쓰기는 하지 않는다.
-    func dismissTitlePrompt() {
-        if let id = titlePrompts.current { promptRecords[id] = nil }
-        titlePrompts.dismissCurrent()
+    /// 새로고침은 편집·저장·목록 읽기 중에는 미뤄진다(`refresh` 가드). 입력창의 인덱스 확인이 빠지지 않게
+    /// 가능해질 때 한 번 새로고침한다 (QA B D-3).
+    private func requestPromptRefresh() {
+        guard promptRefresh == nil else { return }
+        promptRefresh = Task { [weak self] in
+            while let self, !Task.isCancelled {
+                if self.canLeave && !self.scriptsLoading { self.refresh(); break }
+                try? await Task.sleep(for: .seconds(1))
+            }
+            self?.promptRefresh = nil
+        }
+    }
+    /// 인덱스에서 확인된 녹음을 표시 가능으로 바꾼다. Speeches 저장 뒤 시작한 새로고침에서도 인덱스에 없으면 건너뛴다.
+    private func confirmTitlePrompts(refreshedAt generation: Int) {
+        titlePrompts.confirmed(indexedSpeechIDs)
+        for id in titlePrompts.awaiting {
+            guard let published = publishedPrompts[id] else { continue }
+            if indexedSpeechIDs.contains(id) { publishedPrompts[id] = nil }
+            else if published < generation { titlePrompts.drop(id); publishedPrompts[id] = nil; promptRecords[id] = nil }
+        }
+        for id in publishedPrompts.keys where indexedSpeechIDs.contains(id) { publishedPrompts[id] = nil }
+    }
+    /// 보이는 제목 입력창을 닫는다(저장 성공·나중에·Esc·창 닫기). 쓰기는 하지 않는다. 지금 보이는 `id`일 때만.
+    func dismissTitlePrompt(_ id: String) {
+        guard titlePrompts.current == id else { return }
+        promptRecords[id] = nil
+        titlePrompts.dismiss(id)
     }
     /// 앱 종료: 열린 입력창과 줄 선 것을 저장 없이 버린다.
-    func discardTitlePrompts() { titlePrompts.terminate(); promptRecords = [:] }
+    func discardTitlePrompts() {
+        promptRefresh?.cancel(); promptRefresh = nil
+        titlePrompts.terminate(); promptRecords = [:]; publishedPrompts = [:]
+    }
     func recoverRecordings() {
         guard !foldersLocked, let root, let store, let destination = folders[.speeches] else { return }
         busy = true

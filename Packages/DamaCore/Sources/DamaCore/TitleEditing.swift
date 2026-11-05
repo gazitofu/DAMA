@@ -59,55 +59,44 @@ public struct TitleDraft: Equatable, Sendable {
 
 /// usage-bundle1 녹음 직후 제목 입력창 줄 서기.
 /// 끝난 순서로 줄 서고 한 번에 하나만 보인다. 인덱스에서 확인된 id만 표시하고, 닫으면 다음으로 넘어가며, 종료 시 전부 버린다.
+/// 끝난 순서를 지키려고 줄 맨 앞(가장 먼저 끝난 것)이 확인될 때까지 뒤의 것은 보이지 않는다.
+/// 줄 맨 앞이 Speeches 저장에 실패하거나 인덱스에 오르지 못하면 `drop`으로 빼서 뒤가 막히지 않게 한다.
 public struct TitlePromptQueue: Equatable, Sendable {
-    private var sequence = 0
-    /// 끝났지만 아직 인덱스에서 확인하지 못한 녹음 (id → 끝난 순번).
-    private var awaiting: [String: Int] = [:]
-    /// 확인되어 표시를 기다리는 녹음 (끝난 순번 오름차순). 첫 항목이 보이는 입력창이다.
-    private var ready: [(id: String, order: Int)] = []
+    /// 끝난 순서대로 선 녹음. 첫 항목이 확인되었으면 그것이 보이는 입력창이다.
+    private var line: [String] = []
+    private var confirmedIDs: Set<String> = []
 
     public init() {}
 
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.sequence == rhs.sequence && lhs.awaiting == rhs.awaiting
-            && lhs.ready.map(\.id) == rhs.ready.map(\.id) && lhs.ready.map(\.order) == rhs.ready.map(\.order)
-    }
-
-    /// 지금 보이는 입력창의 녹음 id. 없으면 nil.
-    public var current: String? { ready.first?.id }
-    /// 확인을 기다리거나 줄 선 녹음 수 (보이는 것 포함).
-    public var count: Int { awaiting.count + ready.count }
+    /// 지금 보이는 입력창의 녹음 id. 줄 맨 앞이 아직 확인되지 않았으면 nil.
+    public var current: String? { line.first.flatMap { confirmedIDs.contains($0) ? $0 : nil } }
+    /// 줄에 선 녹음 수 (보이는 것 포함).
+    public var count: Int { line.count }
+    /// 아직 인덱스에서 확인하지 못한 녹음.
+    public var awaiting: [String] { line.filter { !confirmedIDs.contains($0) } }
 
     /// 녹음이 끝나 Speeches 저장을 시작했다. 아직 보이지 않는다.
     public mutating func finished(_ id: String) {
-        guard awaiting[id] == nil, !ready.contains(where: { $0.id == id }) else { return }
-        sequence += 1
-        awaiting[id] = sequence
+        guard !line.contains(id) else { return }
+        line.append(id)
     }
 
-    /// 목록 새로고침에서 인덱스에 있는 id 집합을 받았다. 기다리던 녹음 중 확인된 것만 줄에 올린다.
-    /// 보이는 입력창은 바꾸지 않고, 뒤에 선 것은 끝난 순서로 정렬한다.
+    /// 목록 새로고침에서 인덱스에 있는 id 집합을 받았다. 줄에 선 녹음 중 확인된 것을 표시 가능으로 바꾼다.
     public mutating func confirmed(_ indexIDs: Set<String>) {
-        let found = awaiting.filter { indexIDs.contains($0.key) }
-        guard !found.isEmpty else { return }
-        for id in found.keys { awaiting[id] = nil }
-        let incoming = found.map { (id: $0.key, order: $0.value) }
-        if let head = ready.first {
-            ready = [head] + (Array(ready.dropFirst()) + incoming).sorted { $0.order < $1.order }
-        } else {
-            ready = incoming.sorted { $0.order < $1.order }
-        }
+        confirmedIDs.formUnion(line.filter { indexIDs.contains($0) })
     }
 
-    /// 기다리던 녹음이 Speeches 저장에 실패했거나 건너뛴다. 줄에서 뺀다.
+    /// Speeches 저장 실패·인덱스 누락으로 건너뛴다. 보이는 입력창이면 닫는 것과 같다.
     public mutating func drop(_ id: String) {
-        awaiting[id] = nil
-        if ready.first?.id != id { ready.removeAll { $0.id == id } }
+        line.removeAll { $0 == id }; confirmedIDs.remove(id)
     }
 
-    /// 보이는 입력창을 닫았다(저장 성공·나중에·Esc·창 닫기). 다음 것이 보인다.
-    public mutating func dismissCurrent() { if !ready.isEmpty { ready.removeFirst() } }
+    /// 보이는 입력창을 닫았다(저장 성공·나중에·Esc·창 닫기). `id`가 지금 보이는 것과 다르면 아무것도 하지 않는다.
+    public mutating func dismiss(_ id: String) {
+        guard current == id else { return }
+        drop(id)
+    }
 
     /// 앱 종료: 열린 입력창과 줄 선 것을 저장 없이 전부 버린다.
-    public mutating func terminate() { awaiting = [:]; ready = [] }
+    public mutating func terminate() { line = []; confirmedIDs = [] }
 }

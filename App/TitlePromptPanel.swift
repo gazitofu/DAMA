@@ -10,7 +10,7 @@ import SwiftUI
 @MainActor final class TitlePromptPanelController: NSObject, NSWindowDelegate {
     static let shared = TitlePromptPanelController()
     private var panel: TitlePromptPanel?
-    private var shownID: String?
+    private var model: TitlePromptModel?
     private var subscription: AnyCancellable?
 
     func start() {
@@ -25,10 +25,12 @@ import SwiftUI
     }
 
     private func show(_ id: String?) {
-        guard id != shownID else { return }
+        guard id != model?.id else { return }
         close()
         guard let id, let info = TitlePromptInfo(id: id, workspace: .shared) else { return }
-        shownID = id
+        let model = TitlePromptModel(info: info)
+        model.onSaved = { [weak self] in self?.dismiss(id) }
+        self.model = model
         let panel = TitlePromptPanel(contentRect: NSRect(x: 0, y: 0, width: 440, height: 220),
             styleMask: [.titled, .closable, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.title = "녹음 제목"
@@ -36,8 +38,7 @@ import SwiftUI
         panel.isReleasedWhenClosed = false; panel.becomesKeyOnlyIfNeeded = false
         panel.delegate = self
         panel.onCancel = { [weak self] in self?.later() }
-        panel.contentView = NSHostingView(rootView: TitlePromptView(info: info, later: { [weak self] in self?.later() },
-            saved: { [weak self] in self?.finished() }))
+        panel.contentView = NSHostingView(rootView: TitlePromptView(model: model, later: { [weak self] in self?.later() }))
         panel.setContentSize(panel.contentView?.fittingSize ?? NSSize(width: 440, height: 220))
         // 화면 가운데 위쪽. 메뉴바 녹음 토글(오른쪽 위 메뉴)을 가리지 않는다.
         if let screen = NSScreen.main?.visibleFrame {
@@ -48,24 +49,28 @@ import SwiftUI
         panel.makeKeyAndOrderFront(nil)
     }
 
-    /// «나중에»·Esc·창 닫기: 쓰기 없이 닫고 다음 것을 보인다.
-    private func later() { LibraryWorkspace.shared.dismissTitlePrompt() }
-    /// 저장 성공: 닫고 다음 것을 보인다.
-    private func finished() { LibraryWorkspace.shared.dismissTitlePrompt() }
+    /// «나중에»·Esc: 쓰기 없이 닫고 다음 것을 보인다. 저장 중에는 받지 않는다 (QA B D-2).
+    private func later() {
+        guard let model, !model.saving else { return }
+        dismiss(model.id)
+    }
+    /// 이 입력창(id)만 닫는다. 다른 입력창이 이미 보이면 아무것도 하지 않는다.
+    private func dismiss(_ id: String) { LibraryWorkspace.shared.dismissTitlePrompt(id) }
 
     private func close() {
-        shownID = nil
+        model = nil
         guard let panel else { return }
         self.panel = nil
         panel.delegate = nil
         panel.orderOut(nil); panel.close()
     }
 
+    /// 제목 표시줄의 닫기 단추. 저장 중이면 닫지 않는다.
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !(model?.saving ?? false) }
     func windowWillClose(_ notification: Notification) {
-        // 제목 표시줄의 닫기 단추. 저장 중이 아니면 «나중에»와 같다.
-        guard (notification.object as? TitlePromptPanel) === panel else { return }
-        panel = nil; shownID = nil
-        LibraryWorkspace.shared.dismissTitlePrompt()
+        guard (notification.object as? TitlePromptPanel) === panel, let id = model?.id else { return }
+        panel = nil; model = nil
+        dismiss(id)
     }
 }
 
@@ -93,49 +98,56 @@ struct TitlePromptInfo {
     }
 }
 
-private struct TitlePromptView: View {
+/// 입력창 하나의 상태. 저장 중이면 입력·버튼·닫기·Esc를 막는다.
+@MainActor final class TitlePromptModel: ObservableObject {
     let info: TitlePromptInfo
+    var id: String { info.id }
+    @Published var text = ""
+    @Published private(set) var saving = false
+    @Published private(set) var failed = false
+    var composing = false
+    var onSaved: () -> Void = {}
+    var canSave: Bool { !saving && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    init(info: TitlePromptInfo) { self.info = info }
+
+    /// Enter(조합 중 아님)·«저장». 입력은 다듬지 않고 그대로 인덱스 displayTitle에 쓴다.
+    func save() {
+        guard canSave, !composing else { return }
+        saving = true; failed = false
+        let value = text, id = info.id
+        Task {
+            do { try await LibraryWorkspace.shared.saveDisplayTitle(value, speechID: id); saving = false; onSaved() }
+            catch { saving = false; failed = true }
+        }
+    }
+}
+
+private struct TitlePromptView: View {
+    @ObservedObject var model: TitlePromptModel
     let later: () -> Void
-    let saved: () -> Void
-    @State private var text = ""
-    @State private var composing = false
-    @State private var saving = false
-    @State private var failed = false
-    private var canSave: Bool { !saving && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("녹음 제목").font(.headline)
-            Text(info.subtitle).font(.caption).foregroundStyle(.secondary)
+            Text(model.info.subtitle).font(.caption).foregroundStyle(.secondary)
             ZStack(alignment: .topLeading) {
-                if text.isEmpty {
-                    Text(info.autoTitle).font(.system(size: 15)).foregroundStyle(.tertiary).accessibilityHidden(true).allowsHitTesting(false)
+                if model.text.isEmpty {
+                    Text(model.info.autoTitle).font(.system(size: 15)).foregroundStyle(.tertiary).accessibilityHidden(true).allowsHitTesting(false)
                 }
-                InlineScriptText(text: $text, editable: !saving, title: true, focus: true, label: "녹음 제목",
-                    changed: { composing = $0 }, commit: save, cancel: { if !saving { later() } },
+                InlineScriptText(text: $model.text, editable: !model.saving, title: true, focus: true, label: "녹음 제목",
+                    changed: { model.composing = $0 }, commit: model.save, cancel: later,
                     commitOnEndEditing: false, fontSize: 15)
             }
             .padding(.horizontal, 8).padding(.vertical, 6)
             .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
             .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.35)))
             Text("녹음은 이미 저장했습니다. 제목은 나중에 Speeches에서도 바꿀 수 있습니다.").font(.caption).foregroundStyle(.secondary)
-            if failed { Text(TitleStatus.failed).font(.caption).foregroundStyle(.red) }
+            if model.failed { Text(TitleStatus.failed).font(.caption).foregroundStyle(.red) }
             HStack {
                 Spacer()
-                Button("나중에", action: later).disabled(saving)
-                Button("저장", action: save).disabled(!canSave)
+                Button("나중에", action: later).disabled(model.saving)
+                Button("저장", action: model.save).disabled(!model.canSave)
             }
         }.padding(18).frame(width: 440)
-    }
-
-    /// Enter(조합 중 아님)·«저장». 입력은 다듬지 않고 그대로 인덱스 displayTitle에 쓴다.
-    private func save() {
-        guard canSave, !composing else { return }
-        saving = true; failed = false
-        let value = text
-        Task { @MainActor in
-            do { try await LibraryWorkspace.shared.saveDisplayTitle(value, speechID: info.id); saved() }
-            catch { saving = false; failed = true }
-        }
     }
 }
