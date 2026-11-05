@@ -4,11 +4,11 @@
 
 - **판정: 조건부 동의.** 문단마다 반복되는 “주의” 표시는 기본으로 숨겨도 된다. 다만 숨김을 검수 완료로 기록하거나, AI가 지적하지 않은 구간을 정확하다고 취급해서는 안 된다.
 
-- **근거:** [현재 읽기 화면](/Users/gazitofu/Developer/Dama/UI/ScriptReadingView.swift:189)은 이슈 종류를 정보 패널에 나열하고 문단에 “주의”를 표시한다. 이슈 확인 버튼은 [ReviewShell](/Users/gazitofu/Developer/Dama/UI/ReviewShell.swift:295)에 있지만 생성 호출은 찾지 못했다. 따라서 `open`·`reviewed` 집계는 검수 행위나 정확도의 지표로 쓰기 어렵다. 또한 [현행 읽기 계약](/Users/gazitofu/Developer/Dama/ssot/contracts/library-script.md:110)은 사용자 승인으로 누락 marker를 본문에서 숨기고 같은 화자 표시를 연결하되, normalized Turn·marker·이슈를 보존한다. 표시 축소 자체가 곧 INV-06 위반은 아니다.
+- **근거:** [현재 읽기 화면](/Users/gazitofu/Developer/Dama/UI/ScriptReadingView.swift#L189)은 이슈 종류를 정보 패널에 나열하고 문단에 “주의”를 표시한다. 이슈 확인 버튼은 [ReviewShell](/Users/gazitofu/Developer/Dama/UI/ReviewShell.swift#L295)에 있지만 생성 호출은 찾지 못했다. 따라서 `open`·`reviewed` 집계는 검수 행위나 정확도의 지표로 쓰기 어렵다. 또한 [현행 읽기 계약](/Users/gazitofu/Developer/Dama/ssot/contracts/library-script.md#L110)은 사용자 승인으로 누락 marker를 본문에서 숨기고 같은 화자 표시를 연결하되, normalized Turn·marker·이슈를 보존한다. 표시 축소 자체가 곧 INV-06 위반은 아니다.
 
 - **놓친 위험·실패 경로:** 원시 이슈 54,224건은 서로 독립적인 오류 54,224건이 아니다. 반대로 표시를 없애도 실제 오류는 줄지 않는다. 특히 텍스트만 읽는 AI는 전사에서 사라진 짧은 발화나 자연스러운 오귀속을 놓칠 수 있다. 회의당 수십 건을 강제 상한으로 삼으면 긴 회의의 문제를 잘라낸다.
 
-- **대안:** 최소 신호는 문서 수준의 “화자·시간 자동 추정, 원음 검수 미완료”, 현재의 화자 미배정·시간 미확인 표시, 정보 패널의 원 이슈 접근이다. 녹음 중단·원음 손상 같은 저장 안전 오류는 계속 명시한다. AI 목록은 “우선 확인 후보”로 표시하고 분석 범위·실패·잘린 후보를 밝힌다. 기존 [구간 묶기 코드](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaCore/LibraryPresentation.swift:43)를 활용하고, 무시와 원음 확인을 별도 상태로 둔다. 내보내기에서도 불확실성 근거를 유지한다.
+- **대안:** 최소 신호는 문서 수준의 “화자·시간 자동 추정, 원음 검수 미완료”, 현재의 화자 미배정·시간 미확인 표시, 정보 패널의 원 이슈 접근이다. 녹음 중단·원음 손상 같은 저장 안전 오류는 계속 명시한다. AI 목록은 “우선 확인 후보”로 표시하고 분석 범위·실패·잘린 후보를 밝힌다. 기존 [구간 묶기 코드](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaCore/LibraryPresentation.swift#L43)를 활용하고, 무시와 원음 확인을 별도 상태로 둔다. 내보내기에서도 불확실성 근거를 유지한다.
 
 - **결정 전에 확인·측정할 것:** 동일 원음에서 원시 이슈 수, 묶인 사건 수, 실제 E1/E2 수를 분리한다. AI가 지적한 구간과 지적하지 않은 무작위 구간을 모두 청취해 적중률·놓친 오류·검수 시간을 측정한다.
 
@@ -16,7 +16,7 @@
 
 - **판정: 조건부 동의.** “최신 성공본과 직전 성공본”을 기본 표시·보관 단위로 삼는 것은 타당하다. 이를 모든 관련 파일 두 개만 남기는 규칙으로 구현하는 데는 반대한다.
 
-- **근거:** [저장 구현](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift:342)은 편집마다 전체 JSON을 불변 revision으로 저장한다. 같은 저장소에는 [AI 성공 전후 snapshot](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift:419)도 있고, 현재 파일의 `versions`가 그 바이트 해시를 참조한다. 단순 최근 N개 정리는 참조를 끊을 수 있다. 또한 [현재 목록 선택](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift:63)은 생성 시각보다 결합 엔진을 우선하므로 이미 “녹음당 한 행”이지만 반드시 최신본은 아니다.
+- **근거:** [저장 구현](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift#L342)은 편집마다 전체 JSON을 불변 revision으로 저장한다. 같은 저장소에는 [AI 성공 전후 snapshot](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift#L419)도 있고, 현재 파일의 `versions`가 그 바이트 해시를 참조한다. 단순 최근 N개 정리는 참조를 끊을 수 있다. 또한 [현재 목록 선택](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift#L63)은 생성 시각보다 결합 엔진을 우선하므로 이미 “녹음당 한 행”이지만 반드시 최신본은 아니다.
 
 - **놓친 위험·실패 경로:** 실패·부분 완료된 재전사를 최신본으로 세면 마지막 사용 가능한 결과를 잃는다. “사람 수정 있음”에는 본문뿐 아니라 화자 이름·삭제·문단 경계·교정안 선택도 포함해야 한다. Run 원응답만 남겨도 과거 정규화 버전이나 사람 수정까지 재현된다는 보장은 없다. Soniox 비교본은 결합본과 같은 세대의 구성요소이지 별도의 보관 슬롯으로 세면 안 된다.
 
@@ -28,7 +28,7 @@
 
 - **판정: 조건부 동의.** 명시적 보관 정책과 복원 검증이 있으면 녹음 안전성과 양립할 수 있다. 다만 지금 첫 용량 절감 수단으로 구현할 우선순위는 낮다.
 
-- **근거:** [반입 코드](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/AudioStorage.swift:178)는 외부 파일을 내부로 복사하고 해시를 대조한다. [녹음 공개 코드](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift:199)는 원음 사본을 사용자 폴더에 만든다. 이는 현재 복구 설계의 일부다. 또한 [처리 코드](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaManaged/ManagedProcessor.swift:321)의 `sourceAudioSHA256`은 분석 WAV 해시다. 원본 청크 해시, 외부 manifest 해시와 구분해야 한다.
+- **근거:** [반입 코드](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/AudioStorage.swift#L178)는 외부 파일을 내부로 복사하고 해시를 대조한다. [녹음 공개 코드](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift#L199)는 원음 사본을 사용자 폴더에 만든다. 이는 현재 복구 설계의 일부다. 또한 [처리 코드](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaManaged/ManagedProcessor.swift#L321)의 `sourceAudioSHA256`은 분석 WAV 해시다. 원본 청크 해시, 외부 manifest 해시와 구분해야 한다.
 
 - **놓친 위험·실패 경로:** 업로드 체크섬 일치는 장기 보존·계정 접근·복원 성공을 보장하지 않는다. 동기화 폴더의 로컬 파일 존재도 원격 보존 완료 증거가 아니다. 원본과 내부 사본을 모두 지우면 사실상 원격 단일 사본이 된다. 현재 목록은 실제 폴더를 열거하므로 URL만 인덱싱해서는 원격 보관 항목이 정상 표시되지 않는다. 분석 WAV를 지우는 것도 현재 `prepareAnalysis`에서는 단순 캐시 제거가 아니며, 재생과 기존 Run 재사용에 영향을 준다.
 
@@ -40,7 +40,7 @@
 
 - **판정: 동의.** 녹음 제목은 파일명과 분리한 표시 메타데이터로 저장하는 편이 현재 구조에 맞다.
 
-- **근거:** [LibrarySpeech와 스캔 구현](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift:5)은 인덱스에 제목을 저장하지만 수정 경로는 없다. [스크립트 생성](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift:330)은 `speech.title`을 초기 제목으로 사용한다. 기존 스크립트 제목은 독립적으로 편집·저장된다.
+- **근거:** [LibrarySpeech와 스캔 구현](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift#L5)은 인덱스에 제목을 저장하지만 수정 경로는 없다. [스크립트 생성](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift#L330)은 `speech.title`을 초기 제목으로 사용한다. 기존 스크립트 제목은 독립적으로 편집·저장된다.
 
 - **놓친 위험·실패 경로:** 현재 외부 파일 식별은 URL과 해시를 함께 사용한다. 파일명을 바꾸면 일반 음원이 새 session으로 반입될 수 있고, 번들 manifest의 제목을 바꾸면 manifest 해시도 바뀐다. 표시 제목을 바꾸려고 원음 식별까지 흔들 필요가 없다. 인덱스만 유실되거나 재구축되면 사용자 제목이 사라지는 복구 문제도 남는다.
 
@@ -52,9 +52,9 @@
 
 - **판정: 조건부 동의.** 전사 후 관련 자료를 찾는 순서는 합리적이다. 그러나 실패 진단과 잘못된 참고 반영 방지를 먼저 해결해야 한다. AI가 기밀 폴더를 직접 탐색하는 대안에는 반대한다.
 
-- **근거:** [참고 검색](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/ReferenceFolder.swift:13)은 **점수 0인 문서도 후보에 포함**한다. 검색어가 비거나 일치하지 않아도 발췌가 생길 수 있다. 300개 제한은 지원하지 않는 항목도 센다. [교정 실행](/Users/gazitofu/Developer/Dama/App/CorrectionWorkspace.swift:113)은 청크를 순차 처리하고 실패하면 누적 후보를 버리며, 기존 성공본은 유지한다. [CLI 어댑터](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaManaged/CodexCorrectionClient.swift:12)는 모델·인자를 고정하고 진단 출력을 폐기한다. 실패 3/6만으로 원인을 특정할 수 없다.
+- **근거:** [참고 검색](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaAudio/ReferenceFolder.swift#L13)은 **점수 0인 문서도 후보에 포함**한다. 검색어가 비거나 일치하지 않아도 발췌가 생길 수 있다. 300개 제한은 지원하지 않는 항목도 센다. [교정 실행](/Users/gazitofu/Developer/Dama/App/CorrectionWorkspace.swift#L113)은 청크를 순차 처리하고 실패하면 누적 후보를 버리며, 기존 성공본은 유지한다. [CLI 어댑터](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaManaged/CodexCorrectionClient.swift#L12)는 모델·인자를 고정하고 진단 출력을 폐기한다. 실패 3/6만으로 원인을 특정할 수 없다.
 
-- **놓친 위험·실패 경로:** 오인식된 단어로 검색해 잘못된 문서를 찾고, 그 문서로 교정을 강화하는 순환이 생긴다. 저빈도 고유명사는 고빈도 추출에서 빠질 수 있다. 더 중요한 문제는 [현재 반영 판정](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaCore/CorrectionSpans.swift:83)이 위치·재구성을 검증한 뒤 사실상 `certain`과 미해결 범위로 적용 여부를 정한다는 점이다. 숫자·부정·조건 보존은 프롬프트 요구이며 독립적인 의미 검증이 아니다. 생성된 참석자 후보를 확정 명단으로 넣으면 이름 추정의 근거가 순환한다.
+- **놓친 위험·실패 경로:** 오인식된 단어로 검색해 잘못된 문서를 찾고, 그 문서로 교정을 강화하는 순환이 생긴다. 저빈도 고유명사는 고빈도 추출에서 빠질 수 있다. 더 중요한 문제는 [현재 반영 판정](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaCore/CorrectionSpans.swift#L83)이 위치·재구성을 검증한 뒤 사실상 `certain`과 미해결 범위로 적용 여부를 정한다는 점이다. 숫자·부정·조건 보존은 프롬프트 요구이며 독립적인 의미 검증이 아니다. 생성된 참석자 후보를 확정 명단으로 넣으면 이름 추정의 근거가 순환한다.
 
 - **대안:** 관련성 없는 발췌 제외 → 로컬 검색·선택 → **전송할 전사 범위·발췌·공급자 확인** → 출처가 붙은 브리프 → 확인된 용어만 교정에 사용 순서를 권한다. 브리프 확인만으로 앞선 외부 전송 동의를 대신할 수 없다. 주장마다 원문 인용·문서 해시·페이지/슬라이드·불확실성을 연결하고 참석자 후보는 확정 명단과 분리한다. 숫자·단위·부정·조건 변경은 별도 보류한다. 검색 상한은 바이트뿐 아니라 파일 수·시간·압축 해제량도 제한하고 누락 범위를 표시한다. PDF 등은 단계적으로 추가하며 XLSX의 포함·제외도 명시한다. 입력란은 선택적 고급 설정으로 접고 Soniox 사전 맥락 OFF는 신규 요청에만 적용한다.
 
@@ -64,7 +64,7 @@
 
 - **판정: 조건부 동의.** API 키 설정은 Soniox 중심으로 정리하고, pyannote는 저장된 키 삭제 경로만 남기는 것이 현행 운영 계약에 맞다. 비용 항목은 화면에서 제거하는 것만으로 끝나지 않는다.
 
-- **근거:** [APIKeySettings](/Users/gazitofu/Developer/Dama/App/ProcessingWorkspace.swift:371)는 실제로 pyannote가 기본 선택이다. [비용 화면](/Users/gazitofu/Developer/Dama/UI/LibraryShell.swift:300)은 pyannote 세 항목을 노출한다. [합계 계산](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaCore/ScriptEvaluation.swift:118)은 그 값들이 모두 있어야 계산되므로 입력란만 없애면 계속 미측정이거나 과거 금액이 합계에 남는다.
+- **근거:** [APIKeySettings](/Users/gazitofu/Developer/Dama/App/ProcessingWorkspace.swift#L371)는 실제로 pyannote가 기본 선택이다. [비용 화면](/Users/gazitofu/Developer/Dama/UI/LibraryShell.swift#L300)은 pyannote 세 항목을 노출한다. [합계 계산](/Users/gazitofu/Developer/Dama/Packages/DamaCore/Sources/DamaCore/ScriptEvaluation.swift#L118)은 그 값들이 모두 있어야 계산되므로 입력란만 없애면 계속 미측정이거나 과거 금액이 합계에 남는다.
 
 - **놓친 위험·실패 경로:** pyannote 호출 종료와 구독 종료는 다르다. 키 삭제가 외부 구독 해지를 뜻하지도 않는다. 과거 비용·결과를 일괄 삭제하거나 빈 금액을 0으로 바꾸면 비용 비교 근거를 잃는다. AI CLI 추가 비용도 Soniox 비용에 포함되지 않는다.
 
