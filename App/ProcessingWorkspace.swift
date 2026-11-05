@@ -379,24 +379,24 @@ struct APIKeySettings: View {
     @State private var pyannoteKeyStored = false
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // tone 문구 21 «Soniox API 키». `provider.title`(«Soniox 단독 (비교)»)을 머리에 쓰지 않는다. 저장·삭제 문구는 현행 유지(AC-10).
+            // tone 문구 21 «Soniox API 키». 운영 키라 `provider.title`(«Soniox 단독 (비교)»)을 쓰지 않는다. 저장·삭제 문구도 «Soniox» (F-10 사용자 결정 2026-11-05).
             Text("Soniox API 키").font(.headline)
             SecureField("API 키", text: $key).textFieldStyle(.roundedBorder)
             Text("입력한 키는 이 Mac의 키체인에 저장합니다. 저장만으로 연결 확인이나 음성 전송을 하지 않습니다.")
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button("키 저장") {
-                    do { try KeychainStore.save(key, provider: provider); key = ""; message = "\(provider.title) 키 저장됨 · 연결 유효성 미검증" }
+                    do { try KeychainStore.save(key, provider: provider); key = ""; message = "Soniox 키 저장됨 · 연결 유효성 미검증" }
                     catch { key = ""; message = "키를 저장하지 못했습니다." }
                 }.disabled(key.isEmpty)
                 Button("키 삭제") {
                     let alert = NSAlert()
-                    alert.messageText = "이 Mac의 \(provider.title) API 키를 삭제할까요?"
+                    alert.messageText = "이 Mac의 Soniox API 키를 삭제할까요?"
                     alert.informativeText = "녹음 원본과 스크립트는 유지됩니다."
                     alert.addButton(withTitle: "취소")
                     alert.addButton(withTitle: "키 삭제")
                     guard alert.runModal() == .alertSecondButtonReturn else { return }
-                    do { try KeychainStore.delete(provider: provider); message = "\(provider.title) 키 삭제됨" }
+                    do { try KeychainStore.delete(provider: provider); message = "Soniox 키 삭제됨" }
                     catch { message = "키를 삭제하지 못했습니다." }
                     checkPyannoteKey()
                 }

@@ -414,7 +414,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
   <ol>
     <li>화면의 대상은 각 문단의 <code>block.issues</code> 중 상태 open이다. acknowledged·resolved는 화면에 안 보이고 데이터에 남는다(현 데이터 0건).</li>
     <li>구간 정보의 «자동 경고 N건»은 기본 닫힘이다. 종류는 건수 내림차순, 같으면 종류 이름 오름차순으로 놓고, 0건인 종류는 뺀다. 자동 경고가 0건인 문단은 이 줄 자체가 없다.</li>
-    <li>구간 정보는 하단 도구막대의 «정보»로 연다. «주의» 버튼이 하던 열기 경로는 없어진다.</li>
+    <li>구간 정보는 결과 줄의 «정보»로 연다. «주의» 버튼이 하던 열기 경로는 없어진다. (2026-11-05 정정 F-11: 원문 «하단 도구막대»는 기존 위치를 잘못 적은 것)</li>
     <li>녹음 중단·일부 결과 줄은 그 이슈가 붙은 문단 아래에 뜬다. 시간·단어 참조가 없는 이슈가 붙는 문단은 현행 규칙(시간상 대응 문단, 녹음 끝 중단은 마지막 문단)을 따른다.<span class="fn"><code>Packages/DamaCore/Sources/DamaCore/LibraryPresentation.swift</code> <code>blocks()</code>의 미부착 이슈 연결 · 계약 <code>library-script.md</code> «연속 발화 표시» 노란 이벤트 항.</span> 사용자가 그 문단을 삭제하면 화면에서도 함께 빠지고, Markdown 머리말에는 남는다.</li>
     <li>Markdown 머리말의 «검수» 줄은 기존 줄 자리(<code>- 검수: …</code>)를 바꾼다.<span class="fn">현행 <code>Packages/DamaCore/Sources/DamaCore/LibraryScript.swift:226</code> <code>- 검수: \(reviewSummary)</code> · 문단 줄 <code>:254</code> <code>&gt; 검수: \(issue.kind.rawValue)</code>.</span>
       <ul>

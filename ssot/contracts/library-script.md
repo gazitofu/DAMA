@@ -2,7 +2,7 @@
 
 ## 검수 이슈 표시 (2026-11-05 사용자 확정 · usage-bundle1)
 
-- 읽기 화면 문단에 자동 경고 8종(`ambiguous_speaker`·`overlapping_speech`·`missing_speech`·`boundary_conflict`·`unrepresented_speaker`·`invalid_timestamp`·`low_confidence`·`provider_disagreement`)을 표시하지 않고, 구간 정보의 «자동 경고 N건»에서 종류별 건수로 연다. 대상은 문단 `block.issues` 중 상태 open이며, 기본 닫힘·건수 내림차순·같으면 종류 이름 오름차순·0건 종류 제외다. 구간 정보는 하단 «정보»로 연다.
+- 읽기 화면 문단에 자동 경고 8종(`ambiguous_speaker`·`overlapping_speech`·`missing_speech`·`boundary_conflict`·`unrepresented_speaker`·`invalid_timestamp`·`low_confidence`·`provider_disagreement`)을 표시하지 않고, 구간 정보의 «자동 경고 N건»에서 종류별 건수로 연다. 대상은 문단 `block.issues` 중 상태 open이며, 기본 닫힘·건수 내림차순·같으면 종류 이름 오름차순·0건 종류 제외다. 구간 정보는 결과 줄의 «정보»로 연다(2026-11-05 F-11 정정, 이전 문언 «하단»은 기존 위치를 잘못 적은 것).
 - 녹음 중단(`capture_interrupted`)·일부 결과(`partial_result`)·화자 미배정은 계속 표시한다. 중단·일부 결과는 그 문단 본문 아래와 구간 정보 맨 위 경고 줄에 ⚠ 기호와 문장으로 남는다(open만).
 - Markdown은 문단별 이슈 줄(`> 검수: …`)을 쓰지 않고 머리말 한 줄(`- 검수: …`)에 자동 경고 총수와 종류별 건수를 적는다. 총수는 `transcript.reviewIssues` 중 자동 경고 8종 전부이고 상태·삭제 문단을 따지지 않는다. 녹음 중단·일부 결과는 머리말(종류당 1줄)과 그 문단 아래(`> 녹음 중단: …`·`> 일부 결과: …`)에 상태와 무관하게 남기며, 삭제된 문단의 것은 머리말에만 남는다. 문구 정본은 `ssot/tone/usage-bundle1.md`.
 - `reviewIssues` 생성·보존·평가 JSON·`blocks()`·`ScriptReviewEvent`는 바뀌지 않는다. 두 번째 읽기 레이어 예외이고(선례 2026-09-13 missingSpeech), 경고를 숨긴 것은 그 구간이 맞다고 확정한 것이 아니다.
