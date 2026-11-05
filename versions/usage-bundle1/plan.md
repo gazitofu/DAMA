@@ -1,9 +1,9 @@
 ---
 unit: usage-bundle1
 branch: work/m0-fixture-review
-status: ready-to-build
+status: building
 decisions_resolved: true
-resume: "/build 착수 전 (T-01부터). check.sh는 대문자 절대경로로 실행. 사용자 지시 11.05: 다음 세션에서 /build"
+resume: "T-02 착수 (T-01 커밋 완료). check.sh는 대문자 절대경로. 태스크 backpressure = validate_contracts·contract copy·swift test(--scratch-path 재사용)"
 spec: notes/usage-bundle1/usage-bundle1.src.html
 ---
 ## 근거
