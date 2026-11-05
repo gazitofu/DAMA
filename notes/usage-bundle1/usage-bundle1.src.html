@@ -517,7 +517,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
   <h4>stderr 처리</h4>
   <ol>
     <li>지금은 stdout·stderr를 둘 다 버린다.<span class="fn"><code>CodexCorrectionClient.swift:54</code> <code>FileHandle.nullDevice</code>.</span> stdout은 계속 버린다.</li>
-    <li>stderr는 파이프로 끝까지 읽어 바이트 수를 세고, 앞 64 KiB만 메모리에 두고 표식을 대조한 뒤 버린다. 파일·로그·화면에 내용을 쓰지 않는다.</li>
+    <li>stderr는 파이프로 읽어 바이트 수를 센다. 정상 종료는 EOF까지 전부, 자식이 제한 시각을 넘어 stderr를 붙잡으면 판정 시점까지 도착분이다. 줄 시작이 <code>ERROR: </code>·<code>error: </code>인 줄만 줄 버퍼 64 KiB 안에서 표식과 대조하고 바로 버린다. 파일·로그·화면에 내용을 쓰지 않는다. (2026-11-05 정정: 원문 «끝까지 읽어 … 앞 64 KiB만 메모리에 두고»는 게이트 ① D-02 ⓐ와 F-06 결정으로 바뀜)</li>
     <li>인증·네트워크·설정 표식 문자열은 /plan에서 설치된 Codex CLI 0.166.0의 실제 오류 출력으로 정한다. 재현 방법은 사용자 데이터를 보내지 않고 과금이 없는 것만 쓰고, 실행 전에 사용자 승인을 받는다. 재현하지 못한 분류는 표식 없이 두며, 그 실패는 «미분류»로 남는다.<span class="fn">로컬 설치 <code>~/.local/bin/codex</code> <code>codex-cli 0.166.0</code> (2026-11-05 <code>--version</code>) · 계약이 확인한 판은 0.154.0 · 앱이 쓰는 <code>exec</code> 플래그 10개는 0.166.0 <code>exec --help</code>에 모두 있음 (2026-11-05) · <code>-c features.*</code> 키는 미확인.</span></li>
   </ol>
 
@@ -778,7 +778,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     </div>
   </div>
   <dl class="spec">
-    <dt>미완료 줄</dt><dd>«AI 보정 미완료 · k/n 구간 완료 · 짧은 원인». 짧은 원인은 §02-3 표. 실패 순간에는 화면 위 안내 띠에 분류별 문장(§04)이 함께 뜬다(현행 안내 띠).</dd>
+    <dt>미완료 줄</dt><dd>«AI 보정 미완료 · k/n 구간 완료 · 짧은 원인». 짧은 원인은 §02-3 표. 실패 기록 없이 끊긴 시도(앱 종료 등)는 « · 짧은 원인»을 쓰지 않는다(2026-11-05 F-07). 실패 순간에는 화면 위 안내 띠에 분류별 문장(§04)이 함께 뜬다(현행 안내 띠).</dd>
     <dt>확인창</dt><dd>기본 버튼 «취소»(강조). 0개 완료면 제목 «같은 입력으로 다시 시도할까요?», 첫 문장 «처음 확인한 입력으로 12개 구간 전부를 다시 보냅니다.».</dd>
     <dt>AI 검수/보정 창</dt><dd>시도 기록이 있으면 전송 고지 위에 «미완료 교정(4/12)은 버리고 처음부터 다시 보정합니다.» 한 줄.</dd>
   </dl>
@@ -853,7 +853,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     <tr><td class="num">10</td><td>녹음 직후 입력창</td><td><ul><li>제목: 녹음 제목</li><li>부제: {녹음 날짜·시각} · {길이}</li><li>입력 안내 글자: {자동 제목}</li><li>안내: 녹음은 이미 저장했습니다. 제목은 나중에 Speeches에서도 바꿀 수 있습니다.</li><li>버튼: 나중에 / 저장</li></ul></td><td>신규</td></tr>
     <tr><td class="num">11</td><td>제목 저장 상태 (녹음·스크립트 공통)</td><td><ul><li>입력 중: Enter를 누르면 저장합니다.</li><li>저장 중: 제목 저장 중…</li><li>성공: 제목 저장됨</li><li>빈값: 제목을 입력해 주세요.</li><li>실패: 제목을 저장하지 못했습니다. 입력한 내용은 유지됩니다.</li></ul></td><td><ul><li>신규 (입력 중)</li><li>변경 «자동 저장됨» → «제목 저장됨»</li><li>나머지 유지</li></ul></td></tr>
     <tr><td class="num">12</td><td>제목칸 접근성·캡션</td><td><ul><li>Speech: 녹음 제목</li><li>스크립트: 스크립트 제목 (유지)</li><li>스크립트 캡션: 녹음 제목과 같이 바뀝니다.</li></ul></td><td>신규 · 유지</td></tr>
-    <tr><td class="num">13</td><td>교정 하단 미완료 줄</td><td>AI 보정 미완료 · {k}/{n} 구간 완료 · {짧은 원인}</td><td>신규</td></tr>
+    <tr><td class="num">13</td><td>교정 하단 미완료 줄</td><td>AI 보정 미완료 · {k}/{n} 구간 완료 · {짧은 원인} (실패 기록 없으면 « · {짧은 원인}» 생략, 2026-11-05 F-07)</td><td>신규</td></tr>
     <tr><td class="num">14</td><td>짧은 원인</td><td><ul><li>취소함</li><li>실행 불가</li><li>시간 초과</li><li>로그인 필요로 보임</li><li>연결 문제로 보임</li><li>설정 거부</li><li>응답 형식 불일치</li><li>원인 미분류 (종료 코드 {N})</li></ul></td><td>신규</td></tr>
     <tr><td class="num">15</td><td>교정 버튼</td><td><ul><li>이어서 교정 ({k}/{n})</li><li>같은 입력으로 다시 시도</li></ul></td><td>신규</td></tr>
     <tr><td class="num">16</td><td>이어하기 불가</td><td>스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.</td><td>신규</td></tr>
@@ -869,7 +869,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
   <div class="twrap"><table>
     <tr><th>값</th><th>내용</th><th>등급</th></tr>
     <tr><td>청크 시간 제한</td><td>300초 (현행)</td><td>계약의 초기 자원 한도 · 실측 아님<span class="fn"><code>library-script.md</code> AI 교정 절 «한 청크 요청 제한 300초 … 초기 자원 한도».</span></td></tr>
-    <tr><td>stderr 대조 범위</td><td>앞 64 KiB (바이트 수는 전부 셈)</td><td>신규 후보</td></tr>
+    <tr><td>stderr 대조 범위</td><td>줄 시작이 <code>ERROR: </code>·<code>error: </code>인 줄만, 줄 버퍼 64 KiB (바이트 수는 정상 종료 시 EOF까지 전부) · 2026-11-05 D-02 ⓐ·F-06로 확정, 원문 «앞 64 KiB»</td><td>확정</td></tr>
     <tr><td>실패 기록 보관</td><td>시도당 최근 20건</td><td>신규 후보</td></tr>
     <tr><td>입력창 줄 서기</td><td>먼저 끝난 녹음부터 한 번에 하나</td><td>신규</td></tr>
     <tr><td>구간 정보 종류 순서</td><td>건수 내림차순, 같으면 종류 이름 오름차순</td><td>신규</td></tr>
