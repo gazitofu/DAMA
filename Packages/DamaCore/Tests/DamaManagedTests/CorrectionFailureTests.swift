@@ -129,6 +129,19 @@ final class CorrectionFailureTests: XCTestCase {
         let held = try await failure(readArgs + writeReply + "\n( sleep 6; echo held >&2 ) &\nexit 0", timeout: .seconds(1))
         XCTAssertEqual(held.kind, .timeout)
         XCTAssertLessThan(began.duration(to: .now), .seconds(4))
+        // 판정 뒤 읽기 스레드가 남지 않는다(정지 신호 + poll 100ms, QA C2 D-2).
+        let settled = ContinuousClock.now + .seconds(2)
+        while StderrMonitor.liveReaders.withLock({ $0 }) > 0 && ContinuousClock.now < settled { try await Task.sleep(for: .milliseconds(50)) }
+        XCTAssertEqual(StderrMonitor.liveReaders.withLock { $0 }, 0)
+        // 취소도 같은 경로: 자식이 stderr를 붙잡은 채 취소 → cancelled, 스레드 정리.
+        let chunk = try chunk()
+        let holding = try fake("( sleep 6; echo held >&2 ) &\nexec /bin/sleep 20", at: dir)
+        let task = Task { try await CodexCorrectionClient().correct(chunk: chunk, input: ConversionNotes(), executable: holding) }
+        try await Task.sleep(for: .milliseconds(300)); task.cancel()
+        do { _ = try await task.value; XCTFail() } catch { XCTAssertEqual((error as? CodexCorrectionError)?.kind, .cancelled) }
+        let cleared = ContinuousClock.now + .seconds(2)
+        while StderrMonitor.liveReaders.withLock({ $0 }) > 0 && ContinuousClock.now < cleared { try await Task.sleep(for: .milliseconds(50)) }
+        XCTAssertEqual(StderrMonitor.liveReaders.withLock { $0 }, 0)
     }
 
     func testScanAndClassifyPure() {

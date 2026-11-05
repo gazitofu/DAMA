@@ -1,6 +1,7 @@
 import Foundation
 import DamaCore
 import Darwin
+import Synchronization
 
 /// usage-bundle1 교정 실패 1건. 원문·stderr 내용·프롬프트는 담지 않는다(분류·종료 코드·경과·바이트 수만).
 public struct CodexCorrectionError: Error, Sendable, Equatable {
@@ -67,35 +68,50 @@ struct StderrScan: Sendable, Equatable {
 }
 
 /// stderr를 끝까지 읽어 바이트 수를 세고 줄을 대조하는 별도 스레드. 상태는 잠금 안에서만 바꾼다.
+/// EOF가 오거나, 호출자가 판정을 끝내고 `stop()`을 부르면(자식이 stderr를 붙잡은 경우) 100ms 안에 끝나고 핸들을 닫는다.
 final class StderrMonitor: @unchecked Sendable {
+    /// 살아 있는 읽기 스레드 수(테스트용 관측값).
+    static let liveReaders = Mutex(0)
     private let lock = NSLock()
     private var scan = StderrScan()
     private var done = false
+    private var stopRequested = false
     init(_ handle: FileHandle) {
-        // 읽기 스레드가 핸들을 소유하고 EOF·오류 뒤에 닫는다(다른 스레드가 읽는 중에 닫지 않는다).
-        // POSIX read는 쌓인 만큼 바로 돌려준다(FileHandle.read(upToCount:)는 개수를 채우거나 EOF까지 기다림).
+        // 읽기 스레드가 핸들을 소유하고 끝난 뒤에 닫는다(다른 스레드가 읽는 중에 닫지 않는다).
+        // POSIX poll·read는 쌓인 만큼 바로 돌려준다(FileHandle.read(upToCount:)는 개수를 채우거나 EOF까지 기다림).
+        Self.liveReaders.withLock { $0 += 1 }
         let thread = Thread { [self] in
             let fd = handle.fileDescriptor
             var buffer = [UInt8](repeating: 0, count: 65_536)
-            while true {
+            reading: while true {
+                var target = pollfd(fd: fd, events: Int16(POLLIN), revents: 0)
+                let ready = poll(&target, 1, 100)
+                if ready == 0 {
+                    if lock.withLock({ stopRequested }) { break reading }
+                    continue
+                }
+                if ready < 0 { if errno == EINTR { continue }; break reading }
                 let count = buffer.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress, $0.count) }
                 if count > 0 { lock.withLock { scan.consume(buffer[0..<count]) } }
-                else if count < 0 && errno == EINTR { continue }
-                else { break }
+                else if count < 0 && (errno == EINTR || errno == EAGAIN) { continue }
+                else { break reading }
             }
             try? handle.close()
             lock.withLock { scan.finish(); done = true }
+            Self.liveReaders.withLock { $0 -= 1 }
         }
         thread.qualityOfService = .utility
         thread.start()
     }
     var snapshot: StderrScan { lock.withLock { scan } }
     var finished: Bool { lock.withLock { done } }
-    /// EOF까지 기다린다. `deadline`이 지나거나 취소되면 false (그때까지 센 값은 `snapshot`).
-    /// 정상 종료 경로는 청크 제한 시각까지 기다려 바이트를 끝까지 센다(QA C D-2). 강제 종료 경로만 짧게 기다린다.
-    func settle(until deadline: ContinuousClock.Instant) async -> Bool {
+    /// 판정을 끝냈다. 이후 도착하는 바이트는 세지 않고 읽기 스레드를 끝낸다.
+    func stop() { lock.withLock { stopRequested = true } }
+    /// EOF까지 기다린다. `deadline`이 지나면 false (그때까지 센 값은 `snapshot`). `cancellable`이면 취소 시에도 false.
+    /// 정상 종료 경로는 청크 제한 시각까지 기다려 끝까지 센다(QA C D-2). 강제 종료 경로는 취소와 무관하게 2초 유예.
+    func settle(until deadline: ContinuousClock.Instant, cancellable: Bool = true) async -> Bool {
         while !finished {
-            if ContinuousClock.now >= deadline || Task.isCancelled { return false }
+            if ContinuousClock.now >= deadline || (cancellable && Task.isCancelled) { return false }
             await Task.detached { try? await Task.sleep(for: .milliseconds(20)) }.value
         }
         return true
@@ -173,14 +189,15 @@ public actor CodexCorrectionClient {
                 await Task.detached { try? await Task.sleep(for: .milliseconds(100)) }.value
             }
             if process.isRunning { kill(process.processIdentifier, SIGKILL) }
-            // 강제 종료 뒤에는 2초만 기다린다(자식이 stderr를 붙잡아도 취소·시간 초과 보고를 늦추지 않는다).
-            _ = await monitor.settle(until: .now + .seconds(2))
+            // 강제 종료 뒤에는 취소와 무관하게 2초만 기다린다(자식이 stderr를 붙잡아도 보고를 늦추지 않는다).
+            if !(await monitor.settle(until: .now + .seconds(2), cancellable: false)) { monitor.stop() }
             let scan = monitor.snapshot
             if stop == .cancelled { throw failure(.cancelled, stderrBytes: scan.bytes) }
             throw failure(StderrScan.classify(timedOut: true, exitStatus: nil, signaled: false, scan: scan), stderrBytes: scan.bytes)
         }
         // 프로세스가 끝나도 stderr를 붙잡은 자식이 있으면 EOF가 늦다. 청크 제한 시각까지 끝까지 읽는다.
         guard await monitor.settle(until: deadline) else {
+            monitor.stop()
             let scan = monitor.snapshot
             if Task.isCancelled { throw failure(.cancelled, stderrBytes: scan.bytes) }
             throw failure(StderrScan.classify(timedOut: true, exitStatus: nil, signaled: false, scan: scan), stderrBytes: scan.bytes)
