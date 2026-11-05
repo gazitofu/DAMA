@@ -148,8 +148,11 @@ struct ScriptReadingView: View {
         case .none: EmptyView()
         case .available(let done, let total, let last):
             Text(Self.unfinished(done, total, last)).font(.caption).foregroundStyle(.secondary)
-            Button(done == 0 ? "같은 입력으로 다시 시도" : "이어서 교정 (\(done)/\(total))") { confirmResume(done: done, total: total) }
-                .disabled(!workspace.canLeave || correction.busy)
+            // 다른 교정이 돌고 있으면 버튼을 보이지 않는다(계약 «다른 교정 없음일 때만», QA C D-4).
+            if !correction.busy {
+                Button(done == 0 ? "같은 입력으로 다시 시도" : "이어서 교정 (\(done)/\(total))") { confirmResume(done: done, total: total) }
+                    .disabled(!workspace.canLeave)
+            }
         case .planChanged(let done, let total, let last):
             Text(Self.unfinished(done, total, last)).font(.caption).foregroundStyle(.secondary)
             Text("스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.").font(.caption)

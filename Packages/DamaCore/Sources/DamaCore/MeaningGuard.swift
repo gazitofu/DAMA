@@ -94,7 +94,10 @@ public enum MeaningGuard {
         return counts.filter { $0.value != 0 }
     }
 
-    private static func isDigit(_ c: Character) -> Bool { c.isASCII && c.isNumber }
+    /// Python `str.isdigit`와 같은 판정: 유니코드 Numeric_Type이 Decimal 또는 Digit (전각 숫자 포함, QA C D-1).
+    static func isDigit(_ c: Character) -> Bool {
+        c.unicodeScalars.allSatisfy { [.decimal, .digit].contains($0.properties.numericType) }
+    }
     /// Python `\w`(유니코드 문자·숫자·밑줄)에 맞춘 판정.
     private static func isWordCharacter(_ c: Character) -> Bool { c.isLetter || c.isNumber || c == "_" }
     /// 겹치지 않게 센 부분 문자열 개수 (Python `str.count`).

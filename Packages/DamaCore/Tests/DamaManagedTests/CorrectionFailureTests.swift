@@ -118,6 +118,19 @@ final class CorrectionFailureTests: XCTestCase {
         XCTAssertEqual(head.kind, .auth)
     }
 
+    func testStderrIsCountedToEOFEvenAfterTheProcessExits() async throws {
+        let dir = try directory()
+        // 부모는 바로 끝나고, stderr를 물려받은 자식이 2.5초 뒤에 더 쓴다 → EOF까지 기다려 전부 센다 (QA C D-2).
+        let late = try fake(readArgs + writeReply + "\n( sleep 2.5; echo late >&2 ) &\necho early >&2\nexit 0", at: dir)
+        let result = try await CodexCorrectionClient().correct(chunk: chunk(), input: ConversionNotes(), executable: late, timeout: .seconds(20))
+        XCTAssertEqual(result.stderrBytes, 6 + 5)
+        // 제한 시각까지 stderr가 닫히지 않으면 시간 초과로 끝난다(무한 대기 없음).
+        let began = ContinuousClock.now
+        let held = try await failure(readArgs + writeReply + "\n( sleep 6; echo held >&2 ) &\nexit 0", timeout: .seconds(1))
+        XCTAssertEqual(held.kind, .timeout)
+        XCTAssertLessThan(began.duration(to: .now), .seconds(4))
+    }
+
     func testScanAndClassifyPure() {
         var scan = StderrScan()
         scan.consume(Array("ERROR: Reconnecting... waiting for network\r\nERROR: unexpected status 401 Unauthorized".utf8))

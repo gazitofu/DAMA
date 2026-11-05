@@ -157,6 +157,16 @@ final class CorrectionRunnerTests: XCTestCase {
         XCTAssertEqual(try runner.store.load(scriptID: script.id)?.attemptID, fresh.attemptID)
     }
 
+    func testMissingExitCodeIsStoredAsExplicitNull() throws {
+        let record = CorrectionFailureRecord(chunkIndex: 0, totalChunks: 1, kind: .timeout, exitCode: nil, elapsedMs: 300_000, stderrBytes: 0)
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(record)) as! [String: Any]
+        XCTAssertTrue(object.keys.contains("exitCode")) // QA C D-3: 키 생략이 아니라 null.
+        XCTAssertTrue(object["exitCode"] is NSNull)
+        XCTAssertEqual(try JSONDecoder().decode(CorrectionFailureRecord.self, from: JSONEncoder().encode(record)), record)
+        let coded = CorrectionFailureRecord(chunkIndex: 0, totalChunks: 1, kind: .auth, exitCode: 1, elapsedMs: 5, stderrBytes: 9)
+        XCTAssertEqual((try JSONSerialization.jsonObject(with: JSONEncoder().encode(coded)) as! [String: Any])["exitCode"] as? Int, 1)
+    }
+
     func testFailureHistoryKeepsLatestTwentyAndUnsafeIDsAreRejected() throws {
         var attempt = CorrectionAttempt(scriptID: "s", engine: "e", input: ConversionNotes(), planSHA256: "p", chunkSHA256s: ["a", "b"])
         for i in 0..<25 {

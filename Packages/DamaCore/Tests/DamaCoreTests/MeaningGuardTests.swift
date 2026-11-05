@@ -26,6 +26,10 @@ final class MeaningGuardTests: XCTestCase {
     func testSignaturesFollowTheReferenceDefinitions() {
         XCTAssertEqual(MeaningGuard.numberSignature("1, 234.5억 원"), "1234.5억")
         XCTAssertEqual(MeaningGuard.numberSignature("v.2 . 끝."), "2")
+        // Python isdigit과 같이 전각 숫자 사이의 점도 센다(전각 숫자 자체는 0–9 목록에 없음, QA C D-1).
+        XCTAssertEqual(MeaningGuard.numberSignature("１.５배"), ".")
+        XCTAssertEqual(MeaningGuard.numberSignature("１５배"), "")
+        XCTAssertEqual(MeaningGuard.changedClasses(quote: "１.５배", replacement: "１５배"), [.number])
         XCTAssertEqual(MeaningGuard.unitSignature("30 KWh와 10kw 그리고 5"), ["kwh", "kw", ""])
         XCTAssertEqual(MeaningGuard.unitSignature("3개월 3개"), ["개월", "개"])
         XCTAssertEqual(MeaningGuard.negationSignature("안 하면 안돼, not now"), ["word-start-an": 2, "en:not": 1])

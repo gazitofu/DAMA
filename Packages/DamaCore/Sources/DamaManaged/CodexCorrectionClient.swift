@@ -73,9 +73,15 @@ final class StderrMonitor: @unchecked Sendable {
     private var done = false
     init(_ handle: FileHandle) {
         // 읽기 스레드가 핸들을 소유하고 EOF·오류 뒤에 닫는다(다른 스레드가 읽는 중에 닫지 않는다).
+        // POSIX read는 쌓인 만큼 바로 돌려준다(FileHandle.read(upToCount:)는 개수를 채우거나 EOF까지 기다림).
         let thread = Thread { [self] in
-            while let data = try? handle.read(upToCount: 65_536), !data.isEmpty {
-                lock.withLock { scan.consume(data) }
+            let fd = handle.fileDescriptor
+            var buffer = [UInt8](repeating: 0, count: 65_536)
+            while true {
+                let count = buffer.withUnsafeMutableBytes { Darwin.read(fd, $0.baseAddress, $0.count) }
+                if count > 0 { lock.withLock { scan.consume(buffer[0..<count]) } }
+                else if count < 0 && errno == EINTR { continue }
+                else { break }
             }
             try? handle.close()
             lock.withLock { scan.finish(); done = true }
@@ -85,13 +91,14 @@ final class StderrMonitor: @unchecked Sendable {
     }
     var snapshot: StderrScan { lock.withLock { scan } }
     var finished: Bool { lock.withLock { done } }
-    /// 프로세스가 끝난 뒤 EOF까지 잠깐 기다린다. 자식이 stderr를 붙잡고 있어도 막히지 않게 상한을 둔다.
-    func settle(limit: Duration = .seconds(2)) async -> StderrScan {
-        let deadline = ContinuousClock.now + limit
-        while !finished && ContinuousClock.now < deadline {
+    /// EOF까지 기다린다. `deadline`이 지나거나 취소되면 false (그때까지 센 값은 `snapshot`).
+    /// 정상 종료 경로는 청크 제한 시각까지 기다려 바이트를 끝까지 센다(QA C D-2). 강제 종료 경로만 짧게 기다린다.
+    func settle(until deadline: ContinuousClock.Instant) async -> Bool {
+        while !finished {
+            if ContinuousClock.now >= deadline || Task.isCancelled { return false }
             await Task.detached { try? await Task.sleep(for: .milliseconds(20)) }.value
         }
-        return snapshot
+        return true
     }
 }
 
@@ -166,11 +173,19 @@ public actor CodexCorrectionClient {
                 await Task.detached { try? await Task.sleep(for: .milliseconds(100)) }.value
             }
             if process.isRunning { kill(process.processIdentifier, SIGKILL) }
-            let scan = await monitor.settle()
+            // 강제 종료 뒤에는 2초만 기다린다(자식이 stderr를 붙잡아도 취소·시간 초과 보고를 늦추지 않는다).
+            _ = await monitor.settle(until: .now + .seconds(2))
+            let scan = monitor.snapshot
             if stop == .cancelled { throw failure(.cancelled, stderrBytes: scan.bytes) }
             throw failure(StderrScan.classify(timedOut: true, exitStatus: nil, signaled: false, scan: scan), stderrBytes: scan.bytes)
         }
-        let scan = await monitor.settle()
+        // 프로세스가 끝나도 stderr를 붙잡은 자식이 있으면 EOF가 늦다. 청크 제한 시각까지 끝까지 읽는다.
+        guard await monitor.settle(until: deadline) else {
+            let scan = monitor.snapshot
+            if Task.isCancelled { throw failure(.cancelled, stderrBytes: scan.bytes) }
+            throw failure(StderrScan.classify(timedOut: true, exitStatus: nil, signaled: false, scan: scan), stderrBytes: scan.bytes)
+        }
+        let scan = monitor.snapshot
         let signaled = process.terminationReason == .uncaughtSignal, status = process.terminationStatus
         guard !signaled, status == 0 else {
             throw failure(StderrScan.classify(timedOut: false, exitStatus: status, signaled: signaled, scan: scan),

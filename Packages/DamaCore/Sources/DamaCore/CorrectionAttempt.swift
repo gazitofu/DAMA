@@ -13,6 +13,16 @@ public struct CorrectionFailureRecord: Codable, Sendable, Equatable {
     public let elapsedMs: Int64
     public let stderrBytes: Int
     public let recordedAt: Date
+    private enum CodingKeys: String, CodingKey { case chunkIndex, totalChunks, kind, exitCode, elapsedMs, stderrBytes, recordedAt }
+    /// 종료 코드가 없으면 키를 빼지 않고 명시적 null로 쓴다 (스펙 §02-3 «없으면 null», QA C D-3).
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(chunkIndex, forKey: .chunkIndex); try c.encode(totalChunks, forKey: .totalChunks)
+        try c.encode(kind, forKey: .kind)
+        if let exitCode { try c.encode(exitCode, forKey: .exitCode) } else { try c.encodeNil(forKey: .exitCode) }
+        try c.encode(elapsedMs, forKey: .elapsedMs); try c.encode(stderrBytes, forKey: .stderrBytes)
+        try c.encode(recordedAt, forKey: .recordedAt)
+    }
     public init(chunkIndex: Int, totalChunks: Int, kind: CorrectionFailureKind, exitCode: Int32?,
                 elapsedMs: Int64, stderrBytes: Int, recordedAt: Date = Date()) {
         self.chunkIndex = chunkIndex; self.totalChunks = totalChunks; self.kind = kind; self.exitCode = exitCode
