@@ -3,7 +3,7 @@ unit: usage-bundle1
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "게이트 ② 상신 (2026-11-05). 구현 커밋 6eeaea2–a047826, 최종 check.sh run-20261105T113128Z-lKI66x PASS. 남은 것 = 사용자 결정 4건(F-04–F-07) · 막힘 1–5 · 화면 권한(F-08). status building 유지(AC 미체크분 있음)"
+resume: "다음 세션 재개 (게이트 ② 회신 2026-11-05). ① 화면 확인 진행: 착수 시 screencapture·System Events 창 조회로 화면 기록·접근성 권한부터 실측(권한 부여는 사용자 몫), 되면 합성 QA 앱(.build/xcode-qa, fixture /private/tmp/dama-reading-qa-ub1-a)으로 AC-04·08·09ⓑ·10·11·14 실화면. ② 설치 앱 교체 승인: 실행 중 0.5.15(33) 정상 종료 확인 → .build/backups/DAMA-0.5.15-33-before-usage-bundle1.app 백업 → Debug 0.5.16(34) ditto → launcher·dylib SHA256 대조 → 실행 Bundle 0.5.16(34) 확인. ③ 막힘 2–5(마이크·Soniox·pyannote 키 삭제·실기기 교정 실패)는 별도 승인 전 실행 금지. F-04–F-07 결정 미회신. check.sh는 대문자 절대경로"
 spec: notes/usage-bundle1/usage-bundle1.src.html
 ---
 ## 근거
