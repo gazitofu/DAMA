@@ -3,7 +3,7 @@ unit: usage-bundle1
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-02 착수 (T-01 커밋 완료). check.sh는 대문자 절대경로. 태스크 backpressure = validate_contracts·contract copy·swift test(--scratch-path 재사용)"
+resume: "게이트 ② 상신 (2026-11-05). 구현 커밋 6eeaea2–a047826, 최종 check.sh run-20261105T113128Z-lKI66x PASS. 남은 것 = 사용자 결정 4건(F-04–F-07) · 막힘 1–5 · 화면 권한(F-08). status building 유지(AC 미체크분 있음)"
 spec: notes/usage-bundle1/usage-bundle1.src.html
 ---
 ## 근거
@@ -77,8 +77,8 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 
 ### 차수 A · 검수 표시
 
-- [ ] AC-01 계약·문구: 스펙 §05 문안 5항이 그대로 반영됐다. 대상은 `library-script.md`의 새 절 «검수 이슈 표시 (2026-11-05 사용자 확정 · usage-bundle1)» · 새 절 «녹음 표시 제목 (2026-11-05 · usage-bundle1)» · AI 교정 절 3곳, `operating-baseline.md:97`, `tone/uiux-reading.md` 3곳. 자 = 문안 대조(QA), 모집단 = §05 5항. `validate_contracts.py` 31 OK.
-- [ ] AC-02 경고 분류 (Core, 합성): `IssueKind.isAutoWarning` (8종 true, capture_interrupted·partial_result false). `ScriptBlock.autoWarningSummary: [(kind: IssueKind, count: Int)]`는 open 자동 경고만 세고, 건수 내림차순, 같으면 `rawValue` 오름차순, 0건 종류는 뺀다. `ScriptBlock.persistentWarnings: [ReviewIssue]` = open capture_interrupted·partial_result.
+- [x] AC-01 계약·문구: 스펙 §05 문안 5항이 그대로 반영됐다. 대상은 `library-script.md`의 새 절 «검수 이슈 표시 (2026-11-05 사용자 확정 · usage-bundle1)» · 새 절 «녹음 표시 제목 (2026-11-05 · usage-bundle1)» · AI 교정 절 3곳, `operating-baseline.md:97`, `tone/uiux-reading.md` 3곳. 자 = 문안 대조(QA), 모집단 = §05 5항. `validate_contracts.py` 31 OK.
+- [x] AC-02 경고 분류 (Core, 합성): `IssueKind.isAutoWarning` (8종 true, capture_interrupted·partial_result false). `ScriptBlock.autoWarningSummary: [(kind: IssueKind, count: Int)]`는 open 자동 경고만 세고, 건수 내림차순, 같으면 `rawValue` 오름차순, 0건 종류는 뺀다. `ScriptBlock.persistentWarnings: [ReviewIssue]` = open capture_interrupted·partial_result.
   - 합성 Script 1개: 8종 · 중단 · 일부 결과 · 미배정 · acknowledged 1 · resolved 1.
   - 고정 사례: 같은 건수 2종 → `boundary_conflict`가 `overlapping_speech`보다 앞.
   - 종류별 합 = 그 문단 open 자동 경고 수. 경고 0 문단은 빈 배열.
@@ -108,10 +108,10 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
   - `FolderLibraryStore.saveDisplayTitle(_ title: String, speechID: String) throws -> LibrarySpeech`: id가 같은 항목 전부를 원자 쓰기로 갱신한다. 빈값·공백뿐이면 `invalidInput`, 없는 id면 `missingFile`. 입력값은 다듬지 않는다(앞뒤 공백 보존).
   - `displayTitles() throws -> [String: String]`: 찾지 못한 파일 항목 포함 전체.
   - 쓰기 범위: 저장 1회 전후 내부 저장소·Scripts 파일 목록과 해시를 비교하면 `library-index.json`만 바뀌고 Scripts·`LibraryRevisions` 변화는 0이다. 기준선 = 현행 스크립트 제목 1회 = 스크립트 파일 1 + 사본 1.
-- [ ] AC-06 제목 해석 (pure): `LibraryTitles.speech(_:) = displayTitle ?? title` · `LibraryTitles.script(fileTitle:sessionID:displayTitles:) = displayTitles[sessionID] ?? fileTitle`.
+- [x] AC-06 제목 해석 (pure): `LibraryTitles.speech(_:) = displayTitle ?? title` · `LibraryTitles.script(fileTitle:sessionID:displayTitles:) = displayTitles[sessionID] ?? fileTitle`.
   - 합성 5사례: 연결 + displayTitle · 연결 + 없음 · 미연결 · Speech 휴지통(인덱스만 있음) · AI 버전 보기(스냅숏 파일 제목 그대로).
   - `createScript`의 새 파일 `title` = 해석 녹음 제목.
-- [ ] AC-07 쓰는 자리 전수: 해석 제목을 쓰는 자리는 Speech 목록·상세 · Script 목록·읽기 제목칸 · AI 검수/보정 창 머리 · 삭제 확인 2곳 · 변환·재전사 확인창 4곳 · Markdown `# 제목`(`markdown(title: String? = nil)`, nil = 파일 제목) · 내보내기 파일 이름. 평가 JSON `script.title`은 파일 값 그대로. 자 = `git grep -nE '(speech|record|file)\.title|script\.title' -- App UI` 남은 줄 전수를 «해석 함수 입력 / 평가 JSON / AI 버전 보기»로 분류해 결과 파일에 기록.
+- [x] AC-07 쓰는 자리 전수: 해석 제목을 쓰는 자리는 Speech 목록·상세 · Script 목록·읽기 제목칸 · AI 검수/보정 창 머리 · 삭제 확인 2곳 · 변환·재전사 확인창 4곳 · Markdown `# 제목`(`markdown(title: String? = nil)`, nil = 파일 제목) · 내보내기 파일 이름. 평가 JSON `script.title`은 파일 값 그대로. 자 = `git grep -nE '(speech|record|file)\.title|script\.title' -- App UI` 남은 줄 전수를 «해석 함수 입력 / 평가 JSON / AI 버전 보기»로 분류해 결과 파일에 기록.
 - [ ] AC-08 저장 시점·양방향:
   - pure `TitleDraft` (DamaCore). 사건 = 편집(조합 여부) · Enter · 이탈 · Esc. 동작 = 없음 · 저장(값) · 되돌림(마지막 저장값) · 거부(«제목을 입력해 주세요.», 입력 유지). 조합 중 Enter·이탈 = 없음. 합성 단정 8개 이상.
   - `git grep -n 'milliseconds(500)' -- App/ScriptEditingSession.swift` = 0.
@@ -138,7 +138,7 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
   - `KeychainStore.exists(provider:) -> Bool`은 값을 반환하지 않는다(`kSecReturnData` 없음).
   - 설정을 열 때와 삭제 뒤에 확인한다. 키가 있으면 문구 21 안내 줄 + «pyannote 키 삭제». 확인창 기본 버튼은 «취소», 삭제 뒤 «pyannote 키 삭제됨»이 뜨고 줄이 사라진다.
   - 실기기(메인): 있음·없음 표시. 삭제 단계는 막힘 4.
-- [ ] AC-11 월 비용 (USD Double, 내부 그대로, 출력 `%.2f`):
+- [x] AC-11 월 비용 (USD Double, 내부 그대로, 출력 `%.2f`):
   - `aiCLISubscriptionUSD: Double?` 추가, 검증에 포함(−1 · `.infinity` → throw).
   - 4사례: 29.75 · 48.75 · 54.75 · 미측정(퇴역 1칸만 입력).
   - 구 기록 19/19/13.2/9.75/0 + AI CLI nil → nil (현행 28.75, 기준선 `ScriptEvaluationTests:40`).
@@ -179,7 +179,31 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 ### 전달
 
 - [ ] AC-15 check.sh PASS · SKIP 0 (대문자 절대경로). `MARKETING_VERSION`·`CURRENT_PROJECT_VERSION` Debug/Release 0.5.15(33) → 0.5.16(34)(작업 트리만, 타 소유 상향과 같은 줄). 설치(막힘 1) 뒤 실행 중 Bundle 0.5.16(34) 확인. pathspec 커밋, 타 소유 헝크 바이트 보존, 마감 `git status` = 타 소유 14 + untracked 3.
-- [ ] AC-16 QA: 차수마다 GPT-6.1-sol 판정 파일 `.build/qa/usage-bundle1/{A,B,C}-verdict.md`. QA 전후 `git status --short`·`git diff --stat` 동일. 브리프에 사용자 데이터 경로 열람 금지를 명시한다. 판정 «부분·실패»는 해당 결함과 영향 범위만 재검증한다.
+- [x] AC-16 QA: 차수마다 GPT-6.1-sol 판정 파일 `.build/qa/usage-bundle1/{A,B,C}-verdict.md`. QA 전후 `git status --short`·`git diff --stat` 동일. 브리프에 사용자 데이터 경로 열람 금지를 명시한다. 판정 «부분·실패»는 해당 결함과 영향 범위만 재검증한다.
+
+## /build 결과 (2026-11-05 · 게이트 ② 상신)
+
+커밋 `6eeaea2`…`a047826` (T-01–T-10 12커밋 + QA 결함 수정 6커밋). QA = GPT-6.1-sol `codex exec -m gpt-6.1-sol --sandbox read-only --ignore-user-config`, 판정 `.build/qa/usage-bundle1/{A,B,B2,C,C2,C3,C4}-verdict.md` · 증거 `{A,B,C}-evidence.md` (gitignored). 7회 모두 QA 전후 `git status --short`·`git diff --stat` 동일. 최종 check.sh `run-20261105T113128Z-lKI66x` (HEAD `a047826`): 계약 31 · byte-exact · SmokeCheck · swift test Core 199 / Audio 44 / Managed 60 · xcodebuild Debug 전부 PASS, SKIP 0.
+
+| AC | 판정 | 남은 것 |
+|---|---|---|
+| 01 | 통과 | |
+| 02 | 통과 | |
+| 03 | 부분 | F-04 명세 밖 머리말 조합(현 데이터 0건). ⓓ 모의 38개: `> 검수:` 57,037→0 · 머리말 합 54,221 · 중단 3/3 · SHA256 차이 0 |
+| 04 | 부분 | 실화면 미검증 (F-08) |
+| 05 | 부분 | F-05 «구 바이트 왕복 동일» 문언 (기본 JSONEncoder 200회 3종·왕복 198/200 불일치) |
+| 06 | 통과 | |
+| 07 | 통과 | 남은 grep 2줄 = 해석 함수 입력 |
+| 08 | 부분 | 코드 통과, 실화면 미검증 |
+| 09 | 부분 | ⓐⓑ 코드 통과(QA B D-1–D-3·N-1 수정 후 재판정 해소), ⓒ 막힘 2 · ⓓ 막힘 3 미실행 |
+| 10 | 부분 | 코드 통과, 키체인 pyannote 항목 있음(종료 코드만), 화면·삭제(막힘 4) 미검증 |
+| 11 | 통과 | 역뮤테이션 7 |
+| 12 | 통과(코드)·보고 | QA C D-1 해소. 완료 교정 140 변경 재판정 보류 0 (Python 0/140) |
+| 13 | 부분 | D-2 잔여 = F-06 문언(자식이 제한 시각 넘어 stderr 보유 시 «끝까지» 불가). 8/8 · 1 MiB · 오염 방지 · 표식 0 통과 |
+| 14 | 부분 | QA C D-3·D-4 해소. 막힘 5 미실행, F-07 |
+| 15 | 부분 | 작업 트리 0.5.16(34), check.sh PASS·SKIP 0. 설치(막힘 1)·실행 Bundle 확인 미실행 |
+| 16 | 통과 | 부분·실패는 해당 결함만 재판정 |
+
 
 ## 작업 분해
 
@@ -225,3 +249,9 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 - F-01 Codex는 모르는 `-c` 키를 경고만 남기고 무시한다(실측 2). 앞으로 CLI가 `features.shell_tool` 같은 격리 키를 없애면 격리 설정이 조용히 빠질 수 있다. 0.166.0에서는 21개 모두 인식한다. 무시 경고 줄을 실패로 다룰지는 별도 결정(묶음 3 T4-5와 함께).
 - F-02 QA 호출이 사용자 Codex 전역 설정(hook·MCP·plugin)을 적재한다(실측 8, «OK» 1회에 18,727 tokens). 프로젝트 문서만 넣는 실행 형태는 /build에서 비용을 보고 정한다.
 - F-03 `CorrectionAttempts/` 정리 정책은 묶음 2(T2a).
+- F-04 (AC-03, 결정) 원음 확인 ≥1 & 자동 경고 0일 때 머리말: tone 3형식 밖. 현재 «{현행 요약}. 자동 경고 0건 (경고 없음이 정확도를 보장하지 않음)». 현 데이터 해당 0 (reviewRecords 0, 만드는 화면 없음).
+- F-05 (AC-05, 문언) «구 바이트 왕복 동일» → «키 정렬 왕복 동일 + nil 키 생략». 기본 인코더는 이 유닛 전부터 바이트 정본이 아님(프로브).
+- F-06 (AC-13, 문언) 정상 종료는 EOF까지 전수, 자식이 stderr를 제한 시각 넘어 붙잡으면 판정 시점(제한 시각 또는 강제 종료 + 2초 + 정리 최대 1.2초)까지 도착분. QA C4 «부분».
+- F-07 (AC-14, 결정) 실패 기록 없이 끊긴 시도(앱 종료 등)의 하단 줄: 짧은 원인을 생략함. 정본 문구 없음.
+- F-08 이 세션 터미널에 화면 기록·접근성 권한이 없어 `screencapture`·System Events 창 조회가 불가. 합성 QA 앱(`com.gazitofu.Dama.ReadingQA`, `.build/xcode-qa`)과 fixture `/private/tmp/dama-reading-qa-ub1-a`는 준비됨, 실화면 축 전부 미검증.
+- F-09 `FileHandle.read(upToCount:)`는 파이프에서 개수를 채우거나 EOF까지 블록한다(역뮤테이션에서 관측). 다른 파이프 읽기 코드(Qwen·Nemotron 실행기)에 같은 가정이 있는지 별도 점검.
