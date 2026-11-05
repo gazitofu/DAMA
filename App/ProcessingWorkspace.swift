@@ -379,7 +379,8 @@ struct APIKeySettings: View {
     @State private var pyannoteKeyStored = false
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("\(provider.title) API 키").font(.headline)
+            // tone 문구 21 «Soniox API 키». `provider.title`(«Soniox 단독 (비교)»)을 머리에 쓰지 않는다. 저장·삭제 문구는 현행 유지(AC-10).
+            Text("Soniox API 키").font(.headline)
             SecureField("API 키", text: $key).textFieldStyle(.roundedBorder)
             Text("입력한 키는 이 Mac의 키체인에 저장합니다. 저장만으로 연결 확인이나 음성 전송을 하지 않습니다.")
                 .font(.caption).foregroundStyle(.secondary)
