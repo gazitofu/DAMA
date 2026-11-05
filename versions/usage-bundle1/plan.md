@@ -211,7 +211,7 @@ spec: notes/usage-bundle1/usage-bundle1.src.html
 - 권한: 접근성 있음, 화면 기록 없음(`screencapture` exit 1). 실화면 = 합성 QA 앱(0.5.16(34), ReadingQA, fixture `/private/tmp/dama-reading-qa-ub1-b` + 가짜 CLI로 만든 auth 실패 시도 기록 2건)의 접근성 트리. 시각 속성(⚠ 글리프·배치·잘림)은 안 잼.
 - 결함 1건 수정 `b3bce1b`: 설정 API 키 머리가 «Soniox 단독 (비교) API 키»(`provider.title` 보간). 문구 21 «Soniox API 키»로 고침. C차 증거가 이를 «Soniox API 키»로 잘못 적어 QA C가 놓쳤다. 저장·삭제 문구는 AC-10 «현행 그대로»라 남김(F-10). 수정 뒤 화면 재확인은 안 함(QA 앱은 수정 전 빌드, 설치 앱 창은 안 열었다). 전달 바이너리에 «Soniox API 키» 1건.
 - check.sh `run-20261105T125104Z-LT4x0k` (HEAD `b3bce1b`): 계약 31 · byte-exact · SmokeCheck · swift test Core 199 / Audio 44 / Managed 60 · xcodebuild Debug PASS, SKIP 0.
-- 설치: 0.5.15(33)은 21:34:57 이미 정상 종료 상태(통합 로그 QUITTING, 충돌 없음, 원인 미확정·메인 종료 명령 아님, 내부 저장소 21:00 이후 쓰기 0) → 백업 `.build/backups/DAMA-0.5.15-33-before-usage-bundle1.app` 11파일 일치 → `/Applications/DAMA.app` 교체, launcher·dylib 포함 11파일 SHA256 일치 → 실행 pid의 Bundle `com.gazitofu.Dama` 0.5.16(34), 적재 경로 `/Applications`, 메뉴바 툴팁 «DAMA 0.5.16 · 빌드 34».
+- 설치: 0.5.15(33)은 21:34:57 이미 정상 종료 상태(통합 로그 QUITTING, 충돌 없음, 사용자가 직접 종료 · 사용자 회신 2026-11-05, 내부 저장소 21:00 이후 쓰기 0) → 백업 `.build/backups/DAMA-0.5.15-33-before-usage-bundle1.app` 11파일 일치 → `/Applications/DAMA.app` 교체, launcher·dylib 포함 11파일 SHA256 일치 → 실행 pid의 Bundle `com.gazitofu.Dama` 0.5.16(34), 적재 경로 `/Applications`, 메뉴바 툴팁 «DAMA 0.5.16 · 빌드 34».
 - 사건: QA 앱 확인창(문구 17)이 열린 사이 «다시 시도»로 닫혔다(도구 입력 아님, 사용 중이던 사용자 입력으로 추정·미확정). QA 앱 차단 가드가 막아 시도 기록 변화 0, 외부 전송 0. 이후 확인창 여는 여정 중단, 키체인 삭제 경로는 열지 않음.
 
 | AC | 판정 (D) | 남은 것 |
