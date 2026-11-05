@@ -88,9 +88,13 @@ enum CorrectionSpans {
                 ContextCorrection.canonicalFormat(single.trimmingCharacters(in: .whitespacesAndNewlines))
             let uncertain = !change.certain || uncertainRanges.contains { $0.overlaps(anchors[index]) }
             let termBasis = CorrectionTerms.basis(change: change, source: source.text, range: anchors[index], input: input)
-            let applied = !uncertain
+            // context-correction-6 판정 순서: ① 불확실·미해결 겹침 → 원문 유지 ② 단일 적용 형식 동등 → 반영
+            // ③ 숫자·단위·부정·조건 표식이 바뀌면 원문 유지 ④ 반영 (usage-bundle1 §02-4).
+            let meaning = uncertain || format ? [] : MeaningGuard.changedClasses(quote: change.quote, replacement: change.replacement)
+            let applied = !uncertain && meaning.isEmpty
             let basis = uncertain ? "이 수정 범위가 불확실해 원문을 유지했습니다." :
-                (format ? "원문 위치와 제한 형식 동등성을 확인했습니다." : termBasis ?? "AI가 확실한 문맥 교정으로 제안했고 원문 수정 위치를 확인했습니다.")
+                (format ? "원문 위치와 제한 형식 동등성을 확인했습니다." :
+                    (!meaning.isEmpty ? MeaningGuard.basis(meaning) : termBasis ?? "AI가 확실한 문맥 교정으로 제안했고 원문 수정 위치를 확인했습니다."))
             decisions.append(.init(change: change, applied: applied, basis: basis))
         }
         let appliedText = compose(source: source.text, changes: changes, ranges: anchors, accepted: decisions.map(\.applied))

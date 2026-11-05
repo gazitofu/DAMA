@@ -23,11 +23,14 @@ final class ScriptVersionTests: XCTestCase {
         }
         var old = ScriptCorrection(input: first.script.input, engine: "synthetic context-correction-4", state: .completed)
         // Construct persisted v4 decisions through Codable, as if loaded from disk.
+        // usage-bundle1: 대체 문자열에 숫자를 넣지 않는다(«합성 교정 0»은 context-correction-6 숫자 보호에 걸림).
+        // 숫자를 새로 넣는 저장 후보의 보류는 MeaningGuardTests.testReapplicationHoldsMeaningChangesWithBasis가 따로 단정한다.
+        let labels = ["가", "나"]
         old.edits = try sources.prefix(2).enumerated().map { index, source in
-            let object: [String: Any] = ["turnID": source.id, "original": source.text, "text": "합성 교정 \(index)",
+            let object: [String: Any] = ["turnID": source.id, "original": source.text, "text": "합성 교정 \(labels[index])",
                 "reason": "이전 용어 제한", "applied": false, "appliedText": source.text, "unresolved": [],
                 "changes": [["applied": false, "basis": "이전 용어 제한", "change": [
-                    "quote": source.text, "occurrence": 0, "replacement": "합성 교정 \(index)", "certain": true, "reason": "합성 표기 교정"]]]]
+                    "quote": source.text, "occurrence": 0, "replacement": "합성 교정 \(labels[index])", "certain": true, "reason": "합성 표기 교정"]]]]
             return try JSONDecoder().decode(CorrectionEdit.self, from: JSONSerialization.data(withJSONObject: object))
         }
         XCTAssertEqual(old.edits.count, 2)
@@ -38,7 +41,7 @@ final class ScriptVersionTests: XCTestCase {
         let owned = try XCTUnwrap(previous.reading.blocks.first { $0.turnIDs.contains(sources[1].id) })
         _ = try await store.saveParagraph(owned, text: "사람 수정 유지", for: previous)
         let applied = try await store.applyPendingCorrection(for: previous)
-        XCTAssertEqual(applied.script.text(for: applied.script.transcript.turns.first { $0.id == sources[0].id }!), "합성 교정 0")
+        XCTAssertEqual(applied.script.text(for: applied.script.transcript.turns.first { $0.id == sources[0].id }!), "합성 교정 가")
         XCTAssertTrue(applied.reading.blocks.contains { $0.text == "사람 수정 유지" })
         XCTAssertEqual(applied.script.correction?.edits[1].applied, false)
         XCTAssertEqual(applied.script.versions?.map(\.number), [0, 1, 2])
@@ -58,7 +61,7 @@ final class ScriptVersionTests: XCTestCase {
         let export = folder.appendingPathComponent("corrected.md")
         try await reopened.exportMarkdown(loaded, to: export)
         let md = try String(contentsOf: export, encoding: .utf8)
-        XCTAssertTrue(md.contains("합성 교정 0")); XCTAssertTrue(md.contains("사람 수정 유지"))
+        XCTAssertTrue(md.contains("합성 교정 가")); XCTAssertTrue(md.contains("사람 수정 유지"))
         try Data("external mutation".utf8).write(to: loaded.url)
         do { _ = try await reopened.applyPendingCorrection(for: loaded); XCTFail("external conflict") }
         catch { XCTAssertTrue(error is LibraryFailure) }
