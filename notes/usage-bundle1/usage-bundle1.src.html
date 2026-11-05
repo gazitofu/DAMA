@@ -288,98 +288,48 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
   <p class="sub">2026-09-09부터 11-05까지의 사용 기록을 복기해 정한 개선 중 바로 체감되는 다섯 가지(T1·T3·T5·T4-1·T4-2)를 한 유닛으로 묶는다. 사람이 볼 수 없는 양의 자동 경고를 화면과 Markdown에서 걷고, 녹음에 제목을 붙이게 하고, 퇴역한 pyannote 설정을 정리하고, AI 교정이 실패해도 원인과 진행분이 남게 한다.</p>
 </header>
 
-<section class="verdict" id="s-verdict" data-unit="usage-bundle1" data-round="r1" data-gate="①" data-state="open">
-  <div class="vh"><h2>판정</h2><span class="cnt">열린 결정 4 · 판정 축 6</span><span class="stamp">게이트 ① 컨펌 M.DD</span></div>
+<section class="verdict" id="s-verdict" data-unit="usage-bundle1" data-round="r1" data-gate="①" data-state="closed">
+  <div class="vh"><h2>판정</h2><span class="cnt">결정 4 · 판정 축 6 · 전부 확정</span><span class="stamp">게이트 ① 컨펌 11.05</span></div>
   <div class="vb">
     <div class="vitem" data-k="D-01">
       <div class="vt"><span class="id">D-01</span>제목을 쓰는 곳: 녹음 인덱스만, 또는 연결 스크립트 파일까지</div>
-      <p class="vq">녹음 제목을 앱 인덱스(<code>library-index.json</code>)에 하나 두는 것은 결정됐다. 갈리는 것은 연결 스크립트 파일(<code>.dama.json</code>) 안의 <code>title</code>도 같이 고쳐 쓰느냐다. <b>ⓐ</b>는 파일을 쓰지 않고, 화면·목록·Markdown·내보내기 파일 이름이 연결 녹음의 제목을 읽는다. 제목을 바꿔도 스크립트 파일 쓰기와 수정 이력 사본이 0이고, 여러 파일 중 일부만 실패하는 경우가 없다. 대신 <code>.dama.json</code>을 앱 밖에서 열면 만들 때의 제목이 보인다. <b>ⓑ</b>는 파일 안 제목까지 맞추지만, 지금 저장 규칙에서는 제목을 한 번 바꿀 때마다 연결 스크립트 수만큼 전체 사본이 쌓인다.<span class="fn">녹음 20건의 연결 스크립트 수: 1개 7건 · 2개 9건 · 3개 3건 · 4개 1건 (2026-11-05 인덱스·Scripts 메타데이터 집계) · 스크립트 중앙값 6.4MB, 최대 31MB (<code>notes/usage-review/brief.md</code> T2a) · 저장마다 <code>LibraryRevisions</code>에 전체 사본 (<code>FolderLibraryStore.swift:342</code> <code>saveScript</code> → <code>writeRevision</code>) · 결정 기록 T3-4 «연결 스크립트 갱신은 T2a 저장 규칙(압축 이력)을 따른다»는 묶음 2의 압축 이력을 전제로 쓴 문장이다.</span> 다른 절은 어느 쪽이든 같고, 표시 제목은 두 안 모두 인덱스 값이 우선한다.</p>
-      <div class="opts">
-        <label><input type="radio" name="D-01" value="ⓐ 인덱스에만 쓰고 읽을 때 연결 녹음 제목을 쓴다 (권고)" checked>ⓐ 인덱스에만 쓴다 (권고)</label>
-        <label><input type="radio" name="D-01" value="ⓑ 연결 스크립트 파일 title도 모두 고쳐 쓴다">ⓑ 연결 스크립트 파일도 고쳐 쓴다</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+      <p class="vq">ⓐ 확정. 녹음 제목은 인덱스(<code>library-index.json</code>)의 <code>displayTitle</code>에만 쓰고, 연결 스크립트는 읽을 때 그 제목을 쓴다. 스크립트 파일 안 <code>title</code>은 고쳐 쓰지 않는다.<span class="fn">기각안 = 연결 스크립트 파일까지 고쳐 쓰기 · 녹음당 연결 스크립트 1–4개, 스크립트 중앙값 6.4MB, 저장마다 전체 사본 (<code>FolderLibraryStore.swift:342</code>) · 결정 기록 T3-4의 «T2a 저장 규칙을 따른다»는 이 결정으로 쓸 일이 없어졌다.</span></p>
     </div>
     <div class="vitem" data-k="D-02">
       <div class="vt"><span class="id">D-02</span>제목 저장 시점(T2a-5)을 이 유닛으로 당길지</div>
-      <p class="vq">결정 기록 T2a-5 «Enter 또는 입력칸 이탈 시에만 저장, 0.5초 자동 저장 폐지»는 묶음 2에 있다. 이 유닛이 녹음 제목칸을 새로 만들고 스크립트 제목칸의 저장 대상을 바꾸므로, <b>ⓐ</b>는 두 제목칸에 그 규칙을 지금 적용한다. <b>ⓑ</b>는 새 녹음 제목칸에도 0.5초 자동 저장을 붙이고 묶음 2에서 함께 걷는다.<span class="fn">현행 0.5초 대기 저장 <code>App/ScriptEditingSession.swift:30</code>–38 · 저장 계기 중 제목 12% (LibraryRevisions 571회 저장 집계, <code>notes/usage-review/decisions.md</code> T2a 근거) · 확정 문구 «제목 저장 대기 · 마지막 입력 후500ms» (<code>ssot/tone/uiux-reading.md</code>).</span></p>
-      <div class="opts">
-        <label><input type="radio" name="D-02" value="ⓐ 이 유닛에서 Enter·이탈 저장으로 바꾼다 (권고)" checked>ⓐ 지금 바꾼다 (권고)</label>
-        <label><input type="radio" name="D-02" value="ⓑ 묶음 2에 둔다">ⓑ 묶음 2에 둔다</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+      <p class="vq">ⓐ 확정. T2a-5(Enter 또는 입력칸 이탈 때만 저장, 0.5초 자동 저장 폐지)를 이 유닛에서 녹음·스크립트 두 제목칸에 적용한다.<span class="fn">현행 0.5초 대기 저장 <code>App/ScriptEditingSession.swift:30</code>–38 · 기각안 = 묶음 2에 둠.</span></p>
     </div>
     <div class="vitem" data-k="D-03">
       <div class="vt"><span class="id">D-03</span>교정 설정의 공급자 선택(T5-3)을 언제 할지</div>
-      <p class="vq">결정 기록 T5-3은 «T4-5에 맞춰» Codex/Claude 선택을 설정에 두라고 했고, T4-5(Claude CLI 공급자)는 묶음 3이다. Claude 공급자가 없는 지금 선택 컨트롤을 넣으면 고를 수 없는 항목이 생긴다.<span class="fn">설계 01 §6 «가짜 드롭다운을 넣지 않는다» · 현행 교정 설정 = 모델 표시·실행 파일 경로·«Codex 실행 파일 선택…» (<code>UI/LibraryShell.swift:275</code>–278).</span> <b>ⓐ</b>는 이 유닛에서 교정 설정을 현행대로 두고 T5-3을 묶음 3으로 옮긴다. <b>ⓑ</b>는 T4-5를 이 유닛으로 당겨 <code>claude --help</code> 격리 실측과 동의 문구 일반화를 함께 한다.</p>
-      <div class="opts">
-        <label><input type="radio" name="D-03" value="ⓐ T5-3을 묶음 3으로 옮긴다 (권고)" checked>ⓐ 묶음 3으로 옮긴다 (권고)</label>
-        <label><input type="radio" name="D-03" value="ⓑ T4-5를 이 유닛으로 당긴다">ⓑ T4-5를 당긴다</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+      <p class="vq">ⓐ 확정. 교정 설정은 현행대로 두고, 공급자 선택(T5-3)은 T4-5와 함께 묶음 3에서 한다.<span class="fn">설계 01 §6 가짜 컨트롤 금지 · 기각안 = T4-5를 이 유닛으로 당김.</span></p>
     </div>
     <div class="vitem" data-k="D-04">
       <div class="vt"><span class="id">D-04</span>«주의» 숨김에 다시 켜는 설정을 둘지</div>
-      <p class="vq">결정 기록 T1-1의 «기본 숨김»은 «항상 숨김»과 «기본은 끄고 켤 수 있음» 두 갈래로 읽힌다. <b>ⓐ</b>는 설정 없이 숨기고 원 이슈는 구간 정보에서만 연다. <b>ⓑ</b>는 설정에 «자동 경고 표시» 토글을 두고 기본을 끈다. 어느 쪽이든 녹음 중단과 화자 미배정 표시는 남고 데이터는 바뀌지 않는다.<span class="fn">현 Scripts 38개의 이슈 54,224건 전부 <code>open</code>, 사람이 확인 처리한 Turn 0 · Soniox+Nemotron 결합본은 Turn의 68%에 이슈 (<code>notes/usage-review/brief.md</code> T1) · 표시 위치 <code>UI/ScriptReadingView.swift:250</code>.</span></p>
-      <div class="opts">
-        <label><input type="radio" name="D-04" value="ⓐ 설정 없이 항상 숨긴다 (권고)" checked>ⓐ 항상 숨김 (권고)</label>
-        <label><input type="radio" name="D-04" value="ⓑ 설정 토글을 두고 기본 끔">ⓑ 토글, 기본 끔</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+      <p class="vq">ⓐ 확정. «주의» 표시는 설정 없이 항상 숨기고, 원 이슈는 구간 정보에서만 연다. 녹음 중단·일부 결과·화자 미배정 표시는 남는다.<span class="fn">기각안 = 설정 토글(기본 끔) · 이슈 54,224건 전부 open, 사람이 확인 처리한 Turn 0 (<code>notes/usage-review/brief.md</code> T1).</span></p>
     </div>
     <div class="vitem" data-k="①">
       <div class="vt"><span class="id">①</span>검수 이슈 표시와 내보내기 (§02-1 · §03 S1·S2·S9)</div>
-      <p class="vq">문단 «주의» 없음, 구간 정보는 종류별 건수로 접음, Markdown 문단 줄 제거와 머리말 1줄. 결정 기록에 없던 두 가지를 넣었다: 녹음 중단과 일부 결과(<code>partial_result</code>)는 화면과 Markdown 양쪽에 남기고, 구간 정보의 경고 문구는 <code>ssot/tone/uiux-reading.md</code> 확정본으로 맞춘다.</p>
-      <div class="opts">
-        <label><input type="radio" name="①" value="확정" checked>확정</label>
-        <label><input type="radio" name="①" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. 문단 «주의» 없음, 구간 정보 «자동 경고 N건» 종류별 접힘, Markdown 문단 줄 제거와 머리말 1줄, 녹음 중단·일부 결과는 화면과 Markdown 양쪽에 남김, 경고 문구는 uiux-reading 확정본.</p>
     </div>
     <div class="vitem" data-k="②">
       <div class="vt"><span class="id">②</span>녹음 제목 흐름 (§02-2 · §03 S3–S5)</div>
-      <p class="vq">녹음 직후 입력창(Speeches 저장 뒤, 한 번에 하나씩 차례로), Speech 상세 제목칸, 스크립트 제목칸의 양방향. 기존 녹음의 서로 다른 제목은 자동으로 합치지 않고 처음 고칠 때 하나가 된다.</p>
-      <div class="opts">
-        <label><input type="radio" name="②" value="확정" checked>확정</label>
-        <label><input type="radio" name="②" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. 녹음 직후 입력창(Speeches 저장 뒤 한 번에 하나씩), Speech 상세 제목칸, 스크립트 제목칸 양방향, 기존 제목 자동 합치기 없음.</p>
     </div>
     <div class="vitem" data-k="③">
       <div class="vt"><span class="id">③</span>AI 교정 실패 기록·이어하기·의미 보호 (§02-3 · §02-4 · §03 S8)</div>
-      <p class="vq">실패 분류 8종(결정 기록의 5종에 실행 불가·취소·미분류를 더함), 시도 기록은 스크립트 파일이 아니라 내부 저장소, 이어하기는 청크 계획이 같을 때만, 의미 보호 표식 4분류 목록.</p>
-      <div class="opts">
-        <label><input type="radio" name="③" value="확정" checked>확정</label>
-        <label><input type="radio" name="③" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. 실패 분류 8종, 시도 기록은 내부 <code>CorrectionAttempts/</code>, 이어하기는 청크 계획이 같을 때만, 의미 보호 <code>context-correction-6</code> 4분류.</p>
     </div>
     <div class="vitem" data-k="④">
       <div class="vt"><span class="id">④</span>설정 정리 (§02-5 · §03 S6·S7)</div>
-      <p class="vq">API 키는 Soniox만, pyannote 키가 있을 때만 삭제 줄. 월 비용은 새 공식과 «AI CLI 구독료» 칸 신설, pyannote 3항목 접기.</p>
-      <div class="opts">
-        <label><input type="radio" name="④" value="확정" checked>확정</label>
-        <label><input type="radio" name="④" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. API 키는 Soniox만, pyannote 키가 있을 때만 삭제 줄, 월 비용 새 공식과 «AI CLI 구독료» 칸, pyannote 3항목 접기.</p>
     </div>
     <div class="vitem" data-k="⑤">
       <div class="vt"><span class="id">⑤</span>계약·문구 개정 문안 (§05)</div>
-      <p class="vq"><code>ssot/contracts/library-script.md</code> 4곳, <code>ssot/contracts/operating-baseline.md</code> 월 비용 1곳, <code>ssot/tone/</code> 2파일. /build가 이 문안대로 고친다.</p>
-      <div class="opts">
-        <label><input type="radio" name="⑤" value="확정" checked>확정</label>
-        <label><input type="radio" name="⑤" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. §05의 계약 4곳·월 비용 1곳 문안을 /build가 반영하고, 확정 문구는 <code>ssot/tone/usage-bundle1.md</code>로 편입했다.</p>
     </div>
     <div class="vitem" data-k="⑥">
       <div class="vt"><span class="id">⑥</span>검산 자와 안 재는 축 (§04)</div>
-      <p class="vq">합성 단위 테스트, 현 Scripts 38개 내보내기 모의, 실기기 여정 2건, 안 재는 축 5개(숨긴 경고 속 실제 E1/E2, 의미 보호의 정확도 효과, 실제 Codex 실패 원인, 입력창 사용률, Claude).</p>
-      <div class="opts">
-        <label><input type="radio" name="⑥" value="확정" checked>확정</label>
-        <label><input type="radio" name="⑥" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. §04 검산 자 18축과 안 재는 축 5개를 이 문서대로 쓴다.</p>
     </div>
   </div>
   <div class="vfoot">
@@ -421,6 +371,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     <li><b>R7</b> (T4-2) 숫자·단위·부정·조건을 바꾸는 교정은 자동 반영하지 않고 «확인 필요»로 둔다.</li>
     <li><b>R8</b> (T5-1) API 키 화면은 Soniox만 보인다. 키체인에 pyannote 키가 있을 때만 «pyannote 키 삭제»를 보인다.</li>
     <li><b>R9</b> (T5-2) 월 비용 화면은 pyannote 3항목을 «퇴역 서비스(기록용)»로 접고, 합계를 Soniox 사용액 + AI CLI 구독료 + 기타로 바꾼다.</li>
+    <li><b>R10</b> (T2a-5, D-02로 당김) 녹음·스크립트 제목은 Enter 또는 입력칸 이탈 때만 저장한다.</li>
   </ol>
 
   <h4>원칙</h4>
@@ -437,12 +388,12 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     <li>자동 경고를 숨기면 실제 화자 귀속 오류가 있는 구간도 표시 없이 읽힌다. 화자 직결 경고 504건/시간 중 두 모델이 실제로 충돌한 몫은 22%이고, 이 몫도 함께 숨는다.<span class="fn">원인 구성: Nemotron 겹침 판정 58% (boundary_conflict와 overlapping_speech가 같은 단어에 중복) · 배정 실패 13% · Soniox 시간 7% · 실제 충돌 22% (<code>notes/usage-review/decisions.md</code> T1 근거 실측).</span> 이를 대신할 AI 화자 의심 목록(T4-6)은 묶음 3이라, 이 유닛 출하부터 묶음 3까지는 화면에 화자 의심 신호가 없다.</li>
     <li>머리말의 «사람이 원음으로 검수하지 않음»은 앱에 남은 기록 기준이다. 사용자가 앱 밖에서 원음을 들었는지는 앱이 모른다.</li>
     <li>Markdown에서 문단별 경고를 빼는 것은 INV-10(«내보내기는 불확실 marker를 삭제하지 않는다»)과 맞닿는다. INV-10의 대상은 JSON/TXT이고 Markdown 본문은 2026-09-13 missingSpeech 숨김 선례가 있으며, 평가 JSON에는 이슈 전부가 남는다.<span class="fn"><code>ssot/design/04_DATA_AND_RECONCILIATION.md</code> §3 INV-10 · 선례 <code>ssot/contracts/library-script.md</code> «화자 기준 연속 발화 (2026-09-13 T-04)» 둘째 항 · 평가 JSON은 <code>script</code> 전체를 담는다 (<code>Packages/DamaCore/Sources/DamaCore/ScriptEvaluation.swift:81</code>).</span></li>
-    <li>D-01 ⓐ에서는 <code>.dama.json</code>을 앱 밖에서 여는 도구가 옛 제목을 본다.</li>
+    <li>스크립트 파일 안 <code>title</code>은 고쳐 쓰지 않으므로(D-01), <code>.dama.json</code>을 앱 밖에서 여는 도구는 만들 때의 제목을 본다.</li>
     <li>의미 보호 표식은 글자 대조라 «전면 → 전반»처럼 무관한 변경도 보류하고(오탐), «하나 → 둘» 같은 고유어 수사는 못 잡는다(누락). 현 Scripts의 완료 교정 3건, 반영 변경 140건에 새 규칙을 대 보면 보류가 0건이라 이 표본에서는 비용도 효과도 드러나지 않는다.<span class="fn">2026-11-05 읽기 전용 모의 · 스크립트 <code>notes/usage-bundle1/measure-b1.py</code> (<code>--selftest</code>로 자기 검증) · 집계만 출력, 본문 미출력 · 140건 중 숫자를 포함한 변경 4건, 십·백·천·만·억·조 포함 3건 · 자기 검증 11쌍(양성 7·음성 4) 통과.</span></li>
     <li>실패 분류 중 인증·네트워크·설정은 Codex CLI의 실제 오류 문구로 판정하는데, 그 문구를 아직 재지 않았다. 표식이 안 맞으면 «미분류»로 떨어진다.</li>
     <li>이어서 교정은 실패 뒤 문단을 하나라도 고치면 쓸 수 없다. 청크 계획이 바뀌기 때문이다.</li>
   </ul>
-  <p class="note">비범위: 별도 조사 I-01(0길이 토큰)·I-02(중복 계상), T2a 저장 정리(D-02로 당기는 제목 저장 시점만 예외), T2b Drive 이전, T4-3–T4-7, AI 화자 의심 목록, Dock·Cmd+Tab 실기기 QA, 기존 녹음 제목의 일괄 이관, 쓰지 않는 <code>ReviewShell</code>·<code>RecordingPanel</code> 정리.</p>
+  <p class="note">비범위: 별도 조사 I-01(0길이 토큰)·I-02(중복 계상), T2a 저장 정리(제목 저장 시점 T2a-5만 이 유닛에 포함), T2b Drive 이전, T5-3 교정 공급자 선택(묶음 3), T4-3–T4-7, AI 화자 의심 목록, Dock·Cmd+Tab 실기기 QA, 기존 녹음 제목의 일괄 이관, 쓰지 않는 <code>ReviewShell</code>·<code>RecordingPanel</code> 정리.</p>
 </section>
 
 <!-- ═════════ 02 정책 ═════════ -->
@@ -489,14 +440,13 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
   </ol>
   <h4>고치는 곳과 쓰는 곳</h4>
   <div class="twrap"><table>
-    <tr><th>고치는 곳</th><th>D-01 ⓐ</th><th>D-01 ⓑ</th></tr>
-    <tr><td>녹음 직후 입력창</td><td>인덱스 <code>displayTitle</code></td><td>인덱스, 이어서 연결 스크립트 파일 전부</td></tr>
-    <tr><td>Speech 상세 제목칸</td><td>인덱스</td><td>인덱스, 이어서 연결 스크립트 파일 전부</td></tr>
-    <tr><td>스크립트 제목칸 (연결 있음)</td><td>인덱스</td><td>인덱스, 이어서 연결 스크립트 파일 전부</td></tr>
-    <tr><td>스크립트 제목칸 (연결 없음)</td><td>스크립트 파일 <code>title</code> (현행 <code>saveTitle</code>)</td><td>같음</td></tr>
-    <tr><td>AI 버전 보기</td><td>편집 불가 (현행)</td><td>같음</td></tr>
+    <tr><th>고치는 곳</th><th>쓰는 곳</th></tr>
+    <tr><td>녹음 직후 입력창</td><td>인덱스 <code>displayTitle</code></td></tr>
+    <tr><td>Speech 상세 제목칸</td><td>인덱스 <code>displayTitle</code></td></tr>
+    <tr><td>스크립트 제목칸 (연결 있음)</td><td>인덱스 <code>displayTitle</code>. 스크립트 파일은 쓰지 않는다</td></tr>
+    <tr><td>스크립트 제목칸 (연결 없음)</td><td>스크립트 파일 <code>title</code> (현행 <code>saveTitle</code>)</td></tr>
+    <tr><td>AI 버전 보기</td><td>편집 불가 (현행)</td></tr>
   </table></div>
-  <p class="note">ⓑ의 파일 쓰기는 현행 <code>saveTitle</code>(외부 변경 충돌 방어 포함)을 스크립트마다 하나씩 부른다. 실패한 파일이 있으면 «제목은 저장했지만 스크립트 N개에 반영하지 못했습니다. 새로고침 후 다시 시도해 주세요.»를 보이고, 표시는 인덱스 값을 따른다.<span class="fn"><code>FolderLibraryStore.swift:397</code> <code>saveTitle</code> · <code>latestForMerge</code>의 외부 바이트 변경 거부 (<code>:378</code>).</span></p>
   <h4>같은 제목을 쓰는 자리</h4>
   <ul>
     <li>Speech 목록·상세 머리.<span class="fn"><code>UI/LibraryShell.swift:139</code> · <code>UI/SpeechDetailView.swift:21</code>.</span></li>
@@ -508,7 +458,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
   </ul>
   <span class="then">평가 JSON의 <code>script.title</code>은 파일 기록 그대로 둔다(원 기록 계약).</span>
 
-  <h4>저장 시점 (D-02 ⓐ 기준)</h4>
+  <h4>저장 시점 (T2a-5)</h4>
   <ol>
     <li>저장 계기는 Enter, 입력칸 이탈(포커스 이동), 입력창의 «저장» 셋이다. 0.5초 자동 저장은 없다.</li>
     <li>한글 조합 중에는 저장하지 않는다(현행 조합 검사).</li>
@@ -516,7 +466,6 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     <li>빈값·공백뿐이면 저장하지 않고 «제목을 입력해 주세요.»를 보이며 입력을 유지한다. 저장 값은 입력 그대로다(앞뒤 공백도 현행처럼 다듬지 않는다).</li>
     <li>입력이 저장값과 다르거나 저장 중이면 다른 Speech·Script로 옮기지 않는다(현행 <code>titlePending</code>·<code>canLeave</code>).<span class="fn"><code>App/LibraryWorkspace.swift:43</code> <code>canLeave</code> · <code>App/ScriptEditingSession.swift:30</code>.</span></li>
   </ol>
-  <span class="then">D-02 ⓑ이면 1항만 «마지막 입력 후 0.5초, 또는 Enter·이탈»로 바뀌고 나머지는 같다.</span>
 
   <h4>녹음 직후 입력창</h4>
   <div class="twrap"><table>
@@ -654,7 +603,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     <li>예시 금액은 계산 검산용 가정값이며 실제 요금이 아니다.</li>
   </ul>
   <h4>교정 설정</h4>
-  <p>D-03 ⓐ이면 현행 그대로다(모델 표시, 실행 파일 경로, «Codex 실행 파일 선택…», 안내 문장). ⓑ이면 T4-5의 스펙을 이 문서 r2로 더한다.</p>
+  <p>현행 그대로다(모델 표시, 실행 파일 경로, «Codex 실행 파일 선택…», 안내 문장). 공급자 선택(T5-3)은 T4-5와 함께 묶음 3에서 한다.</p>
 </section>
 
 <!-- ═════════ 03 화면 ═════════ -->
@@ -904,17 +853,16 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     <tr><td class="num">10</td><td>녹음 직후 입력창</td><td><ul><li>제목: 녹음 제목</li><li>부제: {녹음 날짜·시각} · {길이}</li><li>입력 안내 글자: {자동 제목}</li><li>안내: 녹음은 이미 저장했습니다. 제목은 나중에 Speeches에서도 바꿀 수 있습니다.</li><li>버튼: 나중에 / 저장</li></ul></td><td>신규</td></tr>
     <tr><td class="num">11</td><td>제목 저장 상태 (녹음·스크립트 공통)</td><td><ul><li>입력 중: Enter를 누르면 저장합니다.</li><li>저장 중: 제목 저장 중…</li><li>성공: 제목 저장됨</li><li>빈값: 제목을 입력해 주세요.</li><li>실패: 제목을 저장하지 못했습니다. 입력한 내용은 유지됩니다.</li></ul></td><td><ul><li>신규 (입력 중)</li><li>변경 «자동 저장됨» → «제목 저장됨»</li><li>나머지 유지</li></ul></td></tr>
     <tr><td class="num">12</td><td>제목칸 접근성·캡션</td><td><ul><li>Speech: 녹음 제목</li><li>스크립트: 스크립트 제목 (유지)</li><li>스크립트 캡션: 녹음 제목과 같이 바뀝니다.</li></ul></td><td>신규 · 유지</td></tr>
-    <tr><td class="num">13</td><td>D-01 ⓑ 일부 실패</td><td>제목은 저장했지만 스크립트 {N}개에 반영하지 못했습니다. 새로고침 후 다시 시도해 주세요.</td><td>신규 (ⓑ일 때만)</td></tr>
-    <tr><td class="num">14</td><td>교정 하단 미완료 줄</td><td>AI 보정 미완료 · {k}/{n} 구간 완료 · {짧은 원인}</td><td>신규</td></tr>
-    <tr><td class="num">15</td><td>짧은 원인</td><td><ul><li>취소함</li><li>실행 불가</li><li>시간 초과</li><li>로그인 필요로 보임</li><li>연결 문제로 보임</li><li>설정 거부</li><li>응답 형식 불일치</li><li>원인 미분류 (종료 코드 {N})</li></ul></td><td>신규</td></tr>
-    <tr><td class="num">16</td><td>교정 버튼</td><td><ul><li>이어서 교정 ({k}/{n})</li><li>같은 입력으로 다시 시도</li></ul></td><td>신규</td></tr>
-    <tr><td class="num">17</td><td>이어하기 불가</td><td>스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.</td><td>신규</td></tr>
-    <tr><td class="num">18</td><td>이어하기 확인창</td><td><ul><li>제목: 이어서 교정할까요? (0개 완료: 같은 입력으로 다시 시도할까요?)</li><li>본문: 완료한 {k}개 구간은 다시 보내지 않습니다. 남은 {m}개 구간의 전사와 처음 확인한 참석자·맥락·참고 내용을 OpenAI로 전송합니다. 계정 사용량이 소모될 수 있습니다. 원음은 보내지 않습니다.</li><li>0개 완료 본문 첫 문장: 처음 확인한 입력으로 {n}개 구간 전부를 다시 보냅니다.</li><li>버튼: 취소 / 이어서 교정 (0개 완료: 다시 시도)</li></ul></td><td>신규 (전송 고지 문장은 유지)</td></tr>
-    <tr><td class="num">19</td><td>실패 안내 띠 (분류별)</td><td><ul><li>실행 불가: Codex를 실행하지 못했습니다. 설정에서 Codex 실행 파일을 확인해 주세요. 기존 결과는 유지됩니다.</li><li>인증: Codex 로그인이 필요해 보입니다. 터미널에서 Codex에 로그인한 뒤 이어서 교정해 주세요. 기존 결과는 유지됩니다.</li><li>네트워크: 연결 문제로 보입니다. 네트워크를 확인한 뒤 이어서 교정해 주세요. 기존 결과는 유지됩니다.</li><li>설정: Codex가 실행 설정을 받아들이지 않았습니다. Codex 버전이 바뀌었을 수 있습니다. 기존 결과는 유지됩니다.</li><li>시간 초과: 한 구간이 300초 안에 끝나지 않았습니다. 이어서 교정으로 그 구간부터 다시 보낼 수 있습니다. 기존 결과는 유지됩니다.</li><li>형식: AI 응답이 요구한 형식과 맞지 않아 쓰지 않았습니다. 이어서 교정으로 그 구간부터 다시 보낼 수 있습니다. 기존 결과는 유지됩니다.</li><li>미분류: AI 보정을 완료하지 못했습니다. 종료 코드 {N}. 기존 결과는 유지됩니다.</li><li>취소: AI 보정을 취소했습니다. 기존 결과는 유지됩니다. (완료 구간이 있으면 뒤에 «완료한 구간은 이어서 교정에 남아 있습니다.»)</li></ul></td><td><ul><li>신규 6</li><li>변경: 기존 «AI 보정을 완료하지 못했습니다. … Codex 설치·로그인·앱 접근 권한 또는 연결을 확인해 주세요.»를 대체</li><li>취소 유지 + 덧붙임</li></ul></td></tr>
-    <tr><td class="num">20</td><td>AI 검수/보정 창 (시도 기록 있음)</td><td>미완료 교정({k}/{n})은 버리고 처음부터 다시 보정합니다.</td><td>신규</td></tr>
-    <tr><td class="num">21</td><td>의미 보호 보류 근거</td><td>{분류} 표현이 바뀌는 수정이라 자동 반영하지 않았습니다. 원음으로 확인해 주세요. (분류 = 숫자·단위·부정·조건 중 바뀐 것을 «·»로 이음)</td><td>신규</td></tr>
-    <tr><td class="num">22</td><td>API 키</td><td><ul><li>Soniox API 키 (유지 형식)</li><li>저장된 pyannote API 키가 있습니다. pyannote는 더 이상 사용하지 않습니다.</li><li>pyannote 키 삭제</li><li>확인창 본문: pyannote는 더 이상 사용하지 않습니다. 녹음 원본·스크립트·이미 만든 pyannote 결과는 유지됩니다.</li></ul></td><td><ul><li>유지</li><li>신규</li><li>신규</li><li>변경 (현행 «녹음 원본과 스크립트는 유지됩니다.»)</li></ul></td></tr>
-    <tr><td class="num">23</td><td>월 비용</td><td><ul><li>AI CLI 구독료</li><li>Nemotron 3 화자 분리 · 로컬 실행</li><li>퇴역 서비스 (기록용) · pyannote</li><li>정상 월 비용 = Soniox 사용액 + AI CLI 구독료 + 기타 비용 (퇴역 항목 입력 시 + pyannote 구독료 + max(0, pyannote 사용액 − 포함 크레딧))</li><li>pyannote 항목은 세 칸을 모두 입력해야 합계에 넣습니다.</li></ul></td><td><ul><li>신규</li><li>신규</li><li>신규</li><li>변경</li><li>신규</li></ul></td></tr>
+    <tr><td class="num">13</td><td>교정 하단 미완료 줄</td><td>AI 보정 미완료 · {k}/{n} 구간 완료 · {짧은 원인}</td><td>신규</td></tr>
+    <tr><td class="num">14</td><td>짧은 원인</td><td><ul><li>취소함</li><li>실행 불가</li><li>시간 초과</li><li>로그인 필요로 보임</li><li>연결 문제로 보임</li><li>설정 거부</li><li>응답 형식 불일치</li><li>원인 미분류 (종료 코드 {N})</li></ul></td><td>신규</td></tr>
+    <tr><td class="num">15</td><td>교정 버튼</td><td><ul><li>이어서 교정 ({k}/{n})</li><li>같은 입력으로 다시 시도</li></ul></td><td>신규</td></tr>
+    <tr><td class="num">16</td><td>이어하기 불가</td><td>스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.</td><td>신규</td></tr>
+    <tr><td class="num">17</td><td>이어하기 확인창</td><td><ul><li>제목: 이어서 교정할까요? (0개 완료: 같은 입력으로 다시 시도할까요?)</li><li>본문: 완료한 {k}개 구간은 다시 보내지 않습니다. 남은 {m}개 구간의 전사와 처음 확인한 참석자·맥락·참고 내용을 OpenAI로 전송합니다. 계정 사용량이 소모될 수 있습니다. 원음은 보내지 않습니다.</li><li>0개 완료 본문 첫 문장: 처음 확인한 입력으로 {n}개 구간 전부를 다시 보냅니다.</li><li>버튼: 취소 / 이어서 교정 (0개 완료: 다시 시도)</li></ul></td><td>신규 (전송 고지 문장은 유지)</td></tr>
+    <tr><td class="num">18</td><td>실패 안내 띠 (분류별)</td><td><ul><li>실행 불가: Codex를 실행하지 못했습니다. 설정에서 Codex 실행 파일을 확인해 주세요. 기존 결과는 유지됩니다.</li><li>인증: Codex 로그인이 필요해 보입니다. 터미널에서 Codex에 로그인한 뒤 이어서 교정해 주세요. 기존 결과는 유지됩니다.</li><li>네트워크: 연결 문제로 보입니다. 네트워크를 확인한 뒤 이어서 교정해 주세요. 기존 결과는 유지됩니다.</li><li>설정: Codex가 실행 설정을 받아들이지 않았습니다. Codex 버전이 바뀌었을 수 있습니다. 기존 결과는 유지됩니다.</li><li>시간 초과: 한 구간이 300초 안에 끝나지 않았습니다. 이어서 교정으로 그 구간부터 다시 보낼 수 있습니다. 기존 결과는 유지됩니다.</li><li>형식: AI 응답이 요구한 형식과 맞지 않아 쓰지 않았습니다. 이어서 교정으로 그 구간부터 다시 보낼 수 있습니다. 기존 결과는 유지됩니다.</li><li>미분류: AI 보정을 완료하지 못했습니다. 종료 코드 {N}. 기존 결과는 유지됩니다.</li><li>취소: AI 보정을 취소했습니다. 기존 결과는 유지됩니다. (완료 구간이 있으면 뒤에 «완료한 구간은 이어서 교정에 남아 있습니다.»)</li></ul></td><td><ul><li>신규 6</li><li>변경: 기존 «AI 보정을 완료하지 못했습니다. … Codex 설치·로그인·앱 접근 권한 또는 연결을 확인해 주세요.»를 대체</li><li>취소 유지 + 덧붙임</li></ul></td></tr>
+    <tr><td class="num">19</td><td>AI 검수/보정 창 (시도 기록 있음)</td><td>미완료 교정({k}/{n})은 버리고 처음부터 다시 보정합니다.</td><td>신규</td></tr>
+    <tr><td class="num">20</td><td>의미 보호 보류 근거</td><td>{분류} 표현이 바뀌는 수정이라 자동 반영하지 않았습니다. 원음으로 확인해 주세요. (분류 = 숫자·단위·부정·조건 중 바뀐 것을 «·»로 이음)</td><td>신규</td></tr>
+    <tr><td class="num">21</td><td>API 키</td><td><ul><li>Soniox API 키 (유지 형식)</li><li>저장된 pyannote API 키가 있습니다. pyannote는 더 이상 사용하지 않습니다.</li><li>pyannote 키 삭제</li><li>확인창 본문: pyannote는 더 이상 사용하지 않습니다. 녹음 원본·스크립트·이미 만든 pyannote 결과는 유지됩니다.</li></ul></td><td><ul><li>유지</li><li>신규</li><li>신규</li><li>변경 (현행 «녹음 원본과 스크립트는 유지됩니다.»)</li></ul></td></tr>
+    <tr><td class="num">22</td><td>월 비용</td><td><ul><li>AI CLI 구독료</li><li>Nemotron 3 화자 분리 · 로컬 실행</li><li>퇴역 서비스 (기록용) · pyannote</li><li>정상 월 비용 = Soniox 사용액 + AI CLI 구독료 + 기타 비용 (퇴역 항목 입력 시 + pyannote 구독료 + max(0, pyannote 사용액 − 포함 크레딧))</li><li>pyannote 항목은 세 칸을 모두 입력해야 합계에 넣습니다.</li></ul></td><td><ul><li>신규</li><li>신규</li><li>신규</li><li>변경</li><li>신규</li></ul></td></tr>
   </table></div>
 
   <h3>값</h3>
@@ -941,7 +889,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     <tr><td class="num">6</td><td>Markdown 중단 줄</td><td>머리말·문단 중단 줄 수</td><td>같음</td><td>중단 Script 3개에 각각 머리말 1·문단 1, 나머지 0</td><td>2026-11-05 집계</td></tr>
     <tr><td class="num">7</td><td>사용자 파일 불변</td><td>Scripts 38개 SHA256 전후 차이</td><td>4–6의 모의 전후</td><td>0</td><td>해당 없음 (새 동작)</td></tr>
     <tr><td class="num">8</td><td>제목 해석</td><td>사례별 해석 제목</td><td>합성 인덱스: 연결·미연결·<code>displayTitle</code> 없음·Speech 휴지통·AI 버전 보기</td><td>§02-2 해석 규칙과 일치</td><td>해당 없음 (새 동작)</td></tr>
-    <tr><td class="num">9</td><td>제목 쓰기 범위</td><td>녹음 제목 저장 1회 전후 내부 저장소·Scripts 파일 목록과 해시</td><td>합성 저장소 단위 + 설치 앱 여정 1회</td><td>ⓐ: <code>library-index.json</code>만 바뀜 · ⓑ: 인덱스 + 연결 스크립트 수만큼 파일·사본</td><td>현행 스크립트 제목 1회 = 스크립트 파일 1 + 사본 1</td></tr>
+    <tr><td class="num">9</td><td>제목 쓰기 범위</td><td>녹음 제목 저장 1회 전후 내부 저장소·Scripts 파일 목록과 해시</td><td>합성 저장소 단위 + 설치 앱 여정 1회</td><td><code>library-index.json</code>만 바뀜. Scripts·<code>LibraryRevisions</code> 변화 0</td><td>현행 스크립트 제목 1회 = 스크립트 파일 1 + 사본 1</td></tr>
     <tr><td class="num">10</td><td>녹음 직후 입력창</td><td>10초 녹음 → 입력창 → 저장 → Speech·Script 목록과 Markdown 제목</td><td>설치 앱 1회 (마이크, 메인)</td><td>세 곳 일치, 녹음 저장이 입력창보다 먼저</td><td>해당 없음 (새 동작)</td></tr>
     <tr><td class="num">11</td><td>실패 분류</td><td>가짜 CLI로 8분류를 하나씩 일으켜 기록된 분류</td><td>합성 (현행 <code>CodexCorrectionTests</code> 방식)</td><td>8/8</td><td>현행 = 분류 없음</td></tr>
     <tr><td class="num">12</td><td>원문 미기록</td><td>가짜 CLI가 stderr에 쓴 고유 표식 문자열의 출현 수</td><td>내부 저장소·Scripts·앱 로그 전수 검색</td><td>0 (양성 대조: 기록된 stderr 바이트 수 &gt; 0)</td><td>해당 없음 (새 동작)</td></tr>
@@ -958,7 +906,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     <li>의미 보호가 교정 정확도에 주는 효과. T4-7(묶음 3) 평가 대상이다.</li>
     <li>실제 Codex 실패 3회의 원인. 실제 호출은 건별 승인 사항이고, 이 유닛은 기록 장치만 만든다.</li>
     <li>녹음 직후 입력창의 실제 입력률.</li>
-    <li>Claude CLI (D-03 ⓐ일 때).</li>
+    <li>Claude CLI (묶음 3).</li>
   </ul>
 </section>
 
@@ -983,7 +931,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     <li><code>UI/ScriptReadingView.swift</code>: 250행 «주의» 제거, 문단 아래 경고 줄, 196행 이슈 목록을 종류별 접힘으로, 33행 제목칸의 값·저장 대상·캡션, 하단 도구막대의 미완료 줄·이어하기 버튼</li>
     <li><code>UI/ReviewShell.swift</code> <code>issueLabel</code>: 4종 문구를 확정본으로</li>
     <li><code>Packages/DamaCore/Sources/DamaCore/LibraryScript.swift</code> <code>markdown()</code>: 226행 검수 줄, 중단·일부 결과 머리말, 253–255행 문단 줄 제거와 중단·일부 결과 줄</li>
-    <li><code>App/ScriptEditingSession.swift</code>: 0.5초 대기 저장 제거(D-02 ⓐ), 저장 대상 분기(D-01)</li>
+    <li><code>App/ScriptEditingSession.swift</code>: 0.5초 대기 저장 제거, 저장 대상 분기(연결 있음 = 인덱스, 없음 = 파일)</li>
     <li><code>App/LibraryWorkspace.swift</code>: 해석 제목 공급, 제목 저장 경로, <code>recordingSaved</code> 뒤 입력창 계기, 내보내기 파일 이름</li>
     <li><code>Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift</code>: <code>LibrarySpeech.displayTitle</code>, 표시 제목 저장 API, 인덱스 전체(찾지 못한 파일 포함) 제목 조회, <code>createScript</code>의 제목</li>
     <li><code>UI/SpeechDetailView.swift</code> 21행: 제목 입력칸</li>
@@ -1018,10 +966,10 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
   <h3>계약·문구 개정 문안</h3>
   <ol>
     <li><code>ssot/contracts/library-script.md</code> 새 절 «검수 이슈 표시 (2026-11-05 사용자 확정 · usage-bundle1)»: 읽기 화면 문단에 자동 경고 8종을 표시하지 않고 구간 정보의 «자동 경고 N건»에서 종류별 건수로 연다. 녹음 중단·일부 결과·화자 미배정은 계속 표시한다. Markdown은 문단별 이슈 줄을 쓰지 않고 머리말 한 줄에 총수와 종류별 건수를 적으며, 녹음 중단·일부 결과는 머리말과 그 문단에 남긴다. <code>reviewIssues</code> 생성·보존·평가 JSON은 바뀌지 않는다. 두 번째 읽기 레이어 예외이고(선례 2026-09-13 missingSpeech), 경고를 숨긴 것은 그 구간이 맞다고 확정한 것이 아니다. 이 절은 «연속 발화 표시»의 «open 이슈만 노란 이벤트 아이콘으로 노출» 항과 «Markdown 내보내기» 4항의 «검수 이슈» 부분보다 우선한다.</li>
-    <li>같은 파일 새 절 «녹음 표시 제목 (2026-11-05 · usage-bundle1)»: §02-2의 데이터·해석·쓰는 곳(D-01 결과)·기존 데이터 무이관.</li>
+    <li>같은 파일 새 절 «녹음 표시 제목 (2026-11-05 · usage-bundle1)»: §02-2의 데이터·해석·쓰는 곳(인덱스에만 씀, 스크립트 파일 <code>title</code> 불변)·기존 데이터 무이관.</li>
     <li>같은 파일 AI 교정 절: 현행 기본 반영 정책을 <code>context-correction-6</code>(§02-4)으로 바꾸고, «진단 stdout/stderr는 … 버린다»를 «stdout은 버리고 stderr는 메모리에서 분류 표식만 대조한 뒤 버린다. 바이트 수만 기록한다»로 바꾼다. «최초 시작 상태를 먼저 저장하며 모든 청크 성공 후 …» 항에 시도 기록·이어서 교정(§02-3)을 더한다.</li>
     <li><code>ssot/contracts/operating-baseline.md:97</code> 월 비용 공식과 예를 §02-5로 바꾼다.</li>
-    <li><code>ssot/tone/uiux-reading.md</code>: «원문 해석에 필요한 경고» 첫 문장을 «자동 경고는 구간 정보의 ‘자동 경고 N건’에만 보존한다. 녹음 중단·일부 결과는 본문 아래와 정보 영역에 보존한다.»로, 제목 저장 3줄을 §04 문구 11로(D-02 ⓐ일 때), «AI 실패» 줄을 §04 문구 19로 바꾼다. 새 문구는 <code>ssot/tone/usage-bundle1.md</code>에 편입한다.</li>
+    <li><code>ssot/tone/uiux-reading.md</code>: «원문 해석에 필요한 경고» 첫 문장을 «자동 경고는 구간 정보의 ‘자동 경고 N건’에만 보존한다. 녹음 중단·일부 결과는 본문 아래와 정보 영역에 보존한다.»로, 제목 저장 3줄을 §04 문구 11로, «AI 실패» 줄을 §04 문구 18로 바꾼다. 새 문구는 <code>ssot/tone/usage-bundle1.md</code>에 편입한다.</li>
   </ol>
   <p class="note">CLAUDE.md 최상위 경계는 이 유닛에서 바꾸지 않는다. 경계 4 개정(AI 화자 의심 표시)은 T4-6, 묶음 3이다.</p>
 </section>
@@ -1052,6 +1000,7 @@ pre.mdx b{color:var(--ink);background:var(--lemon-soft)}
     </div>
   </details>
   <p class="note">r1 (11.05) 초판. 커맨드 인자 «묶음 1»을 유닛 슬러그 <code>usage-bundle1</code>로 정했다.</p>
+  <p class="note">r1 게이트 ① (11.05) D-01–D-04 권고안 확정, 판정 축 ①–⑥ 확정. 기각안 서술(D-01 ⓑ 쓰기 경로·문구, D-02 ⓑ, D-03 ⓑ)을 본문에서 지움.</p>
 </section>
 
 <div style="height:140px"></div>
