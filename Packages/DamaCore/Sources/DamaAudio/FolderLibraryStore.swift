@@ -11,6 +11,8 @@ public struct LibrarySpeech: Codable, Sendable, Identifiable {
     public let dateSource: String
     public let durationUs: Int64
     public var notes: ConversionNotes
+    /// usage-bundle1 녹음 표시 제목. 구 인덱스(키 8)는 nil로 읽고, nil이면 인코드 시 키를 쓰지 않는다.
+    public var displayTitle: String? = nil
 }
 public struct LibraryScriptFile: Sendable, Identifiable {
     public var id: String { script.id }
@@ -197,6 +199,21 @@ public actor FolderLibraryStore {
         index[i].notes = notes; try writeIndex(index)
     }
     public func storedSpeech(_ id: String) throws -> LibrarySpeech? { try readIndex().first { $0.id == id } }
+    /// usage-bundle1: 녹음 표시 제목을 인덱스에만 쓴다(같은 id 항목 전부, 원자 쓰기). 스크립트 파일·사본은 쓰지 않는다.
+    /// 입력은 다듬지 않는다. 빈값·공백뿐이면 invalidInput, 없는 id면 missingFile.
+    public func saveDisplayTitle(_ title: String, speechID: String) throws -> LibrarySpeech {
+        guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw LibraryFailure.invalidInput }
+        var index = try readIndex()
+        let positions = index.indices.filter { index[$0].id == speechID }
+        guard let first = positions.first else { throw LibraryFailure.missingFile }
+        for i in positions { index[i].displayTitle = title }
+        try writeIndex(index)
+        return index[first]
+    }
+    /// 인덱스 전체(찾지 못한 파일·휴지통 항목 포함)의 표시 제목. id → displayTitle.
+    public func displayTitles() throws -> [String: String] {
+        Dictionary(try readIndex().compactMap { entry in entry.displayTitle.map { (entry.id, $0) } }, uniquingKeysWith: { first, _ in first })
+    }
     public func publishRecording(_ record: AudioManifest, to folder: URL) throws {
         guard ["saved", "interrupted"].contains(record.state), !record.sources.isEmpty else { return }
         let destination = folder.appendingPathComponent(record.id + ".dama-audio")
@@ -334,7 +351,7 @@ public actor FolderLibraryStore {
         guard !scan.issues.contains(where: { $0.itemID == document.runId }) else { throw LibraryFailure.invalidScript }
         // A Script's id is its transcript runId (LibraryScript.validate).
         if let existing = scan.items.first(where: { $0.id == document.runId }) { return try loadScript(existing) }
-        let script = try LibraryScript(transcript: document, title: speech.title, recordedAt: speech.recordedAt,
+        let script = try LibraryScript(transcript: document, title: LibraryTitles.speech(speech), recordedAt: speech.recordedAt,
             dateSource: speech.dateSource, input: input)
         let url = folder.appendingPathComponent(UUID().uuidString + ".dama.json")
         return try saveScript(script, to: url, expectedHash: nil)
