@@ -216,7 +216,7 @@ final class ContextCorrectionTests: XCTestCase {
         let md = String(decoding: try loaded.markdown(), as: UTF8.self)
         XCTAssertFalse(md.contains("> AI 교정: 공백"))
         XCTAssertTrue(md.contains("원음 확인"))
-        XCTAssertTrue(md.contains("invalid\\_timestamp"))
+        XCTAssertTrue(md.contains("시간 불명 1")) // usage-bundle1 가드 이동: 이전 invalid\\_timestamp 문단 줄 → 머리말 건수
         script.showsOriginal = true
         XCTAssertEqual(script.blocks()[0].text, "확인    불확실")
         XCTAssertEqual(script.originalText(for: first), "  확인  ")

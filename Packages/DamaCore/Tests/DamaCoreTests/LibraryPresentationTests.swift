@@ -78,7 +78,9 @@ final class LibraryPresentationTests: XCTestCase {
                        try JSONSerialization.jsonObject(with: baseline) as? NSDictionary)
         let md = String(decoding: try loaded.markdown(), as: UTF8.self)
         XCTAssertTrue(md.contains("첫 겹말 수정 계속"))
-        XCTAssertTrue(md.contains("overlapping\\_speech"))
+        // usage-bundle1: 문단 «> 검수:» 줄 대신 머리말 종류별 건수 (가드 이동, 이전 overlapping\\_speech 문단 줄).
+        XCTAssertTrue(md.contains("겹침 4"))
+        XCTAssertFalse(md.contains("> 검수:"))
         // B ending inside A's word is not a new intervening turn. Keep its warning.
         var ended = model
         ended.diarization[1].endUs = 600_000
@@ -315,7 +317,8 @@ final class LibraryPresentationTests: XCTestCase {
         model.reviewIssues[0].status = .acknowledged
         script = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
         XCTAssertTrue(script.blocks().flatMap(\.openIssues).isEmpty)
-        XCTAssertTrue(String(decoding: try script.markdown(), as: UTF8.self).contains("capture\\_interrupted"))
+        // usage-bundle1: 녹음 중단은 상태와 무관하게 문단 아래에 남는다 (가드 이동, 이전 capture\\_interrupted 문단 줄).
+        XCTAssertTrue(String(decoding: try script.markdown(), as: UTF8.self).contains("> 녹음 중단:"))
         model.reviewIssues[0].status = .open
         model.reviewIssues[0].startUs = model.durationUs; model.reviewIssues[0].endUs = model.durationUs
         script = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())

@@ -205,13 +205,14 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
         let ms = us / 1_000
         return String(format: "%02lld:%02lld:%02lld.%03lld", ms / 3_600_000, (ms / 60_000) % 60, (ms / 1_000) % 60, ms % 1_000)
     }
-    public func markdown() throws -> Data {
+    /// `title` = 해석한 표시 제목(연결 녹음의 displayTitle). nil이면 파일 제목 (usage-bundle1).
+    public func markdown(title: String? = nil) throws -> Data {
         try validate()
         let date = DateFormatter()
         date.locale = Locale(identifier: "en_US_POSIX")
         date.timeZone = TimeZone(identifier: timeZoneID) ?? TimeZone(secondsFromGMT: 0)
         date.dateFormat = "yyyy-MM-dd HH:mm:ss XXX"
-        var lines = ["# \(Self.escape(title))", "", "## 녹음 정보", "",
+        var lines = ["# \(Self.escape(title ?? self.title))", "", "## 녹음 정보", "",
                      "- 결과: \(Self.escape(snapshotTitle ?? "현재 결과")) · revision \(revisionID)",
                      "- 녹음 날짜·시간: \(recordedAt.map { date.string(from: $0) } ?? "미확인")",
                      "- 시간대: \(Self.escape(timeZoneID))", "- 날짜 근거: \(Self.escape(dateSource))",
@@ -223,7 +224,7 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
                      "- 화자 분리 원본 Run: \(input.precisionSourceRunID ?? input.qwenDiarizationRunID ?? "없음")",
                      "- Soniox 원본 Run: \(input.sonioxSourceRunID ?? "없음")",
                      "- 결합/정규화: \(transcript.provenance.algorithmVersion)",
-                     "- 검수: \(reviewSummary)",
+                     "- 검수: \(markdownReviewLine)"] + markdownPersistentHeaderLines + [
                      "- 화자 수: \(speakerCountSummary)",
                      "- 화자 수 적용: \(speakerCountApplication)",
                      "- 문단 표시: \(ScriptReadingPolicy.algorithmVersion)",
@@ -250,8 +251,10 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
             lines += ["### [\(Self.timestamp(block.startUs)) – \(Self.timestamp(block.endUs))] \(Self.escape(block.name))", "",
                       Self.escape(block.text), ""]
             if block.edited { lines += ["*사용자 수정 발화 · 시간은 원 모델 구간이며 재정렬하지 않았습니다.*", ""] }
+            // 자동 경고는 문단에 쓰지 않는다. 녹음 중단·일부 결과만 상태와 무관하게 남긴다 (usage-bundle1).
             for issue in block.issues {
-                lines += ["> 검수: \(Self.escape(issue.kind.rawValue))", ""]
+                guard let label = issue.kind.persistentWarningLabel, let text = issue.kind.persistentWarningText else { continue }
+                lines += ["> \(label): \(text)", ""]
             }
             for edit in correction?.visibleEdits.filter({ block.turnIDs.contains($0.turnID) }) ?? [] {
                 let label = edit.appliedText == nil ? (edit.applied ? "교정" : "미적용 · 확인 필요") : edit.decisionLabel
