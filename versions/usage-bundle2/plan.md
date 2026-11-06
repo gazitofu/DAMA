@@ -3,7 +3,7 @@ unit: usage-bundle2
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "게이트 ② 상신 (HEAD d3e1336 + 이 기록 커밋). 회신 대기: F-04/F-05 문언 정정, 막힘 1 설치 · 2 실데이터 정리 · 4 실화면, F-01 check.sh."
+resume: "막힘 2 대기: 사용자가 설치 앱 설정 «저장 공간 정리…» 실행. 전 매니페스트 scratchpad real-before.json (23:50, 구 배치 574 · 10,002,006,178 B · Sessions 2,918 · Scripts 38). 예상 확인창 = 지울 62 · 243.1 MB, 압축 512 · 9.76 GB (모의 23:52)."
 spec: notes/usage-bundle2/usage-bundle2.src.html
 ---
 ## 근거
@@ -116,7 +116,7 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 
 ### 전달
 
-- [ ] AC-12 버전·설치: `MARKETING_VERSION` 0.5.19 · `CURRENT_PROJECT_VERSION` 37 (Debug/Release). check.sh 4단계 PASS. 설치 앱 교체(막힘 1) 뒤 실행 중 Bundle 값 0.5.19 (37).
+- [x] AC-12 버전·설치: `MARKETING_VERSION` 0.5.19 · `CURRENT_PROJECT_VERSION` 37 (Debug/Release). check.sh 4단계 PASS. 설치 앱 교체(막힘 1) 뒤 실행 중 Bundle 값 0.5.19 (37).
 - [ ] AC-13 실데이터 1회 정리 (막힘 2, 사용자 실행):
   - 실행 전: 메인이 AC-11 확인 단계 재측정 → 확인창 수·크기와 대조, 다르면 중단·보고. 전 매니페스트 = `LibraryRevisions` 574 파일 SHA256 · `Sessions/` SHA256 · Scripts 38 SHA256.
   - 실행 후: 구 배치 0 · 이전된 파일 수 = 확인창 압축 수(기준 512) · 각 파일 풀어서 SHA256 = 전 매니페스트 해당 파일 · 고아(기준 62) 부재 · `Sessions/`·Scripts SHA256 차이 0 · `storage-cleanup-log.jsonl` 줄 수 = 처리 수 · 크기 줄 «{전} → {후}» = 디스크 실측 · AI 버전 7개 `readVersion` 성공(AC-11 방식 읽기 전용 모의, root = 실제 내부 저장소, `scripts(in:)`로 열기, 전후 매니페스트 차이 0).
@@ -137,8 +137,8 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 | 06 | 통과 (A3) | |
 | 07 · 08 · 11 | 통과 (B · B2) | 실제 재전사 확인창·자동 정리 실행은 안 잼(스펙) |
 | 09 | 통과 (B3, 합성·코드) | D-2 fixture를 AC 문언대로 고침(`d3e1336`), F-06 철회. 최종 check.sh는 커밋 직전 작업 트리(= `d3e1336`, 커밋 뒤 `git status` clean)에서 돌림 |
-| 10 | 부분 (B2: 코드 충족) | **실화면 미검증**: 합성 QA 앱 5상태 캡처는 사용자 부재 시간 합의 필요(막힘 4) |
-| 12 | 진행 | 버전 0.5.19(37) · check.sh 4단계 PASS · 빌드 산출물 Bundle 0.5.19(37). 설치(막힘 1) 미실행 |
+| 10 | 부분 (B2 코드 충족 + C 실화면 8항목 확인) | 실화면 23:35–23:55 (사용자 «지금 Mac 비워둠»): 위치·문구 8–10·확인 중·확인창 제목/줄 순서(14→16→17→18, 13 생략)·진행 «(18/132)»·완료 문구 21·재진입 문구 22 확인 (`C-evidence.md` · `ui/shots/`). 미검증 9: 꺼짐 조건별 문구 11 · 녹음 중 허용 · 문구 13·15 분기 · 기본 «취소»(판독 출력이 파일에 없음) · 진행 중 조작 차단 · 완료 조건부 문장 · 빈 이력 0 바이트 · 확인창 픽셀(runModal 중 캡처 불가) · fixture Scripts 4(문언 2) |
+| 12 | 통과 | 설치 23:4x (사용자 승인): 백업 `.build/backups/DAMA-0.5.18-36-before-usage-bundle2.app` 11파일 일치 → `/Applications/DAMA.app` 교체 11파일 SHA256 = 빌드 산출물, adhoc·linker-signed. 실행 pid의 적재 경로 `/Applications`, Bundle `com.gazitofu.Dama`, 메뉴바 툴팁 «DAMA 0.5.19 · 빌드 37». check.sh `run-20261106T144753Z-Xj8NtL` PASS |
 | 13 | 미실행 | 막힘 2 (사용자 실행) |
 
 ## 작업 분해
