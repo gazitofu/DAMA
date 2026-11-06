@@ -38,11 +38,14 @@ public struct LibraryScriptSummary: Codable, Sendable, Identifiable, Equatable {
     public let sessionId: String
     public let engine: EngineKind
     public let sourceAudioSHA256: String?
+    /// usage-bundle2 결과 보관: 사람이 고친 결과인가(`LibraryScript.hasHumanEdits`).
+    public let hasHumanEdits: Bool
 
     init(url: URL, hash: String, script: LibraryScript) {
         id = script.id; self.url = url; self.hash = hash; title = script.title; createdAt = script.createdAt
         sessionId = script.transcript.sessionId; engine = script.transcript.provenance.engine
         sourceAudioSHA256 = script.transcript.provenance.sourceAudioSHA256
+        hasHumanEdits = script.hasHumanEdits
     }
     public init(_ file: LibraryScriptFile) { self.init(url: file.url, hash: file.hash, script: file.script) }
 
@@ -65,6 +68,7 @@ extension LibraryScriptFile: ScriptListing {
 
 /// Collapses multiple processing results for one Speech into one library row.
 /// All files remain available to the reader's "다른 결과 보기" menu.
+/// usage-bundle2 대표 결과: createdAt이 가장 늦은 것, 같으면 id 사전순 앞. 엔진 등급은 보지 않는다.
 public enum ScriptResultPresentation {
     public static func primaryFiles<T: ScriptListing>(in files: [T]) -> [T] {
         Dictionary(grouping: files, by: \.sessionId).values
@@ -74,15 +78,9 @@ public enum ScriptResultPresentation {
 
     public static func primaryFile<T: ScriptListing>(in files: [T]) -> T? {
         files.max { lhs, rhs in
-            let left = priority(lhs), right = priority(rhs)
-            if left != right { return left < right }
             if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
             return lhs.id > rhs.id
         }
-    }
-
-    private static func priority<T: ScriptListing>(_ file: T) -> Int {
-        [.hybridSonioxPyannote, .hybridSonioxNemotron].contains(file.engine) ? 1 : 0
     }
 
     private static func newestFirst<T: ScriptListing>(_ lhs: T, _ rhs: T) -> Bool {
@@ -265,7 +263,7 @@ public actor FolderLibraryStore {
     }
     /// Bump when the summary fields or the meaning of `LibraryScript.validate()` change:
     /// cached entries then stop counting as validated and every file is decoded again once.
-    static let summaryVersion = 1
+    static let summaryVersion = 2
     private struct SummaryCache: Codable { var version: Int; var entries: [LibraryScriptSummary] }
     private var summaryCacheURL: URL { root.appendingPathComponent("library-script-summaries.json") }
     /// Decodes performed by summary scans and `loadScript` (test probe for cache use).
