@@ -37,6 +37,11 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published private(set) var savingRunIDs: Set<String> = []
     /// usage-bundle2 저장 공간 정리 확인·실행 중(AI 교정 시작을 막는다).
     @Published private(set) var storageCleanupActive = false
+    /// usage-bundle2 설정 «저장 공간» 상태(문구 11–23).
+    enum StorageCleanupPhase: Equatable { case idle, checking, running(done: Int, total: Int), finished(String), nothing, failed }
+    @Published fileprivate(set) var storageCleanup: StorageCleanupPhase = .idle
+    /// 설정을 열 때 잰 «내부 수정 이력 {크기}» 바이트(nil = 아직 안 잼).
+    @Published private(set) var revisionBytes: Int64?
     /// usage-bundle1 녹음 표시 제목: 인덱스 전체(휴지통 항목 포함)의 id → displayTitle, 연결 판정용 id 집합.
     @Published private(set) var displayTitles: [String: String] = [:]
     @Published private(set) var indexedSpeechIDs: Set<String> = []
@@ -361,6 +366,76 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             message = removal == .removed ? "Script를 휴지통으로 이동했습니다. 원음과 다른 스크립트는 유지됩니다."
                 : "Script를 휴지통으로 이동했습니다. 내부 수정 이력은 지우지 못했습니다. 설정의 저장 공간 정리에서 다시 지울 수 있습니다."
         }
+    }
+    /// usage-bundle2 저장 공간 정리 시작 조건: 변환·AI 교정·녹음 마무리·편집 중이 아니고 Scripts 목록을 다 읽었다. 녹음 중 자체는 막지 않는다.
+    var storageCleanupAllowed: Bool {
+        let capture = RecordingWorkspace.shared.capture
+        return canLeave && !scriptsLoading && store != nil && folders[.scripts] != nil && !storageCleanupActive
+            && !ProcessingWorkspace.shared.busy && !CorrectionWorkspace.shared.busy
+            && capture.phase != .finalizing && !capture.needsFinalization
+    }
+    func refreshRevisionBytes() {
+        guard let store else { return }
+        Task { revisionBytes = await store.revisionStorageBytes() }
+    }
+    /// 설정 «저장 공간 정리…»: 확인(쓰기 없음) → 확인창(기본 «취소») → 보관 정리 → 이력 정리. 진행 중에는 편집·저장·변환·AI 교정 시작을 막는다.
+    func cleanStorage() {
+        guard storageCleanupAllowed, let store, let folder = folders[.scripts] else { return }
+        busy = true; storageCleanupActive = true; storageCleanup = .checking; playback.stop()
+        Task {
+            let outcome = await runStorageCleanup(store: store, folder: folder)
+            storageCleanup = outcome
+            busy = false; storageCleanupActive = false
+            revisionBytes = await store.revisionStorageBytes()
+        }
+    }
+    private func runStorageCleanup(store: FolderLibraryStore, folder: URL) async -> StorageCleanupPhase {
+        let plan: RevisionCleanupPlan, removals: [LibraryScriptSummary], counts: StorageCleanupNotice.Counts
+        do {
+            // 확인 단계(쓰기 없음). Scripts 목록을 다시 읽는다.
+            let scan = try await store.scanScriptSummaries(in: folder)
+            scripts = scan.items; scanIssues[.scripts] = scan.issues
+            let issues = !scan.issues.isEmpty
+            let inputs = ProcessingWorkspace.shared.retentionInputs()
+            let plans = inputs.available && !issues
+                ? ScriptRetention.plan(scripts, links: inputs.links, skipIDs: retentionSkipIDs, skippedSessions: inputs.skippedSessions) : [:]
+            let ids = ScriptRetention.removals(plans)
+            removals = scripts.filter { ids.contains($0.id) }.sorted { $0.id < $1.id }
+            plan = try await store.planRevisionCleanup(presentScriptIDs: Set(scripts.map(\.id)), scanHasIssues: issues)
+            let scriptBytes = removals.reduce(Int64(0)) { $0 + Int64((try? $1.url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+            counts = StorageCleanupNotice.Counts(scripts: removals.count, scriptBytes: scriptBytes,
+                deletions: plan.deletions.count, deletionBytes: plan.deletionBytes, skippedOrphans: plan.skippedOrphans,
+                migrations: plan.migrations.count, migrationBytes: plan.migrationBytes, attempts: plan.attempts.count)
+        } catch { return .failed }
+        guard counts.total > 0 else { return .nothing }
+        let alert = NSAlert(); alert.alertStyle = .warning
+        alert.messageText = StorageCleanupNotice.confirmTitle
+        alert.informativeText = StorageCleanupNotice.confirmLines(counts).joined(separator: "\n\n")
+        alert.addButton(withTitle: StorageCleanupNotice.cancel); alert.addButton(withTitle: StorageCleanupNotice.confirm)
+        guard alert.runModal() == .alertSecondButtonReturn else { return .idle }
+        let before = await store.revisionStorageBytes(), total = counts.total
+        storageCleanup = .running(done: 0, total: total)
+        // 1. 보관 정리(결과 하나를 지우는 순서 그대로, 건별 기록).
+        let links = ProcessingWorkspace.shared.retentionInputs().links
+        var removed: Set<String> = [], failed = 0, done = 0
+        for summary in removals {
+            let removal = await store.removeScript(summary, in: folder, isChildResult: links[summary.id]?.parentRunID != nil, log: true,
+                                                   registerSavedSource: Self.registerSavedSource)
+            if removal == .trashFailed { failed += 1 } else { removed.insert(summary.id); scripts.removeAll { $0.id == summary.id } }
+            done += 1; storageCleanup = .running(done: done, total: total)
+        }
+        if let opened = openedScript, removed.contains(opened.id) { openedScript = nil }
+        if let selected = selectedScriptID, removed.contains(selected) { selectedScriptID = primaryScripts.first?.id }
+        // 2–4. 지울 이력 → 압축 이전 → 지울 시도 기록.
+        let offset = done
+        let result = await store.runRevisionCleanup(plan, removedScriptIDs: removed) { n in
+            Task { @MainActor in
+                let workspace = LibraryWorkspace.shared
+                if case .running = workspace.storageCleanup { workspace.storageCleanup = .running(done: offset + n, total: total) }
+            }
+        }
+        let after = await store.revisionStorageBytes()
+        return .finished(StorageCleanupNotice.finished(before: before, after: after, scripts: removed.count, failed: failed + result.failed))
     }
     /// usage-bundle2 결과 보관 정리. `sessions` = nil이면 모든 녹음. Scripts 목록을 읽는 중이거나 조회 문제가 있거나
     /// 처리 이력을 읽지 못했으면 아무것도 하지 않는다. 반환 = 옮긴 수 · 옮기지 못한 수 · 옮긴 id.
