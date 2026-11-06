@@ -101,18 +101,39 @@ final class StorageCleanupTests: XCTestCase {
         XCTAssertEqual(plan.unreadable, [])
     }
 
+    /// Scripts에 손상 파일 1개 → 확인 단계가 조회 문제를 보고 지울 이력·시도 기록을 0으로 둔다. C·D 이력 SHA256 불변.
     func testScanIssuesKeepOrphansUntouched() async throws {
         let f = try await fixture()
-        let plan = try await f.store.planRevisionCleanup(presentScriptIDs: [f.a.id, f.b.id], scanHasIssues: true)
-        XCTAssertTrue(plan.skippedOrphans)
-        XCTAssertEqual(plan.deletions, [])
-        XCTAssertEqual(plan.attempts, [])
-        XCTAssertEqual(plan.migrations.count, 7)
-        let orphansBefore = manifest(f.root).filter { $0.key.contains(f.cID) || $0.key.contains(f.dID) }
-        _ = await f.store.runRevisionCleanup(plan, removedScriptIDs: []) { _ in }
-        let orphansAfter = manifest(f.root).filter { $0.key.contains(f.cID) || $0.key.contains(f.dID) }
-        XCTAssertFalse(orphansBefore.isEmpty)
-        XCTAssertEqual(orphansBefore.count, orphansAfter.count)
+        // 조회 문제가 없을 때의 고아 파일 경로(C 구 배치 2 + D 새 배치 1 + C 시도 기록)를 먼저 잰다.
+        let unblocked = try await f.store.planStorageCleanup(scriptsFolder: f.folder).plan
+        let orphanPaths = unblocked.deletions.map(\.url.path) + [try InternalStoragePaths.correctionAttemptURL(root: f.root, scriptID: f.cID).path]
+        XCTAssertEqual(unblocked.deletions.count, 3)
+        func hashes() throws -> [String: String] {
+            Dictionary(uniqueKeysWithValues: try orphanPaths.map { ($0, sha(try Data(contentsOf: URL(fileURLWithPath: $0)))) })
+        }
+        let before = try hashes()
+        try Data("손상된 스크립트".utf8).write(to: f.folder.appendingPathComponent("broken.dama.json"))
+        let checked = try await f.store.planStorageCleanup(scriptsFolder: f.folder)
+        XCTAssertEqual(checked.scan.issues.count, 1)
+        XCTAssertTrue(checked.plan.skippedOrphans)
+        XCTAssertEqual(checked.plan.deletions, [])
+        XCTAssertEqual(checked.plan.attempts, [])
+        XCTAssertEqual(checked.plan.migrations.count, 7)
+        _ = await f.store.runRevisionCleanup(checked.plan, removedScriptIDs: []) { _ in }
+        XCTAssertEqual(try hashes(), before)
+    }
+
+    /// 확인 단계는 내부 저장소에 아무것도 쓰지 않는다(요약 캐시가 없거나 낡아도).
+    func testCheckStepWritesNothingEvenWithStaleSummaryCache() async throws {
+        let f = try await fixture()
+        let cache = f.root.appendingPathComponent("library-script-summaries.json")
+        try? FileManager.default.removeItem(at: cache)
+        let before = manifest(f.root), scriptsBefore = manifest(f.folder)
+        let checked = try await FolderLibraryStore(root: f.root).planStorageCleanup(scriptsFolder: f.folder)
+        XCTAssertEqual(checked.scan.items.count, 2)
+        XCTAssertEqual(manifest(f.root), before)
+        XCTAssertEqual(manifest(f.folder), scriptsBefore)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: cache.path))
     }
 
     func testRunMigratesDeletesLogsAndKeepsEverythingElse() async throws {

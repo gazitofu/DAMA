@@ -392,8 +392,9 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     private func runStorageCleanup(store: FolderLibraryStore, folder: URL) async -> StorageCleanupPhase {
         let plan: RevisionCleanupPlan, removals: [LibraryScriptSummary], counts: StorageCleanupNotice.Counts
         do {
-            // 확인 단계(쓰기 없음). Scripts 목록을 다시 읽는다.
-            let scan = try await store.scanScriptSummaries(in: folder)
+            // 확인 단계(쓰기 없음, 요약 캐시 포함). Scripts 목록을 다시 읽는다.
+            let checked = try await store.planStorageCleanup(scriptsFolder: folder)
+            let scan = checked.scan
             scripts = scan.items; scanIssues[.scripts] = scan.issues
             let issues = !scan.issues.isEmpty
             let inputs = ProcessingWorkspace.shared.retentionInputs()
@@ -401,7 +402,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 ? ScriptRetention.plan(scripts, links: inputs.links, skipIDs: retentionSkipIDs, skippedSessions: inputs.skippedSessions) : [:]
             let ids = ScriptRetention.removals(plans)
             removals = scripts.filter { ids.contains($0.id) }.sorted { $0.id < $1.id }
-            plan = try await store.planRevisionCleanup(presentScriptIDs: Set(scripts.map(\.id)), scanHasIssues: issues)
+            plan = checked.plan
             let scriptBytes = removals.reduce(Int64(0)) { $0 + Int64((try? $1.url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
             counts = StorageCleanupNotice.Counts(scripts: removals.count, scriptBytes: scriptBytes,
                 deletions: plan.deletions.count, deletionBytes: plan.deletionBytes, skippedOrphans: plan.skippedOrphans,
@@ -421,7 +422,9 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
         for summary in removals {
             let removal = await store.removeScript(summary, in: folder, isChildResult: links[summary.id]?.parentRunID != nil, log: true,
                                                    registerSavedSource: Self.registerSavedSource)
-            if removal == .trashFailed { failed += 1 } else { removed.insert(summary.id); scripts.removeAll { $0.id == summary.id } }
+            // 휴지통 이동은 됐지만 내부 이력·시도 기록을 못 지운 경우도 «처리하지 못한 파일»로 센다(문구 21).
+            if removal == .trashFailed || removal == .historyNotRemoved { failed += 1 }
+            if removal != .trashFailed { removed.insert(summary.id); scripts.removeAll { $0.id == summary.id } }
             done += 1; storageCleanup = .running(done: done, total: total)
         }
         if let opened = openedScript, removed.contains(opened.id) { openedScript = nil }

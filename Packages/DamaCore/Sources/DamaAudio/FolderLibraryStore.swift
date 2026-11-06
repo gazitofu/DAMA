@@ -292,7 +292,8 @@ public actor FolderLibraryStore {
 
     /// Lists Scripts without decoding files whose bytes match a summary that was validated before.
     /// Every file is still read and hashed; changed or new files are decoded and validated here.
-    public func scanScriptSummaries(in folder: URL) throws -> FileScanResult<LibraryScriptSummary> {
+    /// `writeCache` = false면 내부 요약 캐시를 쓰지 않는다(usage-bundle2 저장 공간 정리 확인 단계의 쓰기 0).
+    public func scanScriptSummaries(in folder: URL, writeCache: Bool = true) throws -> FileScanResult<LibraryScriptSummary> {
         let urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
         let cached = readSummaryCache()
         var result: [LibraryScriptSummary] = [], issues: [FileScanIssue] = []
@@ -321,7 +322,7 @@ public actor FolderLibraryStore {
         // The cache mirrors this folder's valid listing; rewrite only when it changed.
         let byPath: (LibraryScriptSummary, LibraryScriptSummary) -> Bool = { $0.url.path < $1.url.path }
         let entries = result.map { $0.at($0.url.standardizedFileURL) }.sorted(by: byPath)
-        if entries != cached.values.sorted(by: byPath) { writeSummaryCache(entries) }
+        if writeCache, entries != cached.values.sorted(by: byPath) { writeSummaryCache(entries) }
         return FileScanResult(items: result.sorted { $0.createdAt == $1.createdAt ? $0.id < $1.id : $0.createdAt > $1.createdAt },
                               issues: issues.sorted { $0.id < $1.id })
     }

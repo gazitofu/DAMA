@@ -309,14 +309,16 @@ struct StorageSettings: View {
         _ = (processing.busy, correction.busy, capture.phase, capture.needsFinalization)   // 상태 변화에 다시 그린다.
         return workspace.storageCleanupAllowed
     }
+    /// 확인·진행 중이 아니면서 버튼이 꺼져 있으면 이전 결과 대신 문구 11을 보인다.
     private var status: String? {
         switch workspace.storageCleanup {
         case .checking: return StorageCleanupNotice.checking
         case let .running(done, total): return StorageCleanupNotice.progress(done, of: total)
+        case _ where !allowed: return StorageCleanupNotice.disabled
         case let .finished(text): return text
         case .nothing: return StorageCleanupNotice.nothing
         case .failed: return StorageCleanupNotice.checkFailed
-        case .idle: return allowed ? nil : StorageCleanupNotice.disabled
+        case .idle: return nil
         }
     }
 }

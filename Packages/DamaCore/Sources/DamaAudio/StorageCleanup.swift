@@ -49,6 +49,14 @@ extension FolderLibraryStore {
         return total
     }
 
+    /// 저장 공간 정리 확인 단계(쓰기 없음): Scripts를 다시 읽고(요약 캐시도 쓰지 않음) 그 결과로 이력 정리를 계획한다.
+    /// Scripts 조회에 파일별 문제가 있으면 지울 이력·시도 기록은 0이다.
+    public func planStorageCleanup(scriptsFolder: URL) async throws -> (scan: FileScanResult<LibraryScriptSummary>, plan: RevisionCleanupPlan) {
+        let scan = try scanScriptSummaries(in: scriptsFolder, writeCache: false)
+        let plan = try await planRevisionCleanup(presentScriptIDs: Set(scan.items.map(\.id)), scanHasIssues: !scan.issues.isEmpty)
+        return (scan, plan)
+    }
+
     /// 확인 단계(쓰기 없음). `presentScriptIDs` = 현재 Scripts 조회의 스크립트 ID, `scanHasIssues` = 파일별 조회 문제.
     public func planRevisionCleanup(presentScriptIDs: Set<String>, scanHasIssues: Bool) async throws -> RevisionCleanupPlan {
         var plan = RevisionCleanupPlan(skippedOrphans: scanHasIssues)
