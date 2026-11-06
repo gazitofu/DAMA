@@ -31,17 +31,19 @@ final class StorageCleanupTests: XCTestCase {
             .filter { $0.lastPathComponent.hasSuffix(".dama.json") }
     }
     /// 새 배치 이력을 구 배치로 되돌린다(이 유닛 전 저장분과 같은 모양).
-    private func toLegacy(_ root: URL, scriptID: String) throws {
+    /// `only`가 있으면 그 revisionID만 옮기고 나머지는 새 배치에 남긴다.
+    private func toLegacy(_ root: URL, scriptID: String, only: Set<String>? = nil) throws {
         let folder = root.appendingPathComponent("LibraryRevisions/\(scriptID)")
         for file in try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) {
             let revisionID = String(file.lastPathComponent.dropLast(".dama.json.deflate".count))
+            guard only?.contains(revisionID) ?? true else { continue }
             try RevisionCodec.inflate(Data(contentsOf: file)).write(to: root.appendingPathComponent("LibraryRevisions/\(revisionID).dama.json"))
             try FileManager.default.removeItem(at: file)
         }
-        try FileManager.default.removeItem(at: folder)
+        if (try FileManager.default.contentsOfDirectory(atPath: folder.path)).isEmpty { try FileManager.default.removeItem(at: folder) }
     }
 
-    /// 현재 스크립트 A(구 배치 5 = 만들기·제목·AI 보정 전/후 snapshot 2·보정 저장, 새 배치 1) · B(구 배치 2), 서로 다른 녹음 각 1세대.
+    /// 현재 스크립트 A(구 배치 3 = 만들기 · AI 보정 전 snapshot · 보정 저장, 새 배치 1 = AI 보정 1 snapshot) · B(구 배치 2), 서로 다른 녹음 각 1세대.
     /// 없는 스크립트 C(구 배치 2) · D(새 배치 1). 시도 기록 A · C.
     private func fixture() async throws -> Fixture {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -59,12 +61,12 @@ final class StorageCleanupTests: XCTestCase {
             let script = try LibraryScript(transcript: transcript, title: "기밀제목 \(name)", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
             return try await store.saveScript(script, to: folder.appendingPathComponent(name + ".dama.json"), expectedHash: nil)
         }
-        var a = try await make("a", session: "S-A")
-        a = try await store.saveTitle("기밀제목 a2", for: a)
+        let a = try await make("a", session: "S-A")                           // 이력 1 (만들기)
         var correction = ScriptCorrection(input: a.script.input, engine: "synthetic", state: .completed); correction.completedAt = Date()
-        let corrected = try await store.saveCorrection(correction, for: a)
-        try toLegacy(root, scriptID: corrected.id)
-        let aFinal = try await store.saveTitle("기밀제목 a3", for: corrected)   // 새 배치 1
+        let aFinal = try await store.saveCorrection(correction, for: a)          // + snapshot 2 + 보정 저장 1
+        let versions = try XCTUnwrap(aFinal.script.versions)
+        XCTAssertEqual(versions.count, 2)
+        try toLegacy(root, scriptID: aFinal.id, only: [a.script.revisionID, versions[0].revisionID, aFinal.script.revisionID])
         var b = try await make("b", session: "S-B")
         b = try await store.saveTitle("기밀제목 b2", for: b)
         try toLegacy(root, scriptID: b.id)
@@ -94,8 +96,8 @@ final class StorageCleanupTests: XCTestCase {
         XCTAssertEqual(manifest(f.root), before)
         XCTAssertEqual(plan.deletions.count, 3)                     // C 2 (구) + D 1 (새)
         XCTAssertEqual(Set(plan.deletions.map(\.scriptID)), [f.cID, f.dID])
-        XCTAssertEqual(plan.migrations.count, 7)                     // A 5 + B 2
-        XCTAssertEqual(Dictionary(grouping: plan.migrations, by: \.scriptID).mapValues(\.count), [f.a.id: 5, f.b.id: 2])
+        XCTAssertEqual(plan.migrations.count, 5)                     // A 3 + B 2
+        XCTAssertEqual(Dictionary(grouping: plan.migrations, by: \.scriptID).mapValues(\.count), [f.a.id: 3, f.b.id: 2])
         XCTAssertEqual(plan.attempts, [f.cID])
         XCTAssertFalse(plan.skippedOrphans)
         XCTAssertEqual(plan.unreadable, [])
@@ -118,7 +120,7 @@ final class StorageCleanupTests: XCTestCase {
         XCTAssertTrue(checked.plan.skippedOrphans)
         XCTAssertEqual(checked.plan.deletions, [])
         XCTAssertEqual(checked.plan.attempts, [])
-        XCTAssertEqual(checked.plan.migrations.count, 7)
+        XCTAssertEqual(checked.plan.migrations.count, 5)
         _ = await f.store.runRevisionCleanup(checked.plan, removedScriptIDs: []) { _ in }
         XCTAssertEqual(try hashes(), before)
     }
@@ -144,7 +146,7 @@ final class StorageCleanupTests: XCTestCase {
         let total = plan.deletions.count + plan.migrations.count + plan.attempts.count
         let seen = OSAllocatedUnfairLock(initialState: [Int]())
         let result = await f.store.runRevisionCleanup(plan, removedScriptIDs: []) { value in seen.withLock { $0.append(value) } }
-        XCTAssertEqual(result, RevisionCleanupResult(deleted: 3, migrated: 7, attemptsDeleted: 1, failed: 0))
+        XCTAssertEqual(result, RevisionCleanupResult(deleted: 3, migrated: 5, attemptsDeleted: 1, failed: 0))
         XCTAssertEqual(seen.withLock { $0 }, Array(1...total))
         XCTAssertEqual(legacy(f.root), [])
         // 이전한 파일마다 풀어서 원본 SHA256과 같다.
@@ -153,7 +155,7 @@ final class StorageCleanupTests: XCTestCase {
             XCTAssertEqual(sha(try RevisionCodec.inflate(Data(contentsOf: target))), legacyBefore[item.url.lastPathComponent])
         }
         let current = manifest(f.root.appendingPathComponent("LibraryRevisions"))
-        XCTAssertEqual(current.count, 8)                             // A 5 이전 + A 새 배치 1 + B 2
+        XCTAssertEqual(current.count, 6)                             // A 3 이전 + A 새 배치 1 + B 2
         XCTAssertFalse(current.keys.contains { $0.contains(f.cID) || $0.contains(f.dID) })
         XCTAssertFalse(FileManager.default.fileExists(atPath: f.root.appendingPathComponent("LibraryRevisions/\(f.dID)").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: try InternalStoragePaths.correctionAttemptURL(root: f.root, scriptID: f.cID).path))
@@ -183,7 +185,7 @@ final class StorageCleanupTests: XCTestCase {
         let f = try await fixture()
         let plan = try await f.store.planRevisionCleanup(presentScriptIDs: [f.a.id, f.b.id], scanHasIssues: false)
         let result = await f.store.runRevisionCleanup(plan, removedScriptIDs: [f.b.id]) { _ in }
-        XCTAssertEqual(result, RevisionCleanupResult(deleted: 5, migrated: 5, attemptsDeleted: 1, failed: 0))
+        XCTAssertEqual(result, RevisionCleanupResult(deleted: 5, migrated: 3, attemptsDeleted: 1, failed: 0))
         XCTAssertFalse(manifest(f.root.appendingPathComponent("LibraryRevisions")).keys.contains { $0.contains(f.b.id) })
     }
 
@@ -193,8 +195,8 @@ final class StorageCleanupTests: XCTestCase {
         let plan = try await f.store.planRevisionCleanup(presentScriptIDs: [f.a.id, f.b.id], scanHasIssues: false)
         let result = await f.store.runRevisionCleanup(plan, removedScriptIDs: []) { _ in }
         XCTAssertEqual(result.migrated, 0)
-        XCTAssertEqual(result.failed, 7)
-        XCTAssertEqual(legacy(f.root).count, 7)
+        XCTAssertEqual(result.failed, 5)
+        XCTAssertEqual(legacy(f.root).count, 5)
         let current = manifest(f.root.appendingPathComponent("LibraryRevisions")).keys.filter { $0.hasSuffix(".deflate") }
         XCTAssertEqual(current.count, 1)                             // A의 기존 새 배치 1만 남음
     }
@@ -223,7 +225,7 @@ final class StorageCleanupTests: XCTestCase {
         let referencePlan = try await reference.store.planRevisionCleanup(presentScriptIDs: [reference.a.id, reference.b.id], scanHasIssues: false)
         _ = await reference.store.runRevisionCleanup(referencePlan, removedScriptIDs: []) { _ in }
         let expected = try await finalState(reference, referencePlan, originals: referenceOriginals)
-        XCTAssertEqual(expected, ["A": 6, "B": 2])
+        XCTAssertEqual(expected, ["A": 4, "B": 2])
 
         let f = try await fixture()
         let fOriginals = try originals(f)
@@ -234,8 +236,8 @@ final class StorageCleanupTests: XCTestCase {
         let plan = try await f.store.planRevisionCleanup(presentScriptIDs: [f.a.id, f.b.id], scanHasIssues: false)
         let interrupted = await f.store.runRevisionCleanup(plan, removedScriptIDs: []) { _ in }
         XCTAssertEqual(interrupted.migrated, 2)
-        XCTAssertEqual(interrupted.failed, 5)                        // 3번째부터 원본 삭제 직전 중단: 새 파일과 원본이 함께 남음
-        XCTAssertEqual(legacy(f.root).count, 5)
+        XCTAssertEqual(interrupted.failed, 3)                        // 3번째부터 원본 삭제 직전 중단: 새 파일과 원본이 함께 남음
+        XCTAssertEqual(legacy(f.root).count, 3)
         // 남은 새 파일 하나는 잘린 채로 둔다(풀 수 없음 → 지우고 다시 압축).
         let leftover = try XCTUnwrap(legacy(f.root).first)
         let leftoverRevision = String(leftover.lastPathComponent.dropLast(".dama.json".count))
@@ -244,9 +246,9 @@ final class StorageCleanupTests: XCTestCase {
         let bytes = try Data(contentsOf: truncated); try bytes.prefix(bytes.count / 2).write(to: truncated)
         await f.store.setCleanupTestHooks(beforeRemovingOriginal: nil, compressor: nil)
         let resumed = try await f.store.planRevisionCleanup(presentScriptIDs: [f.a.id, f.b.id], scanHasIssues: false)
-        XCTAssertEqual(resumed.migrations.count, 5)
+        XCTAssertEqual(resumed.migrations.count, 3)
         let second = await f.store.runRevisionCleanup(resumed, removedScriptIDs: []) { _ in }
-        XCTAssertEqual(second.migrated, 5)
+        XCTAssertEqual(second.migrated, 3)
         XCTAssertEqual(second.failed, 0)
         let state = try await finalState(f, plan, originals: fOriginals)
         XCTAssertEqual(state, expected)
