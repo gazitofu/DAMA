@@ -91,11 +91,18 @@ public enum ScriptResultPresentation {
 
 /// File I/O stays outside MainActor. All caller URLs remain security-scoped for the operation.
 public actor FolderLibraryStore {
-    private let root: URL
+    let root: URL
     private let trash: @Sendable (URL) throws -> Void
     private var scanning = false
     private var scriptCache: [String: LibraryScriptFile] = [:]
     private var committedScriptHashes: [String: String] = [:]
+    /// 테스트 주입(usage-bundle2 저장 공간 정리): 원본 삭제 직전(중단 모의), 압축 함수(왕복 불일치 모의).
+    var cleanupHook: (@Sendable (URL) throws -> Void)?
+    var cleanupCompressor: @Sendable (Data) throws -> Data = { try RevisionCodec.deflate($0) }
+    func setCleanupTestHooks(beforeRemovingOriginal: (@Sendable (URL) throws -> Void)?, compressor: (@Sendable (Data) throws -> Data)?) {
+        cleanupHook = beforeRemovingOriginal
+        cleanupCompressor = compressor ?? { try RevisionCodec.deflate($0) }
+    }
     public init(root: URL, trash: @escaping @Sendable (URL) throws -> Void = {
         try FileManager.default.trashItem(at: $0, resultingItemURL: nil)
     }) { self.root = root.standardizedFileURL; self.trash = trash }
@@ -125,7 +132,7 @@ public actor FolderLibraryStore {
         let values = try url.resourceValues(forKeys: [.isDirectoryKey])
         guard values.isDirectory == true else { throw LibraryFailure.unsafePath }
     }
-    private func safe(_ url: URL) throws {
+    func safe(_ url: URL) throws {
         guard url.isFileURL, url.standardizedFileURL.path == url.resolvingSymlinksInPath().path else { throw LibraryFailure.unsafePath }
     }
     public func speeches(in folder: URL) async throws -> [LibrarySpeech] {
@@ -585,11 +592,23 @@ public actor FolderLibraryStore {
     public enum ScriptRemoval: Sendable, Equatable { case trashFailed, removed, historyNotRemoved }
     /// usage-bundle2 결과 하나를 지우는 순서: 휴지통 이동(실패하면 멈춤) → 자식 결과면 `registerSavedSource`
     /// (`library.savedSourceRuns`) → 내부 수정 이력 폴더 → 교정 시도 기록. «Script 삭제…»와 결과 보관 정리가 함께 쓴다.
-    public func removeScript(_ summary: LibraryScriptSummary, in folder: URL, isChildResult: Bool,
+    /// `log` = 저장 공간 정리(설정)의 건별 기록 `storage-cleanup-log.jsonl`에 한 줄 남긴다.
+    public func removeScript(_ summary: LibraryScriptSummary, in folder: URL, isChildResult: Bool, log: Bool = false,
                              registerSavedSource: @Sendable (String) -> Void) -> ScriptRemoval {
-        do { try trashScript(summary, in: folder) } catch { return .trashFailed }
+        let item = RevisionCleanupItem(url: summary.url, scriptID: summary.id, revisionID: "", bytes: 0, layout: .current)
+        do { try trashScript(summary, in: folder) } catch {
+            if log { appendCleanupLog("trashScript", item, "failed") }
+            return .trashFailed
+        }
         if isChildResult { registerSavedSource(summary.id) }
-        do { try removeScriptHistory(scriptID: summary.id); return .removed } catch { return .historyNotRemoved }
+        do {
+            try removeScriptHistory(scriptID: summary.id)
+            if log { appendCleanupLog("trashScript", item, "ok") }
+            return .removed
+        } catch {
+            if log { appendCleanupLog("trashScript", item, "historyNotRemoved") }
+            return .historyNotRemoved
+        }
     }
 
     public func trashSpeech(_ speech: LibrarySpeech, in folder: URL) throws {
