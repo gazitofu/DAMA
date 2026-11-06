@@ -115,3 +115,4 @@ python3 ssot/doc-template/_build.py notes/<유닛>/<유닛>.src.html
 
 부칙: 2026-09-09 최초 작성 (환경 실측 · check.sh 신설).
 부칙: 2026-11-06 (usage-bundle1 /ship) 실화면 QA 환경 실측: 이 세션 터미널은 접근성 있음·화면 기록 없음(`screencapture` 실패) → 픽셀은 합성 QA 앱 전용 `QASnapshot`(분산 알림 `com.gazitofu.Dama.ReadingQA.snapshot`, `<fixture>/qa-snapshots/`). 이 셸의 `defaults com.gazitofu.Dama`는 앱과 다른 설정 저장소를 보므로 앱 설정은 `defaults … ~/Library/Preferences/com.gazitofu.Dama.plist` 경로 도메인으로만 바꾼다. 접근성은 현재 Space의 창만 보인다.
+부칙: 2026-11-07 (usage-bundle2 /ship) check.sh 경로 표기 실측: 대소문자 무시 볼륨에서 소문자 cwd(`/Users/gazitofu/developer/dama`)로 돌리면 같은 `.pcm`이 두 표기로 잡혀 `module '_DarwinFoundation1' is defined in both`로 Swift 계약·xcodebuild가 실패했다. `/bin/bash` 3.2 builtin `pwd -P`는 표기를 바꾸지 않고 `/bin/pwd -P`(getcwd)만 디스크 표기를 준다 → check.sh가 시작 때 `cd "$(/bin/pwd -P)"`로 맞춘다(F-01, 소문자 cwd·대문자 절대경로 모두 PASS). 도구 실측 Swift 6.4.2 · Xcode 27.2(27B52) · arm64-apple-macosx27.2.0(2026-11-06, §1 기록과 다름).
