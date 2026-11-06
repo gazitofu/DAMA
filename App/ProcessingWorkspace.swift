@@ -142,6 +142,12 @@ final class ProcessingWorkspace: ObservableObject {
     private func historyAllowsProcessing(_ sessionID: String) -> Bool {
         runHistoryAvailable && !scanIssues.contains { $0.sessionID == sessionID }
     }
+    /// usage-bundle2 결과 보관 입력: 실행 연결(스크립트 id = Run id), 이력 문제가 있는 녹음(historyAllowsProcessing과 같은 조건), 이력을 읽었는가.
+    func retentionInputs() -> (links: [String: ScriptRetention.RunLink], skippedSessions: Set<String>, available: Bool) {
+        (Dictionary(runs.map { ($0.id, ScriptRetention.RunLink(parentRunID: $0.parentRunID, sonioxRunID: $0.sonioxRunID)) },
+                    uniquingKeysWith: { first, _ in first }),
+         Set(scanIssues.compactMap(\.sessionID)), runHistoryAvailable)
+    }
 
     func canRetranscribe(_ sessionID: String) -> Bool {
         !busy && historyAllowsProcessing(sessionID) && !localOnly.contains(sessionID) && runs.filter { $0.sessionID == sessionID && $0.parentRunID == nil && (selectedProvider == .qwen || $0.provider != .qwen) }.allSatisfy { $0.canRetranscribe || isRetired($0) }
@@ -187,6 +193,8 @@ final class ProcessingWorkspace: ObservableObject {
             } catch { message = "기존 결과의 조건을 확인하지 못했습니다. 전송하지 않았습니다."; return }
         }
         guard !busy, admitsProcessing(input.provider) else { return }
+        // usage-bundle2 결과 보관: 이 실행이 완료됐을 때 정리될 이전 결과 수(상한). 실제 정리와 같은 계산(ScriptRetention).
+        let retention = LibraryWorkspace.shared.pendingRetentionCount(sessionID: record.id, reusing: input.sonioxSourceRunID)
         if input.provider.usesSoniox && record.durationUs > SonioxRequest.maximumDurationUs {
             message = "Soniox는 300분 이하의 녹음을 지원합니다. 음성을 전송하지 않았습니다."; return
         }
@@ -201,9 +209,11 @@ final class ProcessingWorkspace: ObservableObject {
                 alert.informativeText += "\n예상 발화자 \(count)명은 참고 힌트입니다. 결과를 해당 인원으로 강제하지 않습니다."
             }
         }
+        // 재전사 문단이 없는 Soniox 단독 첫 전사: 문구 1을 «AI 문맥 교정 OFF …» 줄 앞에 둔다(실데이터 도달 0).
+        if !retranscribing && input.provider == .soniox { alert.informativeText += RetentionNotice.confirmationParagraph(retention) }
         if input.aiCorrection != true { alert.informativeText += "\n\nAI 문맥 교정 OFF · 모델 원문으로 스크립트를 만듭니다." }
         if retranscribing {
-            alert.informativeText += "\n\n새 작업으로 처리하며 비용이 다시 발생할 수 있습니다. 기존 스크립트와 사용자 수정은 유지하고 새 스크립트를 만듭니다. 화자 이름과 문장 수정은 새 결과에 자동 복사하지 않습니다."
+            alert.informativeText += RetentionNotice.retranscribeParagraph(retention)
             if runs.contains(where: { $0.sessionID == record.id && $0.stage == "submissionUncertain" }) {
                 alert.informativeText += "\n\n이전 작업의 접수 여부가 불명확합니다. 이미 접수되었다면 중복 처리·과금이 발생할 수 있습니다."
             }
@@ -229,10 +239,11 @@ final class ProcessingWorkspace: ObservableObject {
             alert.informativeText = "\(recordTitle) · \(record.durationUs / 1_000_000)초\n\nSoniox: " +
                 (input.sonioxSourceRunID.map { "동일 음성·문맥 결과 재사용 (\($0))" } ?? "전체 음성 전송 · stt-async-v5 전사 및 자체 화자분리") +
                 "\nNemotron 3: " + (input.nemotronSourceRunID.map { "동일 음성·모델 결과 재사용 (\($0))" } ?? "이 Mac에서 화자 분리 · 음성 전송 없음") +
-                "\n\n새 Soniox 요청에만 사용량이 발생합니다. 완료된 결과는 보존하고, Soniox 단독과 결합본을 따로 엽니다. AI 교정 OFF. 화자 충돌·경계·겹말은 검수 대상으로 남습니다.\n\n" +
+                RetentionNotice.nemotronUsageParagraph(retention) +
                 (input.speakerCount.map { "실제 발화자 \($0)명: Nemotron 3에는 지정하지 않음" } ?? "실제 발화자 수 미입력") +
                 (input.sonioxSpeakerCountHint.map { " · Soniox \($0)명 힌트 (강제 아님)" } ?? " · Soniox 자동 판단") +
-                "\n참석자 명단과 실제 발화자 수는 다를 수 있습니다. 선택한 문맥은 Soniox에만 보내며 참고 문서를 정답으로 강제하지 않습니다.\n\n기존 수정본은 보존됩니다. Soniox 서버 파일은 자동 삭제하지 않으며 보관 정책이 적용됩니다."
+                "\n참석자 명단과 실제 발화자 수는 다를 수 있습니다. 선택한 문맥은 Soniox에만 보내며 참고 문서를 정답으로 강제하지 않습니다.\n\n기존 수정본은 보존됩니다. Soniox 서버 파일은 자동 삭제하지 않으며 보관 정책이 적용됩니다." +
+                RetentionNotice.confirmationParagraph(retention)
         }
         if retranscribing && [.sonioxPrecision, .sonioxNemotron, .qwen].contains(input.provider) &&
             runs.contains(where: { $0.sessionID == record.id && $0.stage == "submissionUncertain" }) {
@@ -314,7 +325,7 @@ final class ProcessingWorkspace: ObservableObject {
                 saveCompletedSources()
                 if result.stage == "readyForReview" {
                     message = "전사 완료 · 검수 전. 결과의 화자와 원문을 확인해 주세요."
-                    LibraryWorkspace.shared.processingFinished(result)
+                    LibraryWorkspace.shared.processingFinished(result, retain: true)
                 } else {
                     message = label(result)
                     if [.sonioxPrecision, .sonioxNemotron].contains(result.provider), let id = result.sonioxRunID,

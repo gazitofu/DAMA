@@ -345,16 +345,21 @@ public actor FolderLibraryStore {
         return FileScanIssue(url: url, reason: reason)
     }
     public func createScript(_ document: TranscriptDocument, speech: LibrarySpeech, input: ConversionNotes, in folder: URL) throws -> LibraryScriptFile {
+        try createScriptReportingNew(document, speech: speech, input: input, in: folder).file
+    }
+    /// usage-bundle2: `created` = 이번 호출이 새 파일을 만들었는가(기존 파일을 다시 연 경우 false). 결과 보관 정리 시점 판정에 쓴다.
+    public func createScriptReportingNew(_ document: TranscriptDocument, speech: LibrarySpeech, input: ConversionNotes,
+                                         in folder: URL) throws -> (file: LibraryScriptFile, created: Bool) {
         // Resume from existing saved file, never replace a user's edited result.
         let scan = try scanScriptSummaries(in: folder)
         // A duplicate identity must be resolved before creating another copy.
         guard !scan.issues.contains(where: { $0.itemID == document.runId }) else { throw LibraryFailure.invalidScript }
         // A Script's id is its transcript runId (LibraryScript.validate).
-        if let existing = scan.items.first(where: { $0.id == document.runId }) { return try loadScript(existing) }
+        if let existing = scan.items.first(where: { $0.id == document.runId }) { return (try loadScript(existing), false) }
         let script = try LibraryScript(transcript: document, title: LibraryTitles.speech(speech), recordedAt: speech.recordedAt,
             dateSource: speech.dateSource, input: input)
         let url = folder.appendingPathComponent(UUID().uuidString + ".dama.json")
-        return try saveScript(script, to: url, expectedHash: nil)
+        return (try saveScript(script, to: url, expectedHash: nil), true)
     }
     public func saveScript(_ script: LibraryScript, to url: URL, expectedHash: String?) throws -> LibraryScriptFile {
         try safe(url); try script.validate()

@@ -35,6 +35,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published private(set) var preparingSpeechID: String?
     @Published private(set) var needsDefaultFolderAccess = false
     @Published private(set) var savingRunIDs: Set<String> = []
+    /// usage-bundle2 저장 공간 정리 확인·실행 중(AI 교정 시작을 막는다).
+    @Published private(set) var storageCleanupActive = false
     /// usage-bundle1 녹음 표시 제목: 인덱스 전체(휴지통 항목 포함)의 id → displayTitle, 연결 판정용 id 집합.
     @Published private(set) var displayTitles: [String: String] = [:]
     @Published private(set) var indexedSpeechIDs: Set<String> = []
@@ -360,6 +362,41 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 : "Script를 휴지통으로 이동했습니다. 내부 수정 이력은 지우지 못했습니다. 설정의 저장 공간 정리에서 다시 지울 수 있습니다."
         }
     }
+    /// usage-bundle2 결과 보관 정리. `sessions` = nil이면 모든 녹음. Scripts 목록을 읽는 중이거나 조회 문제가 있거나
+    /// 처리 이력을 읽지 못했으면 아무것도 하지 않는다. 반환 = 옮긴 수 · 옮기지 못한 수 · 옮긴 id.
+    func applyRetention(sessions: Set<String>?, in folder: URL,
+                        progress: (() -> Void)? = nil) async -> (moved: Int, failed: Int, removed: Set<String>) {
+        guard let store, !scriptsLoading, (scanIssues[.scripts] ?? []).isEmpty else { return (0, 0, []) }
+        let inputs = ProcessingWorkspace.shared.retentionInputs()
+        guard inputs.available else { return (0, 0, []) }
+        let candidates = sessions.map { wanted in scripts.filter { wanted.contains($0.sessionId) } } ?? scripts
+        let plans = ScriptRetention.plan(candidates, links: inputs.links, skipIDs: retentionSkipIDs, skippedSessions: inputs.skippedSessions)
+        var moved = 0, failed = 0, removed: Set<String> = []
+        for id in ScriptRetention.removals(plans).sorted() {
+            guard let summary = scripts.first(where: { $0.id == id }) else { continue }
+            let removal = await store.removeScript(summary, in: folder, isChildResult: inputs.links[id]?.parentRunID != nil,
+                                                   registerSavedSource: Self.registerSavedSource)
+            if removal == .trashFailed { failed += 1 } else { moved += 1; removed.insert(id); scripts.removeAll { $0.id == id } }
+            progress?()
+        }
+        return (moved, failed, removed)
+    }
+    /// 결과 보관에서 건너뛸 결과: 열려 있는 본문·과거 버전, 저장 중, AI 교정 실행·대기.
+    private var retentionSkipIDs: Set<String> {
+        var ids = savingRunIDs.union(CorrectionWorkspace.shared.pendingScriptIDs)
+        if let id = openedScript?.id { ids.insert(id) }
+        if let id = historicalFile?.id { ids.insert(id) }
+        return ids
+    }
+    /// 재전사 확인창의 정리 수 N(상한): 이 실행과 재사용할 Soniox 결과를 새 세대로 놓은 정리 수. 건너뜀 조건은 넣지 않는다.
+    func pendingRetentionCount(sessionID: String, reusing sonioxRunID: String?) -> Int {
+        let pendingID = "pending-run"
+        let pending = ScriptRetention.PendingGeneration(sessionId: sessionID, representativeID: pendingID, createdAt: Date(),
+                                                        memberIDs: Set([pendingID] + [sonioxRunID].compactMap { $0 }))
+        let plans = ScriptRetention.plan(scripts.filter { $0.sessionId == sessionID }, links: ProcessingWorkspace.shared.retentionInputs().links,
+                                         pending: pending)
+        return plans[sessionID]?.remove.count ?? 0
+    }
     /// 지운 Soniox 자식 결과가 다음 처리 때 다시 저장되지 않게 한다(operating-baseline.md:36, saveCompletedSources).
     nonisolated static func registerSavedSource(_ runID: String) {
         var saved = Set(UserDefaults.standard.stringArray(forKey: "library.savedSourceRuns") ?? [])
@@ -410,7 +447,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             } catch { message = "원본 확인 또는 분석 파일 준비에 실패했습니다. 음성을 전송하지 않았습니다." }
         }
     }
-    func processingFinished(_ run: ManagedRun, select: Bool = true) {
+    /// `retain` = launch 경로의 완료(usage-bundle2 결과 보관 정리 시점). 재저장(convert)·자식 저장은 false.
+    func processingFinished(_ run: ManagedRun, select: Bool = true, retain: Bool = false) {
         guard ![.precision, .nemotron].contains(run.provider) else { return }
         guard let store, let root, let destination = folders[.scripts] else {
             message = "결과는 내부에 보존했습니다. 해당 Speeches와 Scripts 폴더를 선택한 뒤 스크립트를 저장해 주세요."
@@ -423,13 +461,19 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             do {
                 guard let speech = try await store.storedSpeech(run.sessionID) else { throw LibraryFailure.missingFile }
                 let document = try await FileSessionRepository(rootURL: root).loadModel(sessionId: run.sessionID, runId: run.id)
-                let result = try await store.createScript(document, speech: speech, input: run.input ?? speech.notes, in: destination)
+                let (result, created) = try await store.createScriptReportingNew(document, speech: speech, input: run.input ?? speech.notes, in: destination)
                 let scan = try await store.scanScriptSummaries(in: destination)
                 scripts = scan.items; scanIssues[.scripts] = scan.issues
                 if !select { Self.registerSavedSource(run.id) }
                 savingRunIDs.remove(run.id)
                 if select && canLeave && !notesDirty { historicalFile = nil; openedScript = result; selectedScriptID = result.id; folder = .scripts }
-                message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요."
+                // usage-bundle2 결과 보관: 자식이 아닌 실행이 새 스크립트를 만든 직후, 그 녹음 하나만.
+                var retentionNotice = ""
+                if retain && created && run.parentRunID == nil {
+                    let outcome = await applyRetention(sessions: [run.sessionID], in: destination)
+                    retentionNotice = RetentionNotice.completionSuffix(moved: outcome.moved, failed: outcome.failed)
+                }
+                message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요." + retentionNotice
                 if result.script.correction == nil, run.input?.aiCorrection == true {
                     CorrectionWorkspace.shared.enqueue(result, input: run.input!)
                 }
