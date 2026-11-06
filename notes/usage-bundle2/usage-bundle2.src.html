@@ -265,79 +265,38 @@ details.audit table{font-size:12.5px}
   <p class="sub">녹음마다 쌓이는 스크립트 파일과 내부 수정 이력의 보관 규칙을 정한다. 대표 결과는 가장 최근 결과로 바꾸고, 보관은 최근 결과 2회분과 사람이 고친 스크립트로 줄이며, 지운 스크립트의 내부 이력은 함께 지우고, 남는 이력은 내용을 바꾸지 않고 압축한다.<span class="fn">입력 = <code>notes/usage-review/decisions.md</code> «T2a» 1–4 (사용자 확정 2026-11-05). T2a-5(제목 저장 시점)는 usage-bundle1에서 끝났다: <code>ssot/contracts/library-script.md:17</code> «저장 시점(T2a-5)».</span></p>
 </header>
 
-<section class="verdict" id="s-verdict" data-unit="usage-bundle2" data-round="r1" data-gate="①" data-state="open">
-  <div class="vh"><h2>판정</h2><span class="cnt">열린 결정 4 · 판정 축 3</span><span class="stamp">게이트 ① 컨펌 11.06</span></div>
+<section class="verdict" id="s-verdict" data-unit="usage-bundle2" data-round="r1" data-gate="①" data-state="closed">
+  <div class="vh"><h2>판정</h2><span class="cnt">결정 4 · 판정 축 3 · 전부 확정</span><span class="stamp">게이트 ① 컨펌 11.06</span></div>
   <div class="vb">
     <div class="vitem" data-k="D-01">
       <div class="vt"><span class="id">D-01</span>이전 결과 스크립트를 지우는 방법</div>
-      <p class="vq">보관 규칙(§02-2)이 고른 스크립트 파일을 어떻게 지울지 정한다. <b>ⓐ</b>는 지금의 «Script 삭제…»와 같은 경로라 Finder 휴지통에서 되돌릴 수 있고, 휴지통을 비울 때 공간이 돌아온다. <b>ⓑ</b>는 공간이 바로 돌아오지만 되돌릴 수 없고, 오래된 실행의 결과를 앱에서 다시 만드는 경로도 없다. 어느 쪽이든 그 스크립트의 내부 수정 이력·교정 시도 기록은 바로 지우고, 원음과 전사 원응답(Run)은 남는다.<span class="fn">스크립트 파일 전체 38개 324.0 MB(10^6 바이트 기준, <code>du</code> 309 MiB와 같은 양). 2026-11-06 21:22 KST 실측 <code>notes/usage-bundle2/measure-t2a.py</code>. 휴지통 경로 = <code>FolderLibraryStore.trashScript</code>, 계약 <code>library-script.md:93</code> «휴지통 이동 실패를 영구 삭제로 대체하지 않는다». 결과 재생성은 녹음의 최신 실행에만 있다: <code>App/LibraryWorkspace.swift:370–372</code> <code>convert()</code>가 최신 Run의 스크립트가 없을 때만 <code>processingFinished</code>를 다시 부른다.</span></p>
-      <div class="opts">
-        <label><input type="radio" name="D-01" value="ⓐ 휴지통으로 이동 (권고)" checked>ⓐ 휴지통으로 이동 (권고)</label>
-        <label><input type="radio" name="D-01" value="ⓑ 영구 삭제">ⓑ 영구 삭제</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+      <p class="vq">ⓐ 확정. 보관 규칙이 고른 스크립트 파일은 휴지통으로 옮긴다. 그 스크립트의 내부 수정 이력·교정 시도 기록은 바로 지우고, 원음과 전사 원응답은 남긴다.<span class="fn">기각안 = 영구 삭제. 스크립트 38개 324.0 MB(2026-11-06 실측), 현행 삭제 경로 <code>FolderLibraryStore.trashScript</code>와 같음.</span></p>
     </div>
     <div class="vitem" data-k="D-02">
       <div class="vt"><span class="id">D-02</span>재측정으로 바뀐 전제: 자동 정리를 이번에 넣을지</div>
-      <p class="vq">11-05 결정의 근거였던 «수정 이력 379개·7.6GB(81%)가 이미 지운 스크립트 소속»은 재측정에서 재현되지 않았다. 지금은 <b>62개 · 243.1 MB</b>다. 지금 데이터에 보관 규칙(최근 2회분 + 사람 수정본)을 적용하면 <b>지워지는 스크립트는 0개</b>다. 공간 절감은 거의 전부 압축에서 나온다(남는 이력 9,758.9 MB → 651.8 MB). <b>ⓐ</b>는 결정대로 자동 정리를 넣어 앞으로 재전사가 쌓일 때 동작하게 한다. <b>ⓑ</b>는 이번 묶음에서 자동 정리를 빼고 대표 결과 변경·삭제 시 이력 정리·압축만 한다(§02-2, 설정 정리의 보관 규칙 단계, §03 S1, 문구 1–5·13·19가 빠진다).<span class="fn">재측정 방법: 수정 이력 파일마다 JSON 최상위 <code>id</code>를 읽어 Scripts 폴더 스크립트의 <code>id</code>와 대조. 574개 중 현재 스크립트 소속 512개(9,758.9 MB) · 그 밖 62개(243.1 MB, 스크립트 18개분). 11-05 수치의 산법은 기록에 없어 차이의 원인은 미확정이다. 보관 규칙 모의 <code>notes/usage-bundle2/retention-sim.py</code>: 2회분 = 0개, 대조로 1회분만 남기면 4개 24.8 MB(규칙이 지울 수 있음을 보는 양성 대조).</span></p>
-      <div class="opts">
-        <label><input type="radio" name="D-02" value="ⓐ 결정대로 자동 정리 포함 (권고)" checked>ⓐ 결정대로 자동 정리 포함 (권고)</label>
-        <label><input type="radio" name="D-02" value="ⓑ 이번에는 빼기">ⓑ 이번에는 빼기</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+      <p class="vq">ⓐ 확정. 재측정(고아 이력 62개·243.1 MB, 지금 규칙으로 지울 스크립트 0개)을 알고도 T2a-1 결정대로 자동 정리를 넣는다. 앞으로 재전사가 쌓일 때 동작한다.<span class="fn">기각안 = 이번 묶음에서 빼고 대표 결과·삭제 시 이력 정리·압축만. 11-05 기록 «379개·7.6GB(81%)»는 재현되지 않았고 원인은 미확정.</span></p>
     </div>
     <div class="vitem" data-k="D-03">
       <div class="vt"><span class="id">D-03</span>수정 이력 저장 배치</div>
-      <p class="vq">스크립트를 지울 때 그 스크립트의 이력만 지우려면 이력 파일이 어느 스크립트 것인지 알아야 한다. 지금은 파일 이름이 revisionID뿐이라 전부 열어 봐야 한다. <b>ⓐ</b>는 스크립트별 폴더에 압축 파일로 두어 폴더 하나만 지운다. 지금 배치는 정리 때 한 번 옮긴다. <b>ⓑ</b>는 지금 배치를 두고 «revisionID → 스크립트 ID» 색인 파일을 새로 둔다. 이 경우 색인과 실제 파일이 어긋나는 실패 경로가 생긴다. 압축 형식과 지문 값은 두 안이 같다.<span class="fn">현행 경로 <code>FolderLibraryStore.swift:382–385</code> <code>revisionURL</code> = <code>LibraryRevisions/&lt;revisionID&gt;.dama.json</code>. 소속을 알려고 574개 10,002.0 MB를 전부 해독하는 데 62.4초(이 Mac python3 실측, 앱 Swift 미측정).</span></p>
-      <div class="opts">
-        <label><input type="radio" name="D-03" value="ⓐ 스크립트별 폴더 + 압축 (권고)" checked>ⓐ 스크립트별 폴더 + 압축 (권고)</label>
-        <label><input type="radio" name="D-03" value="ⓑ 평면 배치 + 색인 파일">ⓑ 평면 배치 + 색인 파일</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+      <p class="vq">ⓐ 확정. 새 이력은 <code>LibraryRevisions/&lt;스크립트 ID&gt;/&lt;revisionID&gt;.dama.json.deflate</code>에 압축해 두고, 구 배치는 읽기와 정리 이전에만 쓴다.<span class="fn">기각안 = 평면 배치 유지 + «revisionID → 스크립트 ID» 색인 파일.</span></p>
     </div>
     <div class="vitem" data-k="D-04">
       <div class="vt"><span class="id">D-04</span>계약 개정 문안 (§05 «계약 개정 문안» 10곳)</div>
-      <p class="vq">보관·삭제·압축에 맞춰 계약 10곳을 고치거나 더한다. 그중 7곳은 «남긴다·보존한다» 문언과 충돌해 고치는 것이다. INV-09(재처리는 새 Run, 이전 라벨·수정 자동 재사용 금지)와 설계 02 §9(삭제 전에 원본·결과·캐시를 구분해 확인)는 이 유닛과 충돌하지 않아 고치지 않는다.<span class="fn">INV-09 원문 <code>ssot/design/04_DATA_AND_RECONCILIATION.md:52</code>에는 보존 조항이 없다(decisions.md T2a-1의 «INV-09 개정 필요»는 원문 대조 뒤 해당 없음). 설계 02 §9 <code>02_ARCHITECTURE_AND_STORAGE.md:156–158</code>는 이 유닛이 재전사 확인창·정리 확인창으로 지킨다.</span></p>
-      <div class="opts">
-        <label><input type="radio" name="D-04" value="ⓐ 문안대로 (권고)" checked>ⓐ 문안대로 (권고)</label>
-        <label><input type="radio" name="D-04" value="ⓑ 수정">ⓑ 수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어느 항목을 어떻게"></div>
+      <p class="vq">ⓐ 확정. §05의 10곳 문안을 /build가 반영한다. INV-09·<code>CLAUDE.md</code> 함정 3·설계 02 §9·<code>operating-baseline.md:11·36</code>은 고치지 않는다.</p>
     </div>
     <div class="vitem" data-k="①">
       <div class="vt"><span class="id">①</span>정책 (§02)</div>
-      <p class="vq">세대 정의, 사람 수정 판정 9필드, 정리 시점과 건너뛰는 조건, 대표 결과 규칙, 압축 이전 순서를 본다.</p>
-      <div class="opts">
-        <label><input type="radio" name="①" value="확정" checked>확정</label>
-        <label><input type="radio" name="①" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. 대표 결과 = 가장 늦은 <code>createdAt</code>, 세대 = 자식이 아닌 결과 + <code>sonioxRunID</code> 자식(혼자인 자식·실행 기록 없는 결과는 혼자 한 세대), 최근 2세대 + 사람 수정 9필드 보호, 자식이 아닌 실행의 새 결과 뒤와 설정 정리에서만 정리, 압축은 풀어서 바이트 동일 확인 뒤 원본 삭제.</p>
     </div>
     <div class="vitem" data-k="②">
       <div class="vt"><span class="id">②</span>화면·문구 (§03 · §04 문구 1–23)</div>
-      <p class="vq">재전사 확인창 추가 줄, Script 삭제 확인창, 설정의 «저장 공간» 절과 정리 확인창 문구를 본다.</p>
-      <div class="opts">
-        <label><input type="radio" name="②" value="확정" checked>확정</label>
-        <label><input type="radio" name="②" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. 재전사 확인창 추가 줄, Script 삭제 확인창 설명, 설정 «저장 공간» 절과 정리 확인창. 확정 문구는 <code>ssot/tone/usage-bundle2.md</code>로 편입했다(문구 19는 D-01 기각으로 결번).</p>
     </div>
     <div class="vitem" data-k="③">
       <div class="vt"><span class="id">③</span>검산 자 (§04)</div>
-      <p class="vq">축별 자·모집단·문턱과 «안 잼» 목록을 본다. 실데이터 1회 정리는 게이트 ②에서 사용자가 앱 버튼으로 실행한다.</p>
-      <div class="opts">
-        <label><input type="radio" name="③" value="확정" checked>확정</label>
-        <label><input type="radio" name="③" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. 축 8개와 «안 잼» 목록. 실데이터 1회 정리는 게이트 ②에서 사용자가 설정 버튼으로 실행하고, 메인은 전후 매니페스트만 잰다.</p>
     </div>
   </div>
-  <div class="vfoot">
-    <button class="btn fill sm" type="button" data-act="copy">MD 복사</button>
-    <button class="btn line sm" type="button" data-act="reset">초기화</button>
-    <span class="ok">고른 대로 아래 회신이 만들어진다. 복사해 채팅에 붙이면 된다.</span>
-  </div>
-  <pre class="md"></pre>
 </section>
 </div>
 
@@ -417,7 +376,7 @@ details.audit table{font-size:12.5px}
   <ol>
     <li>녹음마다 세대를 시각 내림차순(같으면 대표 id 사전순)으로 세우고 앞 2세대의 결과를 남긴다. 2는 사용자 결정값이다.<span class="fn">T2a-1 «최신 성공본 + 직전 성공본».</span></li>
     <li>사람이 고친 결과는 세대와 무관하게 남긴다(아래 판정).</li>
-    <li>나머지가 정리 대상이다. D-01로 정한 방법으로 지운다.</li>
+    <li>나머지가 정리 대상이다. 휴지통으로 옮긴다(D-01).</li>
   </ol>
 
   <h4>사람 수정 판정</h4>
@@ -457,7 +416,7 @@ details.audit table{font-size:12.5px}
 
   <h4>결과 하나를 지우는 순서</h4>
   <ol>
-    <li>스크립트 파일을 D-01 방법으로 지운다. 실패하면 아래를 하지 않고 다음 결과로 간다.</li>
+    <li>스크립트 파일을 휴지통으로 옮긴다(D-01). 실패하면 아래를 하지 않고 다음 결과로 간다.</li>
     <li>자식 결과였으면 그 실행 ID를 <code>library.savedSourceRuns</code>에 넣는다. 다음 처리 때 다시 만들어지지 않게 하기 위해서다.<span class="fn"><code>saveCompletedSources</code>(<code>ProcessingWorkspace.swift:279–285</code>)는 이 목록에 없고 Scripts에 없는 Soniox 자식을 다시 저장한다. 운영 계약 «앱에서 삭제한 비교본을 매 처리마다 무조건 복원하지 않는다» <code>operating-baseline.md:36</code>.</span></li>
     <li>그 스크립트의 내부 수정 이력 폴더 <code>LibraryRevisions/&lt;스크립트 ID&gt;/</code>를 지운다(D-03 ⓐ). 아직 옮기지 않은 구 배치 파일은 §02-5 정리에서 지운다.</li>
     <li><code>CorrectionAttempts/&lt;스크립트 ID&gt;.json</code>이 있으면 지운다.</li>
@@ -505,7 +464,7 @@ details.audit table{font-size:12.5px}
   <ol>
     <li><b>시작 조건</b>: 변환·AI 교정·녹음 마무리가 진행 중이 아니고, 편집 중이 아니며(<code>canLeave</code>), Scripts 목록을 다 읽었다. 아니면 버튼을 끄고 문구 11을 보인다.</li>
     <li><b>확인</b>(쓰기 없음): Scripts 조회와 실행 기록으로 보관 규칙의 정리 대상을 고른다. 구 배치 이력 파일을 모두 해독해 소속 스크립트 ID를 얻는다. 현재 Scripts에 없는 ID의 이력은 «지울 이력», 나머지는 «압축할 이력»이다. <code>CorrectionAttempts</code> 중 현재 Scripts에 없는 ID는 «지울 시도 기록»이다. Scripts 조회에 파일별 문제가 있으면 지울 이력과 지울 시도 기록을 0으로 두고 문구 15를 쓴다(읽지 못한 스크립트의 이력을 고아로 오판하지 않기 위해서다).</li>
-    <li><b>확인창</b>: 문구 12–19. 0인 줄은 뺀다. 모두 0이면 확인창 없이 문구 22.</li>
+    <li><b>확인창</b>: 문구 12–18. 0인 줄은 뺀다. 모두 0이면 확인창 없이 문구 22.</li>
     <li><b>실행 순서</b>:
       <ol>
         <li>보관 규칙 정리(§02-2, 순서 1–4 포함).</li>
@@ -614,7 +573,7 @@ details.audit table{font-size:12.5px}
   <div class="rule"><span class="no">04</span><h2>규격</h2></div>
 
   <h3>문구 (신규 · 변경)</h3>
-  <p>{N}·{M}·{n}은 정수, {크기}·{전}·{후}는 <code>ByteCountFormatter</code> <code>.file</code> 표기다. D-01 ⓑ면 «휴지통으로 옮깁니다/옮겼습니다/옮기지»를 «삭제합니다/삭제했습니다/삭제하지»로 바꾼다.</p>
+  <p>{N}·{M}·{n}은 정수, {크기}·{전}·{후}는 <code>ByteCountFormatter</code> <code>.file</code> 표기다.</p>
   <div class="twrap"><table>
     <tr><th>#</th><th>자리</th><th>문구</th><th>구분</th></tr>
     <tr><td class="num">1</td><td>재전사 확인창 추가 줄 (N ≥ 1)</td><td>완료되면 이 녹음의 이전 결과 스크립트 {N}개를 휴지통으로 옮깁니다. 최근 결과 2회분과 사람이 고친 스크립트는 남깁니다.</td><td>신규</td></tr>
@@ -622,7 +581,7 @@ details.audit table{font-size:12.5px}
     <tr><td class="num">3</td><td>Soniox + Nemotron 3 확인창 문단 (N ≥ 1)</td><td>«완료된 결과는 보존하고, Soniox 단독과 결합본을 따로 엽니다.» → «Soniox 단독과 결합본을 따로 엽니다.»</td><td>변경</td></tr>
     <tr><td class="num">4</td><td>결과 저장 메시지 뒤 (지운 수 ≥ 1)</td><td>이전 결과 스크립트 {N}개를 휴지통으로 옮겼습니다.</td><td>신규</td></tr>
     <tr><td class="num">5</td><td>결과 저장 메시지 뒤 (못 지운 수 ≥ 1)</td><td>이전 결과 스크립트 {M}개는 옮기지 못해 그대로 두었습니다.</td><td>신규</td></tr>
-    <tr><td class="num">6</td><td>Script 삭제 확인창 설명</td><td>선택한 스크립트 파일을 휴지통으로 이동하고, 이 스크립트의 내부 수정 이력과 AI 버전 기록을 지웁니다. 파일을 휴지통에서 되돌려도 지운 AI 버전은 열 수 없습니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 원음·전사 원응답은 남습니다.</td><td>변경 (D-01과 무관, 수동 삭제는 늘 휴지통)</td></tr>
+    <tr><td class="num">6</td><td>Script 삭제 확인창 설명</td><td>선택한 스크립트 파일을 휴지통으로 이동하고, 이 스크립트의 내부 수정 이력과 AI 버전 기록을 지웁니다. 파일을 휴지통에서 되돌려도 지운 AI 버전은 열 수 없습니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 원음·전사 원응답은 남습니다.</td><td>변경</td></tr>
     <tr><td class="num">7</td><td>Script 삭제 완료 메시지 뒤 (이력 삭제 실패)</td><td>내부 수정 이력은 지우지 못했습니다. 설정의 저장 공간 정리에서 다시 지울 수 있습니다.</td><td>신규. 이때 현행 뒷문장 «원음과 다른 스크립트는 유지됩니다.»는 뺀다</td></tr>
     <tr><td class="num">8</td><td>설정 절 머리</td><td>저장 공간</td><td>신규</td></tr>
     <tr><td class="num">9</td><td>설정 절 설명</td><td>스크립트 파일과 내부 수정 이력을 정리합니다. 녹음 원음과 전사 원응답은 지우지 않습니다.</td><td>신규</td></tr>
@@ -635,7 +594,7 @@ details.audit table{font-size:12.5px}
     <tr><td class="num">16</td><td>확인창 줄 · 압축</td><td>내부 수정 이력 {N}개 · {크기}를 압축합니다. 압축을 푼 내용이 원본과 같을 때만 원본을 지웁니다.</td><td>신규</td></tr>
     <tr><td class="num">17</td><td>확인창 줄 · 시도 기록</td><td>현재 Scripts 폴더에 없는 스크립트의 AI 교정 시도 기록 {N}개를 지웁니다.</td><td>신규</td></tr>
     <tr><td class="num">18</td><td>확인창 끝줄 · 버튼</td><td>지운 수정 이력은 되돌릴 수 없습니다. 녹음 원음과 전사 원응답은 지우지 않습니다. / 취소 / 정리</td><td>신규. 기본 버튼 «취소»</td></tr>
-    <tr><td class="num">19</td><td>(D-01 ⓑ일 때만) 확인창 줄 13 대체</td><td>이전 결과 스크립트 {N}개 · {크기}를 삭제합니다. 녹음마다 최근 결과 2회분과 사람이 고친 스크립트는 남깁니다.</td><td>신규 (조건부)</td></tr>
+    <tr><td class="num">19</td><td>(결번)</td><td>D-01 기각안(영구 삭제)용 문구였다. 번호는 다른 참조를 위해 비워 둔다.</td><td>결번</td></tr>
     <tr><td class="num">20</td><td>진행</td><td>저장 공간을 정리하는 중… ({n}/{N})</td><td>신규. {N} = 확인창에 적은 항목 수 합</td></tr>
     <tr><td class="num">21</td><td>완료</td><td>저장 공간을 정리했습니다. 내부 수정 이력 {전} → {후}. + (스크립트 ≥ 1) 이전 결과 스크립트 {N}개를 휴지통으로 옮겼습니다. + (실패 ≥ 1) 처리하지 못한 파일 {M}개는 그대로 두었습니다.</td><td>신규</td></tr>
     <tr><td class="num">22</td><td>정리할 것 없음</td><td>정리할 항목이 없습니다.</td><td>신규</td></tr>
@@ -746,6 +705,7 @@ details.audit table{font-size:12.5px}
     </div>
   </details>
   <p class="note">r1 (11.06) 초판. 11-05 결정 수치를 재측정해 D-02로 올렸다.</p>
+  <p class="note">r1 게이트 ① (11.06) D-01–D-04 권고안 확정, 판정 축 ①–③ 확정. 기각안 서술(D-01 ⓑ 문구·조건 문장, D-02 ⓑ, D-03 ⓑ)을 본문에서 지우고 문구 19를 결번으로 둠.</p>
 </section>
 
 <div style="height:140px"></div>
