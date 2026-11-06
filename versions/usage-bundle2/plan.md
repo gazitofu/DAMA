@@ -3,7 +3,7 @@ unit: usage-bundle2
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "building. T-01–T-09 구현·QA A/A3/B 반영, T-10 버전 커밋(1727e31) 뒤. 남은 것 = 게이트 ② 상신(설치·실데이터 정리·실화면·문언 정정 F-04/05/06). check.sh는 `bash /Users/gazitofu/Developer/Dama/scripts/check.sh` (대문자 절대경로)로만 돌린다."
+resume: "게이트 ② 상신 (HEAD d3e1336 + 이 기록 커밋). 회신 대기: F-04/F-05 문언 정정, 막힘 1 설치 · 2 실데이터 정리 · 4 실화면, F-01 check.sh."
 spec: notes/usage-bundle2/usage-bundle2.src.html
 ---
 ## 근거
@@ -52,14 +52,14 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 ### 차수 A · 계약·저장소 (합성)
 
 - [ ] AC-01 계약·문구 (D-04): 스펙 §05 10곳 문안이 그대로 들어갔다. 대상 = `CLAUDE.md:20` · `library-script.md` :43–44 · :66 · :72 · :91 · :92 · :182 · :193 · 새 절 «결과 보관 (usage-bundle2)» · `operating-baseline.md:73`. 새 절의 사람 수정 판정은 legacy 표지를 계약 필드로 쓴다: `transcript.revision.humanEdited == true` 또는 word `editedText != nil` (F-02). 고치지 않는 것 diff 0: `04_DATA_AND_RECONCILIATION.md:52` INV-09 · `CLAUDE.md` 함정 3 · `02` §9 · `operating-baseline.md:11 · :36`. 자 = 문안 대조(QA), 모집단 = 10곳. `validate_contracts.py` 31 OK.
-- [ ] AC-02 대표 결과 (T2a-2): `primaryFile` = createdAt 최대, 같으면 id 사전순 앞(현행 동률 규칙). 엔진 등급 코드 0: `git grep -n 'priority' -- Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift` = 0줄.
+- [x] AC-02 대표 결과 (T2a-2): `primaryFile` = createdAt 최대, 같으면 id 사전순 앞(현행 동률 규칙). 엔진 등급 코드 0: `git grep -n 'priority' -- Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift` = 0줄.
   - 가드 이동 `LibraryJourneyTests.swift:26–34`, 단정 4 유지: `primaryFiles([soniox 300, olderCombined 100, newerCombined 200, otherSpeech 400])` = [otherSpeech, soniox] · `primaryFile([soniox, olderCombined, newerCombined])` = soniox · `([laterSoniox 600, newerCombined, nemotron 500])` = laterSoniox · `([nemotron, newestP2 700])` = newestP2.
   - 역뮤테이션 (엔진 등급 되살리기): 붉음 3 (단정 1·2·3), 단정 4는 두 등급 같아 녹색. 복원은 보관한 원본 바이트로, 해시 대조.
   - 고정 동률 사례 1: createdAt 같은 두 결과 id `0…` · `F…` → `0…`.
-- [ ] AC-03 사람 수정 판정·요약 캐시: `LibraryScript.hasHumanEdits` = 9필드(turnTexts · turnNames · turnSpeakerIDs · registeredSpeakers · nameHistory · deletedParagraphs · paragraphBreaks · paragraphEdits · reviewRecords) 중 하나라도 nil 아님·비어 있지 않음, 또는 `transcript.revision.humanEdited`, 또는 word `editedText != nil`. 제목·`showsOriginal`·`correction`만 바뀐 결과 = false.
+- [x] AC-03 사람 수정 판정·요약 캐시: `LibraryScript.hasHumanEdits` = 9필드(turnTexts · turnNames · turnSpeakerIDs · registeredSpeakers · nameHistory · deletedParagraphs · paragraphBreaks · paragraphEdits · reviewRecords) 중 하나라도 nil 아님·비어 있지 않음, 또는 `transcript.revision.humanEdited`, 또는 word `editedText != nil`. 제목·`showsOriginal`·`correction`만 바뀐 결과 = false.
   - 합성 14사례: 9필드 단독 9 true · revision.humanEdited 1 true · editedText 1 true · 아무것도 없음 · 제목만 · AI 교정만 각 false.
   - `LibraryScriptSummary.hasHumanEdits` 추가, `summaryVersion` 1 → 2. 구 버전 캐시가 있는 폴더 첫 조회 = 파일 수만큼 해독(`scriptDecodeCount`), 둘째 조회 = 0.
-- [ ] AC-04 보관 규칙 (T2a-1, INV-09 · RC-13): 순수 계산 `ScriptRetention` (DamaAudio). 입력 = 요약 목록 + 실행 연결 `id → (parentRunID?, sonioxRunID?)` + 건너뛸 결과 ID + 건너뛸 녹음 ID + 선택 가상 세대(확인창용: 시각·대표 id·구성 id). 출력 = 녹음별 남김·정리 집합. 보관 세대 수 2 = 사용자 결정값(T2a-1), 상수 1곳.
+- [x] AC-04 보관 규칙 (T2a-1, INV-09 · RC-13): 순수 계산 `ScriptRetention` (DamaAudio). 입력 = 요약 목록 + 실행 연결 `id → (parentRunID?, sonioxRunID?)` + 건너뛸 결과 ID + 건너뛸 녹음 ID + 선택 가상 세대(확인창용: 시각·대표 id·구성 id). 출력 = 녹음별 남김·정리 집합. 보관 세대 수 2 = 사용자 결정값(T2a-1), 상수 1곳.
   - 세대 = 자식 아닌 결과 + 그 Run의 sonioxRunID가 가리키는 자식 결과(재사용 자식은 가리키는 세대 모두에 소속). 부모 결과 없는 자식·실행 기록 없는 결과 = 혼자 한 세대. 세대 시각 = 대표 createdAt, 내림차순, 같으면 대표 id 사전순 앞.
   - 합성 사례 (C 결합 · S Soniox 자식 · R 실행 기록 없음, 번호 클수록 최근): ① C3(S1)·C2(S1)·C1(S1) → 남김 {C3, C2, S1} 정리 {C1} ② C3(S3)·C2(S2)·C1(S1) → 남김 {C3, S3, C2, S2} 정리 {C1, S1} ③ S3 혼자·C2(S2)·C1(S1) → 남김 {S3, C2, S2} 정리 {C1, S1} (시점 규칙은 AC-07) ④ R·C1(S1) → 정리 ∅ ⑤ C3·C2·C1(C1만 사람 수정) → 정리 ∅ ⑥ 건너뛸 녹음 → 정리 ∅ ⑦ 세대 시각 동률 → 대표 id 사전순 앞이 앞 세대 ⑧ 건너뛸 결과 ID는 정리 집합에 들지 않는다.
   - 역뮤테이션 2종: 사람 수정 보호 끄기 → ⑤ 붉음 · 재사용 소속을 가리키는 세대 중 가장 오래된 하나로 제한 → ① 붉음.
@@ -71,7 +71,7 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
   - ⓓ `readVersion`: 새 배치 → 없으면 구 배치 `<revisionID>.dama.json` → 둘 다 없으면 오류. sha256 = 압축을 푼 바이트 SHA256. 구 배치로 만든 버전이 이전 뒤에도 같은 sha256로 열린다(Scripts 파일 바이트 불변).
   - ⓔ 가드 이동 `ScriptVersionTests.swift:111–113`: (1) 압축 파일 1바이트 변조 → `LibraryFailure` (2) 풀어서 1바이트 변조 후 다시 압축 → `LibraryFailure`. 역뮤테이션 (해시 검사 제거) → (2) 붉음.
   - ⓕ Scripts 활성 파일 바이트 = 정렬 JSON(비압축). `LibraryTitleTests.swift:89 · 94 · 95` 수정 없이 PASS.
-- [ ] AC-06 삭제 동반 정리 (T2a-3, 합성): 결과 하나 지우는 순서 = 휴지통 이동 → (자식이면) `library.savedSourceRuns` 등록 → `LibraryRevisions/<id>/` 삭제 → `CorrectionAttempts/<id>.json` 삭제. 이력 파일을 다루는 코드는 `FolderLibraryStore` actor 안에만.
+- [x] AC-06 삭제 동반 정리 (T2a-3, 합성): 결과 하나 지우는 순서 = 휴지통 이동 → (자식이면) `library.savedSourceRuns` 등록 → `LibraryRevisions/<id>/` 삭제 → `CorrectionAttempts/<id>.json` 삭제. 이력 파일을 다루는 코드는 `FolderLibraryStore` actor 안에만.
   - 휴지통 이동 성공 → 그 id의 이력 폴더·시도 기록 0, 다른 스크립트 이력 SHA256 목록 불변, `Sessions/` SHA256 목록 불변.
   - 휴지통 이동 실패(해시 불일치) → 이력·시도 기록·savedSourceRuns 불변.
   - 시도 기록 경로 규칙은 한 곳(DamaCore)에서 `CorrectionAttemptStore`와 `FolderLibraryStore`가 함께 쓴다: `git grep -n '"CorrectionAttempts"' -- Packages/DamaCore/Sources App` = 1줄 (기준선 `CorrectionRunner.swift:9` 1줄).
@@ -80,19 +80,19 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 
 ### 차수 B · 앱 흐름·정리
 
-- [ ] AC-07 자동 정리 시점·건너뜀·완료 메시지 (자 = 코드 대조 QA + 합성 단위):
+- [x] AC-07 자동 정리 시점·건너뜀·완료 메시지 (자 = 코드 대조 QA + 합성 단위):
   - 시점: `ProcessingWorkspace.launch`의 readyForReview 결과(:317)로 부른 `processingFinished`에서, `parentRunID == nil`이고 `createScript`가 새 파일을 만든 직후, 그 녹음 하나만. 설정 정리(AC-09)에서 모든 녹음 1회.
   - 정리 안 함: 자식 저장(select=false) · `createScript`가 기존 파일 반환 · `convert`의 재저장 경로(:372) · 앱 시작 · 실패·부분 완료.
   - 녹음 전체 건너뜀: `runHistoryAvailable == false` 또는 그 녹음 `scanIssues` 있음(:142–144 조건). 모든 녹음 건너뜀: `scriptsLoading` 또는 `scanIssues[.scripts]` 비어 있지 않음.
   - 결과 건너뜀 ID = `openedScript` · `historicalFile`의 스크립트 · `savingRunIDs` · `CorrectionWorkspace` activeID·queue.
   - 메시지: 현행 «스크립트를 저장했습니다. 화자와 내용을 확인해 주세요.» 뒤에 옮긴 수 ≥ 1 → 문구 4, 실패 수 ≥ 1 → 문구 5. 실패 = 휴지통 이동 실패(해시 불일치 포함). 건너뛴 결과는 정리 집합에 들지 않아 어느 수에도 들지 않는다. 0이면 붙이지 않는다.
   - 업데이트 전에 시작한 미완료 Run의 재개 완료도 같은 시점 규칙을 따른다. 실데이터 재개 가능 비퇴역 Run 0 (미완료 5 전부 sonioxPrecision/precision).
-- [ ] AC-08 재전사 확인창 N·문구 1–3:
+- [x] AC-08 재전사 확인창 N·문구 1–3:
   - N = `ScriptRetention`에 가상 세대(대표 = 이 실행, 시각 = 확인창 시점, 구성 = 이 실행 + `sonioxSourceRunID`)를 넣은 정리 수. 확인창과 실제 정리는 같은 함수.
   - 합성: 사례 ① 기존 + 새 결합(S1 재사용) → N = 2 (C2, C1) · 사례 ② 기존 + 새 Soniox 단독 → N = 4 (C2, S2, C1, S1) · 사례 ⑤ 기존 + 새 결합(재사용 없음) → N = 1 (C2) · C1(S1)만 있는 녹음 + 새 결합 → N = 0.
   - 문구 조립은 순수 함수: N = 0 → 현행 문자열과 바이트 동일(:206 · :232 · :235 기준). N ≥ 1 → Soniox + Nemotron 3: :232 문단을 문구 3으로, «기존 수정본은 보존됩니다. …» 문단 뒤·접수 불명 경고 앞에 문구 1. Soniox 단독 재전사: :206 문장을 문구 2로, 그 문단 뒤·접수 불명 경고 앞에 문구 1.
   - Soniox 단독 첫 전사(재전사 문단 없음)에서 N ≥ 1이면 문구 1을 «AI 문맥 교정 OFF …» 줄 앞에 둔다. 도달 조건 = 실행 기록 없는 결과가 2세대 이상이고 Run이 없는 녹음. 실데이터 0 (`begin` :262–264, 실행 기록 없는 3개 모두 Run 있는 녹음).
-- [ ] AC-09 저장 공간 정리 (FolderLibraryStore, 합성):
+- [x] AC-09 저장 공간 정리 (FolderLibraryStore, 합성):
   - ⓐ 확인(쓰기 0): 합성 = 현재 스크립트 A(구 배치 3, 그중 AI 버전 snapshot 1 · 새 배치 1) · B(구 배치 2), A·B는 서로 다른 녹음 각 1세대 + 없는 스크립트 C(구 배치 2) · D(새 배치 폴더 1파일) + 시도 기록 A·C. 기대 = 정리할 스크립트 0 · 지울 이력 3 (C 2 + D 1) · 압축할 이력 5 (A 3 + B 2) · 지울 시도 기록 1 (C). 확인 전후 내부 저장소 매니페스트 차이 0.
   - ⓑ Scripts 조회 문제(손상 파일 1) → 지울 이력 0 · 지울 시도 기록 0 · 문구 15 표지 · C·D 이력 SHA256 불변.
   - ⓒ 실행 순서 = 보관 정리(AC-06 순서) → 지울 이력 → 압축 이전 → 지울 시도 기록. 끝나면 구 배치 0, 새 배치 6, 각 파일 풀어서 원본 SHA256 일치, A의 snapshot `readVersion` 성공.
@@ -109,7 +109,7 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
   - 진행 중 문구 20 «({n}/{N})», N = 확인창 항목 수 합. 진행 중 스크립트 편집·저장·변환·AI 교정 시작 막힘, 녹음은 막지 않음.
   - 완료 문구 21 (스크립트 ≥ 1·실패 ≥ 1일 때만 둘째·셋째 문장). 빈 이력 → «내부 수정 이력 0 바이트»(포매터 표기) + 버튼 켜짐 → 문구 22.
   - 실화면: 합성 fixture(구 배치 이력 · 고아 이력 · Scripts 2)로 기본 → 확인창 → 정리 중 → 완료 → 재진입 «정리할 항목이 없습니다.» 캡처. 수집기 = AC 문언과 조작 경로 대조표를 실행 전에 만든다(rule-verify-at-consumption).
-- [ ] AC-11 실데이터 읽기 전용 모의 (메인 실행, 환경변수 지정 시에만 도는 테스트, 내부 root = 임시 폴더, Run은 state.json 직독):
+- [x] AC-11 실데이터 읽기 전용 모의 (메인 실행, 환경변수 지정 시에만 도는 테스트, 내부 root = 임시 폴더, Run은 state.json 직독):
   - 대표 결과 변경 0/20 (구 규칙 vs 새 규칙). 보관 2 → 정리 0 · 보관 1 → 4 (retention-sim.py 같은 값). `hasHumanEdits` 22/38.
   - 저장 공간 정리 확인 단계 = 지울 이력 62 · 243.1 MB · 압축할 이력 512 · 9,758.9 MB · 정리할 스크립트 0 · 시도 기록 0 (기준 22:19 실측, 집행 직전 재측정값과 대조).
   - 쓰기 0: 모의 전후 `~/DAMA/Scripts` · `~/Library/Application Support/com.gazitofu.Dama` 매니페스트(경로·크기·mtime) 차이 0. 출력은 개수·크기·ID 앞 8자만.
@@ -120,6 +120,26 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 - [ ] AC-13 실데이터 1회 정리 (막힘 2, 사용자 실행):
   - 실행 전: 메인이 AC-11 확인 단계 재측정 → 확인창 수·크기와 대조, 다르면 중단·보고. 전 매니페스트 = `LibraryRevisions` 574 파일 SHA256 · `Sessions/` SHA256 · Scripts 38 SHA256.
   - 실행 후: 구 배치 0 · 이전된 파일 수 = 확인창 압축 수(기준 512) · 각 파일 풀어서 SHA256 = 전 매니페스트 해당 파일 · 고아(기준 62) 부재 · `Sessions/`·Scripts SHA256 차이 0 · `storage-cleanup-log.jsonl` 줄 수 = 처리 수 · 크기 줄 «{전} → {후}» = 디스크 실측 · AI 버전 7개 `readVersion` 성공(AC-11 방식 읽기 전용 모의, root = 실제 내부 저장소, `scripts(in:)`로 열기, 전후 매니페스트 차이 0).
+
+## /build 결과 (2026-11-06 · 게이트 ② 상신)
+
+커밋 `b93efe6`(T-01) · `3fb1751`(T-02) · `dc48bed`(T-03) · `12794b6`(T-04) · `dcb9477`(T-05) · `79aa1ad`(QA A 수정) · `7bdeb5f`(T-06·T-07, 같은 헝크라 한 커밋) · `117fb4f`(T-08) · `f8df295`(T-09) · `1727e31`(T-10 버전 0.5.19(37)) · `0fd6838`(QA B 수정) · `d3e1336`(QA B2 fixture). 구현 = 메인 직접. QA = GPT-6.1-sol `codex exec -m gpt-6.1-sol --sandbox read-only --ignore-user-config -c model_reasoning_effort="high"`, 증거·판정 `.build/qa/usage-bundle2/` (A · A2(보류: 브리프가 증거 파일 읽기를 막음) · A3 · B · B2 · B3).
+
+- 최종 check.sh `run-20261106T141853Z-YuEpQb` (HEAD `d3e1336`): 계약 31 · byte-exact · SmokeCheck · swift test 343 (실패 0, skipped 1 = 환경변수 게이트 실데이터 모의) · xcodebuild Debug PASS. 기준선 303 → 343 (+40 신규, 삭제 0).
+- 역뮤테이션 11종(재실행 포함 13회) 전부 붉음, 복원 해시 일치(러너 = 원본 바이트 보관·복원, 표는 `A-evidence.md` · `A2-evidence.md` · `B-evidence.md` · `B2-evidence.md` · `B3-evidence.md`).
+- 실제로 쓴 것: 이 Mac의 사용자 데이터 읽기 전용 집계 2회(plan 근거 22:10–22:20 python 읽기 스크립트 · AC-11 모의 22:59–23:01, 출력은 개수·크기·ID 앞 8자만. 전후 매니페스트(경로·크기·mtime) 대조는 AC-11 모의에서 동일). 마이크·API·네트워크·음성 전송·키체인·설치 앱 실행 0. 사용자 데이터 쓰기 0.
+
+| AC | 판정 (QA) | 남은 것 |
+|---|---|---|
+| 01 | 부분 (A3) | ③ 어순만 다름 = F-05 정정 후보(QA «타당») |
+| 02 · 03 · 04 | 통과 (A) | AC-02 역뮤테이션 붉음은 문언 3이 아니라 5(이동 3 + 추가 동률 2, QA 수용) |
+| 05 | 부분 (A3) | ⓐ 스크립트 ID 규칙 = F-04 정정 후보(QA «타당»). 나머지 통과 |
+| 06 | 통과 (A3) | |
+| 07 · 08 · 11 | 통과 (B · B2) | 실제 재전사 확인창·자동 정리 실행은 안 잼(스펙) |
+| 09 | 통과 (B3, 합성·코드) | D-2 fixture를 AC 문언대로 고침(`d3e1336`), F-06 철회. 최종 check.sh는 커밋 직전 작업 트리(= `d3e1336`, 커밋 뒤 `git status` clean)에서 돌림 |
+| 10 | 부분 (B2: 코드 충족) | **실화면 미검증**: 합성 QA 앱 5상태 캡처는 사용자 부재 시간 합의 필요(막힘 4) |
+| 12 | 진행 | 버전 0.5.19(37) · check.sh 4단계 PASS · 빌드 산출물 Bundle 0.5.19(37). 설치(막힘 1) 미실행 |
+| 13 | 미실행 | 막힘 2 (사용자 실행) |
 
 ## 작업 분해
 
@@ -149,6 +169,7 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 
 1. 설치 앱 교체 1회 (T-10, 0.5.19 (37)). 승인 후 메인 실행.
 2. 실데이터 1회 정리: 사용자가 설치 앱 설정 «저장 공간 정리…» → 확인창 값 확인 → «정리». 비가역 = 고아 이력 62 · 243.1 MB 삭제(기준 22:19). 메인은 AC-13 전후 매니페스트만 잰다.
+4. 합성 QA 앱 실화면 (AC-10): `com.gazitofu.Dama.ReadingQA` + fixture `/private/tmp/dama-reading-qa-ub2-*`(내부 저장소 격리)로 기본 → 확인창 → 정리 중 → 완료 → 재진입 캡처. 앱 창이 앞으로 오고 접근성 조작이 사용자 입력과 겹치므로(usage-bundle1 F-12 · F-15) 사용자 부재 시간 합의 뒤에만.
 3. 안 잼 (스펙 §04): 앱 안 정리 소요 시간 · LZFSE/LZMA 비율 · Finder 휴지통 비움 시점 · 새 설정 절 키보드·VoiceOver(묶음 5) · 재전사 확인창 실화면(Soniox 재사용이면 유료 호출 없이 볼 수 있으나 «닫기»로만 확인, 사용자 요청 시) · 실제 재전사 완료로 일어나는 자동 정리(실데이터 쓰기).
 
 ## Follow-ups
