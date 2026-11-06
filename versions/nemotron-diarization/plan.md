@@ -140,5 +140,5 @@ spec: notes/nemotron-diarization/nemotron-diarization.src.html
 - 음성 유사도 기반 채널 분할 안내(스펙 D-05, 후속 유닛).
 - 3시간 초과 녹음 메모리(Soniox 상한 300분까지) 미측정.
 - FluidAudio의 Hugging Face revision 고정 여부 미확인(해시 대조로 방어).
-- pyannote API 키 설정 화면·`PyannoteTransport` 코드 정리는 범위 밖.
-- `notes/diarization-research/`·`scripts/nemotron-probe/`는 스펙 근거인데 미커밋(이번 유닛 시작 전부터 untracked). 커밋 여부 사용자 확인.
+- pyannote API 키 설정 화면·`PyannoteTransport` 코드 정리는 범위 밖. → 2026-11-06: 설정 화면 정리는 usage-bundle1 T5(실기기 확인)로 해소. `PyannoteTransport.swift`는 `ManagedProcessor.swift`가 참조, 코드 정리 미결.
+- `notes/diarization-research/`·`scripts/nemotron-probe/`는 스펙 근거인데 미커밋(이번 유닛 시작 전부터 untracked). 커밋 여부 사용자 확인. → **해소** (2026-11-06 사용자 채택 후 커밋 `0ba7a40`).

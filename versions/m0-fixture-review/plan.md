@@ -1,16 +1,17 @@
 ---
 unit: m0-fixture-review
 branch: work/m0-fixture-review
-status: building
+status: released
+released_at: 2026-11-06
 decisions_resolved: true
-resume: "기본 수정→저장→재실행→내보내기는 사용자 확인 완료, 재검사 없음. M0 미측정 AC는 유지. 사용자 후속 구현 지시로 M1·M2 코드와 합성/mock 검증 진행; 각각의 plan 참조. 남은 실제 UI·접근성만 한 묶음으로 확인."
+resume: "2026-11-06 범위 재정의로 종결(released, 코드는 v0.5.18 포함). Core 충족분 체크, 화면·접근성 미측정은 notes/usage-review/decisions.md «이월» E-01–E-05. 검수 창 제거 결정 시 항목별 재판정."
 spec: notes/review-workspace/review-workspace.src.html
 spec_sections: "02 검수·수정·내보내기; 03 검수 창; 04 검수 관련 규격·문구; 05; 06"
 deployment_target: "26.6.2"
 architecture: arm64
 primary_device: "M5 MacBook Pro (사용자 지정)"
 created: 2026-09-09
-updated: 2026-09-09
+updated: 2026-11-06
 ---
 
 ## 근거
@@ -106,18 +107,29 @@ public protocol TranscriptRepository: Sendable {
 
 ## 수용 기준
 
+> **범위 재정의 (2026-11-06, 사용자 승인 «1번 닫기·이월안대로 진행 먼저 하자»)**: 기존 AC를 충족분·대상 소멸분·미측정 이월분으로 재분류한다. 원 AC 문언과 조건별 대응을 보존하며 이월은 충족으로 계산하지 않는다. 이 유닛의 완료 기준은 아래에서 체크된 항목으로 줄이고, AC-12 «실행 불가 시 미측정으로 남기고 built 처리 금지»와 /build 결과의 building 유지 판정(06·07 보류, T-08)은 이월 항목으로 옮겨 목적지(`notes/usage-review/decisions.md` «이월»)에서 열린 항목으로 추적한다. status released는 재정의한 구현 범위가 v0.5.18(`4063ebe`)에 포함됐음을 뜻하며 원 AC 전체 검증 완료를 뜻하지 않는다. QA 판정 `.build/qa/bookkeeping-20261106/verdict.md`(GPT-6.1-sol).
+
 - [x] AC-01 프로젝트: DamaCore의 pure tests와 Dama Debug 컴파일 성공. module cache `.build/modulecache` 고정. 파일 경로 존재에 따른 SKIP 2개가 M0 완료 시 남지 않음. 서명 없는 compile을 배포 검증으로 표시하지 않음.
 - [x] AC-02 계약: 원본 schema와 Swift 파생물 일치; normalized 재인코딩의 모든 required nullable 키 존재. unknown provider status 문자열 보존. d4 confidence 합 125(65+60), d5 confidence=null 그대로. 모집단: 기존 normalized·vendor 2파일과 메모리 변형. INV-01·02·08, RC-07·12.
 - [x] AC-03 데이터 보존: normalized fixture Words 5, Turns 4, 이슈 2. t1 → t-marker → t2 분리; t-marker 850000–990000µs, wordIds=[]; w5 speakerId=null/modelSpeakerId=speaker-b. 로드·수정·저장·재실행·두 포맷 출력 모두 대조. INV-03–07·10, RC-01·03·11.
 - [x] AC-04 수정 범위: w5를 speaker-c로 변경해도 text='네', modelSpeakerId=speaker-b, overlap=true 유지. speaker-a 이름 변경은 B/C와 다른 Run 불변. 한 Word editedText 변경은 원문·prefix 보존; Undo/Redo·재실행 후 동일. INV-05·08·09, RC-13·15.
 - [x] AC-05 장벽: t1 내부 w1/w2 경계 수동 분리 → 5 Turns; 후속 화자 변경·Undo/Redo·재실행에서도 marker와 수동 경계 보존. Word 한 개가 정확히 한 speech Turn에 속하는지 전수 확인. INV-04–06.
-- [ ] AC-06 이슈: i1만 확인하면 acknowledged, i2는 open, w5는 null, marker 유지. 다음 이슈는 850000µs의 i1이 2100000µs의 i2보다 먼저. 동일 시간은 ID 순, null 시간은 유효 시간 뒤. 확인 이슈 없음/검색 없음/선택 없음 상태에서 조작이 잘못 활성화되지 않음. INV-08·10.
-- [ ] AC-07 저장 실패: (a) 임시 작성 중 (b) revision 확정 후 pointer 직전 (c) pointer 손상 세 지점 fault injection. 기존 model/raw/유효 revision 해시 보존, 이전 또는 복구된 유효 active 로드. 실패 중 ‘저장됨’·내보내기 금지. 전원 손실 내구성을 이 검사로 주장하지 않음.
+- (재분류 2026-11-06) AC-06 원문: 이슈: i1만 확인하면 acknowledged, i2는 open, w5는 null, marker 유지. 다음 이슈는 850000µs의 i1이 2100000µs의 i2보다 먼저. 동일 시간은 ID 순, null 시간은 유효 시간 뒤. 확인 이슈 없음/검색 없음/선택 없음 상태에서 조작이 잘못 활성화되지 않음. INV-08·10.
+  - [x] AC-06a Core 층위: i1만 확인하면 acknowledged, i2는 open, w5는 null, marker 유지. 시각순·동일 시각 ID순·null 시간은 유효 시간 뒤. 근거 `TranscriptEditingTests` `testIssueOrderingTimedTieNullAndTerminalBehavior`·`testTextEditUndoRedoAndIssueAcknowledgePersistOriginalEvidence`·`testExplicitSplitAndIssueStatusTouchOnlyRequestedEvidence`, main 검사 `run-20261105T162524Z-XwleCL` passed.
+  - 이월 AC-06b: 확인 이슈 없음/검색 없음/선택 없음 각 상태에서 관련 조작이 잘못 활성화되지 않음(실기기). → `notes/usage-review/decisions.md` «이월» E-01
+- (재분류 2026-11-06) AC-07 원문: 저장 실패: (a) 임시 작성 중 (b) revision 확정 후 pointer 직전 (c) pointer 손상 세 지점 fault injection. 기존 model/raw/유효 revision 해시 보존, 이전 또는 복구된 유효 active 로드. 실패 중 ‘저장됨’·내보내기 금지. 전원 손실 내구성을 이 검사로 주장하지 않음.
+  - [x] AC-07a Core 층위 세 fault 시나리오: (a) 임시 작성 실패 `testPartialTemporaryWritePreservesAllPriorHashesAndActive`, (b) revision 설치 후 pointer 직전 실패 `testInstalledOrphanDoesNotOverrideValidPointerAndRetrySucceeds`, (c) pointer 손상·누락(주입 훅이 아니라 파일 변조) `testCorruptPointerRecoversLatestValidAndIgnoresMalformedCandidate`. 해시·유효 active 대조, 실패 중 두 버전 내보내기 차단 `testFailedDirtySaveBlocksBothVersionsUntilRetryCompletes`. main 검사 `run-20261105T162524Z-XwleCL` passed. 전원 손실 내구성 주장 없음.
+  - 이월 AC-07b: 실패 중 «저장됨» 표시 금지, 실패 안내·종료 방지의 화면 확인(Core 상태 단정은 화면 표시 검증이 아님). → `notes/usage-review/decisions.md` «이월» E-02
 - [x] AC-08 시간·TXT: 내부 Int64 µs→화면/TXT 밀리초 표시만 변환. 850000→00:00:00.850, 990000→00:00:00.990; 140000µs=140ms. null은 ‘시간 미확인’; 음수·역전 범위는 검증 실패. 정수 표시 반올림은 모델 시간을 수정하지 않음. INV-02, RC-07. 고정 테스트 필수.
 - [x] AC-09 export: 자동본/현재 수정본×JSON/TXT 4조합; null 화자는 ‘화자 미확정’, marker 보존, 정답 확률(%) 미표시. output에 API 키·서명 URL·내부 저장소 절대경로 없음. 합성 provenance 유지. INV-08–10, G-04 중 export 층위.
-- [ ] AC-10 UI: 기본 1180×760, 최소 900×600에서 원문·명령이 겹치지 않음. 목록 220pt, Inspector 260pt, 최소 폭 접기·근거 보기 overlay 실제 열기/닫기. 합성 fixture 배지, marker·unknown·confidence 미제공 표시를 육안 확인. HTML mock PASS로 대체하지 않음.
-- [ ] AC-11 사용자 여정: Debug 합성 데이터 열기 → 단어/범위 선택 → 화자 변경 → 이름 변경 → Undo/Redo → 저장 → 종료·재실행 → JSON/TXT 저장. 저장 파일 재로딩으로 같은 데이터 확인. 녹음·원음 재생·키 입력·전사 버튼은 미지원 안내/비활성, 권한 요청·API 호출 없음.
-- [ ] AC-12 접근성: 검수 창의 선택·화자 변경·이슈 이동·내보내기를 키보드로 1회 완주; VoiceOver의 화자·시간·이슈·선택 이름 확인. 밝은/어두운 모드에서 label·focus 가독성 육안 기록. 실행 불가 시 미측정으로 남기고 built 처리 금지.
+- (재분류 2026-11-06) AC-10 원문: UI: 기본 1180×760, 최소 900×600에서 원문·명령이 겹치지 않음. 목록 220pt, Inspector 260pt, 최소 폭 접기·근거 보기 overlay 실제 열기/닫기. 합성 fixture 배지, marker·unknown·confidence 미제공 표시를 육안 확인. HTML mock PASS로 대체하지 않음.
+  - 이월 AC-10 전체(두 창 크기, 패널 폭·접기, overlay 열기/닫기, 배지·marker·unknown·confidence 표시 육안). → `notes/usage-review/decisions.md` «이월» E-03
+- (재분류 2026-11-06) AC-11 원문: 사용자 여정: Debug 합성 데이터 열기 → 단어/범위 선택 → 화자 변경 → 이름 변경 → Undo/Redo → 저장 → 종료·재실행 → JSON/TXT 저장. 저장 파일 재로딩으로 같은 데이터 확인. 녹음·원음 재생·키 입력·전사 버튼은 미지원 안내/비활성, 권한 요청·API 호출 없음.
+  - [x] AC-11a 기본 여정: Debug 합성 데이터 수정→저장→종료·재실행→내보내기, 사용자 확인 «막힌 부분 없었음»(확인 날짜 미기록, Follow-ups ①, 재검사 금지).
+  - 이월 AC-11b: 단어/범위 선택·화자 변경·이름 변경·Undo/Redo의 개별 확인, 저장 파일 재로딩 대조, 합성 여정 중 권한 요청·API 호출 없음. → `notes/usage-review/decisions.md` «이월» E-04
+  - 대상 소멸: «녹음·원음 재생·키 입력·전사 버튼은 미지원 안내/비활성». M1·M2 이후 유닛에서 해당 기능을 구현했다.
+- (재분류 2026-11-06) AC-12 원문: 접근성: 검수 창의 선택·화자 변경·이슈 이동·내보내기를 키보드로 1회 완주; VoiceOver의 화자·시간·이슈·선택 이름 확인. 밝은/어두운 모드에서 label·focus 가독성 육안 기록. 실행 불가 시 미측정으로 남기고 built 처리 금지.
+  - 이월 AC-12 전체(키보드 완주, VoiceOver 이름, 밝음/어둠 label·focus). «built 처리 금지» 조항은 이 이월 항목과 함께 추적한다. → `notes/usage-review/decisions.md` «이월» E-05
 
 ## 작업 분해
 

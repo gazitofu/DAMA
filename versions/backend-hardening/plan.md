@@ -38,7 +38,7 @@ spec: "사용자 2026-09-11 이어서 진행 승인; notes/backend-audit/audit.m
 ## Follow-ups
 
 - 2026-09-12 F-03 완료: [reading-performance](../reading-performance/plan.md),0.4.5(15) 전달. 아래 다른 항목은 후속으로 유지한다.
-- F-03 읽기 snapshot/메인 I/O, F-04 손상 파일 격리, F-05 runtime bytes 고정, F-06 근거 계산 중복, F-07 검사 scratch 옵션은 별도 작은 단위다.
+- F-03 읽기 snapshot/메인 I/O, F-04 손상 파일 격리, F-05 runtime bytes 고정, F-06 근거 계산 중복, F-07 검사 scratch 옵션은 별도 작은 단위다. → 2026-11-06 대조: F-03 reading-performance, F-04·F-07 storage-isolation, F-06 normalization-evidence 완료(backend-audit Follow-ups 기록). F-05 runtime 고정은 `notes/backend-audit/audit.md` 권고 5(후속 Mac-only 학습 유닛 선행 계약)로 미결.
 - null 화자를 합치는 표시 변경, Qwen 정렬 재실행·학습, UI/UX 시안은 이번 범위가 아니다.
 
 ## 검증 기록

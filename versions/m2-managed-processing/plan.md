@@ -1,12 +1,13 @@
 ---
 unit: m2-managed-processing
 branch: work/m0-fixture-review
-status: building
+status: released
+released_at: 2026-11-06
 decisions_resolved: true
-resume: "T-01–03 구현·Core+managed 71건·Debug build PASS. 사용자 실파일 96분53.5초 전체 로컬 반입·변환 PASS, 첫5분 WAV 준비. 그 샘플의 pyannote 전송·유료 호출 별도 승인 대기. 마이크·키체인/API 미측정."
+resume: "2026-11-06 범위 재정의로 종결(released, 코드는 v0.5.18 포함). AC-06 pyannote 실연동은 퇴역으로 대상 소멸(검증 통과 아님), 한국어 결과 검수는 notes/usage-review/decisions.md «이월» E-08."
 spec: notes/review-workspace/review-workspace.src.html
 created: 2026-09-09
-updated: 2026-09-09
+updated: 2026-11-06
 ---
 
 ## 근거·범위
@@ -31,19 +32,23 @@ updated: 2026-09-09
 
 ## AC·태스크·QA
 
+> **범위 재정의 (2026-11-06, 사용자 승인 «1번 닫기·이월안대로 진행 먼저 하자»)**: 기존 AC를 충족분·대상 소멸분·미측정 이월분으로 재분류한다. 원 AC 문언과 조건별 대응을 보존하며 이월은 충족으로 계산하지 않는다. 이 유닛의 완료 기준은 아래에서 체크된 항목으로 줄이고, 실제 앱·API·한국어 품질 미측정에 따른 building 유지은 이월 항목으로 옮겨 목적지(`notes/usage-review/decisions.md` «이월»)에서 열린 항목으로 추적한다. status released는 재정의한 구현 범위가 v0.5.18(`4063ebe`)에 포함됐음을 뜻하며 원 AC 전체 검증 완료를 뜻하지 않는다. QA 판정 `.build/qa/bookkeeping-20261106/verdict.md`(GPT-6.1-sol).
+
 - [x] AC-01 키·동의: 키 파일 저장 없음, 전송 동의 없거나 never 정책이면 HTTP 0; 녹음 독립. Keychain 실접근은 사용자 설정 동작에서만.
 - [x] AC-02 HTTP mock 여정: upload→submit→poll→raw→normalized. PUT auth 없음·redirect 거부. 400/401/402/429/5xx·접수 불명·같은 jobId GET·재실행 state·중복 click 차단.
 - [x] AC-03 normalizer: RC-01/03/04/05/07/08/09/11/12/14/16, INV-01–10; 단어 보존, 140ms marker, A 재병합 방지, map/null, zero/bad time, boundary와 overlap 구분. 기존 fixture와 메모리 변형.
 - [x] AC-04 저장/검수: 실제 raw bytes 불변 설치→model/revision→기존 editor open; source hash와 기존 수정본 유지. 네트워크/키/원문 로그 없음.
 - [x] AC-05 앱: 키 입력·동의 창·로컬 저장만·처리 상태·ready 검수 연결, Swift 6 tests/Debug build. 앱 실음성 조작과 별도.
-- [ ] AC-06 실연동: 사용자 확인한 짧은 파일 업로드·비용·계정 제한·한국어 결과 검수. 승인 전 미실행 유지.
+- (재분류 2026-11-06) AC-06 원문: 실연동: 사용자 확인한 짧은 파일 업로드·비용·계정 제한·한국어 결과 검수. 승인 전 미실행 유지.
+  - 대상 소멸: pyannote 실연동 검증은 퇴역(사용자 2026-10-30 pyannote 제외, 키 2026-11-05 삭제)으로 종료. 검증 통과가 아니다. 현행 Soniox 업로드는 이 AC의 비용·계정 제한·한국어 검수 통과 근거가 아니다.
+  - 이월 AC-06b: 현행 운영 경로(Soniox + Nemotron)의 한국어 결과 검수. → `notes/usage-review/decisions.md` «이월» E-08
 
 T-01 Core normalizer·repository; T-02 영속 processing + HTTP adapter/mock; T-03 Keychain·동의·UI 연결; T-04 변경 검산·README·AC 갱신.
 QA는 ① mock 전송→저장→검수 ② 앱 설정→건별 동의→처리→검수의 2묶음. 수정 후 영향 축만 재검사. 키 없음·실전송 보류는 구현 중단 사유 아님.
 
 ## Follow-ups·막힘
 
-- 사용자 실파일 경로 수신·로컬 검사 완료. 첫 00:00–05:00 샘플 준비, 전송/유료 호출 건별 확인 대기. API 키는 앱 키 설정으로 등록하며 채팅·로그로 수신하지 않음.
+- 사용자 실파일 경로 수신·로컬 검사 완료. 첫 00:00–05:00 샘플 준비, 전송/유료 호출 건별 확인 대기. API 키는 앱 키 설정으로 등록하며 채팅·로그로 수신하지 않음. → 2026-11-06: pyannote 퇴역으로 이 표본 전송 계획 종료. Soniox 전송 승인으로 승계하지 않는다.
 - M1 10분·장기·접근성, M0 미측정 UI는 기존 plan에 유지. 원음 seek·재생·Run 전환·자동 전송·화자 수 설정 확장·삭제·release gate는 m2-review-release 후속. 이 단계에서 미지원 컨트롤을 만들지 않음.
 
 ## 검증·현재 제한 (2026-09-09)

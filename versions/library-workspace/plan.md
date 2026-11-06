@@ -1,12 +1,13 @@
 ---
 unit: library-workspace
 branch: work/m0-fixture-review
-status: building
+status: released
+released_at: 2026-11-06
 decisions_resolved: true
-resume: "T-18 reading-v4/아이콘 0.1.5(6) 설치 확인 및 03e7957 커밋/승인된 GitHub push 완료. 사용자 후속 Soniox 선택 작업은 versions/soniox-provider/plan.md에서 진행. 기존6혼합문서 및 이 유닛 미완료 AC 보존."
+resume: "2026-11-06 범위 재정의로 종결(released, 코드는 v0.5.18 포함). AC-06 충족분(키·녹음·구 엔진 실계정 교정) 체크, 실앱 조작·청취·접근성은 notes/usage-review/decisions.md «이월» E-09, 한국어 평가 E-08."
 spec: notes/library-workspace/library-workspace.src.html
 created: 2026-09-10
-updated: 2026-09-11
+updated: 2026-11-06
 ---
 
 ## 근거·승인
@@ -47,6 +48,8 @@ updated: 2026-09-11
 - QA 묶음 ① 폴더→반입→mock변환→Script ② Script편집→저장/재실행→MD ③ 메뉴→녹음 상태·창수명. 실제 마이크/파일전송 미측정 유지.
 
 ## AC
+
+> **범위 재정의 (2026-11-06, 사용자 승인 «1번 닫기·이월안대로 진행 먼저 하자»)**: 기존 AC를 충족분·대상 소멸분·미측정 이월분으로 재분류한다. 원 AC 문언과 조건별 대응을 보존하며 이월은 충족으로 계산하지 않는다. 이 유닛의 완료 기준은 아래에서 체크된 항목으로 줄이고, AC-06 «미측정은 building 유지»와 다른 AC가 «AC-06에 남긴다»로 미룬 실앱 조건은 이월 항목으로 옮겨 목적지(`notes/usage-review/decisions.md` «이월»)에서 열린 항목으로 추적한다. status released는 재정의한 구현 범위가 v0.5.18(`4063ebe`)에 포함됐음을 뜻하며 원 AC 전체 검증 완료를 뜻하지 않는다. QA 판정 `.build/qa/bookkeeping-20261106/verdict.md`(GPT-6.1-sol).
 - [x] AC-19 T-16 SVG·PNG·ICNS·미리보기·재생성·색상/알파/크기/상태 동등좌표 검산, 앱 자산 연결·Debug compile, Applications 설치/실행 버전·아이콘 확인. 녹음 엔진 불변, 실녹음/권한 대화 추가 검증 여부 구분.
 - [x] AC-20 T-18 시간 상한 없이 같은 화자 연속 문장 연결, 종결부호/새 화자·누락 경계 유지, 원 Turn/단어/시간/이슈 보존. 합성 영향18·실제 C/테스트녹음 읽기/MD 검산·Debug0.1.5(6)·설치본 기존 Script 묶음 표시 확인.
 - [x] AC-18 T-15 재전사 새 Run/새 Script·사람 수정/원음 보존·명시적 재전송 동의·재개 분리, 선택 파일 휴지통 이동/취소·변경 감지·연결항목 유지·실패 안내. 합성 여정·앱 실행 버전/Speech·Script 버튼 확인. 확인 취소·Script 삭제 실조작·실유료 재전송 미측정. UI 점검 중 실제 Speech 휴지통 이동/복원은 아래 별도 기록.
@@ -63,7 +66,10 @@ updated: 2026-09-11
 - [x] AC-03 제목·세 화자 범위·문장 override 저장·재로드·원문/타임스탬프 불변·Markdown 동일.
 - [x] AC-04 Markdown에 녹음 날짜시간·zone·입력count/맥락/참고·화자·대사·timestamp·누락/미확정 포함. 850000µs=00:00:00.850, null=시간 미확인.
 - [x] AC-05 DAMA 네이밍·두 상태 메뉴아이콘·네 항목·키 설정·모든 제품내보내기 MD·Swift6/Debug compile.
-- [ ] AC-06 실앱 폴더 picker/Keychain/TCC·녹음·VoiceOver·실한국어 평가. 미측정은 building 유지.
+- (재분류 2026-11-06) AC-06 원문: 실앱 폴더 picker/Keychain/TCC·녹음·VoiceOver·실한국어 평가. 미측정은 building 유지.
+  - [x] AC-06a 각각 구분: Keychain 키 존재와 Soniox 업로드 사용(실사용 Run의 업로드 ID), 앱에서 pyannote 키 삭제(2026-11-05 usage-bundle1 실기기); 마이크 권한 허용 후 녹음 30건·10분 이상 19건·최장 160.4분(m1 AC-06a·07a와 같은 메타데이터); 구 엔진(`context-correction-4/5`) 실계정 교정 완료 3건(2026-09, 완료 시각·수정 있음). 구간 정보 열기/닫기는 합성 QA 앱 1180×760 한 크기(usage-bundle1 H)만.
+  - 이월 AC-06b: 라이브러리 폴더 선택창·첫 실행 선택창, 서명 sandbox 인증, 현행 키 저장 UI 여정, 직접 청취, VoiceOver, 전체 창 크기·애니메이션, 팝오버 조작·스크롤, 실서버 상태, 현행 엔진 `context-correction-6` 실계정 성공. → `notes/usage-review/decisions.md` «이월» E-09
+  - 이월 AC-06c: 실한국어 평가. → `notes/usage-review/decisions.md` «이월» E-08
 - [x] AC-07 처리 활성 작업에 단계·스피너·이번 처리 경과·마지막 서버 응답 시각 표시. 네트워크 대기/일시정지/실패에서는 실제 서버 실행처럼 표시하지 않음. API에 없는 %·미측정 ETA는 생성하지 않음.
 - [x] AC-08 10명에 원 화자 ID 기준 서로 다른 색, null 중립색. 이름 수정 후 색 유지. 연속 동일 ID·동일 이름 발화는 하나의 문단과 시작~끝 시간으로 UI/MD에 표시. 다른 화자·누락·null·불명 시간·사람이 나눈 경계 보존. 묶음 편집은 원 구간별 입력, 이름 one은 선택 묶음 전체·from은 묶음 시작부터.
 - [x] AC-09 기존 ‘확인할 내용’ 상시 행 제거. open 이벤트만 화자 옆 노란 느낌표+클릭 팝오버. 원 이슈·원문·시간 정보는 저장/MD에서 보존.

@@ -1,12 +1,13 @@
 ---
 unit: m1-recording-safety
 branch: work/m0-fixture-review
-status: building
+status: released
+released_at: 2026-11-06
 decisions_resolved: true
-resume: "T-01–03 구현, 오디오 6건·Debug compile 및 사용자 실파일 96분53.5초 로컬 반입·변환 PASS. 실마이크·장기 녹음·접근성 미측정. M2 첫5분 실전송 승인 대기."
+resume: "2026-11-06 범위 재정의로 종결(released, 코드는 v0.5.18 포함). 실사용 녹음 메타데이터로 충족분 체크, 여정·접근성·보존 대조 미측정은 notes/usage-review/decisions.md «이월» E-06·E-07."
 spec: notes/review-workspace/review-workspace.src.html
 created: 2026-09-09
-updated: 2026-09-09
+updated: 2026-11-06
 ---
 
 ## 근거
@@ -42,13 +43,19 @@ updated: 2026-09-09
 
 ## 수용 기준
 
+> **범위 재정의 (2026-11-06, 사용자 승인 «1번 닫기·이월안대로 진행 먼저 하자»)**: 기존 AC를 충족분·대상 소멸분·미측정 이월분으로 재분류한다. 원 AC 문언과 조건별 대응을 보존하며 이월은 충족으로 계산하지 않는다. 이 유닛의 완료 기준은 아래에서 체크된 항목으로 줄이고, AC-06 «미실행이면 미체크 유지»와 AC-07 «미측정 구분»은 이월 항목으로 옮겨 목적지(`notes/usage-review/decisions.md` «이월»)에서 열린 항목으로 추적한다. status released는 재정의한 구현 범위가 v0.5.18(`4063ebe`)에 포함됐음을 뜻하며 원 AC 전체 검증 완료를 뜻하지 않는다. QA 판정 `.build/qa/bookkeeping-20261106/verdict.md`(GPT-6.1-sol).
+
 - [x] AC-01 상태: 중복 시작·종료 차단, 첫 프레임에 recording, finalizing 중 시작 금지, 권한·저장 오류에 가짜 녹음 없음. reducer 고정 테스트.
 - [x] AC-02 원본: 합성 PCM을 실제 writer로 청크 경계 양쪽에 기록, 순서/프레임/샘플 동일, stop drain; overflow는 interrupted. G-02 저장 층위.
 - [x] AC-03 복구: 확정 청크 뒤 미완료 파일·unfinished manifest를 두고 재로드, 확정 파일 해시 불변·미완료 파일 보존·interrupted 기록. 전원 손실 미측정.
 - [x] AC-04 반입·시간: 합성 WAV/M4A 파일 실제 decode·복사 해시, 48k→16k duration/frame 검사, 무음 길이 유지, 반대 위상 차단, 원본 불변. INV-02; 고정 1초·30초 단위 검사.
 - [x] AC-05 앱: Swift 6 오디오 tests·서명 없는 Debug build. 메뉴바/패널/파일 선택/원본 목록/권한 목적문 연결, 마이크 접근은 사용자 시작 동작에서만.
-- [ ] AC-06 실기기 녹음 여정: 키·네트워크 없이 10분, 패널 닫기·다른 앱 전환·stop·재실행·청취, 정상 프레임·RMS·크기·메모리. 미실행이면 미체크 유지.
-- [ ] AC-07 실기기 중단·접근성: sleep/장치/TCC/디스크 부족/강제 종료, 키보드·VoiceOver 패널, 2시간 장기 검증. 미측정 구분.
+- (재분류 2026-11-06) AC-06 원문: 실기기 녹음 여정: 키·네트워크 없이 10분, 패널 닫기·다른 앱 전환·stop·재실행·청취, 정상 프레임·RMS·크기·메모리. 미실행이면 미체크 유지.
+  - [x] AC-06a 실사용 10분 이상 녹음 19건 saved: manifest 기록과 청크 파일 존재·크기(frames×channels×4 기준)·기록 RMS(0 이하·NaN 0개) 조건 확인. 내부 `Sessions/*/audio/capture-manifest.json` 마이크 녹음 30건 메타데이터 집계(2026-11-06, 제목·음성 미열람, 해시 재계산·PCM 대조 아님).
+  - 이월 AC-06b: 키·네트워크 없음, 패널 닫기, 다른 앱 전환, stop 조작, 재실행·재로드, 청취, PCM 정상 프레임 대조, 메모리. → `notes/usage-review/decisions.md` «이월» E-06
+- (재분류 2026-11-06) AC-07 원문: 실기기 중단·접근성: sleep/장치/TCC/디스크 부족/강제 종료, 키보드·VoiceOver 패널, 2시간 장기 검증. 미측정 구분.
+  - [x] AC-07a 중단 기록 sleep 2건(140.6분·25.0분)·deviceChanged 1건(7.3분)의 청크 파일 존재·크기 조건과 분석본 존재, 최장 saved 녹음 160.4분(30초 청크 321개). 내부 `Sessions/*/audio/capture-manifest.json` 마이크 녹음 30건 메타데이터 집계(2026-11-06, 제목·음성 미열람, 해시 재계산·PCM 대조 아님).
+  - 이월 AC-07b: 중단 전후 해시·프레임 보존 대조, TCC 거부, 디스크 부족, 청크가 있는 강제 종료 표본(appInterrupted 2건은 2026-09-10 청크 0이라 보존 성공 표본이 아님), 키보드·VoiceOver 패널, 장시간 메모리. → `notes/usage-review/decisions.md` «이월» E-07
 
 ## 작업·QA 경계
 

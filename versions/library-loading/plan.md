@@ -76,8 +76,8 @@ spec: "계약 유닛. 컨펌 출처 = ssot/design/00_README.md 하이브리드 �
 - `LibraryScript.validate()`의 검증기 외 부분이 32파일에 0.42–0.46 s(25.4MB Soniox 파일 0.33 s). 이번 범위 밖.
 - 요약 캐시 JSON이 같은 내용이어도 bytes가 달라진다(키 순서 추정). 동작 영향 없음, 결정적 출력(`.sortedKeys`) 여부는 별도 판단.
 - 전달 앱이 Debug 빌드다(이전 선례). 릴리스 빌드 전달 여부는 별도 판단.
-- `project.pbxproj` 버전(0.5.10→0.5.11)은 타 소유 미커밋 상향과 같은 줄이라 작업 트리에만 있다.
+- `project.pbxproj` 버전(0.5.10→0.5.11)은 타 소유 미커밋 상향과 같은 줄이라 작업 트리에만 있다. → **해소** (2026-11-06 v0.5.18 main 반영, 작업 트리 clean).
 
 - 녹음 분류(신규/기존/변환, 사용자 정의는 진단 문서) 화면은 별도 `/spec`.
-- Nemotron-3 정식 도입은 별도 유닛(`/spec` 착수 예정).
+- Nemotron-3 정식 도입은 별도 유닛(`/spec` 착수 예정). → 2026-11-06: nemotron-diarization으로 이관(해당 유닛 building). 도입 전체 완료가 아니다.
 - `scripts/validate_contracts.py`의 문서 탐색이 하위 `.build`를 제외하지 않는다(최상위만 제외). 이번엔 산출물 이동으로 회피, 수정은 별도 판단.
