@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>usage-bundle2 스펙 · 스크립트·수정 이력 보관 정리</title>
+<style>
+/*__FONTS__*/
+
+/* ══════════ 토큰 (ssot 디자인 시스템 정본 값 그대로. 임의 수정 금지) ══════════ */
+:root{
+  /* 지면 */
+  --paper:#FFFFFF; --paper-2:#F7F7F7; --paper-3:#EDEDED;
+  /* 잉크 */
+  --ink:#1A1A1A; --ink-2:#4A4A4A; --ink-3:#6A6A6A;
+  /* 선 */
+  --hair:#DDDDDD;
+  /* 포인트 6색 (apricot 은 본문 #태그 밑줄 전용) */
+  --rose:#FF4D79; --lilac:#8A4BFF; --sky:#1E8AFF; --lemon:#FFF056; --sage:#29C06E; --apricot:#FFC24D;
+  /* 소프트 14% */
+  --rose-soft:#FFE6EC; --lilac-soft:#EFE6FF; --sky-soft:#DFEFFF; --lemon-soft:#FFFDE7; --sage-soft:#E1F6EB; --apricot-soft:#FFF6E6;
+  /* 틴트 8% */
+  --rose-tint:#FFF1F4; --lilac-tint:#F6F1FF; --sky-tint:#EDF6FF; --lemon-tint:#FFFEF1; --sage-tint:#EEFAF3; --apricot-tint:#FFFAF1;
+  /* 스크림 (이미지 위 텍스트 받침) */
+  --scrim:rgba(34,28,22,.62);
+  /* 내비 모션 공통 이징 */
+  --ease-nav:cubic-bezier(.22,1,.36,1);
+  /* 폰트 */
+  --serif:'KoPub Batang',serif;
+  --sans:'KoPub Dotum',-apple-system,'Apple SD Gothic Neo',sans-serif;
+  --num:'Fraunces',Georgia,serif;
+  --w-num:400; --w-num-strong:600;
+  /* 선 굵기 */
+  --lw:0.5px; --lw-strong:1px;
+  /* 라운딩 */
+  --r:3px;
+  /* 여백 자리 */
+  --sp-page:24px; --sp-block:24px; --sp-el:12px;
+  --sp-sec-above:48px; --sp-sec-head:24px; --sp-sec-body:32px;
+  --sp-grid:24px; --sp-grid-tight:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;font-weight:300;line-height:1.8;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+img{max-width:100%;display:block}
+
+/* ── 라인 아이콘 (Phosphor, 잉크색 단색 에셋) ── */
+.ic{display:inline-block;width:22px;height:22px;background:var(--m) center/contain no-repeat;flex:0 0 auto}
+.ic.inv{--m:url('assets/icons-a/add-inv.svg')}
+.ic-home{--m:url('assets/icons-a/home.svg')}
+.ic-chat{--m:url('assets/icons-a/chat.svg')}
+.ic-tools{--m:url('assets/icons-a/tools.svg')}
+.ic-world{--m:url('assets/icons-a/world.svg')}
+.ic-lounge{--m:url('assets/icons-a/lounge.svg')}
+.ic-add{--m:url('assets/icons-a/add.svg')}
+.ic-player{--m:url('assets/icons-a/player.svg')}
+.ic-turn{--m:url('assets/icons-a/turn.svg')}
+
+.col{max-width:920px;margin:0 auto;padding:0 24px}
+
+/* ── 문서 헤더 ── */
+header.doc{padding:64px 0 40px;border-bottom:var(--lw-strong) solid var(--ink)}
+.doc .date{font-family:var(--num);font-weight:var(--w-num-strong);font-size:64px;line-height:.95;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.doc .meta{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-top:10px;letter-spacing:.03em}
+.doc h1{font-family:var(--serif);font-weight:700;font-size:30px;line-height:1.35;margin-top:22px;letter-spacing:-.01em}
+.doc .sub{margin-top:12px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.hl{background:linear-gradient(transparent 60%, var(--lemon) 60%);font-weight:500;color:var(--ink)}
+code{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;background:var(--paper-2);padding:1px 5px}
+
+/* ── 00 판정 블록 (헤더 바로 아래 · 사용자가 답할 것만 · 열림/닫힘 2상태) ── */
+.verdict{margin-top:28px;border:var(--lw-strong) solid var(--ink);background:var(--paper)}
+.verdict .vh{display:flex;align-items:baseline;gap:12px;padding:14px 20px;border-bottom:var(--lw) solid var(--ink);background:var(--paper-2)}
+.verdict .vh h2{font-family:var(--serif);font-size:18px;font-weight:700}
+.verdict .vh .cnt{font-family:var(--num);font-size:13px;color:var(--ink-3)}
+.verdict .vh .stamp{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--lemon);padding:2px 8px}
+.verdict[data-state="open"] .stamp{display:none}
+.verdict .vb{padding:6px 20px 18px}
+.vitem{padding:14px 0;border-bottom:var(--lw) solid var(--hair)}
+.vitem:last-child{border-bottom:0}
+.vitem .vt{display:flex;gap:10px;align-items:baseline;font-weight:700;font-size:14.5px}
+.vitem .vt .id{font-family:var(--num);font-weight:400;color:var(--ink-3);font-size:13px;min-width:44px;flex:0 0 auto}
+.vitem .vq{margin:6px 0 0 54px;color:var(--ink-2);font-size:13.5px;max-width:66ch}
+.vitem .vq b{color:var(--ink)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 54px}
+.opts label{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer;user-select:none;line-height:1.4}
+.opts label:has(input:checked){background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.opts label code{color:inherit}
+.opts label:has(input:checked) code{background:rgba(255,255,255,.18)}
+.opts input{position:absolute;opacity:0;width:0;height:0}
+.memo{margin:8px 0 0 54px}
+.memo input{font-family:var(--sans);font-weight:300;font-size:13.5px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--hair);background:none;padding:6px 2px;width:100%;outline:none;border-radius:0}
+.memo input:focus{border-bottom-color:var(--ink)}
+.memo input::placeholder{color:var(--ink-3)}
+.vfoot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 20px;border-top:var(--lw-strong) solid var(--ink);background:var(--paper-2)}
+.vfoot .ok{font-size:12.5px;color:var(--ink-3)}
+.verdict pre.md{margin:0;padding:14px 20px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6;color:var(--ink-2);background:var(--paper);border-top:var(--lw) solid var(--hair);white-space:pre-wrap;user-select:all}
+.verdict[data-state="closed"] .opts,.verdict[data-state="closed"] .memo,.verdict[data-state="closed"] .vfoot,.verdict[data-state="closed"] pre.md{display:none}
+
+/* ── 문서 내비 ── */
+.tabs{position:sticky;top:0;z-index:40;background:var(--paper);border-bottom:var(--lw) solid var(--hair)}
+.tabs .row{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;padding:0 24px;max-width:920px;margin:0 auto}
+.tabs .row::-webkit-scrollbar{display:none}
+.tabs a{text-decoration:none;font-family:var(--sans);font-size:13.5px;font-weight:700;color:var(--ink-3);padding:14px 0 12px;white-space:nowrap}
+.tabs a:hover{color:var(--ink)}
+
+/* ── 섹션 문법 ── */
+section.sec{padding-top:88px}
+.sec>.rule{border-top:var(--lw-strong) solid var(--ink);padding-top:20px;display:flex;align-items:baseline;gap:14px}
+.sec>.rule .no{font-family:var(--num);font-weight:var(--w-num);font-size:15px;color:var(--ink-3)}
+.sec>.rule h2{font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.01em}
+.sec .intro{margin-top:14px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.sec p:not([class]){margin-top:14px;max-width:66ch}
+.sec h3{font-family:var(--sans);font-weight:700;font-size:15px;margin-top:46px;padding-top:12px;border-top:var(--lw) solid var(--ink)}
+.sec h4{font-family:var(--serif);font-weight:700;font-size:15.5px;margin-top:22px}
+.note{margin-top:12px;font-size:12.5px;color:var(--ink-3);max-width:66ch}
+
+/* ── 리스트 (병렬 항목은 본문·표 셀 어디서든 한 항목 한 줄 · 가운뎃점 연결 금지) ── */
+.sec ol,.sec ul{margin:10px 0 0;padding-left:1.6em;max-width:66ch}
+.sec li{margin-top:5px;padding-left:.2em}
+.sec li::marker{font-family:var(--num);color:var(--ink-3);font-size:13px}
+td ol,td ul{margin:0;padding-left:1.5em;max-width:none}
+td li{margin-top:3px}
+td li:first-child{margin-top:0}
+.sec td p:not([class]){margin-top:6px;max-width:none}
+.sec td p:not([class]):first-child{margin-top:0}
+.then{display:block;margin-top:6px}
+
+/* ── 표 (2차원 데이터만 · 셀 안 병렬 항목은 리스트) ── */
+.twrap{overflow-x:auto;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.65}
+th{text-align:left;font-weight:700;font-size:12px;color:var(--ink-3);background:var(--paper-2);padding:8px 12px;border-bottom:var(--lw) solid var(--ink);white-space:nowrap}
+td{padding:10px 12px;border-bottom:var(--lw) solid var(--hair);vertical-align:top;font-weight:300}
+td strong,td b{font-weight:700}
+td.num,.tnum{font-family:var(--num);font-weight:var(--w-num);font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap}
+
+/* ── 각주 (본문에는 번호만 · 정보는 최하단 · 클릭 팝오버. 저자는 span.fn 으로 근거를 쓰고 빌드가 번호를 단다) ── */
+sup.fn{font-family:var(--num);font-size:11px;line-height:0;vertical-align:super;margin-left:1px}
+sup.fn a{color:var(--sky);text-decoration:none;padding:0 2px;border-radius:2px;cursor:pointer}
+sup.fn a:hover,sup.fn a.open{background:var(--sky-soft)}
+.pop{position:absolute;z-index:50;max-width:400px;min-width:220px;padding:10px 12px 11px;background:var(--paper);border:var(--lw) solid var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.10);font-size:12.5px;line-height:1.65;color:var(--ink-2);font-weight:300}
+.pop .pn{font-family:var(--num);color:var(--ink-3);margin-right:6px}
+.pop::after{content:'';position:absolute;left:10px;bottom:-6px;width:10px;height:10px;background:var(--paper);border-right:var(--lw) solid var(--ink);border-bottom:var(--lw) solid var(--ink);transform:rotate(45deg)}
+.pop.below::after{bottom:auto;top:-6px;transform:rotate(225deg)}
+.fnlist{margin-top:14px;padding-left:0;list-style:none;font-size:12.5px;color:var(--ink-2);line-height:1.65;max-width:72ch}
+.fnlist li{display:flex;gap:10px;padding:5px 0;border-bottom:var(--lw) solid var(--hair)}
+.fnlist li:target{background:var(--sky-soft)}
+.fnlist .n{font-family:var(--num);color:var(--ink-3);min-width:22px;flex:0 0 auto}
+.fnlist .t{flex:1 1 auto}
+.fnlist .back{margin-left:6px;color:var(--sky);text-decoration:none;flex:0 0 auto}
+details.audit{margin-top:28px;border-top:var(--lw) solid var(--hair);padding-top:10px}
+details.audit summary{cursor:pointer;font-size:12.5px;color:var(--ink-3);font-weight:500}
+details.audit .body{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.65}
+details.audit table{font-size:12.5px}
+
+/* ── 데모 프레임과 스펙 ── */
+.stage{display:flex;flex-wrap:wrap;gap:24px;margin-top:20px;align-items:flex-start}
+.frame{width:400px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);flex:0 0 auto}
+.frame .fbody{padding:20px 18px 24px}
+.spec{flex:1 1 260px;min-width:240px;font-size:13px}
+.spec dt{font-weight:700;font-size:12.5px;margin-top:12px}
+.spec dd{color:var(--ink-2);margin-top:2px;line-height:1.65}
+
+/* ── 컴포넌트 (디자인 시스템 정본 발췌) ── */
+.btn{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:14px;line-height:1;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.fill{background:var(--ink);color:var(--paper);border:var(--lw) solid var(--ink);height:44px;padding:0 22px}
+.btn.line{background:var(--paper);color:var(--ink);border:var(--lw) solid var(--ink);height:40px;padding:0 18px}
+.btn.soft{background:var(--paper-2);color:var(--ink);border:0;height:40px;padding:0 18px}
+.btn.sm{height:34px;padding:0 14px;font-size:13px}
+.btn.text{background:none;border:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;height:auto;padding:4px 2px;font-weight:500}
+.btn:disabled{background:var(--paper-3);border-color:var(--paper-3);color:var(--ink-3);cursor:default}
+.btn:not(:disabled):active{transform:translateY(1px)}
+.btnrow{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.chip.sel{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.htag{display:inline-block;font-size:12px;font-weight:500;color:var(--ink-2);line-height:1.5;padding:0 2px;background:linear-gradient(transparent 62%, var(--lemon) 62%)}
+.in-line{font-family:var(--sans);font-weight:300;font-size:16px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--ink-3);background:none;padding:7px 2px;width:100%;outline:none;border-radius:0}
+.in-line:focus{border-bottom:var(--lw-strong) solid var(--ink)}
+.in-line::placeholder{color:var(--ink-3)}
+.in-area{font-family:var(--sans);font-weight:300;font-size:14.5px;color:var(--ink);background:var(--paper-2);border:var(--lw) solid transparent;border-radius:var(--r);padding:12px 14px;width:100%;outline:none;line-height:1.7;resize:vertical}
+.in-area:focus{border-color:var(--ink)}
+.in-area::placeholder{color:var(--ink-3)}
+.in-label{display:block;font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:6px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:var(--lw) solid var(--hair);font-size:13px}
+.kv .k{color:var(--ink-3);font-weight:500}
+.kv .v{font-weight:500;color:var(--ink)}
+.stat{display:inline-flex;align-items:center;gap:5px;font-family:var(--num);font-weight:var(--w-num);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.stat .ic{width:14px;height:14px;opacity:.72}
+.sechead h4{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.01em}
+.sechead .sub{font-size:13px;color:var(--ink-2);margin-top:4px}
+
+/* ── 폰 프레임 (모바일 프로토타입) ── */
+.phone{width:390px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;position:relative;overflow:hidden}
+.phone .pbody{padding:18px 20px 120px}
+.pdock{position:absolute;left:0;right:0;bottom:0;height:118px;pointer-events:none;background:linear-gradient(to top, var(--paper) 0%, var(--paper) 34%, rgba(255,255,255,0) 100%);display:flex;align-items:flex-end}
+.pdock .icons{width:100%;display:flex;justify-content:space-around;align-items:center;padding:0 10px 18px}
+.pdock .icons .ic{opacity:.38}
+.pdock .icons .ic.on{opacity:1}
+
+/* ── 데스크탑 조합 목업 ── */
+.mock{border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;overflow:hidden}
+.mock .mkhead{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:var(--lw) solid var(--hair)}
+.mock .mkhead .lg{height:16px;width:auto;display:block}
+.mock .mkhead nav{display:flex;gap:20px;font-size:14px;font-weight:700}
+.mock .mkhead nav span{color:var(--ink-3)}
+.mock .mkhead nav span.on{color:var(--ink)}
+.mock .mkhead .util{display:flex;gap:14px;align-items:center;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.mock .mkbody{padding:26px 24px 34px}
+
+/* ── 데스크탑 실척 스테이지 (맥북 뷰포트 1440x820 을 가로폭에 맞춰 비율 그대로 축소.
+     내부는 1440px 고정 가상 뷰포트라 실서비스 데스크탑 레이아웃이 그대로 재현된다.
+     문서 본문 col(920px)보다 넓게 브레이크아웃해 화면 가로폭을 최대로 쓴다) ── */
+.deskwrap{width:calc(100vw - 48px);max-width:1440px;margin:20px auto 0;margin-left:calc(50% - min(50vw - 24px, 720px))}
+.deskstage{position:relative;width:100%;aspect-ratio:1440/820;border:var(--lw) solid var(--ink);background:var(--paper);overflow:hidden}
+.deskvp{position:absolute;left:0;top:0;width:1440px;height:820px;transform-origin:0 0;transform:scale(var(--ds,1));overflow-y:auto;overscroll-behavior:contain}
+.deskcap{font-size:12.5px;color:var(--ink-3);margin-top:10px;font-weight:500}
+
+/* 상태 세그 (프로토타입 상태 전환 컨트롤) */
+.segrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.seg{height:32px;padding:0 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center}
+.seg.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+
+/* ── usage-bundle2 네이티브 목업 (macOS 창·확인창 모사 · 토큰 값만 사용 · usage-bundle1 형식 재사용) ── */
+[hidden]{display:none!important}
+.mac{border:1px solid var(--hair);border-radius:10px;overflow:hidden;background:var(--paper);margin-top:14px;font:13px/1.55 -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;color:var(--ink);max-width:760px}
+.mac .tb{height:32px;background:var(--paper-2);border-bottom:1px solid var(--hair);display:flex;align-items:center;gap:7px;padding:0 12px}
+.mac .tb i{width:10px;height:10px;border-radius:50%;background:var(--paper-3);border:1px solid var(--hair)}
+.mac .tb b{margin-left:8px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.mac .bd{padding:16px 18px}
+.mac .cap{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.mac hr{border:0;border-top:1px solid var(--hair);margin:12px 0}
+.mb{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--hair);border-radius:5px;padding:2px 10px;background:var(--paper);font-size:12px;color:var(--ink);white-space:nowrap}
+.mb.pri{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.mb.off{color:var(--ink-3);background:var(--paper-2)}
+.panel{width:440px;max-width:100%;border:1px solid var(--hair);border-radius:12px;background:var(--paper);box-shadow:0 12px 40px rgba(0,0,0,.10);padding:18px;font:13px/1.55 -apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;margin-top:14px;color:var(--ink)}
+.panel b.h{display:block;font-size:15px}
+.panel p{margin-top:8px;max-width:none;font-size:12.5px;color:var(--ink-2)}
+.panel p.new{background:var(--lemon-soft);color:var(--ink)}
+.panel p.del{text-decoration:line-through;color:var(--ink-3)}
+.panel .row{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.sx{font-size:12.5px;color:var(--ink-3);margin-top:8px}
+.msg{margin-top:10px;padding:8px 12px;border-left:2px solid var(--ink);background:var(--paper-2);font-size:12.5px;color:var(--ink-2);max-width:66ch}
+.msg b{color:var(--ink);font-weight:600}
+.warnbox{margin-top:16px;padding:12px 14px;border:var(--lw-strong) solid var(--ink);background:var(--lemon-tint);font-size:13.5px;max-width:66ch}
+.warnbox b{font-weight:700}
+
+@media (max-width:760px){
+  .col{padding:0 18px}
+  header.doc{padding:44px 0 30px}
+  .doc .date{font-size:46px}
+  .doc h1{font-size:23px}
+  .sec>.rule h2{font-size:19px}
+  .vitem .vq,.opts,.memo{margin-left:0}
+  .pop{max-width:calc(100vw - 36px)}
+}
+</style>
+</head>
+<body>
+
+<div class="col">
+<header class="doc">
+  <div class="date">11.06</div>
+  <div class="meta">DAMA UNIT SPEC · usage-bundle2 · r1</div>
+  <h1>사용 복기 묶음 2: 스크립트·수정 이력 보관 정리</h1>
+  <p class="sub">녹음마다 쌓이는 스크립트 파일과 내부 수정 이력의 보관 규칙을 정한다. 대표 결과는 가장 최근 결과로 바꾸고, 보관은 최근 결과 2회분과 사람이 고친 스크립트로 줄이며, 지운 스크립트의 내부 이력은 함께 지우고, 남는 이력은 내용을 바꾸지 않고 압축한다.<span class="fn">입력 = <code>notes/usage-review/decisions.md</code> «T2a» 1–4 (사용자 확정 2026-11-05). T2a-5(제목 저장 시점)는 usage-bundle1에서 끝났다: <code>ssot/contracts/library-script.md:17</code> «저장 시점(T2a-5)».</span></p>
+</header>
+
+<section class="verdict" id="s-verdict" data-unit="usage-bundle2" data-round="r1" data-gate="①" data-state="open">
+  <div class="vh"><h2>판정</h2><span class="cnt">열린 결정 4 · 판정 축 3</span><span class="stamp">게이트 ① 컨펌 11.06</span></div>
+  <div class="vb">
+    <div class="vitem" data-k="D-01">
+      <div class="vt"><span class="id">D-01</span>이전 결과 스크립트를 지우는 방법</div>
+      <p class="vq">보관 규칙(§02-2)이 고른 스크립트 파일을 어떻게 지울지 정한다. <b>ⓐ</b>는 지금의 «Script 삭제…»와 같은 경로라 Finder 휴지통에서 되돌릴 수 있고, 휴지통을 비울 때 공간이 돌아온다. <b>ⓑ</b>는 공간이 바로 돌아오지만 되돌릴 수 없고, 오래된 실행의 결과를 앱에서 다시 만드는 경로도 없다. 어느 쪽이든 그 스크립트의 내부 수정 이력·교정 시도 기록은 바로 지우고, 원음과 전사 원응답(Run)은 남는다.<span class="fn">스크립트 파일 전체 38개 324.0 MB(10^6 바이트 기준, <code>du</code> 309 MiB와 같은 양). 2026-11-06 21:22 KST 실측 <code>notes/usage-bundle2/measure-t2a.py</code>. 휴지통 경로 = <code>FolderLibraryStore.trashScript</code>, 계약 <code>library-script.md:93</code> «휴지통 이동 실패를 영구 삭제로 대체하지 않는다». 결과 재생성은 녹음의 최신 실행에만 있다: <code>App/LibraryWorkspace.swift:370–372</code> <code>convert()</code>가 최신 Run의 스크립트가 없을 때만 <code>processingFinished</code>를 다시 부른다.</span></p>
+      <div class="opts">
+        <label><input type="radio" name="D-01" value="ⓐ 휴지통으로 이동 (권고)" checked>ⓐ 휴지통으로 이동 (권고)</label>
+        <label><input type="radio" name="D-01" value="ⓑ 영구 삭제">ⓑ 영구 삭제</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+    </div>
+    <div class="vitem" data-k="D-02">
+      <div class="vt"><span class="id">D-02</span>재측정으로 바뀐 전제: 자동 정리를 이번에 넣을지</div>
+      <p class="vq">11-05 결정의 근거였던 «수정 이력 379개·7.6GB(81%)가 이미 지운 스크립트 소속»은 재측정에서 재현되지 않았다. 지금은 <b>62개 · 243.1 MB</b>다. 지금 데이터에 보관 규칙(최근 2회분 + 사람 수정본)을 적용하면 <b>지워지는 스크립트는 0개</b>다. 공간 절감은 거의 전부 압축에서 나온다(남는 이력 9,758.9 MB → 651.8 MB). <b>ⓐ</b>는 결정대로 자동 정리를 넣어 앞으로 재전사가 쌓일 때 동작하게 한다. <b>ⓑ</b>는 이번 묶음에서 자동 정리를 빼고 대표 결과 변경·삭제 시 이력 정리·압축만 한다(§02-2, 설정 정리의 보관 규칙 단계, §03 S1, 문구 1–5·13·19가 빠진다).<span class="fn">재측정 방법: 수정 이력 파일마다 JSON 최상위 <code>id</code>를 읽어 Scripts 폴더 스크립트의 <code>id</code>와 대조. 574개 중 현재 스크립트 소속 512개(9,758.9 MB) · 그 밖 62개(243.1 MB, 스크립트 18개분). 11-05 수치의 산법은 기록에 없어 차이의 원인은 미확정이다. 보관 규칙 모의 <code>notes/usage-bundle2/retention-sim.py</code>: 2회분 = 0개, 대조로 1회분만 남기면 4개 24.8 MB(규칙이 지울 수 있음을 보는 양성 대조).</span></p>
+      <div class="opts">
+        <label><input type="radio" name="D-02" value="ⓐ 결정대로 자동 정리 포함 (권고)" checked>ⓐ 결정대로 자동 정리 포함 (권고)</label>
+        <label><input type="radio" name="D-02" value="ⓑ 이번에는 빼기">ⓑ 이번에는 빼기</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+    </div>
+    <div class="vitem" data-k="D-03">
+      <div class="vt"><span class="id">D-03</span>수정 이력 저장 배치</div>
+      <p class="vq">스크립트를 지울 때 그 스크립트의 이력만 지우려면 이력 파일이 어느 스크립트 것인지 알아야 한다. 지금은 파일 이름이 revisionID뿐이라 전부 열어 봐야 한다. <b>ⓐ</b>는 스크립트별 폴더에 압축 파일로 두어 폴더 하나만 지운다. 지금 배치는 정리 때 한 번 옮긴다. <b>ⓑ</b>는 지금 배치를 두고 «revisionID → 스크립트 ID» 색인 파일을 새로 둔다. 이 경우 색인과 실제 파일이 어긋나는 실패 경로가 생긴다. 압축 형식과 지문 값은 두 안이 같다.<span class="fn">현행 경로 <code>FolderLibraryStore.swift:382–385</code> <code>revisionURL</code> = <code>LibraryRevisions/&lt;revisionID&gt;.dama.json</code>. 소속을 알려고 574개 10,002.0 MB를 전부 해독하는 데 62.4초(이 Mac python3 실측, 앱 Swift 미측정).</span></p>
+      <div class="opts">
+        <label><input type="radio" name="D-03" value="ⓐ 스크립트별 폴더 + 압축 (권고)" checked>ⓐ 스크립트별 폴더 + 압축 (권고)</label>
+        <label><input type="radio" name="D-03" value="ⓑ 평면 배치 + 색인 파일">ⓑ 평면 배치 + 색인 파일</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+    </div>
+    <div class="vitem" data-k="D-04">
+      <div class="vt"><span class="id">D-04</span>계약 개정 문안 (§05 «계약 개정 문안» 10곳)</div>
+      <p class="vq">보관·삭제·압축에 맞춰 계약 10곳을 고치거나 더한다. 그중 7곳은 «남긴다·보존한다» 문언과 충돌해 고치는 것이다. INV-09(재처리는 새 Run, 이전 라벨·수정 자동 재사용 금지)와 설계 02 §9(삭제 전에 원본·결과·캐시를 구분해 확인)는 이 유닛과 충돌하지 않아 고치지 않는다.<span class="fn">INV-09 원문 <code>ssot/design/04_DATA_AND_RECONCILIATION.md:52</code>에는 보존 조항이 없다(decisions.md T2a-1의 «INV-09 개정 필요»는 원문 대조 뒤 해당 없음). 설계 02 §9 <code>02_ARCHITECTURE_AND_STORAGE.md:156–158</code>는 이 유닛이 재전사 확인창·정리 확인창으로 지킨다.</span></p>
+      <div class="opts">
+        <label><input type="radio" name="D-04" value="ⓐ 문안대로 (권고)" checked>ⓐ 문안대로 (권고)</label>
+        <label><input type="radio" name="D-04" value="ⓑ 수정">ⓑ 수정</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="수정이면 어느 항목을 어떻게"></div>
+    </div>
+    <div class="vitem" data-k="①">
+      <div class="vt"><span class="id">①</span>정책 (§02)</div>
+      <p class="vq">세대 정의, 사람 수정 판정 9필드, 정리 시점과 건너뛰는 조건, 대표 결과 규칙, 압축 이전 순서를 본다.</p>
+      <div class="opts">
+        <label><input type="radio" name="①" value="확정" checked>확정</label>
+        <label><input type="radio" name="①" value="수정">수정</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+    </div>
+    <div class="vitem" data-k="②">
+      <div class="vt"><span class="id">②</span>화면·문구 (§03 · §04 문구 1–23)</div>
+      <p class="vq">재전사 확인창 추가 줄, Script 삭제 확인창, 설정의 «저장 공간» 절과 정리 확인창 문구를 본다.</p>
+      <div class="opts">
+        <label><input type="radio" name="②" value="확정" checked>확정</label>
+        <label><input type="radio" name="②" value="수정">수정</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+    </div>
+    <div class="vitem" data-k="③">
+      <div class="vt"><span class="id">③</span>검산 자 (§04)</div>
+      <p class="vq">축별 자·모집단·문턱과 «안 잼» 목록을 본다. 실데이터 1회 정리는 게이트 ②에서 사용자가 앱 버튼으로 실행한다.</p>
+      <div class="opts">
+        <label><input type="radio" name="③" value="확정" checked>확정</label>
+        <label><input type="radio" name="③" value="수정">수정</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+    </div>
+  </div>
+  <div class="vfoot">
+    <button class="btn fill sm" type="button" data-act="copy">MD 복사</button>
+    <button class="btn line sm" type="button" data-act="reset">초기화</button>
+    <span class="ok">고른 대로 아래 회신이 만들어진다. 복사해 채팅에 붙이면 된다.</span>
+  </div>
+  <pre class="md"></pre>
+</section>
+</div>
+
+<nav class="tabs" aria-label="문서 목차">
+  <div class="row">
+    <a href="#s-verdict">판정</a>
+    <a href="#s-dir">방향</a>
+    <a href="#s-policy">정책</a>
+    <a href="#s-screen">화면</a>
+    <a href="#s-spec">규격</a>
+    <a href="#s-impact">시스템 영향</a>
+    <a href="#s-fn">각주</a>
+  </div>
+</nav>
+
+<div class="col">
+
+<section class="sec" id="s-dir">
+  <div class="rule"><span class="no">01</span><h2>방향</h2></div>
+  <p class="intro">재전사와 편집 저장이 쌓아 둔 파일을 녹음 단위로 정리한다. 지우는 것은 스크립트 파일과 그 스크립트의 내부 이력뿐이고, 녹음 원음과 전사 원응답은 그대로 둔다.<span class="fn">사용자 지시 2026-11-05 T2a «용량 우선 (b)». 묶음 순서 <code>decisions.md</code> «진행 묶음» 2 = T2a.</span></p>
+
+  <h4>지우는 것 · 남기는 것 · 형식만 바꾸는 것</h4>
+  <ul>
+    <li>지우는 것: 녹음마다 최근 결과 2회분 밖의 스크립트 파일(사람이 고친 것 제외), 지운 스크립트의 내부 수정 이력, 지운 스크립트의 AI 교정 시도 기록.</li>
+    <li>남기는 것: 녹음 원음(Speeches 묶음·내부 사본), 전사 원응답과 실행 기록(<code>Sessions/…/runs</code>), 내부 정규화 revision(<code>Sessions/…/revisions</code>), 사람이 고친 스크립트, 내보낸 Markdown.</li>
+    <li>형식만 바꾸는 것: 남는 내부 수정 이력. 압축하되 풀면 지금과 바이트가 같다.</li>
+  </ul>
+
+  <h4>원칙</h4>
+  <ol>
+    <li>지우기 전에 알린다. 자동 정리는 재전사 확인창에 정리될 수를 미리 적고, 기존분 정리는 확인창에 수와 용량을 적는다.<span class="fn">설계 02 §9 «삭제는 로컬 원본/결과/캐시를 구분해서 확인받는다» (<code>02_ARCHITECTURE_AND_STORAGE.md:158</code>).</span></li>
+    <li>사람이 고친 스크립트는 자동으로 지우지 않는다.<span class="fn">T2a-1 «사람이 고친 스크립트는 자동 삭제 예외». 판정 범위는 Astra 지적(본문뿐 아니라 화자 이름·삭제·문단 경계) <code>notes/usage-review/advisor-astra.md:21</code>.</span></li>
+    <li>모르면 지우지 않는다. 실행 기록이나 Scripts 목록을 다 읽지 못한 녹음은 건너뛴다.</li>
+    <li>압축은 내용을 바꾸지 않는다. 풀어서 원본과 바이트가 같을 때만 원본을 지운다.</li>
+  </ol>
+
+  <h4>재측정 (2026-11-06)</h4>
+  <p>11-05 기록의 수치는 사용 시점 전에 다시 쟀다. 정책의 무게가 «고아 이력 삭제»에서 «압축»으로 옮겨 간다(D-02).<span class="fn">재측정 = <code>python3 -I notes/usage-bundle2/measure-t2a.py "~/Library/Application Support/com.gazitofu.Dama" ~/DAMA/Scripts out.json</code>, 2026-11-06 21:22 KST, 메타데이터만(제목·본문 미출력). 앱의 Scripts 폴더가 <code>~/DAMA/Scripts</code>인 것은 설정 bookmark 경로 성분과 요약 캐시 38항목의 폴더로 확인. 실행 기록 = <code>Sessions/*/runs/*/state.json</code> 72개.</span></p>
+  <div class="twrap"><table>
+    <tr><th>항목</th><th>11-05 기록</th><th>11-06 재측정</th></tr>
+    <tr><td>내부 수정 이력</td><td class="num">572–574개 · 9.3 GB</td><td class="num">574개 · 10,002.0 MB</td></tr>
+    <tr><td>그중 현재 Scripts에 없는 스크립트 소속</td><td class="num">379개 · 7.6 GB (81%)</td><td class="num">62개 · 243.1 MB (스크립트 18개분)</td></tr>
+    <tr><td>현재 스크립트 소속</td><td>기록 없음</td><td class="num">512개 · 9,758.9 MB · 한 스크립트 최다 329개</td></tr>
+    <tr><td>압축 후 (현재 스크립트 소속)</td><td>최대 파일 gzip 14.8배</td><td class="num">651.8 MB (raw DEFLATE 5, ×14.97, 512개 전부 왕복 일치)</td></tr>
+    <tr><td>앱이 읽는 이력</td><td class="num">AI 버전 참조 7</td><td class="num">AI 버전 snapshot 7 (스크립트 3개, 7/7 존재)</td></tr>
+    <tr><td>스크립트 파일</td><td class="num">38개 · 309 MB</td><td class="num">38개 · 324.0 MB (사람 수정 22 · 실행 기록 없음 3)</td></tr>
+    <tr><td>보관 규칙 적용 시 지울 스크립트</td><td>미측정</td><td class="num">0개 (대조: 1회분만 남기면 4개 · 24.8 MB)</td></tr>
+    <tr><td>대표 결과가 바뀌는 녹음</td><td>미측정</td><td class="num">0 / 20</td></tr>
+    <tr><td>AI 교정 시도 기록</td><td>해당 없음</td><td class="num">0개</td></tr>
+  </table></div>
+  <p class="note">«앱이 읽는 이력»: 수정 이력 파일을 여는 코드는 AI 버전 조회 <code>readVersion</code>과 같은 revisionID 충돌 검사뿐이다. 문단 편집의 <code>baseRevisionID</code> 73개는 값으로만 저장하고 파일을 열지 않는다.<span class="fn"><code>FolderLibraryStore.swift:387–401</code> <code>writeRevision</code>, <code>:473–485</code> <code>readVersion</code>. <code>baseRevisionID</code> 사용처 <code>ScriptParagraphEdit.swift:9·38·67</code>, <code>ScriptEvaluation.swift:40·67</code>는 UUID 형식 검사와 기록만.</span></p>
+</section>
+
+<section class="sec" id="s-policy">
+  <div class="rule"><span class="no">02</span><h2>정책</h2></div>
+
+  <h3>02-1 대표 결과 (T2a-2)</h3>
+  <ol>
+    <li>Scripts 목록의 녹음당 한 행과 Speech 상세의 연결 스크립트는 그 녹음의 스크립트 중 <code>createdAt</code>이 가장 늦은 것이다. 같으면 id가 사전순으로 앞선 것(현행 동률 규칙 그대로).<span class="fn">현행 <code>FolderLibraryStore.swift:75–86</code> <code>ScriptResultPresentation.primaryFile</code>은 엔진 등급(<code>hybridSonioxPyannote</code>·<code>hybridSonioxNemotron</code> = 1) → <code>createdAt</code> → id 순. 쓰는 곳 <code>App/LibraryWorkspace.swift:67·286</code>.</span></li>
+    <li>엔진 등급(«결합본 우선»)은 없앤다.</li>
+    <li>«다른 결과 보기»는 그대로 녹음의 나머지 스크립트 전부다.</li>
+    <li>실행 기록을 보지 않는다. 실행 기록이 없는 로컬 재결합 결과도 같은 규칙을 따른다.</li>
+  </ol>
+  <p class="then">실행 기록 기준(«세대의 대표»)으로 고르지 않는 이유: 실행 기록이 없는 로컬 재결합 결과 3개가 빠져, 녹음 DABBD760에서는 9-13 결합본 대신 9-12 pyannote+Whisper 결과가 대표가 된다.<span class="fn">실행 기록 기준 모의(최상위 readyForReview 실행의 결과만 대표 후보)에서 20개 중 3개 녹음의 대표가 바뀌었고, 그중 DABBD760은 결합본(<code>soniox-p2-word-v4</code>, 09-13 01:03 UTC) 대신 <code>managed-v1</code>(09-12 15:34 UTC)을 골랐다. 실행 기록 없는 3개 = <code>soniox-p2-word-v4</code> 1 · <code>-v5</code> 2.</span></p>
+  <p>바뀌는 경우의 예: 결합본을 만든 뒤 Soniox 단독으로 다시 전사하면 Soniox 단독이 대표다. 결합 실행이 화자 분리에서 실패해 Soniox 단독만 새로 남으면 그것이 대표다(현행 안내 «결합 처리 미완료 · Soniox 단독 결과는 Scripts에서 열 수 있습니다.»와 같은 뜻).<span class="fn"><code>App/ProcessingWorkspace.swift:322</code>.</span></p>
+
+  <h3>02-2 결과 보관 (T2a-1)</h3>
+  <h4>용어</h4>
+  <ul>
+    <li><b>결과</b>: Scripts 폴더의 <code>.dama.json</code> 하나. 스크립트는 실행이 readyForReview가 되었을 때나 로컬 재결합에서만 만들어지므로 결과는 모두 성공본이다. 실패·부분 완료 실행은 결과를 만들지 않는다.<span class="fn"><code>App/ProcessingWorkspace.swift:315–317</code> readyForReview일 때만 <code>processingFinished</code>, <code>:279–285</code> <code>saveCompletedSources</code>는 readyForReview Soniox 자식만.</span></li>
+    <li><b>자식 결과</b>: 실행 기록에 <code>parentRunID</code>가 있는 실행의 결과. 지금은 결합 실행의 Soniox 단독뿐이다(P2·Nemotron 자식은 스크립트를 만들지 않는다).<span class="fn"><code>LibraryWorkspace.swift:403</code> <code>guard ![.precision, .nemotron].contains(run.provider)</code>.</span></li>
+    <li><b>세대</b>: 자식이 아닌 결과 하나와, 그 실행의 <code>sonioxRunID</code>가 가리키는 자식 결과. 재사용한 Soniox 결과는 그것을 가리키는 세대 모두에 속한다. 부모 결과가 없는 자식 결과(부모 실패, 부모 스크립트 삭제)와 실행 기록이 없는 결과는 혼자 한 세대다.<span class="fn">재사용 때도 <code>run.sonioxRunID = asr.id</code>를 쓴다: <code>ManagedProcessor.swift:490–496</code>. 실측 BED2C097: Soniox <code>CCDF109D</code> 하나를 결합 3개(<code>E33ADFD9</code>·<code>108E3A3C</code>·<code>7A430186</code>)가 가리킨다.</span></li>
+    <li><b>세대 시각</b>: 세대 대표(자식이 아닌 결과, 혼자인 자식은 그 자신)의 <code>createdAt</code>.</li>
+  </ul>
+
+  <h4>규칙</h4>
+  <ol>
+    <li>녹음마다 세대를 시각 내림차순(같으면 대표 id 사전순)으로 세우고 앞 2세대의 결과를 남긴다. 2는 사용자 결정값이다.<span class="fn">T2a-1 «최신 성공본 + 직전 성공본».</span></li>
+    <li>사람이 고친 결과는 세대와 무관하게 남긴다(아래 판정).</li>
+    <li>나머지가 정리 대상이다. D-01로 정한 방법으로 지운다.</li>
+  </ol>
+
+  <h4>사람 수정 판정</h4>
+  <p>아래 9필드 중 하나라도 비어 있지 않거나, 내장 transcript에 legacy <code>humanEdited</code> Turn 또는 <code>editedText</code>가 있는 단어가 있으면 사람이 고친 결과다. 실측 38개 중 22개.<span class="fn">필드 = <code>LibraryScript.swift:73–85</code>. 실측 건수(값이 비어 있지 않은 스크립트 수): <code>turnNames</code> 22 · <code>turnSpeakerIDs</code> 19 · <code>registeredSpeakers</code> 19 · <code>nameHistory</code> 14 · <code>paragraphEdits</code> 5 · <code>deletedParagraphs</code> 1 · <code>turnTexts</code> 0 · <code>paragraphBreaks</code> 0 · <code>reviewRecords</code> 0 · legacy 0.</span></p>
+  <ol>
+    <li><code>turnTexts</code> (문장 수정, 애매한 교정의 사람 선택 포함)</li>
+    <li><code>turnNames</code> (화자 이름)</li>
+    <li><code>turnSpeakerIDs</code> (등록 인물 연결)</li>
+    <li><code>registeredSpeakers</code> (등록 인물)</li>
+    <li><code>nameHistory</code> (이름 변경 되돌리기 기록)</li>
+    <li><code>deletedParagraphs</code> (발화 삭제)</li>
+    <li><code>paragraphBreaks</code> (수동 문단 경계)</li>
+    <li><code>paragraphEdits</code> (문단 직접 편집)</li>
+    <li><code>reviewRecords</code> (검수 기록)</li>
+  </ol>
+  <p class="then">보호하지 않는 것: 파일 제목(녹음 제목은 인덱스 <code>displayTitle</code>에 있다), <code>showsOriginal</code>(표시 전환), AI 교정만 있는 결과. 마지막은 사용자 자구 «사람이 고친»을 따른 것이며 지금 해당 결과는 0개다(완료 교정 3개는 모두 사람 수정도 있다).</p>
+
+  <h4>언제 정리하는가</h4>
+  <ol>
+    <li>자식이 아닌 실행이 readyForReview가 되어 그 결과 스크립트를 새로 만든 직후, 그 녹음 하나만.</li>
+    <li>설정 «저장 공간 정리…»(§02-5)에서 모든 녹음에 한 번.</li>
+  </ol>
+  <p class="then">자식 결과 저장(«Soniox 단독» 중간 저장), 이미 있는 스크립트를 다시 연 경우, 앱 시작 때는 정리하지 않는다. 부모 실행이 실패하면 그 시도는 정리를 일으키지 않고, 나중에 재개해 성공할 때 정리한다.</p>
+
+  <h4>건너뛰는 조건</h4>
+  <p>녹음 전체를 건너뛴다:</p>
+  <ol>
+    <li>처리 이력을 읽지 못했거나 그 녹음에 이력 문제가 있다.<span class="fn"><code>ProcessingWorkspace.swift:142–144</code> <code>historyAllowsProcessing</code>과 같은 조건.</span></li>
+    <li>Scripts 목록을 읽는 중이거나 Scripts 조회에 파일별 문제(손상·중복 ID·symlink)가 있다.</li>
+  </ol>
+  <p>그 결과만 건너뛴다(다음 정리 때 다시 본다):</p>
+  <ol>
+    <li>열려 있다(본문 또는 과거 버전 보기) · 저장 중이다.</li>
+    <li>AI 교정이 실행 중이거나 대기열에 있다.</li>
+    <li>목록을 읽은 때와 지금 파일 해시가 다르다(현행 휴지통 이동 검사).</li>
+  </ol>
+
+  <h4>결과 하나를 지우는 순서</h4>
+  <ol>
+    <li>스크립트 파일을 D-01 방법으로 지운다. 실패하면 아래를 하지 않고 다음 결과로 간다.</li>
+    <li>자식 결과였으면 그 실행 ID를 <code>library.savedSourceRuns</code>에 넣는다. 다음 처리 때 다시 만들어지지 않게 하기 위해서다.<span class="fn"><code>saveCompletedSources</code>(<code>ProcessingWorkspace.swift:279–285</code>)는 이 목록에 없고 Scripts에 없는 Soniox 자식을 다시 저장한다. 운영 계약 «앱에서 삭제한 비교본을 매 처리마다 무조건 복원하지 않는다» <code>operating-baseline.md:36</code>.</span></li>
+    <li>그 스크립트의 내부 수정 이력 폴더 <code>LibraryRevisions/&lt;스크립트 ID&gt;/</code>를 지운다(D-03 ⓐ). 아직 옮기지 않은 구 배치 파일은 §02-5 정리에서 지운다.</li>
+    <li><code>CorrectionAttempts/&lt;스크립트 ID&gt;.json</code>이 있으면 지운다.</li>
+  </ol>
+  <p class="then">결과마다 따로 처리하며 하나의 실패가 다른 결과를 막지 않는다.</p>
+
+  <h4>알림</h4>
+  <ol>
+    <li>재전사 확인창: 이 실행이 완료됐을 때의 정리 대상 수 N을 미리 센다. 새 세대 = 이 실행 + 재사용할 Soniox 결과(<code>sonioxSourceRunID</code>)로 놓고 규칙을 적용한다. N이 1 이상이면 문구 1을 넣고 문구 2·3으로 기존 «보존» 문장을 바꾼다. N은 상한이다(완료 사이에 사람이 고치면 줄어든다).</li>
+    <li>완료: 결과 저장 메시지 뒤에 실제로 지운 수(문구 4)와 못 지운 수(문구 5)를 붙인다.</li>
+  </ol>
+
+  <h4>사례 (테스트 입력)</h4>
+  <p>C는 결합 결과, S는 Soniox 자식 결과, R은 실행 기록 없는 로컬 재결합 결과다. 번호가 클수록 최근이다.</p>
+  <div class="twrap"><table>
+    <tr><th>사례</th><th>세대 (최근순)</th><th>남김</th><th>정리</th></tr>
+    <tr><td>1 재사용</td><td>C3(S1) · C2(S1) · C1(S1)</td><td>C3 · C2 · S1</td><td>C1</td></tr>
+    <tr><td>2 새 Soniox</td><td>C3(S3) · C2(S2) · C1(S1)</td><td>C3 · S3 · C2 · S2</td><td>C1 · S1</td></tr>
+    <tr><td>3 부모 실패</td><td>S3(혼자) · C2(S2) · C1(S1)</td><td colspan="2">실패 시점에는 정리하지 않음. 재개 성공으로 C3(S3)가 되면 사례 2와 같다</td></tr>
+    <tr><td>4 로컬 재결합</td><td>R · C1(S1)</td><td>R · C1 · S1</td><td>없음</td></tr>
+    <tr><td>5 사람 수정</td><td>C3 · C2 · C1(사람 수정)</td><td>C3 · C2 · C1</td><td>없음</td></tr>
+    <tr><td>6 이력 문제</td><td>C3 · C2 · C1, 녹음 이력 손상</td><td>전부</td><td>없음 (녹음 건너뜀)</td></tr>
+  </table></div>
+
+  <h3>02-3 스크립트 삭제와 내부 이력 (T2a-3)</h3>
+  <ol>
+    <li>«Script 삭제…»는 파일을 휴지통으로 옮긴 뒤(현행) §02-2 «결과 하나를 지우는 순서» 2–4를 한다.</li>
+    <li>확인창 설명을 문구 6으로 바꾼다. 내부 이력을 못 지우면 완료 메시지를 문구 7로 한다.</li>
+    <li>휴지통에서 되돌린 스크립트는 현재 내용(사람 수정 포함)으로 열린다. 지운 AI 버전은 현행 «이 버전을 읽지 못했습니다. 현재 결과는 보존되어 있습니다.»로 실패한다. 이후 저장은 새 이력을 다시 쌓는다.<span class="fn"><code>App/LibraryWorkspace.swift:280–281</code>.</span></li>
+    <li>«Speech 삭제…»는 바뀌지 않는다.</li>
+    <li>앱 밖(Finder)에서 지운 스크립트의 이력은 §02-5 정리에서 지운다.</li>
+  </ol>
+
+  <h3>02-4 수정 이력 압축 (T2a-4)</h3>
+  <ol>
+    <li>형식: raw DEFLATE(RFC 1951). Apple Compression <code>COMPRESSION_ZLIB</code>, Foundation <code>NSData.compressed(using: .zlib)</code>. 수준은 Apple 구현의 level 5 하나뿐이다.<span class="fn">SDK <code>usr/include/compression.h</code> «We implement the zlib level 5 encoder only … raw DEFLATE format as described in IETF RFC 1951 … <code>deflateInit2(zstream,5,Z_DEFLATED,-15,8,Z_DEFAULT_STRATEGY)</code>». 재측정의 python <code>zlib.compressobj(5, DEFLATED, -15)</code>와 같은 설정. 배포 대상 macOS 26.6.2(<code>project.pbxproj</code>).</span></li>
+    <li>배치(D-03 ⓐ): <code>LibraryRevisions/&lt;스크립트 ID&gt;/&lt;revisionID&gt;.dama.json.deflate</code>. 두 ID 모두 UUID 검사를 한다.</li>
+    <li>쓰기: 지금과 같은 정렬 JSON 바이트를 압축해 덮어쓰기 없이 쓴다. 같은 revisionID 파일이 이미 있으면 풀어서 현행 비교(해독 → 재인코딩 바이트 동일)를 한다. Scripts 폴더의 활성 파일은 압축하지 않는다.<span class="fn">현행 비교 <code>FolderLibraryStore.swift:390–396</code>.</span></li>
+    <li>읽기(<code>readVersion</code>): 새 배치를 찾고, 없으면 구 배치 <code>LibraryRevisions/&lt;revisionID&gt;.dama.json</code>을 읽는다. 풀 수 없으면 손상이며 현행 오류로 처리한다.</li>
+    <li>지문: <code>ScriptVersion.sha256</code>의 뜻을 «압축을 푼 바이트의 SHA256»으로 정한다. 지금 저장된 값은 압축 전 바이트의 SHA256이므로 값이 그대로 맞고 Scripts 파일을 고칠 필요가 없다.<span class="fn">실측: 버전 참조 7개의 파일이 모두 있고, 현행 <code>readVersion</code>은 파일 바이트 SHA256 = <code>version.sha256</code>을 검사한다(<code>:478</code>). 압축 전 바이트 = 압축을 푼 바이트이므로 정의만 바뀐다.</span></li>
+    <li>저장할 때마다 전체 이력 하나를 쓰는 동작과 개수 상한 없음은 그대로다.</li>
+  </ol>
+
+  <h3>02-5 저장 공간 정리 (설정 · 기존분 1회)</h3>
+  <ol>
+    <li><b>시작 조건</b>: 변환·AI 교정·녹음 마무리가 진행 중이 아니고, 편집 중이 아니며(<code>canLeave</code>), Scripts 목록을 다 읽었다. 아니면 버튼을 끄고 문구 11을 보인다.</li>
+    <li><b>확인</b>(쓰기 없음): Scripts 조회와 실행 기록으로 보관 규칙의 정리 대상을 고른다. 구 배치 이력 파일을 모두 해독해 소속 스크립트 ID를 얻는다. 현재 Scripts에 없는 ID의 이력은 «지울 이력», 나머지는 «압축할 이력»이다. <code>CorrectionAttempts</code> 중 현재 Scripts에 없는 ID는 «지울 시도 기록»이다. Scripts 조회에 파일별 문제가 있으면 지울 이력과 지울 시도 기록을 0으로 두고 문구 15를 쓴다(읽지 못한 스크립트의 이력을 고아로 오판하지 않기 위해서다).</li>
+    <li><b>확인창</b>: 문구 12–19. 0인 줄은 뺀다. 모두 0이면 확인창 없이 문구 22.</li>
+    <li><b>실행 순서</b>:
+      <ol>
+        <li>보관 규칙 정리(§02-2, 순서 1–4 포함).</li>
+        <li>지울 이력 삭제. 1에서 지운 스크립트의 구 배치 이력도 여기에 든다.</li>
+        <li>압축 이전: 파일마다 읽기 → 압축 → 새 배치에 쓰기 → 다시 읽어 풀기 → 원본 바이트와 같으면 원본 삭제. 다르면 새 파일을 지우고 원본을 남기며 실패 1로 센다.</li>
+        <li>지울 시도 기록 삭제.</li>
+      </ol>
+    </li>
+    <li><b>건별 기록</b>: 내부 저장소 <code>storage-cleanup-log.jsonl</code>에 항목마다 한 줄(시각·종류·스크립트 ID·revisionID·바이트·결과)을 처리 즉시 덧붙인다. 제목·본문은 쓰지 않는다.<span class="fn">규율 rule-destructive-writes «일괄 이동·삭제 스크립트는 건별 즉시 로그 + 건별 예외 격리».</span></li>
+    <li><b>중단</b>: 앱이 도중에 끝나면 처리 중이던 파일은 원본이 남는다. 다음 정리에서 새 파일과 원본이 함께 있으면 새 파일을 풀어 원본과 대조하고, 같으면 원본만 지운다. 다르면 새 파일을 지우고 다시 압축한다.</li>
+    <li><b>진행 중</b>: 문구 20. 스크립트 편집·저장·변환 시작을 막는다. 녹음은 막지 않는다.</li>
+    <li><b>끝</b>: 문구 21(실패가 있으면 수를 붙인다). 확인 단계가 실패하면 문구 23이며 아무것도 지우지 않는다.</li>
+  </ol>
+  <p class="then">지금 데이터의 예상: 정리할 스크립트 0개, 지울 이력 62개 · 243.1 MB, 압축할 이력 512개 · 9,758.9 MB → 약 651.8 MB, 지울 시도 기록 0개. 앱 안 소요 시간은 안 쟀다(python 해독 62.4초 + 압축·왕복 33.4초).</p>
+
+  <h3>02-6 비범위</h3>
+  <ul>
+    <li>전사 원응답·실행 기록·원음·<code>Sessions/…/revisions</code> 정리.</li>
+    <li>수정 이력 개수 상한(자문 Fable의 «최근 N개» 제안은 채택되지 않았다).</li>
+    <li>Scripts 폴더 활성 파일 압축.</li>
+    <li>녹음 원본 Drive 이전(T2b, 묶음 4).</li>
+    <li>로컬 재결합 결과를 만드는 화면.</li>
+  </ul>
+</section>
+
+<section class="sec" id="s-screen">
+  <div class="rule"><span class="no">03</span><h2>화면</h2></div>
+  <p class="intro">새 창은 없다. 기존 확인창 두 개에 줄을 넣거나 바꾸고, 설정에 «저장 공간» 절 하나를 더한다. 노란 줄은 새 문구, 취소선은 지울 문구다.</p>
+
+  <h3>S1 재전사 확인창 · Soniox + Nemotron 3</h3>
+  <div class="segrow" data-target="s1"><button class="seg on" data-st="n" type="button">정리 대상 있음 (N=1)</button><button class="seg" data-st="z" type="button">정리 대상 없음 (현행 그대로)</button></div>
+  <div id="s1">
+    <div class="panel">
+      <b class="h">운영 스크립트를 만들까요?</b>
+      <p>(녹음 제목) · 4,860초</p>
+      <p>Soniox: 동일 음성·문맥 결과 재사용 (…)<br>Nemotron 3: 이 Mac에서 화자 분리 · 음성 전송 없음</p>
+      <p data-st="n">새 Soniox 요청에만 사용량이 발생합니다. <span class="del" style="text-decoration:line-through;color:var(--ink-3)">완료된 결과는 보존하고, </span>Soniox 단독과 결합본을 따로 엽니다. AI 교정 OFF. 화자 충돌·경계·겹말은 검수 대상으로 남습니다.</p>
+      <p data-st="z">새 Soniox 요청에만 사용량이 발생합니다. 완료된 결과는 보존하고, Soniox 단독과 결합본을 따로 엽니다. AI 교정 OFF. 화자 충돌·경계·겹말은 검수 대상으로 남습니다.</p>
+      <p>(화자 수·힌트·참석자 안내 줄 현행)</p>
+      <p>기존 수정본은 보존됩니다. Soniox 서버 파일은 자동 삭제하지 않으며 보관 정책이 적용됩니다.</p>
+      <p class="new" data-st="n">완료되면 이 녹음의 이전 결과 스크립트 1개를 휴지통으로 옮깁니다. 최근 결과 2회분과 사람이 고친 스크립트는 남깁니다.</p>
+      <div class="row"><span class="mb">닫기</span><span class="mb pri">결합본 만들기</span></div>
+    </div>
+  </div>
+  <dl class="spec">
+    <dt>위치</dt><dd>새 줄은 «기존 수정본은 보존됩니다. …» 문단 뒤, 접수 불명 경고 앞.<span class="fn">현행 조립 <code>App/ProcessingWorkspace.swift:227–236</code>(Nemotron), <code>:205–210</code>(재전사 공통), <code>:237–240</code>(접수 불명).</span></dd>
+    <dt>Soniox 단독 재전사</dt><dd>같은 새 줄을 «새 작업으로 처리하며 …» 문단 뒤에 넣고, 그 문단의 «기존 스크립트와 사용자 수정은 유지하고 새 스크립트를 만듭니다.»를 «새 스크립트를 만듭니다.»로 바꾼다(문구 2).</dd>
+    <dt>N=0</dt><dd>현행 문구 그대로.</dd>
+  </dl>
+
+  <h3>S2 Script 삭제 확인창</h3>
+  <div class="panel">
+    <b class="h">Script를 삭제할까요?</b>
+    <p>(스크립트 제목)</p>
+    <p class="del">선택한 스크립트 파일을 휴지통으로 이동합니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 내부 복구 이력은 남습니다.</p>
+    <p class="new">선택한 스크립트 파일을 휴지통으로 이동하고, 이 스크립트의 내부 수정 이력과 AI 버전 기록을 지웁니다. 파일을 휴지통에서 되돌려도 지운 AI 버전은 열 수 없습니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 원음·전사 원응답은 남습니다.</p>
+    <p>휴지통에서 되돌릴 수 있습니다. 서버에 전송된 데이터는 삭제하지 않습니다.</p>
+    <div class="row"><span class="mb pri">취소</span><span class="mb">휴지통으로 이동</span></div>
+  </div>
+  <p class="sx">마지막 문단·버튼·기본 버튼 «취소»는 현행 공통(<code>confirmDeletion</code>)이다. Speech 삭제 확인창은 바뀌지 않는다.<span class="fn"><code>App/LibraryWorkspace.swift:345</code>(현행 설명), <code>:358–362</code>(공통 문단·버튼).</span></p>
+
+  <h3>S3 설정 · 저장 공간</h3>
+  <div class="segrow" data-target="s3"><button class="seg on" data-st="idle" type="button">기본</button><button class="seg" data-st="block" type="button">다른 작업 중</button><button class="seg" data-st="scan" type="button">확인 중</button><button class="seg" data-st="confirm" type="button">확인창</button><button class="seg" data-st="confirm2" type="button">확인창 · 읽지 못한 파일</button><button class="seg" data-st="run" type="button">정리 중</button><button class="seg" data-st="done" type="button">완료</button><button class="seg" data-st="none" type="button">정리할 것 없음</button></div>
+  <div class="mac" id="s3" style="max-width:480px">
+    <div class="tb"><i></i><i></i><i></i><b>DAMA 설정</b></div>
+    <div class="bd">
+      <div class="cap">(화면 모드 · Speeches · Scripts 폴더 · 내부 녹음 저장 현행)</div>
+      <hr>
+      <b>저장 공간</b>
+      <div class="cap">스크립트 파일과 내부 수정 이력을 정리합니다. 녹음 원음과 전사 원응답은 지우지 않습니다.</div>
+      <div class="cap">내부 수정 이력 10 GB</div>
+      <div style="margin-top:8px" data-st="idle done none"><span class="mb">저장 공간 정리…</span></div>
+      <div style="margin-top:8px" data-st="block"><span class="mb off">저장 공간 정리…</span><div class="cap">다른 작업이 끝난 뒤 정리할 수 있습니다.</div></div>
+      <div style="margin-top:8px" data-st="scan"><span class="mb off">저장 공간 정리…</span><div class="cap">정리할 항목을 확인하는 중…</div></div>
+      <div style="margin-top:8px" data-st="run"><span class="mb off">저장 공간 정리…</span><div class="cap">저장 공간을 정리하는 중… (214/574)</div></div>
+      <div class="cap" data-st="done" style="color:var(--ink-2)">저장 공간을 정리했습니다. 내부 수정 이력 10 GB → 652 MB.</div>
+      <div class="cap" data-st="none" style="color:var(--ink-2)">정리할 항목이 없습니다.</div>
+      <div data-st="confirm confirm2">
+        <div class="panel">
+          <b class="h">저장 공간을 정리할까요?</b>
+          <p data-st="confirm">현재 Scripts 폴더에 없는 스크립트의 내부 수정 이력 62개 · 243.1 MB를 지웁니다.</p>
+          <p data-st="confirm2">Scripts 폴더에 읽지 못한 파일이 있어 내부 수정 이력 삭제는 건너뜁니다.</p>
+          <p>내부 수정 이력 512개 · 9.76 GB를 압축합니다. 압축을 푼 내용이 원본과 같을 때만 원본을 지웁니다.</p>
+          <p>지운 수정 이력은 되돌릴 수 없습니다. 녹음 원음과 전사 원응답은 지우지 않습니다.</p>
+          <div class="row"><span class="mb pri">취소</span><span class="mb">정리</span></div>
+        </div>
+      </div>
+      <hr>
+      <div class="cap">(API 키 · 월 비용 · 문맥 교정 · 닫기 현행)</div>
+    </div>
+  </div>
+  <dl class="spec">
+    <dt>위치</dt><dd>설정의 폴더 절(«내부에 보존된 녹음을 Speeches에 저장» 줄)과 API 키 절 사이에 구분선으로 둔다.<span class="fn"><code>UI/LibraryShell.swift:267–272</code>.</span></dd>
+    <dt>«내부 수정 이력 {크기}»</dt><dd>설정을 열 때 <code>LibraryRevisions</code> 아래 파일 크기 합(해독 없음). 크기 표기는 <code>ByteCountFormatter</code> <code>.file</code> 출력 그대로(목업의 값은 표기 예시).</dd>
+    <dt>확인창</dt><dd>NSAlert, 기본 버튼 «취소». 줄 순서 = 문구 13 → 14 또는 15 → 16 → 17 → 18. 0인 줄은 뺀다(목업은 지금 데이터 기준이라 문구 13·17이 없다).</dd>
+    <dt>빈 상태</dt><dd>이력이 하나도 없으면 «내부 수정 이력 0 바이트»(ByteCountFormatter 표기) 그대로 두고 버튼은 켠다. 누르면 문구 22.</dd>
+  </dl>
+
+  <h3>S4 완료 메시지</h3>
+  <div class="msg">스크립트를 저장했습니다. 화자와 내용을 확인해 주세요.<b> 이전 결과 스크립트 1개를 휴지통으로 옮겼습니다.</b></div>
+  <div class="msg">Script를 휴지통으로 이동했습니다.<b> 내부 수정 이력은 지우지 못했습니다. 설정의 저장 공간 정리에서 다시 지울 수 있습니다.</b></div>
+  <p class="sx">앞 문장은 현행 메시지, 굵은 부분이 붙는 문구다(문구 4·5·7). 정리 대상이 0이면 붙이지 않는다.<span class="fn">현행 <code>App/LibraryWorkspace.swift:424</code>, <code>:353</code>.</span></p>
+</section>
+
+<section class="sec" id="s-spec">
+  <div class="rule"><span class="no">04</span><h2>규격</h2></div>
+
+  <h3>문구 (신규 · 변경)</h3>
+  <p>{N}·{M}·{n}은 정수, {크기}·{전}·{후}는 <code>ByteCountFormatter</code> <code>.file</code> 표기다. D-01 ⓑ면 «휴지통으로 옮깁니다/옮겼습니다/옮기지»를 «삭제합니다/삭제했습니다/삭제하지»로 바꾼다.</p>
+  <div class="twrap"><table>
+    <tr><th>#</th><th>자리</th><th>문구</th><th>구분</th></tr>
+    <tr><td class="num">1</td><td>재전사 확인창 추가 줄 (N ≥ 1)</td><td>완료되면 이 녹음의 이전 결과 스크립트 {N}개를 휴지통으로 옮깁니다. 최근 결과 2회분과 사람이 고친 스크립트는 남깁니다.</td><td>신규</td></tr>
+    <tr><td class="num">2</td><td>Soniox 단독 재전사 문단 (N ≥ 1)</td><td>«기존 스크립트와 사용자 수정은 유지하고 새 스크립트를 만듭니다.» → «새 스크립트를 만듭니다.»</td><td>변경</td></tr>
+    <tr><td class="num">3</td><td>Soniox + Nemotron 3 확인창 문단 (N ≥ 1)</td><td>«완료된 결과는 보존하고, Soniox 단독과 결합본을 따로 엽니다.» → «Soniox 단독과 결합본을 따로 엽니다.»</td><td>변경</td></tr>
+    <tr><td class="num">4</td><td>결과 저장 메시지 뒤 (지운 수 ≥ 1)</td><td>이전 결과 스크립트 {N}개를 휴지통으로 옮겼습니다.</td><td>신규</td></tr>
+    <tr><td class="num">5</td><td>결과 저장 메시지 뒤 (못 지운 수 ≥ 1)</td><td>이전 결과 스크립트 {M}개는 옮기지 못해 그대로 두었습니다.</td><td>신규</td></tr>
+    <tr><td class="num">6</td><td>Script 삭제 확인창 설명</td><td>선택한 스크립트 파일을 휴지통으로 이동하고, 이 스크립트의 내부 수정 이력과 AI 버전 기록을 지웁니다. 파일을 휴지통에서 되돌려도 지운 AI 버전은 열 수 없습니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 원음·전사 원응답은 남습니다.</td><td>변경 (D-01과 무관, 수동 삭제는 늘 휴지통)</td></tr>
+    <tr><td class="num">7</td><td>Script 삭제 완료 메시지 뒤 (이력 삭제 실패)</td><td>내부 수정 이력은 지우지 못했습니다. 설정의 저장 공간 정리에서 다시 지울 수 있습니다.</td><td>신규. 이때 현행 뒷문장 «원음과 다른 스크립트는 유지됩니다.»는 뺀다</td></tr>
+    <tr><td class="num">8</td><td>설정 절 머리</td><td>저장 공간</td><td>신규</td></tr>
+    <tr><td class="num">9</td><td>설정 절 설명</td><td>스크립트 파일과 내부 수정 이력을 정리합니다. 녹음 원음과 전사 원응답은 지우지 않습니다.</td><td>신규</td></tr>
+    <tr><td class="num">10</td><td>설정 버튼 · 크기 줄</td><td>저장 공간 정리… / 내부 수정 이력 {크기}</td><td>신규</td></tr>
+    <tr><td class="num">11</td><td>버튼 꺼짐 안내</td><td>다른 작업이 끝난 뒤 정리할 수 있습니다.</td><td>신규</td></tr>
+    <tr><td class="num">12</td><td>확인 중 · 확인창 제목</td><td>정리할 항목을 확인하는 중… / 저장 공간을 정리할까요?</td><td>신규</td></tr>
+    <tr><td class="num">13</td><td>확인창 줄 · 스크립트</td><td>이전 결과 스크립트 {N}개 · {크기}를 휴지통으로 옮깁니다. 녹음마다 최근 결과 2회분과 사람이 고친 스크립트는 남깁니다.</td><td>신규</td></tr>
+    <tr><td class="num">14</td><td>확인창 줄 · 지울 이력</td><td>현재 Scripts 폴더에 없는 스크립트의 내부 수정 이력 {N}개 · {크기}를 지웁니다.</td><td>신규</td></tr>
+    <tr><td class="num">15</td><td>확인창 줄 · 지울 이력 대신 (조회 문제)</td><td>Scripts 폴더에 읽지 못한 파일이 있어 내부 수정 이력 삭제는 건너뜁니다.</td><td>신규</td></tr>
+    <tr><td class="num">16</td><td>확인창 줄 · 압축</td><td>내부 수정 이력 {N}개 · {크기}를 압축합니다. 압축을 푼 내용이 원본과 같을 때만 원본을 지웁니다.</td><td>신규</td></tr>
+    <tr><td class="num">17</td><td>확인창 줄 · 시도 기록</td><td>현재 Scripts 폴더에 없는 스크립트의 AI 교정 시도 기록 {N}개를 지웁니다.</td><td>신규</td></tr>
+    <tr><td class="num">18</td><td>확인창 끝줄 · 버튼</td><td>지운 수정 이력은 되돌릴 수 없습니다. 녹음 원음과 전사 원응답은 지우지 않습니다. / 취소 / 정리</td><td>신규. 기본 버튼 «취소»</td></tr>
+    <tr><td class="num">19</td><td>(D-01 ⓑ일 때만) 확인창 줄 13 대체</td><td>이전 결과 스크립트 {N}개 · {크기}를 삭제합니다. 녹음마다 최근 결과 2회분과 사람이 고친 스크립트는 남깁니다.</td><td>신규 (조건부)</td></tr>
+    <tr><td class="num">20</td><td>진행</td><td>저장 공간을 정리하는 중… ({n}/{N})</td><td>신규. {N} = 확인창에 적은 항목 수 합</td></tr>
+    <tr><td class="num">21</td><td>완료</td><td>저장 공간을 정리했습니다. 내부 수정 이력 {전} → {후}. + (스크립트 ≥ 1) 이전 결과 스크립트 {N}개를 휴지통으로 옮겼습니다. + (실패 ≥ 1) 처리하지 못한 파일 {M}개는 그대로 두었습니다.</td><td>신규</td></tr>
+    <tr><td class="num">22</td><td>정리할 것 없음</td><td>정리할 항목이 없습니다.</td><td>신규</td></tr>
+    <tr><td class="num">23</td><td>확인 단계 실패</td><td>정리할 항목을 확인하지 못했습니다. 아무것도 지우지 않았습니다.</td><td>신규</td></tr>
+  </table></div>
+  <p class="note">검수 이슈 6종 문구는 이 유닛에서 바뀌지 않는다(화면에 새로 뜨는 이슈 없음).</p>
+
+  <h3>값</h3>
+  <div class="twrap"><table>
+    <tr><th>조각</th><th>값</th></tr>
+    <tr><td>보관 세대 수</td><td class="num">2 (사용자 결정값, T2a-1)</td></tr>
+    <tr><td>압축</td><td>raw DEFLATE, Apple <code>COMPRESSION_ZLIB</code> level 5 고정<span class="fn">위 <code>compression.h</code> 인용.</span></td></tr>
+    <tr><td>새 이력 경로</td><td><code>LibraryRevisions/&lt;스크립트 ID&gt;/&lt;revisionID&gt;.dama.json.deflate</code></td></tr>
+    <tr><td>정리 기록</td><td>내부 저장소 <code>storage-cleanup-log.jsonl</code> (덧붙이기만)</td></tr>
+    <tr><td>요약 캐시</td><td><code>LibraryScriptSummary</code>에 <code>hasHumanEdits</code>를 더하고 <code>summaryVersion</code>을 1 올린다<span class="fn">계약 <code>library-script.md:72</code> «요약 필드의 의미가 바뀌면 <code>summaryVersion</code>을 올린다».</span></td></tr>
+  </table></div>
+
+  <h3>검산 자</h3>
+  <div class="twrap"><table>
+    <tr><th>축</th><th>자</th><th>모집단</th><th>문턱</th></tr>
+    <tr><td>대표 결과</td><td><code>primaryFile</code> = <code>createdAt</code> 최대, 동률 id</td><td>합성 단위 테스트(현행 가드 이동) + 실데이터 20녹음 읽기 전용 모의</td><td>실데이터 대표 변경 0/20(현행 예측값)</td></tr>
+    <tr><td>보관 규칙</td><td>§02-2 사례 1–6의 남김·정리 집합 일치</td><td>합성 6사례 + 역뮤테이션 2종(사람 수정 보호 끄기 → 사례 5 붉음, 재사용 소속 끄기 → 사례 1 붉음)</td><td>6/6, 역뮤테이션 각 붉음</td></tr>
+    <tr><td>보관 규칙 실데이터</td><td><code>retention-sim.py</code>와 앱 계산의 정리 집합 대조(쓰기 없음)</td><td>20녹음 38스크립트</td><td>둘 다 0개, 1회분 대조 둘 다 4개</td></tr>
+    <tr><td>동반 정리</td><td>지운 결과의 이력 폴더·시도 기록 부재, 자식이면 <code>savedSourceRuns</code> 등록, 다른 스크립트의 이력 파일 SHA256 목록 불변</td><td>합성</td><td>전부</td></tr>
+    <tr><td>압축 왕복</td><td>풀어서 원본 바이트 동일, <code>readVersion</code> 성공, 압축 파일 1바이트 변조 → 오류</td><td>합성 + 실데이터 정리 때 이전한 파일 전부(건별 기록 줄 수 = 처리 수)</td><td>전부 일치, 변조 붉음</td></tr>
+    <tr><td>남는 것 불변</td><td>정리 전후 <code>Sessions/</code> 전체와 남는 Scripts 파일의 SHA256 목록</td><td>합성 + 실데이터 1회 정리</td><td>차이 0</td></tr>
+    <tr><td>중단 안전</td><td>압축 이전 중 원본 삭제 전 중단 주입 → 다음 정리 뒤 최종 상태</td><td>합성</td><td>중단 없는 정리와 같은 최종 상태</td></tr>
+    <tr><td>조회 문제 시 보호</td><td>Scripts에 손상 파일 1개 주입 → 지울 이력 0, 그 스크립트 소속 이력 불변</td><td>합성</td><td>지운 이력 0</td></tr>
+  </table></div>
+  <p>안 잼: 앱 안 정리 소요 시간 · LZFSE·LZMA 비율 비교 · Finder 휴지통 비움 시점 · 새 설정 절의 키보드·VoiceOver(묶음 5 실기기 확인과 같은 방식으로 따로 확인) · 재전사 확인창 실화면(Soniox 재사용 조건이면 새 유료 호출 없이 볼 수 있다).</p>
+  <p class="note">실데이터 1회 정리는 사람 데이터의 비가역 삭제(이력 62개)를 포함하므로 게이트 ②에서 사용자가 설정의 버튼으로 실행한다. 메인은 실행 전후 매니페스트(개수·크기·SHA256)만 잰다.</p>
+</section>
+
+<section class="sec" id="s-impact">
+  <div class="rule"><span class="no">05</span><h2>시스템 영향</h2></div>
+
+  <h3>재사용</h3>
+  <ul>
+    <li><code>FolderLibraryStore.trashScript</code>(해시 검사·휴지통 이동), <code>scanScriptSummaries</code>.</li>
+    <li><code>ProcessingWorkspace.runs</code>·<code>historyAllowsProcessing</code>, <code>library.savedSourceRuns</code>.</li>
+    <li><code>confirmDeletion</code>·<code>NSAlert</code> 확인창 형식, <code>LibraryWorkspace.message</code>.</li>
+    <li><code>CorrectionRunner</code>의 시도 기록 저장소(<code>CorrectionAttempts/</code>).</li>
+  </ul>
+
+  <h3>변경</h3>
+  <ul>
+    <li><code>ScriptResultPresentation.primaryFile</code>: 엔진 등급 제거.</li>
+    <li><code>LibraryScriptSummary</code>: <code>hasHumanEdits</code> 추가, <code>summaryVersion</code> +1.</li>
+    <li><code>FolderLibraryStore.writeRevision</code>·<code>revisionURL</code>·<code>readVersion</code>: 새 배치·압축, 구 배치 읽기.</li>
+    <li><code>FolderLibraryStore.trashScript</code>: 성공 뒤 그 스크립트의 이력 폴더 삭제.</li>
+    <li><code>LibraryWorkspace.processingFinished</code>: 자식이 아닌 실행의 새 스크립트 뒤 보관 정리, 메시지 문구 4·5.</li>
+    <li><code>LibraryWorkspace.deleteScript</code>: 시도 기록 삭제, 문구 6·7.</li>
+    <li><code>ProcessingWorkspace</code> 전송 확인창: N 계산, 문구 1–3.</li>
+    <li><code>LibrarySettings</code>: «저장 공간» 절.</li>
+  </ul>
+
+  <h3>신규</h3>
+  <ul>
+    <li><code>ScriptRetention</code>(순수 계산, DamaAudio): 입력 = 녹음의 요약 목록 + 실행 연결(<code>id → (parentRunID, sonioxRunID)</code>) + 건너뛸 ID, 출력 = 남김·정리 집합. 확인창 N과 실제 정리가 같은 함수를 쓴다.</li>
+    <li><code>LibraryScript.hasHumanEdits</code>(계산 속성, §02-2 판정).</li>
+    <li><code>FolderLibraryStore</code>의 이력 폴더 삭제와 저장 공간 정리(확인·실행·건별 기록·중단 재개). 이력 파일을 다루는 코드는 모두 이 actor 안에 둔다.</li>
+    <li><code>storage-cleanup-log.jsonl</code>.</li>
+  </ul>
+
+  <h3>가드 이동 (기존 단정)</h3>
+  <ul>
+    <li><code>LibraryJourneyTests.swift:26–34</code>: 엔진 우선 기대값을 생성 시각 기대값으로 옮긴다(예: <code>[soniox 300, olderCombined 100, newerCombined 200]</code> → soniox). 단정 수 유지, 역뮤테이션(엔진 등급 되살리기)으로 붉음 확인.</li>
+    <li><code>ManagedJourneyTests.swift:148</code>: 휴지통 이동 뒤 «이력 파일 있음» → «그 스크립트 이력 폴더 없음 + 다른 스크립트 이력 있음».</li>
+    <li><code>ScriptVersionTests.swift:112</code> 변조 단정: 평문 변조 → 압축 파일 변조와 «풀어서 내용 변조 후 다시 압축» 두 가지로.</li>
+    <li><code>LibraryTitleTests.swift:89·94</code>: 접두 <code>/LibraryRevisions/</code> 기준이라 그대로 서는지만 확인.</li>
+  </ul>
+
+  <h3>계약 개정 문안 (D-04 · 10곳)</h3>
+  <ol>
+    <li><code>CLAUDE.md</code> 최상위 경계 6 «Soniox 자체 결과는 항상 비교용으로 보존한다.» → «Soniox 자체 결과는 Run 원응답으로 항상 비교용으로 보존한다. 스크립트 파일은 녹음별 보관 규칙(<code>ssot/contracts/library-script.md</code> «결과 보관»)을 따른다.»</li>
+    <li><code>library-script.md:43–44</code> «snapshot 실제 바이트 SHA256» → «snapshot의 압축을 푼 바이트 SHA256», 조회 경로에 «새 배치, 없으면 구 배치»를 더한다.</li>
+    <li><code>library-script.md:66</code> «내부 <code>LibraryRevisions/&lt;revisionID&gt;.dama.json</code> 기록 후» → «내부 <code>LibraryRevisions/&lt;스크립트 ID&gt;/&lt;revisionID&gt;.dama.json.deflate</code>(raw DEFLATE) 기록 후. 구 배치는 읽기와 정리 이전에만 쓴다».</li>
+    <li><code>library-script.md:72</code> 요약 필드 목록에 <code>hasHumanEdits</code>.</li>
+    <li><code>library-script.md:91</code> «기존 파일·원문·수정본·원음은 보존한다.» → «원문(Run)·사람이 고친 스크립트·원음은 보존한다. 그 밖의 이전 결과 스크립트는 «결과 보관»에 따라 휴지통으로 옮길 수 있다.»</li>
+    <li><code>library-script.md:92</code> «연결 항목·내보낸 Markdown·내부 녹음/Run/LibraryRevisions/index는 남긴다.» → «연결 항목·내보낸 Markdown·내부 녹음/Run/index는 남기고, 그 스크립트의 내부 수정 이력과 교정 시도 기록은 지운다. 휴지통에서 되돌린 스크립트는 현재 내용으로 열리지만 지운 AI 버전은 열 수 없다.»</li>
+    <li><code>library-script.md:182</code> «이전 AI 교정 기록도 내부 immutable LibraryRevisions에 남는다.» → 끝에 «(스크립트를 지우면 함께 지운다)».</li>
+    <li><code>library-script.md:193</code> 시도 기록 «휴지통 이동·앱 재시작 뒤에도 남는다.» → «앱 재시작 뒤에도 남고, 스크립트를 지우면(휴지통 이동·결과 보관 정리) 함께 지운다.»</li>
+    <li><code>operating-baseline.md:73</code> «모델 원문과 기존 immutable LibraryRevisions는 유지한다.» → 끝에 «(스크립트를 지우면 그 스크립트의 이력도 지운다)».</li>
+    <li><code>library-script.md</code> 새 절 «결과 보관 (usage-bundle2)»: §02-1 대표 결과, §02-2 세대·규칙·사람 수정 판정·시점·건너뛰는 조건·순서, §02-5 정리 요약.</li>
+  </ol>
+  <p class="then">고치지 않는 것: INV-09, <code>CLAUDE.md</code> 함정 3(재처리는 새 Run이고 기존 수정본을 덮어쓰지 않는다), 설계 02 §9, <code>operating-baseline.md:11·36</code>(Soniox Run 보존·삭제한 비교본 무조건 복원 금지). 확정 문구는 컨펌 뒤 <code>ssot/tone/usage-bundle2.md</code>에 넣는다.</p>
+</section>
+
+<section class="sec" id="s-fn">
+  <div class="rule"><span class="no">주</span><h2>각주 · 근거</h2></div>
+  <!--__FOOTNOTES__-->
+  <details class="audit">
+    <summary>참조 근거 (읽은 목록)</summary>
+    <div class="body">
+      <div class="twrap"><table>
+        <tr><th style="width:300px">문서·코드</th><th>확인한 것</th></tr>
+        <tr><td>규율 메모리 14종 (<code>~/.claude/projects/-Users-gazitofu/memory/</code>)</td><td>rule-purpose-first · rule-ambiguous-instructions · rule-scope-stop · rule-gate-hygiene · rule-measurement · rule-negative-claims · rule-carryover-remeasure · rule-verify-at-consumption · rule-delegation-artifacts · rule-destructive-writes · rule-shared-tree-commits · rule-numeric-test-integrity · rule-external-media-verify · rule-longrun-watchdog</td></tr>
+        <tr><td><code>notes/usage-review/decisions.md</code> · <code>brief.md</code> · <code>advisor-astra.md</code> · <code>advisor-fable.md</code></td><td>T2a 결정 1–5와 근거 수치, 자문 두 곳의 T2a 판정·위험·대안</td></tr>
+        <tr><td><code>ssot/doc-template/README.md</code> · <code>template.src.html</code> · <code>notes/usage-bundle1/usage-bundle1.src.html</code></td><td>양식, 네이티브 목업 형식</td></tr>
+        <tr><td><code>ssot/design/00_README.md</code> · <code>02</code> §9 · <code>04</code> INV-09 · <code>07</code></td><td>채택 범위, 삭제와 재처리, 보존 조항 유무</td></tr>
+        <tr><td><code>ssot/api/pyannote-verified.md</code></td><td>이 유닛은 외부 API를 부르지 않음(참조만)</td></tr>
+        <tr><td><code>ssot/contracts/library-script.md</code> 전문 · <code>operating-baseline.md</code></td><td>저장·버전·삭제·요약 캐시·시도 기록·제목 저장 시점, Soniox 보존 문언</td></tr>
+        <tr><td><code>ssot/tone/</code> 5파일</td><td>삭제·확인창 관련 확정 문구 유무(해당 문장은 코드에만 있음)</td></tr>
+        <tr><td>코드</td><td><code>FolderLibraryStore</code>(<code>ScriptResultPresentation</code>·<code>createScript</code>·<code>saveScript</code>·<code>writeRevision</code>·<code>readVersion</code>·<code>saveCorrection</code>·<code>snapshot</code>) · <code>LibraryWorkspace</code>(<code>processingFinished</code>·<code>convert</code>·<code>deleteScript</code>·<code>confirmDeletion</code>·<code>completedScript</code>) · <code>ProcessingWorkspace</code>(확인창·<code>saveCompletedSources</code>·<code>launch</code>·<code>refreshRuns</code>) · <code>ManagedProcessor</code>(<code>ManagedRun</code>·<code>executeCombined</code>) · <code>LibraryScript</code> · <code>ScriptParagraphEdit</code> · <code>ScriptEvaluation</code> · <code>CorrectionRunner</code> · <code>LibraryShell.LibrarySettings</code> · <code>AudioStorage.root</code> · SDK <code>compression.h</code></td></tr>
+        <tr><td>테스트 grep</td><td><code>primaryFile</code>·<code>LibraryRevisions</code>·<code>readVersion</code> 단정(가드 이동 목록)</td></tr>
+        <tr><td>사용자 데이터 (읽기 전용, 집계만)</td><td>내부 저장소 실행 기록 72·수정 이력 574·시도 기록 0, <code>~/DAMA/Scripts</code> 38. 제목·본문·이름 문자열 미출력, ID는 앞 8자만</td></tr>
+      </table></div>
+    </div>
+  </details>
+  <p class="note">r1 (11.06) 초판. 11-05 결정 수치를 재측정해 D-02로 올렸다.</p>
+</section>
+
+<div style="height:140px"></div>
+</div>
+
+<script>
+// 00 판정 블록: 고른 선택지·메모로 MD 회신을 만든다 (data-state="open" 일 때만)
+(function(){
+  const v = document.getElementById('s-verdict');
+  if (!v || v.dataset.state !== 'open') return;
+  const md = v.querySelector('pre.md'), ok = v.querySelector('.ok');
+  const items = [...v.querySelectorAll('.vitem')];
+  const d = new Date();
+  const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  function build(){
+    const L = ['## ' + v.dataset.unit + ' 스펙 ' + v.dataset.round + ' · 게이트 ' + v.dataset.gate + ' 회신 (' + date + ')', ''];
+    items.forEach(it => {
+      const k = it.dataset.k;
+      const sel = it.querySelector('input[type=radio]:checked');
+      const memoEl = it.querySelector('input[type=text]');
+      const memo = memoEl ? memoEl.value.trim() : '';
+      const title = it.querySelector('.vt').textContent.replace(k, '').trim();
+      L.push('- ' + k + ' ' + title + ': ' + (sel ? sel.value : '(미선택)') + (memo ? ' · ' + memo : ''));
+    });
+    md.textContent = L.join('\n');
+  }
+  v.addEventListener('input', build);
+  v.querySelector('[data-act=copy]').onclick = async () => {
+    build();
+    try { await navigator.clipboard.writeText(md.textContent); ok.textContent = '복사됨.'; }
+    catch { const r = document.createRange(); r.selectNodeContents(md); const s = getSelection(); s.removeAllRanges(); s.addRange(r); ok.textContent = '클립보드 권한 없음. 선택된 텍스트를 복사하면 된다.'; }
+  };
+  v.querySelector('[data-act=reset]').onclick = () => {
+    items.forEach(it => { const r = it.querySelector('input[type=radio]'); if (r) r.checked = true; const m = it.querySelector('input[type=text]'); if (m) m.value = ''; });
+    build(); ok.textContent = '초기화됨.';
+  };
+  build();
+})();
+
+// 각주 팝오버: 번호 클릭 → 마커 우상단에 상자. 바깥 클릭·ESC·재클릭·스크롤에 닫힌다
+(function(){
+  let pop = null, cur = null;
+  function close(){ if (pop) pop.remove(); pop = null; if (cur) cur.classList.remove('open'); cur = null; }
+  document.querySelectorAll('sup.fn a[data-fn]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    if (cur === a) { close(); return; }
+    close();
+    const src = document.getElementById('fn-' + a.dataset.fn);
+    if (!src) return;
+    const t = src.querySelector('.t');
+    pop = document.createElement('div'); pop.className = 'pop';
+    pop.innerHTML = '<span class="pn">' + a.dataset.fn + '</span>' + (t ? t.innerHTML : src.innerHTML);
+    document.body.appendChild(pop);
+    const r = a.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = r.left + scrollX - 8, top = r.top + scrollY - ph - 10, below = false;
+    if (left + pw > scrollX + innerWidth - 12) left = scrollX + innerWidth - 12 - pw;
+    if (left < scrollX + 12) left = scrollX + 12;
+    if (r.top - ph - 10 < 8) { top = r.bottom + scrollY + 10; below = true; }
+    pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.classList.toggle('below', below);
+    cur = a; a.classList.add('open');
+  }));
+  document.addEventListener('click', e => { if (pop && !pop.contains(e.target) && !e.target.closest('sup.fn')) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  addEventListener('scroll', () => { if (pop) close(); }, {passive:true});
+})();
+
+// 데스크탑 실척 스테이지: 컨테이너 폭 / 1440 비율로 가상 뷰포트를 축소한다
+(function(){
+  const fit = () => document.querySelectorAll('.deskstage').forEach(st => {
+    st.querySelectorAll(':scope > .deskvp').forEach(vp => vp.style.setProperty('--ds', st.clientWidth / 1440));
+  });
+  addEventListener('resize', fit);
+  addEventListener('DOMContentLoaded', fit);
+  fit();
+})();
+// 상태 세그: [data-target] 행의 버튼이 대상 안 [data-st] 요소를 고른 상태만 보이게 한다
+(function(){
+  document.querySelectorAll('.segrow[data-target]').forEach(row => {
+    const target = document.getElementById(row.dataset.target);
+    if (!target) return;
+    const show = st => {
+      row.querySelectorAll('.seg').forEach(b => b.classList.toggle('on', b.dataset.st === st));
+      target.querySelectorAll('[data-st]').forEach(el => { el.hidden = !el.dataset.st.split(' ').includes(st); });
+    };
+    row.querySelectorAll('.seg').forEach(b => b.addEventListener('click', () => show(b.dataset.st)));
+    const first = row.querySelector('.seg.on') || row.querySelector('.seg');
+    if (first) show(first.dataset.st);
+  });
+})();
+</script>
+
+</body>
+</html>
