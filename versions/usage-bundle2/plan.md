@@ -1,9 +1,10 @@
 ---
 unit: usage-bundle2
 branch: work/m0-fixture-review
-status: built
+status: released
+released_at: 2026-11-07
 decisions_resolved: true
-resume:
+resume: "released v0.5.19 (2026-11-07). main 머지·태그·origin push(main·태그·작업 브랜치). 작업 브랜치 work/m0-fixture-review는 선례대로 유지(main과 같은 지점으로 맞춤)."
 spec: notes/usage-bundle2/usage-bundle2.src.html
 ---
 ## 근거
