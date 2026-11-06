@@ -115,10 +115,17 @@ final class ScriptVersionTests: XCTestCase {
         try flipped.write(to: after.url)
         do { _ = try await store.readVersion(versions[1], for: latest); XCTFail("tampered compressed snapshot") }
         catch { XCTAssertTrue(error is LibraryFailure) }
-        let plain = try XCTUnwrap(String(data: RevisionCodec.inflate(stored), encoding: .utf8))
-        let forged = plain.replacingOccurrences(of: #""title":"자동 저장 제목""#, with: #""title":"자동 저장 변조""#)
-        XCTAssertNotEqual(forged, plain)   // 유효한 JSON·검증을 통과하는 내용 변조: 해시 검사만 잡는다.
-        try RevisionCodec.deflate(Data(forged.utf8)).write(to: after.url)
+        var plain = try RevisionCodec.inflate(stored)
+        // 1바이트 내용 변조: 최상위 createdAt 숫자의 첫 자리(유효한 JSON·검증 통과, 해시 검사만 잡는다).
+        let key = Data(#""createdAt":"#.utf8)
+        var search = plain.startIndex, digit: Int?
+        while let found = plain.range(of: key, in: search..<plain.endIndex) {
+            if found.upperBound < plain.endIndex, (48...57).contains(plain[found.upperBound]) { digit = found.upperBound; break }
+            search = found.upperBound
+        }
+        let index = try XCTUnwrap(digit)
+        plain[index] = plain[index] == UInt8(ascii: "9") ? UInt8(ascii: "1") : plain[index] + 1
+        try RevisionCodec.deflate(plain).write(to: after.url)
         do { _ = try await store.readVersion(versions[1], for: latest); XCTFail("tampered snapshot content") }
         catch { XCTAssertTrue(error is LibraryFailure) }
         XCTAssertEqual(try AudioFiles.hash(latest.url), latest.hash)

@@ -3,7 +3,7 @@ unit: usage-bundle2
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "building. T-01 진행 중 (c9387e8 위). check.sh는 `bash /Users/gazitofu/Developer/Dama/scripts/check.sh` (대문자 절대경로)로만 돌린다."
+resume: "building. 차수 A(T-01–T-05) 완료·QA A 결함 수정 커밋 뒤, T-06 착수 전. check.sh는 `bash /Users/gazitofu/Developer/Dama/scripts/check.sh` (대문자 절대경로)로만 돌린다."
 spec: notes/usage-bundle2/usage-bundle2.src.html
 ---
 ## 근거
@@ -156,3 +156,5 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 - F-01 check.sh 소문자 경로 실행 = 모듈 캐시 대소문자 충돌 2회 (usage-bundle1 11.05 `run-20261105T093251Z-ibPcMG` · 이 plan 11.06 `run-20261106T131025Z-nfR5EE`). 제안: `scripts/check.sh` `ROOT="$(pwd -P)"`. 이 유닛 범위 밖, 승인 시 별도 커밋.
 - F-02 스펙 §02-2 «legacy humanEdited Turn»: 계약에 Turn 필드는 없고 legacy 표지는 `RevisionMetadata.humanEdited`(DomainContracts.swift:192)다. measure-t2a.py·retention-sim.py는 Turn 키를 봐 이 축을 0으로 셌다. 실측 revision.humanEdited 0/38이라 판정·예상값은 같다. 계약 새 절과 구현은 계약 필드로 쓴다.
 - F-03 재사용 Soniox 자식이 앞선 정리로 휴지통에 간 뒤 새 결합이 그 자식을 다시 재사용하면, savedSourceRuns 등록 때문에 Soniox 단독 스크립트가 다시 만들어지지 않는다(재사용 판단은 Run 기준이라 결합은 정상). 실데이터 해당 0. 문구 3 «Soniox 단독과 결합본을 따로 엽니다.»와 어긋날 수 있는 경로로 기록만.
+- F-04 (AC-05ⓐ, 문언 · /build 발견) 스크립트 ID = `transcript.runId`이고 계약은 UUID를 요구하지 않는다(`fixtures/normalized-transcript.json` runId `run-fixture-001`). UUID로 막자 기존 테스트 21개가 저장 불가(`unsafePath`). 구현 = revisionID는 UUID, 스크립트 ID는 시도 기록과 같은 경로 안전 규칙(ASCII 영숫자·`-`·`_`, 1–128자, `InternalStoragePaths.isSafeScriptID`). 실데이터 스크립트 38 · Run 72 전부 UUID라 동작 차이 0. 권고: AC 문언을 구현대로 정정. QA A D-2 «부분».
+- F-05 (AC-01 ③, 문언) 스펙 §05 3번 문안을 글자 그대로 치환하면 «… 기록 후. 구 배치는 읽기와 정리 이전에만 쓴다 외부 활성 파일을 atomic 쓰기한다.»로 문장이 끊긴다. 구현 = «… 기록 후 외부 활성 파일을 atomic 쓰기한다. 구 배치는 읽기와 정리 이전에만 쓴다.»(낱말 같음, 순서만). QA A D-1 «부분».

@@ -92,6 +92,19 @@ final class ScriptRemovalTests: XCTestCase {
         XCTAssertEqual(removal, .removed)
     }
 
+    /// 휴지통 이동은 됐지만 내부 이력을 못 지우면 `.historyNotRemoved`(앱 완료 문장 = 문구 7).
+    func testHistoryRemovalFailureIsReportedAfterTrash() async throws {
+        let (folder, root, trash, model) = try setup()
+        let (store, a, _) = try await two(folder, root, trash, model)
+        let attempts = root.appendingPathComponent(InternalStoragePaths.correctionAttemptsFolder)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: attempts.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: attempts.path) }
+        let removal = await store.removeScript(LibraryScriptSummary(a), in: folder, isChildResult: false) { _ in }
+        XCTAssertEqual(removal, .historyNotRemoved)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: trash.appendingPathComponent(a.url.lastPathComponent).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: try InternalStoragePaths.correctionAttemptURL(root: root, scriptID: a.id).path))
+    }
+
     func testAttemptPathRuleIsShared() throws {
         let root = URL(fileURLWithPath: "/tmp/dama-root")
         XCTAssertEqual(try InternalStoragePaths.correctionAttemptURL(root: root, scriptID: "ABC-1").path, "/tmp/dama-root/CorrectionAttempts/ABC-1.json")

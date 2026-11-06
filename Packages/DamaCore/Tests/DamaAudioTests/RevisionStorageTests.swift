@@ -67,13 +67,55 @@ final class RevisionStorageTests: XCTestCase {
         catch { XCTAssertEqual(error as? LibraryFailure, .unsafePath) }
     }
 
-    func testNewFileIsCreatedWithoutOverwritingAndLeavesNoTemporaryFile() throws {
-        let (folder, _, _) = try setup()
+    func testNewFileIsCreatedWithoutOverwritingAndLeavesNoTemporaryFile() async throws {
+        let (folder, root, _) = try setup()
+        let store = FolderLibraryStore(root: root)
         let target = folder.appendingPathComponent("x/y.dama.json.deflate")
-        try RevisionCodec.writeNew(Data("first".utf8), to: target)
-        XCTAssertThrowsError(try RevisionCodec.writeNew(Data("second".utf8), to: target))
+        try await store.writeNewRevision(Data("first".utf8), to: target)
+        do { try await store.writeNewRevision(Data("second".utf8), to: target); XCTFail("overwrite") }
+        catch { XCTAssertEqual(error as? LibraryFailure, .changedFile) }
         XCTAssertEqual(try Data(contentsOf: target), Data("first".utf8))
         XCTAssertEqual(files(folder.appendingPathComponent("x")), ["/y.dama.json.deflate"])
+    }
+
+    /// 새·구 배치에 같은 revisionID가 함께 있으면 둘 다 대조한다(QA A D-3).
+    func testSameRevisionIDPresentInBothLayoutsChecksBoth() async throws {
+        let (folder, root, model) = try setup()
+        let store = FolderLibraryStore(root: root)
+        let script = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        let saved = try await store.saveScript(script, to: folder.appendingPathComponent("a.dama.json"), expectedHash: nil)
+        let newURL = try await store.revisionURL(scriptID: script.id, revisionID: script.revisionID)
+        let legacyURL = try await store.legacyRevisionURL(script.revisionID)
+        var other = script; other.title = "구 배치만 다른 내용"
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        try encoder.encode(other).write(to: legacyURL)
+        // 새 배치와는 같고 구 배치와는 다른 같은 revisionID 저장 → 거부.
+        do { _ = try await store.saveScript(saved.script, to: saved.url, expectedHash: saved.hash); XCTFail("legacy conflict missed") }
+        catch { XCTAssertEqual(error as? LibraryFailure, .changedFile) }
+        // 양쪽이 같으면 그대로 통과(새 파일 없음).
+        try encoder.encode(script).write(to: legacyURL)
+        let again = try await store.saveScript(saved.script, to: saved.url, expectedHash: saved.hash)
+        XCTAssertEqual(again.hash, saved.hash)
+        XCTAssertEqual(files(root.appendingPathComponent("LibraryRevisions")).count, 2)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: newURL.path))
+    }
+
+    /// 새 배치가 풀리지 않으면 손상이며, 구 배치가 있어도 대체해 읽지 않는다.
+    func testCorruptCurrentLayoutDoesNotFallBackToLegacy() async throws {
+        let (folder, root, model) = try setup()
+        let store = FolderLibraryStore(root: root)
+        let first = try await store.saveScript(try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성",
+                                                                 input: ConversionNotes()), to: folder.appendingPathComponent("a.dama.json"), expectedHash: nil)
+        var correction = ScriptCorrection(input: first.script.input, engine: "synthetic", state: .completed)
+        correction.completedAt = Date()
+        let completed = try await store.saveCorrection(correction, for: first)
+        let version = try XCTUnwrap(completed.script.versions?.last)
+        let newURL = try await store.revisionURL(scriptID: completed.id, revisionID: version.revisionID)
+        let legacyURL = try await store.legacyRevisionURL(version.revisionID)
+        try RevisionCodec.inflate(Data(contentsOf: newURL)).write(to: legacyURL)
+        try Data("손상된 압축".utf8).write(to: newURL)
+        do { _ = try await store.readVersion(version, for: completed); XCTFail("corrupt current layout") }
+        catch { XCTAssertEqual(error as? LibraryFailure, .invalidScript) }
     }
 
     func testSameRevisionIDWithDifferentBytesIsRejectedInBothLayouts() async throws {
@@ -115,7 +157,7 @@ final class RevisionStorageTests: XCTestCase {
         XCTAssertEqual(fromLegacy.url.standardizedFileURL, legacyURL.standardizedFileURL)
         XCTAssertEqual(fromLegacy.hash, version.sha256)
         // 새 배치가 있으면 새 배치를 먼저 읽는다.
-        try RevisionCodec.writeNew(RevisionCodec.deflate(plain), to: newURL)
+        try await store.writeNewRevision(RevisionCodec.deflate(plain), to: newURL)
         let fromNew = try await store.readVersion(version, for: completed)
         XCTAssertEqual(fromNew.url.standardizedFileURL, newURL.standardizedFileURL)
         XCTAssertEqual(fromNew.script.revisionID, version.revisionID)

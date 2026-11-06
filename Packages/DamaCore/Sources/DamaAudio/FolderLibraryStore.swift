@@ -390,6 +390,21 @@ public actor FolderLibraryStore {
         let url = revisionFolder.appendingPathComponent(revisionID + RevisionCodec.legacySuffix)
         try safe(url); return url
     }
+    /// 같은 폴더 임시 이름에 쓴 뒤 덮어쓰기 없는 이동으로만 만든다(대상이 있으면 실패). 부분 기록 파일은 보이지 않는다.
+    /// 이력 파일 쓰기는 이 actor 안에서만 한다(usage-bundle2 AC-06).
+    func writeNewRevision(_ stored: Data, to url: URL) throws {
+        let folder = url.deletingLastPathComponent()
+        try safe(url)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let temporary = folder.appendingPathComponent(".tmp-\(UUID().uuidString)")
+        try stored.write(to: temporary, options: .withoutOverwriting)
+        do { try FileManager.default.moveItem(at: temporary, to: url) }
+        catch {
+            try? FileManager.default.removeItem(at: temporary)
+            if FileManager.default.fileExists(atPath: url.path) { throw LibraryFailure.changedFile }
+            throw error
+        }
+    }
     /// 압축을 푼 이력 바이트와 그 파일. 새 배치를 먼저 찾고 없으면 구 배치. 풀 수 없으면 손상(`invalidScript`).
     func readRevision(scriptID: String, revisionID: String) throws -> (url: URL, fileBytes: Data, bytes: Data) {
         let url = try revisionURL(scriptID: scriptID, revisionID: revisionID)
@@ -406,16 +421,19 @@ public actor FolderLibraryStore {
     private func writeRevision(_ script: LibraryScript, bytes: Data) throws -> Data {
         let url = try revisionURL(scriptID: script.id, revisionID: script.revisionID)
         let legacy = try legacyRevisionURL(script.revisionID)
+        // 같은 revisionID가 새·구 배치 어디에 있든(둘 다 있으면 둘 다) 같은 내용이어야 한다.
+        var previous: Data?
         for existing in [url, legacy] where FileManager.default.fileExists(atPath: existing.path) {
             let stored = try Data(contentsOf: existing)
-            let previous = existing == url ? try RevisionCodec.inflate(stored) : stored
+            let plain = existing == url ? try RevisionCodec.inflate(stored) : stored
             let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
-            guard try encoder.encode(JSONDecoder().decode(LibraryScript.self, from: previous)) == bytes else {
+            guard try encoder.encode(JSONDecoder().decode(LibraryScript.self, from: plain)) == bytes else {
                 throw LibraryFailure.changedFile
             }
-            return previous
+            previous = previous ?? plain
         }
-        try RevisionCodec.writeNew(try RevisionCodec.deflate(bytes), to: url)
+        if let previous { return previous }
+        try writeNewRevision(try RevisionCodec.deflate(bytes), to: url)
         return bytes
     }
     /// Merge only changes committed by this actor (or the exact caller bytes). Unknown external edits fail closed.
