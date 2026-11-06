@@ -17,7 +17,7 @@
 3. **모르는 화자는 null이다.** 가장 가까운 화자나 문맥상 그럴듯한 화자로 자동으로 채우지 않는다.
 4. **모델 원문은 보존한다.** 요약·윤문·군더더기 제거·문맥만으로 화자 귀속 추정은 하지 않는다. 사용자 2026-09-10 후속 결정으로 **별도 AI 문맥 교정본**을 자동 생성할 수 있다. 전사·참석자·선택 참고 발췌의 OpenAI 전송은 녹음별 확인 후 진행하며, 원문/시간/화자 ID/사람 수정은 보존한다. 계약은 `ssot/contracts/library-script.md`의 AI 교정 절을 따른다.
 5. **exclusive는 음원 분리가 아니다.** 겹친 두 사람의 텍스트를 모두 복구했다는 보장이 아니다.
-6. **운영 기본값은 Soniox 전사 + 이 Mac의 Nemotron 3 화자분리다.** 사용자 2026-10-30 확정(pyannote 제외, `notes/nemotron-diarization/` 게이트 ①). pyannote에는 새 요청을 보내지 않으며 과거 P2 결과·스크립트는 보존·열람한다. Soniox 자체 결과는 항상 비교용으로 보존한다. 자동 모델 전환·자동 학습은 하지 않는다. 원음/설정이 같은 결과를 재사용하고, Run별 입력·키·동의·실패 복구를 분리한다. 현행 계약은 `ssot/contracts/operating-baseline.md`, 상태는 `versions/operating-baseline/plan.md`. 정확도·수정시간·정상 요금으로 승격하며 감지 인원 일치나 무료 청구액으로 성공을 선언하지 않는다.
+6. **운영 기본값은 Soniox 전사 + 이 Mac의 Nemotron 3 화자분리다.** 사용자 2026-10-30 확정(pyannote 제외, `notes/nemotron-diarization/` 게이트 ①). pyannote에는 새 요청을 보내지 않으며 과거 P2 결과·스크립트는 보존·열람한다. Soniox 자체 결과는 Run 원응답으로 항상 비교용으로 보존한다. 스크립트 파일은 녹음별 보관 규칙(`ssot/contracts/library-script.md` «결과 보관»)을 따른다. 자동 모델 전환·자동 학습은 하지 않는다. 원음/설정이 같은 결과를 재사용하고, Run별 입력·키·동의·실패 복구를 분리한다. 현행 계약은 `ssot/contracts/operating-baseline.md`, 상태는 `versions/operating-baseline/plan.md`. 정확도·수정시간·정상 요금으로 승격하며 감지 인원 일치나 무료 청구액으로 성공을 선언하지 않는다.
 
 전체 규칙은 `ssot/design/07_SECURITY_AND_DECISIONS.md` §6과 `ssot/design/04_DATA_AND_RECONCILIATION.md` §3(INV-01~10).
 

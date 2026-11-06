@@ -1,9 +1,9 @@
 ---
 unit: usage-bundle2
 branch: work/m0-fixture-review
-status: ready-to-build
+status: building
 decisions_resolved: true
-resume: "T-01 착수 전. HEAD = 이 plan 커밋. check.sh는 `bash /Users/gazitofu/Developer/Dama/scripts/check.sh` (대문자 절대경로)로만 돌린다."
+resume: "building. T-01 진행 중 (c9387e8 위). check.sh는 `bash /Users/gazitofu/Developer/Dama/scripts/check.sh` (대문자 절대경로)로만 돌린다."
 spec: notes/usage-bundle2/usage-bundle2.src.html
 ---
 ## 근거
