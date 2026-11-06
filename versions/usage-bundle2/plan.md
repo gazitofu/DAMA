@@ -1,9 +1,9 @@
 ---
 unit: usage-bundle2
 branch: work/m0-fixture-review
-status: building
+status: built
 decisions_resolved: true
-resume: "게이트 ② 마감 회신 대기: AC-10 부분(실화면 미검증 9) · AC-13 부분(화면 2축 사용자 관측). 나머지 AC 통과. 실데이터 정리 완료 00:32."
+resume:
 spec: notes/usage-bundle2/usage-bundle2.src.html
 ---
 ## 근거
@@ -102,7 +102,7 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
   - ⓖ 남는 것 불변: 정리 전후 `Sessions/` 전체 · 남는 Scripts 파일 SHA256 목록 차이 0.
   - ⓗ 크기 (단위 고정 테스트): 입력 = `LibraryRevisions` 아래 파일 디스크 크기 바이트(Int64, 구·새 배치 모두, 압축 파일은 압축 크기, 해독 없음). 출력 = `ByteCountFormatter` `.file`(1000진). 합성 1,000 · 2,500 · 500 B → 4,000 B. 1,000,000 B의 `.file` 표기 ≠ `.memory` 표기.
   - ⓘ 확인 결과 전부 0 → 확인창 없이 문구 22. 확인 단계 throw → 문구 23, 쓰기 0.
-- [ ] AC-10 설정 «저장 공간» 절 (앱 빌드 + 합성 QA 앱 실화면, `QASnapshot`):
+- [x] AC-10 설정 «저장 공간» 절 (앱 빌드 + 합성 QA 앱 실화면, `QASnapshot`):
   - 위치 = :267 버튼(·녹음 저장 다시 시도) 뒤 `Divider` 다음, `APIKeySettings` 앞. 문구 8 · 9 · 10 («내부 수정 이력 {크기}»는 설정을 열 때 계산).
   - 꺼짐 = 변환(`ProcessingWorkspace.busy`) · AI 교정(`CorrectionWorkspace.busy`) · 녹음 마무리(`capture.needsFinalization`·저장 중) · `!canLeave` · `scriptsLoading` → 문구 11. 녹음 중 자체는 끄지 않는다.
   - 확인 중 문구 12 앞쪽 · 확인창 NSAlert 제목 문구 12 뒤쪽 · 줄 순서 13 → 14 또는 15 → 16 → 17 → 18, 0인 줄 뺌 · 버튼 «취소»(기본)·«정리».
@@ -117,7 +117,7 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 ### 전달
 
 - [x] AC-12 버전·설치: `MARKETING_VERSION` 0.5.19 · `CURRENT_PROJECT_VERSION` 37 (Debug/Release). check.sh 4단계 PASS. 설치 앱 교체(막힘 1) 뒤 실행 중 Bundle 값 0.5.19 (37).
-- [ ] AC-13 실데이터 1회 정리 (막힘 2, 사용자 실행):
+- [x] AC-13 실데이터 1회 정리 (막힘 2, 사용자 실행):
   - 실행 전: 메인이 AC-11 확인 단계 재측정 → 확인창 수·크기와 대조, 다르면 중단·보고. 전 매니페스트 = `LibraryRevisions` 574 파일 SHA256 · `Sessions/` SHA256 · Scripts 38 SHA256.
   - 실행 후: 구 배치 0 · 이전된 파일 수 = 확인창 압축 수(기준 512) · 각 파일 풀어서 SHA256 = 전 매니페스트 해당 파일 · 고아(기준 62) 부재 · `Sessions/`·Scripts SHA256 차이 0 · `storage-cleanup-log.jsonl` 줄 수 = 처리 수 · 크기 줄 «{전} → {후}» = 디스크 실측 · AI 버전 7개 `readVersion` 성공(AC-11 방식 읽기 전용 모의, root = 실제 내부 저장소, `scripts(in:)`로 열기, 전후 매니페스트 차이 0).
 
@@ -137,9 +137,9 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 | 06 | 통과 (A3) | |
 | 07 · 08 · 11 | 통과 (B · B2) | 실제 재전사 확인창·자동 정리 실행은 안 잼(스펙) |
 | 09 | 통과 (B3, 합성·코드) | D-2 fixture를 AC 문언대로 고침(`d3e1336`), F-06 철회. 최종 check.sh는 커밋 직전 작업 트리(= `d3e1336`, 커밋 뒤 `git status` clean)에서 돌림 |
-| 10 | 부분 (B2 코드 충족 + C 실화면 8항목 확인) | 실화면 23:35–23:55 (사용자 «지금 Mac 비워둠»): 위치·문구 8–10·확인 중·확인창 제목/줄 순서(14→16→17→18, 13 생략)·진행 «(18/132)»·완료 문구 21·재진입 문구 22 확인 (`C-evidence.md` · `ui/shots/`). 미검증 9: 꺼짐 조건별 문구 11 · 녹음 중 허용 · 문구 13·15 분기 · 기본 «취소»(판독 출력이 파일에 없음) · 진행 중 조작 차단 · 완료 조건부 문장 · 빈 이력 0 바이트 · 확인창 픽셀(runModal 중 캡처 불가) · fixture Scripts 4(문언 2) |
+| 10 | 닫음 (사용자 «지금 상태로 닫기» 2026-11-07 · B2 코드 충족 + C 실화면 8항목 · 미검증 9 = F-07) | 실화면 23:35–23:55 (사용자 «지금 Mac 비워둠»): 위치·문구 8–10·확인 중·확인창 제목/줄 순서(14→16→17→18, 13 생략)·진행 «(18/132)»·완료 문구 21·재진입 문구 22 확인 (`C-evidence.md` · `ui/shots/`). 미검증 9: 꺼짐 조건별 문구 11 · 녹음 중 허용 · 문구 13·15 분기 · 기본 «취소»(판독 출력이 파일에 없음) · 진행 중 조작 차단 · 완료 조건부 문장 · 빈 이력 0 바이트 · 확인창 픽셀(runModal 중 캡처 불가) · fixture Scripts 4(문언 2) |
 | 12 | 통과 | 설치 23:4x (사용자 승인): 백업 `.build/backups/DAMA-0.5.18-36-before-usage-bundle2.app` 11파일 일치 → `/Applications/DAMA.app` 교체 11파일 SHA256 = 빌드 산출물, adhoc·linker-signed. 실행 pid의 적재 경로 `/Applications`, Bundle `com.gazitofu.Dama`, 메뉴바 툴팁 «DAMA 0.5.19 · 빌드 37». check.sh `run-20261106T144753Z-Xj8NtL` PASS |
-| 13 | 부분 (D) | 사용자 실행 2026-11-07 00:30:58–00:32:06 KST (기록 574줄 = 삭제 62 + 이전 512, 실패 0). 메인 측정(`D-evidence.md`): 구 배치 0 · 새 배치 512 · 풀어서 SHA256 512/512 같음 · 고아 62 · 243,073,739 B 부재 = 기록 삭제 집합 · Sessions 2,918 · Scripts 38 SHA256 불변 · AI 버전 7/7 · 디스크 10,002,006,178 → 651,849,241 B. 미검증(화면, 사용자만 봄): 확인창 값 대조 · 완료 크기 줄 글자 |
+| 13 | 통과 (D 데이터 축 + 사용자 관측 «둘 다 그렇게 보였음» 2026-11-07: 확인창 62 · 243.1 MB / 512 · 9.76 GB, 완료 «10 GB → 651.8 MB») | 사용자 실행 2026-11-07 00:30:58–00:32:06 KST (기록 574줄 = 삭제 62 + 이전 512, 실패 0). 메인 측정(`D-evidence.md`): 구 배치 0 · 새 배치 512 · 풀어서 SHA256 512/512 같음 · 고아 62 · 243,073,739 B 부재 = 기록 삭제 집합 · Sessions 2,918 · Scripts 38 SHA256 불변 · AI 버전 7/7 · 디스크 10,002,006,178 → 651,849,241 B. 미검증(화면, 사용자만 봄): 확인창 값 대조 · 완료 크기 줄 글자 |
 
 ## 작업 분해
 
@@ -180,3 +180,6 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 - F-04 (AC-05ⓐ, 문언 · /build 발견) 스크립트 ID = `transcript.runId`이고 계약은 UUID를 요구하지 않는다(`fixtures/normalized-transcript.json` runId `run-fixture-001`). UUID로 막자 기존 테스트 21개가 저장 불가(`unsafePath`). 구현 = revisionID는 UUID, 스크립트 ID는 시도 기록과 같은 경로 안전 규칙(ASCII 영숫자·`-`·`_`, 1–128자, `InternalStoragePaths.isSafeScriptID`). 실데이터 스크립트 38 · Run 72 전부 UUID라 동작 차이 0. 권고: AC 문언을 구현대로 정정. QA A D-2 «부분». → **해소** (사용자 «권고대로 정정» 2026-11-06, AC-05ⓐ 문언 정정, QA A3 «정정 후보 타당»).
 - F-05 (AC-01 ③, 문언) 스펙 §05 3번 문안을 글자 그대로 치환하면 «… 기록 후. 구 배치는 읽기와 정리 이전에만 쓴다 외부 활성 파일을 atomic 쓰기한다.»로 문장이 끊긴다. 구현 = «… 기록 후 외부 활성 파일을 atomic 쓰기한다. 구 배치는 읽기와 정리 이전에만 쓴다.»(낱말 같음, 순서만). QA A D-1 «부분». → **해소** (사용자 «권고대로 정정» 2026-11-06, AC-01 문언 정정, QA A3 «정정 후보 타당»).
 - F-06 철회 (2026-11-06): «AC-09ⓐ fixture 모양은 API로 만들 수 없다»는 메인 주장이 틀렸다(QA B2 반례: 만들기 1 + AI 보정 snapshot 2 + 보정 저장 1 = 4개 중 3개를 구 배치로). fixture를 AC 문언대로 고쳐 압축 5 · 실행 뒤 새 배치 6으로 검사한다.
+- F-07 (AC-10, 사용자 결정 2026-11-07 «지금 상태로 닫기») 실화면 미검증 9항목: 다른 작업 중 꺼짐(문구 11) · 녹음 중 버튼 켜짐 · 확인창 문구 13·15 분기 · 기본 «취소»(판독 출력은 세션 기록에만) · 진행 중 편집·저장·변환·AI 교정 차단 조작 · 완료 문구 21 조건부 문장 · 이력 0 바이트 → 문구 22 · 확인창 픽셀(runModal 중 QASnapshot 미처리) · fixture Scripts 4(문언 2). 코드 판정은 QA B2 충족. 다음 실화면 기회(묶음 5 실기기 확인 등)에 함께 본다.
+- F-08 (관측, 결함 후보) 작은 이력 4,008개 정리에서 접근성 응답이 정리 끝(5.5초)까지 오지 않았다. 항목마다 진행 갱신 `Task { @MainActor }`가 쌓이는 것으로 추정(계측 안 함). 실데이터 512항목 · 68초 정리에서는 문제 보고 없음. 갱신을 시간 간격으로 묶을지는 별도 결정.
+- F-09 (기록) 설치 앱 실데이터 정리 2026-11-07 00:30:58–00:32:06 KST: 내부 수정 이력 574개 · 10,002,006,178 B → 512개 · 651,849,241 B (고아 62 삭제, 512 압축). 기록 `~/Library/Application Support/com.gazitofu.Dama/storage-cleanup-log.jsonl` 574줄.
