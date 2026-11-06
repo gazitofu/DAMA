@@ -269,6 +269,8 @@ struct LibrarySettings: View {
                 Button("녹음 저장 다시 시도") { Task { _ = await capture.retryFinalization() } }
             }
             Divider()
+            StorageSettings(workspace: workspace)
+            Divider()
             APIKeySettings()
             Divider()
             Button("월 비용·무료 혜택 기록…") { costSettings = true }
@@ -280,6 +282,44 @@ struct LibrarySettings: View {
         }.padding(24).frame(width: 470)
             .onChange(of: appearance) { _, _ in AppAppearance.applySaved() }
             .sheet(isPresented: $costSettings) { OperatingCostSheet(workspace: workspace) }
+    }
+}
+
+/// usage-bundle2 설정 «저장 공간» 절 (문구 8–23, 정본 ssot/tone/usage-bundle2.md).
+struct StorageSettings: View {
+    @ObservedObject var workspace: LibraryWorkspace
+    @ObservedObject private var processing = ProcessingWorkspace.shared
+    @ObservedObject private var correction = CorrectionWorkspace.shared
+    @ObservedObject private var capture = RecordingWorkspace.shared.capture
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(StorageCleanupNotice.header).font(.headline)
+            Text(StorageCleanupNotice.description).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(workspace.revisionBytes.map(StorageCleanupNotice.sizeLine) ?? StorageCleanupNotice.sizeLine(0))
+                .font(.caption).monospacedDigit().opacity(workspace.revisionBytes == nil ? 0 : 1)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Button(StorageCleanupNotice.button, action: workspace.cleanStorage).disabled(!allowed)
+                if let status { Text(status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            }
+        }
+        .onAppear { workspace.refreshRevisionBytes() }
+    }
+    /// 버튼은 시작 조건을 만족할 때만 켠다. 녹음 중 자체는 끄지 않는다.
+    private var allowed: Bool {
+        _ = (processing.busy, correction.busy, capture.phase, capture.needsFinalization)   // 상태 변화에 다시 그린다.
+        return workspace.storageCleanupAllowed
+    }
+    /// 확인·진행 중이 아니면서 버튼이 꺼져 있으면 이전 결과 대신 문구 11을 보인다.
+    private var status: String? {
+        switch workspace.storageCleanup {
+        case .checking: return StorageCleanupNotice.checking
+        case let .running(done, total): return StorageCleanupNotice.progress(done, of: total)
+        case _ where !allowed: return StorageCleanupNotice.disabled
+        case let .finished(text): return text
+        case .nothing: return StorageCleanupNotice.nothing
+        case .failed: return StorageCleanupNotice.checkFailed
+        case .idle: return nil
+        }
     }
 }
 

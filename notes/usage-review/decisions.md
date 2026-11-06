@@ -2,7 +2,7 @@
 status: decided
 decided_at: 2026-11-05
 topics: [T1, T2a, T2b, T3, T4, T5]
-next: "/spec 묶음 2 (T2a). 입력 = 이 파일. 묶음 1은 usage-bundle1 v0.5.18 released(2026-11-06)."
+next: "/plan usage-bundle2 (묶음 2 T2a 스펙 게이트 ① 컨펌 2026-11-06). 묶음 1은 usage-bundle1 v0.5.18 released(2026-11-06)."
 ---
 
 # 사용 복기 개선 결정 기록
@@ -26,7 +26,9 @@ next: "/spec 묶음 2 (T2a). 입력 = 이 파일. 묶음 1은 usage-bundle1 v0.5
 4. 남은 수정 이력: 압축 저장. AI 버전 참조 지문(현재 실제 바이트 SHA256)을 압축 해제 내용 기준으로 바꾸는 계약 변경과 기존 파일 이전·검증 포함.
 5. 제목 저장: Enter 또는 입력칸 이탈 시에만 저장(0.5초 자동 저장 폐지).
 
-근거 실측: LibraryRevisions 572개 중 379개(7.6GB, 81%)가 이미 삭제된 스크립트 소속이며 앱에서 읽는 경로 없음(읽기는 AI 버전 참조 7건뿐). 저장 계기: 화자 이름 63%, 문단 15%, 제목 12%, AI 교정 5%. 571회 저장 중 transcript 변경 0회. 최대 파일 gzip 14.8배. Scripts 폴더 전체 309MB.
+재측정 2026-11-06(usage-bundle2 스펙 D-02, 수정 이력 JSON 최상위 `id`를 스크립트 `id`와 대조): 지운 스크립트 소속 62개·243.1 MB, 현재 스크립트 소속 512개·9,758.9 MB(DEFLATE 5로 651.8 MB), 보관 규칙 적용 시 지울 스크립트 0개. 아래 11-05 수치(379개·7.6GB)는 재현되지 않았고 원인 미확정.
+
+근거 실측(11-05): LibraryRevisions 572개 중 379개(7.6GB, 81%)가 이미 삭제된 스크립트 소속이며 앱에서 읽는 경로 없음(읽기는 AI 버전 참조 7건뿐). 저장 계기: 화자 이름 63%, 문단 15%, 제목 12%, AI 교정 5%. 571회 저장 중 transcript 변경 0회. 최대 파일 gzip 14.8배. Scripts 폴더 전체 309MB.
 
 ## T2b 녹음 원본 Drive 이전 (사용자 확정 2026-11-05, 방식 일부 미정)
 
@@ -76,7 +78,7 @@ next: "/spec 묶음 2 (T2a). 입력 = 이 파일. 묶음 1은 usage-bundle1 v0.5
 2. 묶음 2 저장 정리: T2a
 3. 묶음 3 AI 교정 고도화: T4-3, T4-4, T4-5, T4-6(CLAUDE.md 경계 4 개정 포함), T4-7
 4. 묶음 4 Drive 이전: T2b (전제: 사용자가 개인 계정 rclone remote·자체 client ID 설정)
-5. 묶음 5 실기기·접근성 확인 (2026-11-06 사용자 승인 «이월안대로», 순서 미정): 아래 «이월» E-01–E-07·E-09와 «미완료 확인»의 Dock·Cmd+Tab 여정. 실화면 시간 합의 후 진행.
+5. 묶음 5 실기기·접근성 확인 (2026-11-06 사용자 승인 «이월안대로», 순서 미정): 아래 «이월» E-01–E-07·E-09·E-10과 «미완료 확인»의 Dock·Cmd+Tab 여정. 실화면 시간 합의 후 진행.
 
 부칙 2026-11-06: 묶음 3의 T4-7(회의 원음 대조)은 G-07 보고(E1/E2/누락/unknown/검수시간)를 겸하도록 설계한다(이월 E-08).
 
@@ -91,7 +93,7 @@ next: "/spec 묶음 2 (T2a). 입력 = 이 파일. 묶음 1은 usage-bundle1 v0.5
 
 ## 이월 (2026-11-06 장부 정리, 사용자 승인 «1번 닫기·이월안대로 진행 먼저 하자»)
 
-building으로 남았던 m0·m1·m2·library-workspace를 범위 재정의로 닫으며 옮긴 미측정 조건이다. 이월은 충족이 아니다. 원 AC 문언은 각 plan에 보존돼 있다. QA 판정 `.build/qa/bookkeeping-20261106/verdict.md`(GPT-6.1-sol). 종료 기준은 모두 «실기기(또는 평가) 기록 1회 + GPT-6.1-sol 판정».
+building으로 남았던 m0·m1·m2·library-workspace를 범위 재정의로 닫으며 옮긴 미측정 조건이다. E-10은 같은 날 nemotron-diarization을 닫으며 옮겼다(사용자 «AC-10을 E-10으로 이월해 닫고», 판정 `.build/qa/nemotron-close-20261106/verdict.md`). 이월은 충족이 아니다. 원 AC 문언은 각 plan에 보존돼 있다. QA 판정 `.build/qa/bookkeeping-20261106/verdict.md`(GPT-6.1-sol). 종료 기준은 모두 «실기기(또는 평가) 기록 1회 + GPT-6.1-sol 판정».
 
 | ID | 원 유닛·AC | 기확인 범위 | 미측정 조건 | 목적지 |
 |---|---|---|---|---|
@@ -104,5 +106,6 @@ building으로 남았던 m0·m1·m2·library-workspace를 범위 재정의로 �
 | E-07 | m1 AC-07b | sleep 2·deviceChanged 1 청크 파일·분석본 존재, 최장 saved 160.4분(메타데이터) | 중단 전후 해시·프레임 보존 대조, TCC 거부, 디스크 부족, 청크 있는 강제 종료 표본, 키보드·VoiceOver 패널, 장시간 메모리 | 묶음 5 |
 | E-08 | m2 AC-06b · library-workspace AC-06c | 없음 | 현행 운영 경로(Soniox + Nemotron) 한국어 결과 검수, G-07 보고 | 묶음 3 T4-7 |
 | E-09 | library-workspace AC-06b | Keychain 키 존재·Soniox 사용·앱에서 pyannote 키 삭제, 마이크 녹음, 구 엔진 실계정 교정 완료 3건, 구간 정보 열기/닫기(합성 1180×760) | 폴더 선택창·첫 실행 선택창, 서명 sandbox 인증, 현행 키 저장 UI 여정, 직접 청취, VoiceOver, 전체 창 크기·애니메이션, 팝오버 조작·스크롤, 실서버 상태, 현행 엔진 `context-correction-6` 실계정 성공 | 묶음 5 |
+| E-10 | nemotron-diarization AC-10b | 녹음 판정·종료 순서 테스트(`RecordingLifecycleTests`), 처리기 거부 시 parent·자식 `queued`·호출 0, mock 취소 오류 후 parent `queued`·자식 확률 파일 부재·재개 완료(`NemotronJourneyTests`), 취소 후 자식 `queued` 복귀 및 앱 연결 소스 대조 | 화자 분리 중 녹음 시작 여정 1회(녹음 즉시 진행·원본 저장·자식 `queued`·재개로 완료), 거부 문구 실화면, 앱 종료 시 Nemotron 취소, 실기기 INV-01 영향 없음. 사용자 2026-11-06 «화자분리하면서 녹음할 경우가 거의 없음», 실사용에서 생기면 디스크 대조 + GPT-6.1-sol 판정으로 닫음 | 묶음 5 |
 
 E-01–E-05는 M0 검수 창(`UI/ReviewShell.swift`, 녹음 패널 «전사 검수»로 열림)이 대상이다. 검수 창을 걷어내기로 하면 실제 제거 범위와 남는 사용 경로를 확인한 뒤 항목별로 재판정한다. 일괄 소멸하지 않는다.

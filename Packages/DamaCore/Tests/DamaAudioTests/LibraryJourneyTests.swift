@@ -4,7 +4,7 @@ import XCTest
 @testable import DamaAudio
 
 final class LibraryJourneyTests: XCTestCase {
-    func testOnePrimaryScriptPerSpeechPrefersNewestOperationalResult() throws {
+    func testOnePrimaryScriptPerSpeechIsTheNewestResult() throws {
         func file(sessionID: String, runID: String, engine: EngineKind, createdAt: TimeInterval) throws -> LibraryScriptFile {
             var document = try fixture()
             document.sessionId = sessionID
@@ -23,15 +23,20 @@ final class LibraryJourneyTests: XCTestCase {
         let newerCombined = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .hybridSonioxPyannote, createdAt: 200)
         let otherSpeech = try file(sessionID: sessionB, runID: UUID().uuidString, engine: .managedSoniox, createdAt: 400)
 
+        // usage-bundle2 대표 결과 = createdAt 최대(엔진 등급 없음). 단정 4개는 엔진 우선 기대값에서 옮겼다.
         let primary = ScriptResultPresentation.primaryFiles(in: [soniox, olderCombined, newerCombined, otherSpeech])
-        XCTAssertEqual(primary.map(\.id), [otherSpeech.id, newerCombined.id])
-        XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [soniox, olderCombined, newerCombined])?.id, newerCombined.id)
-        // Nemotron combined results rank with P2 combined results; newest wins within the tier.
+        XCTAssertEqual(primary.map(\.id), [otherSpeech.id, soniox.id])
+        XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [soniox, olderCombined, newerCombined])?.id, soniox.id)
         let laterSoniox = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .managedSoniox, createdAt: 600)
         let nemotron = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .hybridSonioxNemotron, createdAt: 500)
-        XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [laterSoniox, newerCombined, nemotron])?.id, nemotron.id)
+        XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [laterSoniox, newerCombined, nemotron])?.id, laterSoniox.id)
         let newestP2 = try file(sessionID: sessionA, runID: UUID().uuidString, engine: .hybridSonioxPyannote, createdAt: 700)
         XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [nemotron, newestP2])?.id, newestP2.id)
+        // 같은 createdAt이면 id 사전순 앞(현행 동률 규칙).
+        let tieLow = try file(sessionID: sessionA, runID: "00000000-0000-4000-8000-000000000001", engine: .managedSoniox, createdAt: 800)
+        let tieHigh = try file(sessionID: sessionA, runID: "F0000000-0000-4000-8000-000000000001", engine: .hybridSonioxNemotron, createdAt: 800)
+        XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [tieHigh, tieLow])?.id, tieLow.id)
+        XCTAssertEqual(ScriptResultPresentation.primaryFile(in: [tieLow, tieHigh])?.id, tieLow.id)
     }
 
     func testTrashRejectsChangedScriptWrongFolderAndFilesystemFailure() async throws {

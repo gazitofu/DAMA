@@ -154,4 +154,43 @@ final class ScriptSummaryCacheTests: XCTestCase {
         XCTAssertEqual(again.hash, created.hash)
         XCTAssertEqual(try hashes(folder).count, 1)
     }
+
+    /// usage-bundle2 AC-07: 결과 보관 정리는 새 파일을 만든 경우에만 일어난다(기존 파일을 다시 열면 created = false).
+    func testCreateScriptReportsWhetherItCreatedANewFile() async throws {
+        let (folder, root, model) = try setup()
+        let speech = LibrarySpeech(id: model.sessionId, fileURL: folder.appendingPathComponent("s.m4a"), sourceHash: "x",
+                                   title: "합성", recordedAt: nil, dateSource: "합성", durationUs: model.durationUs, notes: ConversionNotes())
+        let first = try await FolderLibraryStore(root: root).createScriptReportingNew(model, speech: speech, input: ConversionNotes(), in: folder)
+        let second = try await FolderLibraryStore(root: root).createScriptReportingNew(model, speech: speech, input: ConversionNotes(), in: folder)
+        XCTAssertTrue(first.created)
+        XCTAssertFalse(second.created)
+        XCTAssertEqual(second.file.hash, first.file.hash)
+    }
+
+    /// usage-bundle2 AC-03: summaryVersion 1 → 2 (hasHumanEdits 추가). 구 버전 캐시는 한 번 전량 해독한다.
+    func testVersionOneCacheIsRebuiltOnceAndCarriesHumanEdits() async throws {
+        let (folder, root, _, a, b) = try await twoScripts()
+        var edited = a.script
+        edited.revisionID = UUID().uuidString
+        edited.turnNames[try XCTUnwrap(edited.transcript.turns.first?.id)] = "사람 이름"
+        let writer = FolderLibraryStore(root: root)
+        let saved = try await writer.saveScript(edited, to: a.url, expectedHash: a.hash)
+        _ = try await writer.scanScriptSummaries(in: folder)
+        XCTAssertEqual(FolderLibraryStore.summaryVersion, 2)
+        let cache = root.appendingPathComponent("library-script-summaries.json")
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: cache)) as? [String: Any])
+        json["version"] = 1
+        try JSONSerialization.data(withJSONObject: json).write(to: cache)
+        let store = FolderLibraryStore(root: root)
+        let scan = try await store.scanScriptSummaries(in: folder)
+        let decodes = await store.scriptDecodeCount
+        XCTAssertEqual(decodes, 2)
+        XCTAssertEqual(scan.items.first { $0.id == saved.id }?.hasHumanEdits, true)
+        XCTAssertEqual(scan.items.first { $0.id == b.id }?.hasHumanEdits, false)
+        let again = FolderLibraryStore(root: root)
+        let cached = try await again.scanScriptSummaries(in: folder)
+        let againDecodes = await again.scriptDecodeCount
+        XCTAssertEqual(againDecodes, 0)
+        XCTAssertEqual(cached.items.first { $0.id == saved.id }?.hasHumanEdits, true)
+    }
 }

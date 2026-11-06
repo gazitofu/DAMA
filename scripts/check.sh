@@ -3,6 +3,9 @@
 # 음성 업로드·유료 API 호출·마이크 접근 없음.
 set -u
 cd "$(dirname "$0")/.."
+# 대소문자 무시 볼륨에서 cwd 표기가 달라도 모듈 캐시 경로가 갈리지 않게 디스크 표기로 맞춘다.
+# bash 3.2 builtin `pwd -P`는 표기를 바꾸지 않으므로 getcwd 기반 /bin/pwd를 쓴다.
+cd "$(/bin/pwd -P)" || exit 1
 ROOT="$PWD"
 FAIL=0
 SKIP=()

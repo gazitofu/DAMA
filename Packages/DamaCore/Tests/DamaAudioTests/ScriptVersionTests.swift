@@ -108,8 +108,25 @@ final class ScriptVersionTests: XCTestCase {
         catch { XCTAssertTrue(error is LibraryFailure) }
         do { _ = try await store.saveScript(after.script, to: after.url, expectedHash: after.hash); XCTFail("immutable") }
         catch { XCTAssertTrue(error is LibraryFailure) }
-        try Data("손상".utf8).write(to: after.url)
-        do { _ = try await store.readVersion(versions[1], for: latest); XCTFail("tampered snapshot") }
+        // usage-bundle2 가드 이동: 평문 변조 → (1) 압축 파일 1바이트 변조 (2) 풀어서 1바이트 변조 후 다시 압축.
+        XCTAssertTrue(after.url.lastPathComponent.hasSuffix(".dama.json.deflate"))
+        let stored = try Data(contentsOf: after.url)
+        var flipped = stored; flipped[flipped.count / 2] ^= 0xFF
+        try flipped.write(to: after.url)
+        do { _ = try await store.readVersion(versions[1], for: latest); XCTFail("tampered compressed snapshot") }
+        catch { XCTAssertTrue(error is LibraryFailure) }
+        var plain = try RevisionCodec.inflate(stored)
+        // 1바이트 내용 변조: 최상위 createdAt 숫자의 첫 자리(유효한 JSON·검증 통과, 해시 검사만 잡는다).
+        let key = Data(#""createdAt":"#.utf8)
+        var search = plain.startIndex, digit: Int?
+        while let found = plain.range(of: key, in: search..<plain.endIndex) {
+            if found.upperBound < plain.endIndex, (48...57).contains(plain[found.upperBound]) { digit = found.upperBound; break }
+            search = found.upperBound
+        }
+        let index = try XCTUnwrap(digit)
+        plain[index] = plain[index] == UInt8(ascii: "9") ? UInt8(ascii: "1") : plain[index] + 1
+        try RevisionCodec.deflate(plain).write(to: after.url)
+        do { _ = try await store.readVersion(versions[1], for: latest); XCTFail("tampered snapshot content") }
         catch { XCTAssertTrue(error is LibraryFailure) }
         XCTAssertEqual(try AudioFiles.hash(latest.url), latest.hash)
     }

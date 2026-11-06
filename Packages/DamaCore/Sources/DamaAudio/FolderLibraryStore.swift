@@ -38,11 +38,14 @@ public struct LibraryScriptSummary: Codable, Sendable, Identifiable, Equatable {
     public let sessionId: String
     public let engine: EngineKind
     public let sourceAudioSHA256: String?
+    /// usage-bundle2 결과 보관: 사람이 고친 결과인가(`LibraryScript.hasHumanEdits`).
+    public let hasHumanEdits: Bool
 
     init(url: URL, hash: String, script: LibraryScript) {
         id = script.id; self.url = url; self.hash = hash; title = script.title; createdAt = script.createdAt
         sessionId = script.transcript.sessionId; engine = script.transcript.provenance.engine
         sourceAudioSHA256 = script.transcript.provenance.sourceAudioSHA256
+        hasHumanEdits = script.hasHumanEdits
     }
     public init(_ file: LibraryScriptFile) { self.init(url: file.url, hash: file.hash, script: file.script) }
 
@@ -65,6 +68,7 @@ extension LibraryScriptFile: ScriptListing {
 
 /// Collapses multiple processing results for one Speech into one library row.
 /// All files remain available to the reader's "다른 결과 보기" menu.
+/// usage-bundle2 대표 결과: createdAt이 가장 늦은 것, 같으면 id 사전순 앞. 엔진 등급은 보지 않는다.
 public enum ScriptResultPresentation {
     public static func primaryFiles<T: ScriptListing>(in files: [T]) -> [T] {
         Dictionary(grouping: files, by: \.sessionId).values
@@ -74,15 +78,9 @@ public enum ScriptResultPresentation {
 
     public static func primaryFile<T: ScriptListing>(in files: [T]) -> T? {
         files.max { lhs, rhs in
-            let left = priority(lhs), right = priority(rhs)
-            if left != right { return left < right }
             if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
             return lhs.id > rhs.id
         }
-    }
-
-    private static func priority<T: ScriptListing>(_ file: T) -> Int {
-        [.hybridSonioxPyannote, .hybridSonioxNemotron].contains(file.engine) ? 1 : 0
     }
 
     private static func newestFirst<T: ScriptListing>(_ lhs: T, _ rhs: T) -> Bool {
@@ -93,11 +91,18 @@ public enum ScriptResultPresentation {
 
 /// File I/O stays outside MainActor. All caller URLs remain security-scoped for the operation.
 public actor FolderLibraryStore {
-    private let root: URL
+    let root: URL
     private let trash: @Sendable (URL) throws -> Void
     private var scanning = false
     private var scriptCache: [String: LibraryScriptFile] = [:]
     private var committedScriptHashes: [String: String] = [:]
+    /// 테스트 주입(usage-bundle2 저장 공간 정리): 원본 삭제 직전(중단 모의), 압축 함수(왕복 불일치 모의).
+    var cleanupHook: (@Sendable (URL) throws -> Void)?
+    var cleanupCompressor: @Sendable (Data) throws -> Data = { try RevisionCodec.deflate($0) }
+    func setCleanupTestHooks(beforeRemovingOriginal: (@Sendable (URL) throws -> Void)?, compressor: (@Sendable (Data) throws -> Data)?) {
+        cleanupHook = beforeRemovingOriginal
+        cleanupCompressor = compressor ?? { try RevisionCodec.deflate($0) }
+    }
     public init(root: URL, trash: @escaping @Sendable (URL) throws -> Void = {
         try FileManager.default.trashItem(at: $0, resultingItemURL: nil)
     }) { self.root = root.standardizedFileURL; self.trash = trash }
@@ -127,7 +132,7 @@ public actor FolderLibraryStore {
         let values = try url.resourceValues(forKeys: [.isDirectoryKey])
         guard values.isDirectory == true else { throw LibraryFailure.unsafePath }
     }
-    private func safe(_ url: URL) throws {
+    func safe(_ url: URL) throws {
         guard url.isFileURL, url.standardizedFileURL.path == url.resolvingSymlinksInPath().path else { throw LibraryFailure.unsafePath }
     }
     public func speeches(in folder: URL) async throws -> [LibrarySpeech] {
@@ -265,7 +270,7 @@ public actor FolderLibraryStore {
     }
     /// Bump when the summary fields or the meaning of `LibraryScript.validate()` change:
     /// cached entries then stop counting as validated and every file is decoded again once.
-    static let summaryVersion = 1
+    static let summaryVersion = 2
     private struct SummaryCache: Codable { var version: Int; var entries: [LibraryScriptSummary] }
     private var summaryCacheURL: URL { root.appendingPathComponent("library-script-summaries.json") }
     /// Decodes performed by summary scans and `loadScript` (test probe for cache use).
@@ -287,7 +292,8 @@ public actor FolderLibraryStore {
 
     /// Lists Scripts without decoding files whose bytes match a summary that was validated before.
     /// Every file is still read and hashed; changed or new files are decoded and validated here.
-    public func scanScriptSummaries(in folder: URL) throws -> FileScanResult<LibraryScriptSummary> {
+    /// `writeCache` = false면 내부 요약 캐시를 쓰지 않는다(usage-bundle2 저장 공간 정리 확인 단계의 쓰기 0).
+    public func scanScriptSummaries(in folder: URL, writeCache: Bool = true) throws -> FileScanResult<LibraryScriptSummary> {
         let urls = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
         let cached = readSummaryCache()
         var result: [LibraryScriptSummary] = [], issues: [FileScanIssue] = []
@@ -316,7 +322,7 @@ public actor FolderLibraryStore {
         // The cache mirrors this folder's valid listing; rewrite only when it changed.
         let byPath: (LibraryScriptSummary, LibraryScriptSummary) -> Bool = { $0.url.path < $1.url.path }
         let entries = result.map { $0.at($0.url.standardizedFileURL) }.sorted(by: byPath)
-        if entries != cached.values.sorted(by: byPath) { writeSummaryCache(entries) }
+        if writeCache, entries != cached.values.sorted(by: byPath) { writeSummaryCache(entries) }
         return FileScanResult(items: result.sorted { $0.createdAt == $1.createdAt ? $0.id < $1.id : $0.createdAt > $1.createdAt },
                               issues: issues.sorted { $0.id < $1.id })
     }
@@ -347,16 +353,21 @@ public actor FolderLibraryStore {
         return FileScanIssue(url: url, reason: reason)
     }
     public func createScript(_ document: TranscriptDocument, speech: LibrarySpeech, input: ConversionNotes, in folder: URL) throws -> LibraryScriptFile {
+        try createScriptReportingNew(document, speech: speech, input: input, in: folder).file
+    }
+    /// usage-bundle2: `created` = 이번 호출이 새 파일을 만들었는가(기존 파일을 다시 연 경우 false). 결과 보관 정리 시점 판정에 쓴다.
+    public func createScriptReportingNew(_ document: TranscriptDocument, speech: LibrarySpeech, input: ConversionNotes,
+                                         in folder: URL) throws -> (file: LibraryScriptFile, created: Bool) {
         // Resume from existing saved file, never replace a user's edited result.
         let scan = try scanScriptSummaries(in: folder)
         // A duplicate identity must be resolved before creating another copy.
         guard !scan.issues.contains(where: { $0.itemID == document.runId }) else { throw LibraryFailure.invalidScript }
         // A Script's id is its transcript runId (LibraryScript.validate).
-        if let existing = scan.items.first(where: { $0.id == document.runId }) { return try loadScript(existing) }
+        if let existing = scan.items.first(where: { $0.id == document.runId }) { return (try loadScript(existing), false) }
         let script = try LibraryScript(transcript: document, title: LibraryTitles.speech(speech), recordedAt: speech.recordedAt,
             dateSource: speech.dateSource, input: input)
         let url = folder.appendingPathComponent(UUID().uuidString + ".dama.json")
-        return try saveScript(script, to: url, expectedHash: nil)
+        return (try saveScript(script, to: url, expectedHash: nil), true)
     }
     public func saveScript(_ script: LibraryScript, to url: URL, expectedHash: String?) throws -> LibraryScriptFile {
         try safe(url); try script.validate()
@@ -378,24 +389,64 @@ public actor FolderLibraryStore {
     private static func hash(_ bytes: Data) -> String {
         SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
-    private var revisionFolder: URL { root.appendingPathComponent("LibraryRevisions") }
-    private func revisionURL(_ id: String) throws -> URL {
-        guard UUID(uuidString: id) != nil else { throw LibraryFailure.unsafePath }
-        let url = revisionFolder.appendingPathComponent(id + ".dama.json")
+    var revisionFolder: URL { root.appendingPathComponent("LibraryRevisions") }
+    /// usage-bundle2 새 배치 `LibraryRevisions/<스크립트 ID>/<revisionID>.dama.json.deflate` (raw DEFLATE).
+    func revisionURL(scriptID: String, revisionID: String) throws -> URL {
+        guard InternalStoragePaths.isSafeScriptID(scriptID), UUID(uuidString: revisionID) != nil else { throw LibraryFailure.unsafePath }
+        let url = revisionFolder.appendingPathComponent(scriptID, isDirectory: true)
+            .appendingPathComponent(revisionID + RevisionCodec.compressedSuffix)
         try safe(url); return url
     }
-    private func writeRevision(_ script: LibraryScript, bytes: Data) throws -> Data {
-        let url = try revisionURL(script.revisionID)
-        try FileManager.default.createDirectory(at: revisionFolder, withIntermediateDirectories: true)
+    /// 구 배치 `LibraryRevisions/<revisionID>.dama.json`. 읽기와 정리 이전에만 쓴다.
+    func legacyRevisionURL(_ revisionID: String) throws -> URL {
+        guard UUID(uuidString: revisionID) != nil else { throw LibraryFailure.unsafePath }
+        let url = revisionFolder.appendingPathComponent(revisionID + RevisionCodec.legacySuffix)
+        try safe(url); return url
+    }
+    /// 같은 폴더 임시 이름에 쓴 뒤 덮어쓰기 없는 이동으로만 만든다(대상이 있으면 실패). 부분 기록 파일은 보이지 않는다.
+    /// 이력 파일 쓰기는 이 actor 안에서만 한다(usage-bundle2 AC-06).
+    func writeNewRevision(_ stored: Data, to url: URL) throws {
+        let folder = url.deletingLastPathComponent()
+        try safe(url)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let temporary = folder.appendingPathComponent(".tmp-\(UUID().uuidString)")
+        try stored.write(to: temporary, options: .withoutOverwriting)
+        do { try FileManager.default.moveItem(at: temporary, to: url) }
+        catch {
+            try? FileManager.default.removeItem(at: temporary)
+            if FileManager.default.fileExists(atPath: url.path) { throw LibraryFailure.changedFile }
+            throw error
+        }
+    }
+    /// 압축을 푼 이력 바이트와 그 파일. 새 배치를 먼저 찾고 없으면 구 배치. 풀 수 없으면 손상(`invalidScript`).
+    func readRevision(scriptID: String, revisionID: String) throws -> (url: URL, fileBytes: Data, bytes: Data) {
+        let url = try revisionURL(scriptID: scriptID, revisionID: revisionID)
         if FileManager.default.fileExists(atPath: url.path) {
-            let previous = try Data(contentsOf: url)
+            let stored = try Data(contentsOf: url)
+            return (url, stored, try RevisionCodec.inflate(stored))
+        }
+        let legacy = try legacyRevisionURL(revisionID)
+        let stored = try Data(contentsOf: legacy)
+        return (legacy, stored, stored)
+    }
+    /// 같은 바이트가 이미 있으면 그대로 두고, 없으면 압축해 임시 이름에 쓴 뒤 덮어쓰기 없이 옮긴다.
+    /// 반환값은 압축을 푼 바이트(ScriptVersion.sha256의 대상).
+    private func writeRevision(_ script: LibraryScript, bytes: Data) throws -> Data {
+        let url = try revisionURL(scriptID: script.id, revisionID: script.revisionID)
+        let legacy = try legacyRevisionURL(script.revisionID)
+        // 같은 revisionID가 새·구 배치 어디에 있든(둘 다 있으면 둘 다) 같은 내용이어야 한다.
+        var previous: Data?
+        for existing in [url, legacy] where FileManager.default.fileExists(atPath: existing.path) {
+            let stored = try Data(contentsOf: existing)
+            let plain = existing == url ? try RevisionCodec.inflate(stored) : stored
             let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
-            guard try encoder.encode(JSONDecoder().decode(LibraryScript.self, from: previous)) == bytes else {
+            guard try encoder.encode(JSONDecoder().decode(LibraryScript.self, from: plain)) == bytes else {
                 throw LibraryFailure.changedFile
             }
-            return previous
+            previous = previous ?? plain
         }
-        try bytes.write(to: url, options: .withoutOverwriting)
+        if let previous { return previous }
+        try writeNewRevision(try RevisionCodec.deflate(bytes), to: url)
         return bytes
     }
     /// Merge only changes committed by this actor (or the exact caller bytes). Unknown external edits fail closed.
@@ -474,13 +525,15 @@ public actor FolderLibraryStore {
         try version.validate()
         guard current.script.snapshotTitle == nil, current.script.versions?.contains(version) == true,
               try AudioFiles.hash(current.url) == current.hash else { throw LibraryFailure.changedFile }
-        let url = try revisionURL(version.revisionID), bytes = try Data(contentsOf: url)
+        let (url, fileBytes, bytes) = try readRevision(scriptID: current.id, revisionID: version.revisionID)
+        // sha256 = 압축을 푼 바이트(usage-bundle2). 구 배치는 파일 바이트와 같다.
         guard Self.hash(bytes) == version.sha256 else { throw LibraryFailure.changedFile }
         let script = try JSONDecoder().decode(LibraryScript.self, from: bytes)
         try script.validate()
         guard script.id == current.id, script.revisionID == version.revisionID, script.snapshotTitle == version.title,
               try script.sourceFingerprint() == current.script.sourceFingerprint() else { throw LibraryFailure.invalidScript }
-        return LibraryScriptFile(url: url, hash: version.sha256, script: script)
+        // LibraryScriptFile.hash = 그 파일 바이트의 해시(내보내기 전 변경 검사용).
+        return LibraryScriptFile(url: url, hash: Self.hash(fileBytes), script: script)
     }
     /// `title` = 해석한 표시 제목(usage-bundle1). nil이면 파일 제목.
     public func exportMarkdown(_ file: LibraryScriptFile, title: String? = nil, to destination: URL) throws {
@@ -526,6 +579,39 @@ public actor FolderLibraryStore {
         try trash(url)
         scriptCache.removeValue(forKey: url.standardizedFileURL.path)
     }
+    /// usage-bundle2: 그 스크립트의 내부 수정 이력 폴더와 교정 시도 기록을 지운다. 구 배치 파일은 저장 공간 정리에서 지운다.
+    public func removeScriptHistory(scriptID: String) throws {
+        guard InternalStoragePaths.isSafeScriptID(scriptID) else { throw LibraryFailure.unsafePath }
+        let history = revisionFolder.appendingPathComponent(scriptID, isDirectory: true)
+        try safe(history)
+        if FileManager.default.fileExists(atPath: history.path) { try FileManager.default.removeItem(at: history) }
+        let attempt = try InternalStoragePaths.correctionAttemptURL(root: root, scriptID: scriptID)
+        try safe(attempt)
+        if FileManager.default.fileExists(atPath: attempt.path) { try FileManager.default.removeItem(at: attempt) }
+    }
+
+    public enum ScriptRemoval: Sendable, Equatable { case trashFailed, removed, historyNotRemoved }
+    /// usage-bundle2 결과 하나를 지우는 순서: 휴지통 이동(실패하면 멈춤) → 자식 결과면 `registerSavedSource`
+    /// (`library.savedSourceRuns`) → 내부 수정 이력 폴더 → 교정 시도 기록. «Script 삭제…»와 결과 보관 정리가 함께 쓴다.
+    /// `log` = 저장 공간 정리(설정)의 건별 기록 `storage-cleanup-log.jsonl`에 한 줄 남긴다.
+    public func removeScript(_ summary: LibraryScriptSummary, in folder: URL, isChildResult: Bool, log: Bool = false,
+                             registerSavedSource: @Sendable (String) -> Void) -> ScriptRemoval {
+        let item = RevisionCleanupItem(url: summary.url, scriptID: summary.id, revisionID: "", bytes: 0, layout: .current)
+        do { try trashScript(summary, in: folder) } catch {
+            if log { appendCleanupLog("trashScript", item, "failed") }
+            return .trashFailed
+        }
+        if isChildResult { registerSavedSource(summary.id) }
+        do {
+            try removeScriptHistory(scriptID: summary.id)
+            if log { appendCleanupLog("trashScript", item, "ok") }
+            return .removed
+        } catch {
+            if log { appendCleanupLog("trashScript", item, "historyNotRemoved") }
+            return .historyNotRemoved
+        }
+    }
+
     public func trashSpeech(_ speech: LibrarySpeech, in folder: URL) throws {
         try validateDeletion(speech.fileURL, in: folder)
         let bundle = speech.fileURL.pathExtension == "dama-audio"

@@ -35,6 +35,13 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     @Published private(set) var preparingSpeechID: String?
     @Published private(set) var needsDefaultFolderAccess = false
     @Published private(set) var savingRunIDs: Set<String> = []
+    /// usage-bundle2 저장 공간 정리 확인·실행 중(AI 교정 시작을 막는다).
+    @Published private(set) var storageCleanupActive = false
+    /// usage-bundle2 설정 «저장 공간» 상태(문구 11–23).
+    enum StorageCleanupPhase: Equatable { case idle, checking, running(done: Int, total: Int), finished(String), nothing, failed }
+    @Published fileprivate(set) var storageCleanup: StorageCleanupPhase = .idle
+    /// 설정을 열 때 잰 «내부 수정 이력 {크기}» 바이트(nil = 아직 안 잼).
+    @Published private(set) var revisionBytes: Int64?
     /// usage-bundle1 녹음 표시 제목: 인덱스 전체(휴지통 항목 포함)의 id → displayTitle, 연결 판정용 id 집합.
     @Published private(set) var displayTitles: [String: String] = [:]
     @Published private(set) var indexedSpeechIDs: Set<String> = []
@@ -342,17 +349,136 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     func deleteScript(_ file: LibraryScriptSummary) {
         guard !foldersLocked, let store, let folder = folders[.scripts] else { return }
         busy = true; playback.stop()
-        guard confirmDeletion(title: scriptTitle(file), kind: "Script", detail: "선택한 스크립트 파일을 휴지통으로 이동합니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 내부 복구 이력은 남습니다.") else { busy = false; return }
+        // usage-bundle2 문구 6 (ssot/tone/usage-bundle2.md).
+        guard confirmDeletion(title: scriptTitle(file), kind: "Script", detail: "선택한 스크립트 파일을 휴지통으로 이동하고, 이 스크립트의 내부 수정 이력과 AI 버전 기록을 지웁니다. 파일을 휴지통에서 되돌려도 지운 AI 버전은 열 수 없습니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 원음·전사 원응답은 남습니다.") else { busy = false; return }
+        let isChild = ProcessingWorkspace.shared.runs.contains { $0.id == file.id && $0.parentRunID != nil }
         Task {
             defer { busy = false }
-            do {
-                try await store.trashScript(file, in: folder)
-                scripts.removeAll { $0.url == file.url }
-                if openedScript?.url == file.url { openedScript = nil }
-                if selectedScriptID == file.id { selectedScriptID = primaryScripts.first?.id }
-                message = "Script를 휴지통으로 이동했습니다. 원음과 다른 스크립트는 유지됩니다."
-            } catch { message = "Script를 삭제하지 못했습니다. 파일 변경 여부와 폴더 권한을 확인한 뒤 새로고침해 주세요. 영구 삭제로 재시도하지 않습니다." }
+            // 순서: 휴지통 → (자식이면) savedSourceRuns → 내부 수정 이력 → 교정 시도 기록 (library-script.md «결과 보관»).
+            let removal = await store.removeScript(file, in: folder, isChildResult: isChild, registerSavedSource: Self.registerSavedSource)
+            guard removal != .trashFailed else {
+                message = "Script를 삭제하지 못했습니다. 파일 변경 여부와 폴더 권한을 확인한 뒤 새로고침해 주세요. 영구 삭제로 재시도하지 않습니다."
+                return
+            }
+            scripts.removeAll { $0.url == file.url }
+            if openedScript?.url == file.url { openedScript = nil }
+            if selectedScriptID == file.id { selectedScriptID = primaryScripts.first?.id }
+            message = removal == .removed ? "Script를 휴지통으로 이동했습니다. 원음과 다른 스크립트는 유지됩니다."
+                : "Script를 휴지통으로 이동했습니다. 내부 수정 이력은 지우지 못했습니다. 설정의 저장 공간 정리에서 다시 지울 수 있습니다."
         }
+    }
+    /// usage-bundle2 저장 공간 정리 시작 조건: 변환·AI 교정·녹음 마무리·편집 중이 아니고 Scripts 목록을 다 읽었다. 녹음 중 자체는 막지 않는다.
+    var storageCleanupAllowed: Bool {
+        let capture = RecordingWorkspace.shared.capture
+        return canLeave && !scriptsLoading && store != nil && folders[.scripts] != nil && !storageCleanupActive
+            && !ProcessingWorkspace.shared.busy && !CorrectionWorkspace.shared.busy
+            && capture.phase != .finalizing && !capture.needsFinalization
+    }
+    func refreshRevisionBytes() {
+        guard let store else { return }
+        Task { revisionBytes = await store.revisionStorageBytes() }
+    }
+    /// 설정 «저장 공간 정리…»: 확인(쓰기 없음) → 확인창(기본 «취소») → 보관 정리 → 이력 정리. 진행 중에는 편집·저장·변환·AI 교정 시작을 막는다.
+    func cleanStorage() {
+        guard storageCleanupAllowed, let store, let folder = folders[.scripts] else { return }
+        busy = true; storageCleanupActive = true; storageCleanup = .checking; playback.stop()
+        Task {
+            let outcome = await runStorageCleanup(store: store, folder: folder)
+            storageCleanup = outcome
+            busy = false; storageCleanupActive = false
+            revisionBytes = await store.revisionStorageBytes()
+        }
+    }
+    private func runStorageCleanup(store: FolderLibraryStore, folder: URL) async -> StorageCleanupPhase {
+        let plan: RevisionCleanupPlan, removals: [LibraryScriptSummary], counts: StorageCleanupNotice.Counts
+        do {
+            // 확인 단계(쓰기 없음, 요약 캐시 포함). Scripts 목록을 다시 읽는다.
+            let checked = try await store.planStorageCleanup(scriptsFolder: folder)
+            let scan = checked.scan
+            scripts = scan.items; scanIssues[.scripts] = scan.issues
+            let issues = !scan.issues.isEmpty
+            let inputs = ProcessingWorkspace.shared.retentionInputs()
+            let plans = inputs.available && !issues
+                ? ScriptRetention.plan(scripts, links: inputs.links, skipIDs: retentionSkipIDs, skippedSessions: inputs.skippedSessions) : [:]
+            let ids = ScriptRetention.removals(plans)
+            removals = scripts.filter { ids.contains($0.id) }.sorted { $0.id < $1.id }
+            plan = checked.plan
+            let scriptBytes = removals.reduce(Int64(0)) { $0 + Int64((try? $1.url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) }
+            counts = StorageCleanupNotice.Counts(scripts: removals.count, scriptBytes: scriptBytes,
+                deletions: plan.deletions.count, deletionBytes: plan.deletionBytes, skippedOrphans: plan.skippedOrphans,
+                migrations: plan.migrations.count, migrationBytes: plan.migrationBytes, attempts: plan.attempts.count)
+        } catch { return .failed }
+        guard counts.total > 0 else { return .nothing }
+        let alert = NSAlert(); alert.alertStyle = .warning
+        alert.messageText = StorageCleanupNotice.confirmTitle
+        alert.informativeText = StorageCleanupNotice.confirmLines(counts).joined(separator: "\n\n")
+        alert.addButton(withTitle: StorageCleanupNotice.cancel); alert.addButton(withTitle: StorageCleanupNotice.confirm)
+        guard alert.runModal() == .alertSecondButtonReturn else { return .idle }
+        let before = await store.revisionStorageBytes(), total = counts.total
+        storageCleanup = .running(done: 0, total: total)
+        // 1. 보관 정리(결과 하나를 지우는 순서 그대로, 건별 기록).
+        let links = ProcessingWorkspace.shared.retentionInputs().links
+        var removed: Set<String> = [], failed = 0, done = 0
+        for summary in removals {
+            let removal = await store.removeScript(summary, in: folder, isChildResult: links[summary.id]?.parentRunID != nil, log: true,
+                                                   registerSavedSource: Self.registerSavedSource)
+            // 휴지통 이동은 됐지만 내부 이력·시도 기록을 못 지운 경우도 «처리하지 못한 파일»로 센다(문구 21).
+            if removal == .trashFailed || removal == .historyNotRemoved { failed += 1 }
+            if removal != .trashFailed { removed.insert(summary.id); scripts.removeAll { $0.id == summary.id } }
+            done += 1; storageCleanup = .running(done: done, total: total)
+        }
+        if let opened = openedScript, removed.contains(opened.id) { openedScript = nil }
+        if let selected = selectedScriptID, removed.contains(selected) { selectedScriptID = primaryScripts.first?.id }
+        // 2–4. 지울 이력 → 압축 이전 → 지울 시도 기록.
+        let offset = done
+        let result = await store.runRevisionCleanup(plan, removedScriptIDs: removed) { n in
+            Task { @MainActor in
+                let workspace = LibraryWorkspace.shared
+                if case .running = workspace.storageCleanup { workspace.storageCleanup = .running(done: offset + n, total: total) }
+            }
+        }
+        let after = await store.revisionStorageBytes()
+        return .finished(StorageCleanupNotice.finished(before: before, after: after, scripts: removed.count, failed: failed + result.failed))
+    }
+    /// usage-bundle2 결과 보관 정리. `sessions` = nil이면 모든 녹음. Scripts 목록을 읽는 중이거나 조회 문제가 있거나
+    /// 처리 이력을 읽지 못했으면 아무것도 하지 않는다. 반환 = 옮긴 수 · 옮기지 못한 수 · 옮긴 id.
+    func applyRetention(sessions: Set<String>?, in folder: URL,
+                        progress: (() -> Void)? = nil) async -> (moved: Int, failed: Int, removed: Set<String>) {
+        guard let store, !scriptsLoading, (scanIssues[.scripts] ?? []).isEmpty else { return (0, 0, []) }
+        let inputs = ProcessingWorkspace.shared.retentionInputs()
+        guard inputs.available else { return (0, 0, []) }
+        let candidates = sessions.map { wanted in scripts.filter { wanted.contains($0.sessionId) } } ?? scripts
+        let plans = ScriptRetention.plan(candidates, links: inputs.links, skipIDs: retentionSkipIDs, skippedSessions: inputs.skippedSessions)
+        var moved = 0, failed = 0, removed: Set<String> = []
+        for id in ScriptRetention.removals(plans).sorted() {
+            guard let summary = scripts.first(where: { $0.id == id }) else { continue }
+            let removal = await store.removeScript(summary, in: folder, isChildResult: inputs.links[id]?.parentRunID != nil,
+                                                   registerSavedSource: Self.registerSavedSource)
+            if removal == .trashFailed { failed += 1 } else { moved += 1; removed.insert(id); scripts.removeAll { $0.id == id } }
+            progress?()
+        }
+        return (moved, failed, removed)
+    }
+    /// 결과 보관에서 건너뛸 결과: 열려 있는 본문·과거 버전, 저장 중, AI 교정 실행·대기.
+    private var retentionSkipIDs: Set<String> {
+        var ids = savingRunIDs.union(CorrectionWorkspace.shared.pendingScriptIDs)
+        if let id = openedScript?.id { ids.insert(id) }
+        if let id = historicalFile?.id { ids.insert(id) }
+        return ids
+    }
+    /// 재전사 확인창의 정리 수 N(상한): 이 실행과 재사용할 Soniox 결과를 새 세대로 놓은 정리 수. 건너뜀 조건은 넣지 않는다.
+    func pendingRetentionCount(sessionID: String, reusing sonioxRunID: String?) -> Int {
+        let pendingID = "pending-run"
+        let pending = ScriptRetention.PendingGeneration(sessionId: sessionID, representativeID: pendingID, createdAt: Date(),
+                                                        memberIDs: Set([pendingID] + [sonioxRunID].compactMap { $0 }))
+        let plans = ScriptRetention.plan(scripts.filter { $0.sessionId == sessionID }, links: ProcessingWorkspace.shared.retentionInputs().links,
+                                         pending: pending)
+        return plans[sessionID]?.remove.count ?? 0
+    }
+    /// 지운 Soniox 자식 결과가 다음 처리 때 다시 저장되지 않게 한다(operating-baseline.md:36, saveCompletedSources).
+    nonisolated static func registerSavedSource(_ runID: String) {
+        var saved = Set(UserDefaults.standard.stringArray(forKey: "library.savedSourceRuns") ?? [])
+        saved.insert(runID); UserDefaults.standard.set(Array(saved), forKey: "library.savedSourceRuns")
     }
     private func confirmDeletion(title: String, kind: String, detail: String) -> Bool {
         let alert = NSAlert(); alert.alertStyle = .warning
@@ -399,7 +525,8 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             } catch { message = "원본 확인 또는 분석 파일 준비에 실패했습니다. 음성을 전송하지 않았습니다." }
         }
     }
-    func processingFinished(_ run: ManagedRun, select: Bool = true) {
+    /// `retain` = launch 경로의 완료(usage-bundle2 결과 보관 정리 시점). 재저장(convert)·자식 저장은 false.
+    func processingFinished(_ run: ManagedRun, select: Bool = true, retain: Bool = false) {
         guard ![.precision, .nemotron].contains(run.provider) else { return }
         guard let store, let root, let destination = folders[.scripts] else {
             message = "결과는 내부에 보존했습니다. 해당 Speeches와 Scripts 폴더를 선택한 뒤 스크립트를 저장해 주세요."
@@ -412,16 +539,19 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
             do {
                 guard let speech = try await store.storedSpeech(run.sessionID) else { throw LibraryFailure.missingFile }
                 let document = try await FileSessionRepository(rootURL: root).loadModel(sessionId: run.sessionID, runId: run.id)
-                let result = try await store.createScript(document, speech: speech, input: run.input ?? speech.notes, in: destination)
+                let (result, created) = try await store.createScriptReportingNew(document, speech: speech, input: run.input ?? speech.notes, in: destination)
                 let scan = try await store.scanScriptSummaries(in: destination)
                 scripts = scan.items; scanIssues[.scripts] = scan.issues
-                if !select {
-                    var saved = Set(UserDefaults.standard.stringArray(forKey: "library.savedSourceRuns") ?? [])
-                    saved.insert(run.id); UserDefaults.standard.set(Array(saved), forKey: "library.savedSourceRuns")
-                }
+                if !select { Self.registerSavedSource(run.id) }
                 savingRunIDs.remove(run.id)
                 if select && canLeave && !notesDirty { historicalFile = nil; openedScript = result; selectedScriptID = result.id; folder = .scripts }
-                message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요."
+                // usage-bundle2 결과 보관: 자식이 아닌 실행이 새 스크립트를 만든 직후, 그 녹음 하나만.
+                var retentionNotice = ""
+                if retain && created && run.parentRunID == nil {
+                    let outcome = await applyRetention(sessions: [run.sessionID], in: destination)
+                    retentionNotice = RetentionNotice.completionSuffix(moved: outcome.moved, failed: outcome.failed)
+                }
+                message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요." + retentionNotice
                 if result.script.correction == nil, run.input?.aiCorrection == true {
                     CorrectionWorkspace.shared.enqueue(result, input: run.input!)
                 }

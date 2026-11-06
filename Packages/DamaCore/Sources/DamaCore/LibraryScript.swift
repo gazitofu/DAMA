@@ -278,3 +278,16 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
         return text.map { special.contains($0) ? "\\\($0)" : String($0) }.joined()
     }
 }
+
+extension LibraryScript {
+    /// usage-bundle2 결과 보관 «사람 수정 판정» (library-script.md «결과 보관»).
+    /// 9필드 중 하나라도 비어 있지 않거나, legacy 표지(`transcript.revision.humanEdited`)가 true이거나,
+    /// `editedText`가 있는 단어가 있으면 true. 제목·`showsOriginal`·AI 교정만으로는 false.
+    public var hasHumanEdits: Bool {
+        !turnTexts.isEmpty || !turnNames.isEmpty || !(turnSpeakerIDs ?? [:]).isEmpty
+            || !(registeredSpeakers ?? []).isEmpty || !(nameHistory ?? []).isEmpty
+            || !(deletedParagraphs ?? []).isEmpty || !(paragraphBreaks ?? [:]).isEmpty
+            || !(paragraphEdits ?? []).isEmpty || !(reviewRecords ?? []).isEmpty
+            || transcript.revision.humanEdited || transcript.words.contains { $0.editedText != nil }
+    }
+}

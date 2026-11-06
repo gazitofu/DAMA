@@ -23,6 +23,8 @@ import SwiftUI
     private var task: Task<Void, Never>?
     private var accessed: [URL] = []
     var busy: Bool { activeID != nil || !queue.isEmpty }
+    /// usage-bundle2 결과 보관에서 건너뛸 결과: 실행 중이거나 대기열에 있는 교정의 스크립트.
+    var pendingScriptIDs: Set<String> { Set([activeID].compactMap { $0 } + queue.map { $0.0.id }) }
     private init() {
         automatic = UserDefaults.standard.object(forKey: "correction.automatic") as? Bool ?? true
         let home = NSHomeDirectoryForUser(NSUserName()) ?? NSHomeDirectory()
@@ -92,6 +94,7 @@ import SwiftUI
         guard AudioFiles.uiFixtureFolder == nil else {
             message = "합성 UI 검증에서는 AI 실행과 외부 전송을 차단합니다."; return
         }
+        guard !LibraryWorkspace.shared.storageCleanupActive else { return }   // usage-bundle2: 저장 공간 정리 중 시작 막음
         guard input.aiCorrection == true, activeID != file.id, !queue.contains(where: { $0.0.id == file.id }) else { return }
         queue.append((file, .fresh(input))); runNext()
     }
@@ -100,7 +103,7 @@ import SwiftUI
         guard AudioFiles.uiFixtureFolder == nil else {
             message = "합성 UI 검증에서는 AI 실행과 외부 전송을 차단합니다."; return
         }
-        guard !busy else { return }
+        guard !busy, !LibraryWorkspace.shared.storageCleanupActive else { return }
         queue.append((file, .resume)); runNext()
     }
     private func makeRunner() throws -> CorrectionRunner {
