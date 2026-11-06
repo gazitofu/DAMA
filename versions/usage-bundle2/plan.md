@@ -141,6 +141,8 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 | 12 | 통과 | 설치 23:4x (사용자 승인): 백업 `.build/backups/DAMA-0.5.18-36-before-usage-bundle2.app` 11파일 일치 → `/Applications/DAMA.app` 교체 11파일 SHA256 = 빌드 산출물, adhoc·linker-signed. 실행 pid의 적재 경로 `/Applications`, Bundle `com.gazitofu.Dama`, 메뉴바 툴팁 «DAMA 0.5.19 · 빌드 37». check.sh `run-20261106T144753Z-Xj8NtL` PASS |
 | 13 | 통과 (D 데이터 축 + 사용자 관측 «둘 다 그렇게 보였음» 2026-11-07: 확인창 62 · 243.1 MB / 512 · 9.76 GB, 완료 «10 GB → 651.8 MB») | 사용자 실행 2026-11-07 00:30:58–00:32:06 KST (기록 574줄 = 삭제 62 + 이전 512, 실패 0). 메인 측정(`D-evidence.md`): 구 배치 0 · 새 배치 512 · 풀어서 SHA256 512/512 같음 · 고아 62 · 243,073,739 B 부재 = 기록 삭제 집합 · Sessions 2,918 · Scripts 38 SHA256 불변 · AI 버전 7/7 · 디스크 10,002,006,178 → 651,849,241 B. 미검증(화면, 사용자만 봄): 확인창 값 대조 · 완료 크기 줄 글자 |
 
+- 마감 실측 (2026-11-07): `git status --short` 빈 출력, HEAD `e4d02ec`(이 줄 커밋 직전), branch `work/m0-fixture-review`, origin보다 22커밋 앞(push 안 함). 설치 앱 0.5.19(37) 실행 중.
+
 ## 작업 분해
 
 - T-01 계약·문구 개정 (AC-01): §05 10곳. 새 절에 §02-1 · §02-2 · §02-5 요약, legacy 표지는 F-02 필드.
