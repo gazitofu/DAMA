@@ -145,7 +145,7 @@ final class ManagedJourneyTests: XCTestCase {
         let remainingScripts = try await FolderLibraryStore(root: root).scripts(in: scripts)
         XCTAssertEqual(remainingScripts.map(\.id), [second.id])
         XCTAssertEqual(try Data(contentsOf: trash.appendingPathComponent(saved.url.lastPathComponent)), before)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("LibraryRevisions/\(saved.script.revisionID).dama.json").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("LibraryRevisions/\(saved.id)/\(saved.script.revisionID).dama.json.deflate").path))
         let preservedModel = try await repository.loadModel(sessionId: speech.id, runId: first.id)
         XCTAssertEqual(preservedModel.runId, first.id)
         // Restore from trash: the Speech keeps its session identity; both Scripts remain separate.

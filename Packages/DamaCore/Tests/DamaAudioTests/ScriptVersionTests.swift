@@ -108,8 +108,18 @@ final class ScriptVersionTests: XCTestCase {
         catch { XCTAssertTrue(error is LibraryFailure) }
         do { _ = try await store.saveScript(after.script, to: after.url, expectedHash: after.hash); XCTFail("immutable") }
         catch { XCTAssertTrue(error is LibraryFailure) }
-        try Data("손상".utf8).write(to: after.url)
-        do { _ = try await store.readVersion(versions[1], for: latest); XCTFail("tampered snapshot") }
+        // usage-bundle2 가드 이동: 평문 변조 → (1) 압축 파일 1바이트 변조 (2) 풀어서 1바이트 변조 후 다시 압축.
+        XCTAssertTrue(after.url.lastPathComponent.hasSuffix(".dama.json.deflate"))
+        let stored = try Data(contentsOf: after.url)
+        var flipped = stored; flipped[flipped.count / 2] ^= 0xFF
+        try flipped.write(to: after.url)
+        do { _ = try await store.readVersion(versions[1], for: latest); XCTFail("tampered compressed snapshot") }
+        catch { XCTAssertTrue(error is LibraryFailure) }
+        let plain = try XCTUnwrap(String(data: RevisionCodec.inflate(stored), encoding: .utf8))
+        let forged = plain.replacingOccurrences(of: #""title":"자동 저장 제목""#, with: #""title":"자동 저장 변조""#)
+        XCTAssertNotEqual(forged, plain)   // 유효한 JSON·검증을 통과하는 내용 변조: 해시 검사만 잡는다.
+        try RevisionCodec.deflate(Data(forged.utf8)).write(to: after.url)
+        do { _ = try await store.readVersion(versions[1], for: latest); XCTFail("tampered snapshot content") }
         catch { XCTAssertTrue(error is LibraryFailure) }
         XCTAssertEqual(try AudioFiles.hash(latest.url), latest.hash)
     }

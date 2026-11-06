@@ -376,24 +376,46 @@ public actor FolderLibraryStore {
     private static func hash(_ bytes: Data) -> String {
         SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
     }
-    private var revisionFolder: URL { root.appendingPathComponent("LibraryRevisions") }
-    private func revisionURL(_ id: String) throws -> URL {
-        guard UUID(uuidString: id) != nil else { throw LibraryFailure.unsafePath }
-        let url = revisionFolder.appendingPathComponent(id + ".dama.json")
+    var revisionFolder: URL { root.appendingPathComponent("LibraryRevisions") }
+    /// usage-bundle2 새 배치 `LibraryRevisions/<스크립트 ID>/<revisionID>.dama.json.deflate` (raw DEFLATE).
+    func revisionURL(scriptID: String, revisionID: String) throws -> URL {
+        guard InternalStoragePaths.isSafeScriptID(scriptID), UUID(uuidString: revisionID) != nil else { throw LibraryFailure.unsafePath }
+        let url = revisionFolder.appendingPathComponent(scriptID, isDirectory: true)
+            .appendingPathComponent(revisionID + RevisionCodec.compressedSuffix)
         try safe(url); return url
     }
-    private func writeRevision(_ script: LibraryScript, bytes: Data) throws -> Data {
-        let url = try revisionURL(script.revisionID)
-        try FileManager.default.createDirectory(at: revisionFolder, withIntermediateDirectories: true)
+    /// 구 배치 `LibraryRevisions/<revisionID>.dama.json`. 읽기와 정리 이전에만 쓴다.
+    func legacyRevisionURL(_ revisionID: String) throws -> URL {
+        guard UUID(uuidString: revisionID) != nil else { throw LibraryFailure.unsafePath }
+        let url = revisionFolder.appendingPathComponent(revisionID + RevisionCodec.legacySuffix)
+        try safe(url); return url
+    }
+    /// 압축을 푼 이력 바이트와 그 파일. 새 배치를 먼저 찾고 없으면 구 배치. 풀 수 없으면 손상(`invalidScript`).
+    func readRevision(scriptID: String, revisionID: String) throws -> (url: URL, fileBytes: Data, bytes: Data) {
+        let url = try revisionURL(scriptID: scriptID, revisionID: revisionID)
         if FileManager.default.fileExists(atPath: url.path) {
-            let previous = try Data(contentsOf: url)
+            let stored = try Data(contentsOf: url)
+            return (url, stored, try RevisionCodec.inflate(stored))
+        }
+        let legacy = try legacyRevisionURL(revisionID)
+        let stored = try Data(contentsOf: legacy)
+        return (legacy, stored, stored)
+    }
+    /// 같은 바이트가 이미 있으면 그대로 두고, 없으면 압축해 임시 이름에 쓴 뒤 덮어쓰기 없이 옮긴다.
+    /// 반환값은 압축을 푼 바이트(ScriptVersion.sha256의 대상).
+    private func writeRevision(_ script: LibraryScript, bytes: Data) throws -> Data {
+        let url = try revisionURL(scriptID: script.id, revisionID: script.revisionID)
+        let legacy = try legacyRevisionURL(script.revisionID)
+        for existing in [url, legacy] where FileManager.default.fileExists(atPath: existing.path) {
+            let stored = try Data(contentsOf: existing)
+            let previous = existing == url ? try RevisionCodec.inflate(stored) : stored
             let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
             guard try encoder.encode(JSONDecoder().decode(LibraryScript.self, from: previous)) == bytes else {
                 throw LibraryFailure.changedFile
             }
             return previous
         }
-        try bytes.write(to: url, options: .withoutOverwriting)
+        try RevisionCodec.writeNew(try RevisionCodec.deflate(bytes), to: url)
         return bytes
     }
     /// Merge only changes committed by this actor (or the exact caller bytes). Unknown external edits fail closed.
@@ -472,13 +494,15 @@ public actor FolderLibraryStore {
         try version.validate()
         guard current.script.snapshotTitle == nil, current.script.versions?.contains(version) == true,
               try AudioFiles.hash(current.url) == current.hash else { throw LibraryFailure.changedFile }
-        let url = try revisionURL(version.revisionID), bytes = try Data(contentsOf: url)
+        let (url, fileBytes, bytes) = try readRevision(scriptID: current.id, revisionID: version.revisionID)
+        // sha256 = 압축을 푼 바이트(usage-bundle2). 구 배치는 파일 바이트와 같다.
         guard Self.hash(bytes) == version.sha256 else { throw LibraryFailure.changedFile }
         let script = try JSONDecoder().decode(LibraryScript.self, from: bytes)
         try script.validate()
         guard script.id == current.id, script.revisionID == version.revisionID, script.snapshotTitle == version.title,
               try script.sourceFingerprint() == current.script.sourceFingerprint() else { throw LibraryFailure.invalidScript }
-        return LibraryScriptFile(url: url, hash: version.sha256, script: script)
+        // LibraryScriptFile.hash = 그 파일 바이트의 해시(내보내기 전 변경 검사용).
+        return LibraryScriptFile(url: url, hash: Self.hash(fileBytes), script: script)
     }
     /// `title` = 해석한 표시 제목(usage-bundle1). nil이면 파일 제목.
     public func exportMarkdown(_ file: LibraryScriptFile, title: String? = nil, to destination: URL) throws {
