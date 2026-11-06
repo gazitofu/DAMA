@@ -51,7 +51,7 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 
 ### 차수 A · 계약·저장소 (합성)
 
-- [ ] AC-01 계약·문구 (D-04): 스펙 §05 10곳 문안이 그대로 들어갔다. 대상 = `CLAUDE.md:20` · `library-script.md` :43–44 · :66 · :72 · :91 · :92 · :182 · :193 · 새 절 «결과 보관 (usage-bundle2)» · `operating-baseline.md:73`. 새 절의 사람 수정 판정은 legacy 표지를 계약 필드로 쓴다: `transcript.revision.humanEdited == true` 또는 word `editedText != nil` (F-02). 고치지 않는 것 diff 0: `04_DATA_AND_RECONCILIATION.md:52` INV-09 · `CLAUDE.md` 함정 3 · `02` §9 · `operating-baseline.md:11 · :36`. 자 = 문안 대조(QA), 모집단 = 10곳. `validate_contracts.py` 31 OK.
+- [x] AC-01 계약·문구 (D-04): 스펙 §05 10곳 문안이 그대로 들어갔다. 대상 = `CLAUDE.md:20` · `library-script.md` :43–44 · :66 · :72 · :91 · :92 · :182 · :193 · 새 절 «결과 보관 (usage-bundle2)» · `operating-baseline.md:73`. 새 절의 사람 수정 판정은 legacy 표지를 계약 필드로 쓴다: `transcript.revision.humanEdited == true` 또는 word `editedText != nil` (F-02). 고치지 않는 것 diff 0: `04_DATA_AND_RECONCILIATION.md:52` INV-09 · `CLAUDE.md` 함정 3 · `02` §9 · `operating-baseline.md:11 · :36`. 자 = 문안 대조(QA), 모집단 = 10곳. `validate_contracts.py` 31 OK. :66 문안은 «… 기록 후 외부 활성 파일을 atomic 쓰기한다. 구 배치는 읽기와 정리 이전에만 쓴다.»(스펙 낱말 그대로, 글자 치환 시 문장이 끊겨 어순만 바꿈 · F-05 정정, 사용자 승인 2026-11-06).
 - [x] AC-02 대표 결과 (T2a-2): `primaryFile` = createdAt 최대, 같으면 id 사전순 앞(현행 동률 규칙). 엔진 등급 코드 0: `git grep -n 'priority' -- Packages/DamaCore/Sources/DamaAudio/FolderLibraryStore.swift` = 0줄.
   - 가드 이동 `LibraryJourneyTests.swift:26–34`, 단정 4 유지: `primaryFiles([soniox 300, olderCombined 100, newerCombined 200, otherSpeech 400])` = [otherSpeech, soniox] · `primaryFile([soniox, olderCombined, newerCombined])` = soniox · `([laterSoniox 600, newerCombined, nemotron 500])` = laterSoniox · `([nemotron, newestP2 700])` = newestP2.
   - 역뮤테이션 (엔진 등급 되살리기): 붉음 3 (단정 1·2·3), 단정 4는 두 등급 같아 녹색. 복원은 보관한 원본 바이트로, 해시 대조.
@@ -64,8 +64,8 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
   - 합성 사례 (C 결합 · S Soniox 자식 · R 실행 기록 없음, 번호 클수록 최근): ① C3(S1)·C2(S1)·C1(S1) → 남김 {C3, C2, S1} 정리 {C1} ② C3(S3)·C2(S2)·C1(S1) → 남김 {C3, S3, C2, S2} 정리 {C1, S1} ③ S3 혼자·C2(S2)·C1(S1) → 남김 {S3, C2, S2} 정리 {C1, S1} (시점 규칙은 AC-07) ④ R·C1(S1) → 정리 ∅ ⑤ C3·C2·C1(C1만 사람 수정) → 정리 ∅ ⑥ 건너뛸 녹음 → 정리 ∅ ⑦ 세대 시각 동률 → 대표 id 사전순 앞이 앞 세대 ⑧ 건너뛸 결과 ID는 정리 집합에 들지 않는다.
   - 역뮤테이션 2종: 사람 수정 보호 끄기 → ⑤ 붉음 · 재사용 소속을 가리키는 세대 중 가장 오래된 하나로 제한 → ① 붉음.
   - 남은 결과의 9필드·transcript 바이트 불변, 다른 Run 결과로의 이름·문장 이식 0 (INV-09 · RC-13).
-- [ ] AC-05 수정 이력 배치·압축 (T2a-4 · D-03):
-  - ⓐ 새 저장 1회 → `LibraryRevisions/<스크립트 ID>/<revisionID>.dama.json.deflate` 1개 생성, 평면 배치 생성 0. 두 ID 모두 UUID 아니면 `unsafePath`.
+- [x] AC-05 수정 이력 배치·압축 (T2a-4 · D-03):
+  - ⓐ 새 저장 1회 → `LibraryRevisions/<스크립트 ID>/<revisionID>.dama.json.deflate` 1개 생성, 평면 배치 생성 0. revisionID가 UUID가 아니거나 스크립트 ID가 경로 안전 규칙(ASCII 영숫자·`-`·`_`, 1–128자, `InternalStoragePaths.isSafeScriptID`)을 벗어나면 `unsafePath` (F-04 정정, 사용자 승인 2026-11-06).
   - ⓑ 형식 = raw DEFLATE(RFC 1951), Apple `COMPRESSION_ZLIB` (`NSData.compressed(using: .zlib)`), level 5 고정(SDK `compression.h`). 고정 테스트: 합성 정렬 JSON 바이트 → 압축 → 해제 = 원본 바이트, 첫 바이트 ≠ 0x78 (zlib 머리 없음).
   - ⓒ 새 파일은 같은 폴더 임시 이름에 쓴 뒤 덮어쓰기 없는 이동으로만 생긴다(대상이 있으면 실패). 같은 revisionID가 새·구 배치 어디에 있든 풀어서 해독·재인코딩 비교, 다르면 `changedFile`.
   - ⓓ `readVersion`: 새 배치 → 없으면 구 배치 `<revisionID>.dama.json` → 둘 다 없으면 오류. sha256 = 압축을 푼 바이트 SHA256. 구 배치로 만든 버전이 이전 뒤에도 같은 sha256로 열린다(Scripts 파일 바이트 불변).
@@ -131,9 +131,9 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 
 | AC | 판정 (QA) | 남은 것 |
 |---|---|---|
-| 01 | 부분 (A3) | ③ 어순만 다름 = F-05 정정 후보(QA «타당») |
+| 01 | 통과 (A3 + F-05 정정 승인) | |
 | 02 · 03 · 04 | 통과 (A) | AC-02 역뮤테이션 붉음은 문언 3이 아니라 5(이동 3 + 추가 동률 2, QA 수용) |
-| 05 | 부분 (A3) | ⓐ 스크립트 ID 규칙 = F-04 정정 후보(QA «타당»). 나머지 통과 |
+| 05 | 통과 (A3 + F-04 정정 승인) | |
 | 06 | 통과 (A3) | |
 | 07 · 08 · 11 | 통과 (B · B2) | 실제 재전사 확인창·자동 정리 실행은 안 잼(스펙) |
 | 09 | 통과 (B3, 합성·코드) | D-2 fixture를 AC 문언대로 고침(`d3e1336`), F-06 철회. 최종 check.sh는 커밋 직전 작업 트리(= `d3e1336`, 커밋 뒤 `git status` clean)에서 돌림 |
@@ -177,6 +177,6 @@ spec: notes/usage-bundle2/usage-bundle2.src.html
 - F-01 check.sh 소문자 경로 실행 = 모듈 캐시 대소문자 충돌 2회 (usage-bundle1 11.05 `run-20261105T093251Z-ibPcMG` · 이 plan 11.06 `run-20261106T131025Z-nfR5EE`). 제안: `scripts/check.sh` `ROOT="$(pwd -P)"`. 이 유닛 범위 밖, 승인 시 별도 커밋.
 - F-02 스펙 §02-2 «legacy humanEdited Turn»: 계약에 Turn 필드는 없고 legacy 표지는 `RevisionMetadata.humanEdited`(DomainContracts.swift:192)다. measure-t2a.py·retention-sim.py는 Turn 키를 봐 이 축을 0으로 셌다. 실측 revision.humanEdited 0/38이라 판정·예상값은 같다. 계약 새 절과 구현은 계약 필드로 쓴다.
 - F-03 재사용 Soniox 자식이 앞선 정리로 휴지통에 간 뒤 새 결합이 그 자식을 다시 재사용하면, savedSourceRuns 등록 때문에 Soniox 단독 스크립트가 다시 만들어지지 않는다(재사용 판단은 Run 기준이라 결합은 정상). 실데이터 해당 0. 문구 3 «Soniox 단독과 결합본을 따로 엽니다.»와 어긋날 수 있는 경로로 기록만.
-- F-04 (AC-05ⓐ, 문언 · /build 발견) 스크립트 ID = `transcript.runId`이고 계약은 UUID를 요구하지 않는다(`fixtures/normalized-transcript.json` runId `run-fixture-001`). UUID로 막자 기존 테스트 21개가 저장 불가(`unsafePath`). 구현 = revisionID는 UUID, 스크립트 ID는 시도 기록과 같은 경로 안전 규칙(ASCII 영숫자·`-`·`_`, 1–128자, `InternalStoragePaths.isSafeScriptID`). 실데이터 스크립트 38 · Run 72 전부 UUID라 동작 차이 0. 권고: AC 문언을 구현대로 정정. QA A D-2 «부분».
-- F-05 (AC-01 ③, 문언) 스펙 §05 3번 문안을 글자 그대로 치환하면 «… 기록 후. 구 배치는 읽기와 정리 이전에만 쓴다 외부 활성 파일을 atomic 쓰기한다.»로 문장이 끊긴다. 구현 = «… 기록 후 외부 활성 파일을 atomic 쓰기한다. 구 배치는 읽기와 정리 이전에만 쓴다.»(낱말 같음, 순서만). QA A D-1 «부분».
+- F-04 (AC-05ⓐ, 문언 · /build 발견) 스크립트 ID = `transcript.runId`이고 계약은 UUID를 요구하지 않는다(`fixtures/normalized-transcript.json` runId `run-fixture-001`). UUID로 막자 기존 테스트 21개가 저장 불가(`unsafePath`). 구현 = revisionID는 UUID, 스크립트 ID는 시도 기록과 같은 경로 안전 규칙(ASCII 영숫자·`-`·`_`, 1–128자, `InternalStoragePaths.isSafeScriptID`). 실데이터 스크립트 38 · Run 72 전부 UUID라 동작 차이 0. 권고: AC 문언을 구현대로 정정. QA A D-2 «부분». → **해소** (사용자 «권고대로 정정» 2026-11-06, AC-05ⓐ 문언 정정, QA A3 «정정 후보 타당»).
+- F-05 (AC-01 ③, 문언) 스펙 §05 3번 문안을 글자 그대로 치환하면 «… 기록 후. 구 배치는 읽기와 정리 이전에만 쓴다 외부 활성 파일을 atomic 쓰기한다.»로 문장이 끊긴다. 구현 = «… 기록 후 외부 활성 파일을 atomic 쓰기한다. 구 배치는 읽기와 정리 이전에만 쓴다.»(낱말 같음, 순서만). QA A D-1 «부분». → **해소** (사용자 «권고대로 정정» 2026-11-06, AC-01 문언 정정, QA A3 «정정 후보 타당»).
 - F-06 철회 (2026-11-06): «AC-09ⓐ fixture 모양은 API로 만들 수 없다»는 메인 주장이 틀렸다(QA B2 반례: 만들기 1 + AI 보정 snapshot 2 + 보정 저장 1 = 4개 중 3개를 구 배치로). fixture를 AC 문언대로 고쳐 압축 5 · 실행 뒤 새 배치 6으로 검사한다.
