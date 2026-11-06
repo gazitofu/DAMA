@@ -2,18 +2,14 @@ import DamaCore
 import Foundation
 
 /// usage-bundle1 교정 시도 기록 저장소: `<내부 root>/CorrectionAttempts/<scriptID>.json`, 원자 쓰기.
-/// 스크립트를 휴지통으로 보내도 지우지 않는다(정리 정책은 묶음 2, F-03).
+/// 경로 규칙은 `InternalStoragePaths`(DamaCore)와 같다. 스크립트를 지우면 `FolderLibraryStore`가 함께 지운다(usage-bundle2).
 public struct CorrectionAttemptStore: Sendable {
     public let root: URL
     public init(root: URL) { self.root = root.standardizedFileURL }
-    public var folder: URL { root.appendingPathComponent("CorrectionAttempts", isDirectory: true) }
+    public var folder: URL { root.appendingPathComponent(InternalStoragePaths.correctionAttemptsFolder, isDirectory: true) }
 
     func url(_ scriptID: String) throws -> URL {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
-        guard !scriptID.isEmpty, scriptID.count <= 128, scriptID.unicodeScalars.allSatisfy({ $0.isASCII && allowed.contains($0) }) else {
-            throw LibraryFailure.unsafePath
-        }
-        return folder.appendingPathComponent(scriptID + ".json")
+        try InternalStoragePaths.correctionAttemptURL(root: root, scriptID: scriptID)
     }
     public func load(scriptID: String) throws -> CorrectionAttempt? {
         let url = try url(scriptID)

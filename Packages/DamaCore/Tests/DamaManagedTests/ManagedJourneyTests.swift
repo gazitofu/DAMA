@@ -141,11 +141,14 @@ final class ManagedJourneyTests: XCTestCase {
         XCTAssertNotNil(analysis.analysis)
         let retained = try await store.storedSpeech(speech.id)
         XCTAssertEqual(retained?.sourceHash, speech.sourceHash)
-        try await store.trashScript(saved, in: scripts)
+        // usage-bundle2 가드 이동: 휴지통 이동 뒤 «이력 파일 있음» → «지운 스크립트 이력 폴더 없음 + 남은 스크립트 이력 있음».
+        let removal = await store.removeScript(LibraryScriptSummary(saved), in: scripts, isChildResult: false) { _ in XCTFail("not a child") }
+        XCTAssertEqual(removal, .removed)
         let remainingScripts = try await FolderLibraryStore(root: root).scripts(in: scripts)
         XCTAssertEqual(remainingScripts.map(\.id), [second.id])
         XCTAssertEqual(try Data(contentsOf: trash.appendingPathComponent(saved.url.lastPathComponent)), before)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("LibraryRevisions/\(saved.id)/\(saved.script.revisionID).dama.json.deflate").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("LibraryRevisions/\(saved.id)").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("LibraryRevisions/\(newFile.id)/\(newFile.script.revisionID).dama.json.deflate").path))
         let preservedModel = try await repository.loadModel(sessionId: speech.id, runId: first.id)
         XCTAssertEqual(preservedModel.runId, first.id)
         // Restore from trash: the Speech keeps its session identity; both Scripts remain separate.

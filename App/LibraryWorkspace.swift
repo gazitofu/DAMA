@@ -342,17 +342,28 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
     func deleteScript(_ file: LibraryScriptSummary) {
         guard !foldersLocked, let store, let folder = folders[.scripts] else { return }
         busy = true; playback.stop()
-        guard confirmDeletion(title: scriptTitle(file), kind: "Script", detail: "선택한 스크립트 파일을 휴지통으로 이동합니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 내부 복구 이력은 남습니다.") else { busy = false; return }
+        // usage-bundle2 문구 6 (ssot/tone/usage-bundle2.md).
+        guard confirmDeletion(title: scriptTitle(file), kind: "Script", detail: "선택한 스크립트 파일을 휴지통으로 이동하고, 이 스크립트의 내부 수정 이력과 AI 버전 기록을 지웁니다. 파일을 휴지통에서 되돌려도 지운 AI 버전은 열 수 없습니다. 연결된 Speech·다른 Scripts·내보낸 Markdown과 원음·전사 원응답은 남습니다.") else { busy = false; return }
+        let isChild = ProcessingWorkspace.shared.runs.contains { $0.id == file.id && $0.parentRunID != nil }
         Task {
             defer { busy = false }
-            do {
-                try await store.trashScript(file, in: folder)
-                scripts.removeAll { $0.url == file.url }
-                if openedScript?.url == file.url { openedScript = nil }
-                if selectedScriptID == file.id { selectedScriptID = primaryScripts.first?.id }
-                message = "Script를 휴지통으로 이동했습니다. 원음과 다른 스크립트는 유지됩니다."
-            } catch { message = "Script를 삭제하지 못했습니다. 파일 변경 여부와 폴더 권한을 확인한 뒤 새로고침해 주세요. 영구 삭제로 재시도하지 않습니다." }
+            // 순서: 휴지통 → (자식이면) savedSourceRuns → 내부 수정 이력 → 교정 시도 기록 (library-script.md «결과 보관»).
+            let removal = await store.removeScript(file, in: folder, isChildResult: isChild, registerSavedSource: Self.registerSavedSource)
+            guard removal != .trashFailed else {
+                message = "Script를 삭제하지 못했습니다. 파일 변경 여부와 폴더 권한을 확인한 뒤 새로고침해 주세요. 영구 삭제로 재시도하지 않습니다."
+                return
+            }
+            scripts.removeAll { $0.url == file.url }
+            if openedScript?.url == file.url { openedScript = nil }
+            if selectedScriptID == file.id { selectedScriptID = primaryScripts.first?.id }
+            message = removal == .removed ? "Script를 휴지통으로 이동했습니다. 원음과 다른 스크립트는 유지됩니다."
+                : "Script를 휴지통으로 이동했습니다. 내부 수정 이력은 지우지 못했습니다. 설정의 저장 공간 정리에서 다시 지울 수 있습니다."
         }
+    }
+    /// 지운 Soniox 자식 결과가 다음 처리 때 다시 저장되지 않게 한다(operating-baseline.md:36, saveCompletedSources).
+    nonisolated static func registerSavedSource(_ runID: String) {
+        var saved = Set(UserDefaults.standard.stringArray(forKey: "library.savedSourceRuns") ?? [])
+        saved.insert(runID); UserDefaults.standard.set(Array(saved), forKey: "library.savedSourceRuns")
     }
     private func confirmDeletion(title: String, kind: String, detail: String) -> Bool {
         let alert = NSAlert(); alert.alertStyle = .warning
@@ -415,10 +426,7 @@ enum LibraryFolder: String, CaseIterable, Identifiable { case speeches = "Speech
                 let result = try await store.createScript(document, speech: speech, input: run.input ?? speech.notes, in: destination)
                 let scan = try await store.scanScriptSummaries(in: destination)
                 scripts = scan.items; scanIssues[.scripts] = scan.issues
-                if !select {
-                    var saved = Set(UserDefaults.standard.stringArray(forKey: "library.savedSourceRuns") ?? [])
-                    saved.insert(run.id); UserDefaults.standard.set(Array(saved), forKey: "library.savedSourceRuns")
-                }
+                if !select { Self.registerSavedSource(run.id) }
                 savingRunIDs.remove(run.id)
                 if select && canLeave && !notesDirty { historicalFile = nil; openedScript = result; selectedScriptID = result.id; folder = .scripts }
                 message = "스크립트를 저장했습니다. 화자와 내용을 확인해 주세요."

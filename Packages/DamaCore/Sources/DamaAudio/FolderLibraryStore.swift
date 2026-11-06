@@ -548,6 +548,27 @@ public actor FolderLibraryStore {
         try trash(url)
         scriptCache.removeValue(forKey: url.standardizedFileURL.path)
     }
+    /// usage-bundle2: 그 스크립트의 내부 수정 이력 폴더와 교정 시도 기록을 지운다. 구 배치 파일은 저장 공간 정리에서 지운다.
+    public func removeScriptHistory(scriptID: String) throws {
+        guard InternalStoragePaths.isSafeScriptID(scriptID) else { throw LibraryFailure.unsafePath }
+        let history = revisionFolder.appendingPathComponent(scriptID, isDirectory: true)
+        try safe(history)
+        if FileManager.default.fileExists(atPath: history.path) { try FileManager.default.removeItem(at: history) }
+        let attempt = try InternalStoragePaths.correctionAttemptURL(root: root, scriptID: scriptID)
+        try safe(attempt)
+        if FileManager.default.fileExists(atPath: attempt.path) { try FileManager.default.removeItem(at: attempt) }
+    }
+
+    public enum ScriptRemoval: Sendable, Equatable { case trashFailed, removed, historyNotRemoved }
+    /// usage-bundle2 결과 하나를 지우는 순서: 휴지통 이동(실패하면 멈춤) → 자식 결과면 `registerSavedSource`
+    /// (`library.savedSourceRuns`) → 내부 수정 이력 폴더 → 교정 시도 기록. «Script 삭제…»와 결과 보관 정리가 함께 쓴다.
+    public func removeScript(_ summary: LibraryScriptSummary, in folder: URL, isChildResult: Bool,
+                             registerSavedSource: @Sendable (String) -> Void) -> ScriptRemoval {
+        do { try trashScript(summary, in: folder) } catch { return .trashFailed }
+        if isChildResult { registerSavedSource(summary.id) }
+        do { try removeScriptHistory(scriptID: summary.id); return .removed } catch { return .historyNotRemoved }
+    }
+
     public func trashSpeech(_ speech: LibrarySpeech, in folder: URL) throws {
         try validateDeletion(speech.fileURL, in: folder)
         let bundle = speech.fileURL.pathExtension == "dama-audio"
