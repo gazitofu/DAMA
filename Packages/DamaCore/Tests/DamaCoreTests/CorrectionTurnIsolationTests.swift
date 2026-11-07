@@ -144,6 +144,24 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         XCTAssertEqual(all.names, ["SPEAKER_01": "김가상"])
     }
 
+    /// ContextCorrectionTests.testSpanAnchors…의 이동 6사례가 편집 기록을 만들지 않는다(이동 단정과 분리한 신규 단정, QA A D-1).
+    func testMovedGuardCasesLeaveNoEdit() throws {
+        let source = CorrectionTurn(id: "t", speakerID: nil, startUs: 850_000, endUs: 850_000, text: "🙂 30억원 30억원")
+        let chunk = CorrectionChunk(turns: [source], contextBefore: [], contextAfter: [])
+        func change(_ quote: String = "30억원", _ occurrence: Int = 1) -> CorrectionChange {
+            .init(quote: quote, occurrence: occurrence, replacement: "30억 원", certain: true, reason: "공백", termID: nil)
+        }
+        let cases: [([CorrectionChange], String)] = [
+            ([change("없음")], "🙂 30억원 30억 원"), ([change("30억원", -1)], "🙂 30억원 30억 원"), ([change("30억원", 2)], "🙂 30억원 30억 원"),
+            ([change(), change()], "🙂 30억원 30억 원"), ([change("30억원 30억원", 0), change()], "🙂 30억원 30억 원"), ([change()], "🙂 30억원 30억 원."),
+        ]
+        for (index, (changes, text)) in cases.enumerated() {
+            let reply = CorrectionReply(turns: [.init(id: "t", text: text, certain: true, reason: "", changes: changes, unresolved: [])], names: [])
+            do { XCTAssertTrue(try ContextCorrection.validated(reply, chunk: chunk, input: ConversionNotes()).edits.isEmpty, "case \(index)") }
+            catch { XCTFail("case \(index): \(error)") }
+        }
+    }
+
     func testUnpairableReplyRemainsChunkFailure() throws {
         let base = "가나다 라마바"
         let c = CorrectionTurn(id: "c", speakerID: "SPEAKER_00", startUs: 2_000_000, endUs: 3_000_000, text: base)

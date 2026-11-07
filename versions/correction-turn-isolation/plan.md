@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-06 완료(문구·Markdown·구간 정보·완료 띠, Markdown N=0 기준선 5dc04eb6… 1,564 B). 다음 = 차수 A QA (GPT-6.1-sol, AC-01–08)."
+resume: "QA A D-1 수정(이동 단정 사례당 1, edits 검사 분리). 다음 = QA A2(D-1만) → T-07."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
@@ -137,3 +137,4 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 ## Follow-ups
 
 - F-01 (기록) 이 유닛 뒤 `CorrectionFormatProbeTests`의 `r["validated"]`는 Turn 실패만 있는 응답에서도 true가 된다 (코드 불변, 스펙 §05). 묶음 3 진단을 다시 돌리면 판정은 `turnRule` 집계로 읽는다.
+- F-02 (관측, 이 유닛 범위 밖) `CorrectionFailureTests.testNetworkMarkerDuringTimeoutIsNetworkAndOtherConfigMarker`가 check.sh `run-20261107T081450Z-MtBELu`에서 1회 실패(«timeout» ≠ «network»). 400ms 시간 초과 안에 셸 루프가 stderr 표식을 내야 하는 시간 경쟁. 이 테스트가 든 check 실행 40회 중 1회, 직전 PASS 이후 바뀐 것은 Core 테스트 2파일뿐(`CodexCorrectionClient` 무변경), 같은 트리 재실행 `run-20261107T081612Z-tmygxn` PASS. 시간 여유를 넓힐지는 별도 결정.

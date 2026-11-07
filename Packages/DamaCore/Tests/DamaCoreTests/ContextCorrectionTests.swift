@@ -69,9 +69,7 @@ final class ContextCorrectionTests: XCTestCase {
         XCTAssertEqual(try check([change()], "🙂 30억원 30억 원")?.effectiveText, "🙂 30억원 30억 원")
         // correction-turn-isolation 가드 이동 (형태·건수 유지): Turn 하나의 검증 실패는 청크 throw가 아니라 그 Turn의 규칙 기록이다.
         func rejected(_ changes: [CorrectionChange], _ text: String) throws -> [CorrectionRejectedTurn] {
-            let result = try ContextCorrection.validated(.init(turns: [.init(id: "t", text: text, certain: true, reason: "", changes: changes, unresolved: [])], names: []), chunk: chunk, input: ConversionNotes())
-            XCTAssertTrue(result.edits.isEmpty)
-            return result.rejected
+            try ContextCorrection.validated(.init(turns: [.init(id: "t", text: text, certain: true, reason: "", changes: changes, unresolved: [])], names: []), chunk: chunk, input: ConversionNotes()).rejected
         }
         for (changes, rule) in [([change("없음")], CorrectionRejectionRule.quote), ([change("30억원", -1)], .quote), ([change("30억원", 2)], .quote),
                                 ([change(), change()], .overlap), ([change("30억원 30억원", 0), change()], .overlap)] {
