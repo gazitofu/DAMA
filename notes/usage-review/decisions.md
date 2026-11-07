@@ -2,7 +2,7 @@
 status: decided
 decided_at: 2026-11-05
 topics: [T1, T2a, T2b, T3, T4, T5]
-next: "묶음 3 ① 측정(현행 교정 실스크립트 1회 + 적용 수정 원음 대조). 묶음 1 v0.5.18 · 묶음 2 v0.5.19 released."
+next: "/plan correction-turn-isolation (스펙 게이트 ① 컨펌 2026-11-07). 출시 뒤 묶음 3 ① 재실행(30–40분 결합본 + 원음 대조). 묶음 1 v0.5.18 · 묶음 2 v0.5.19 released."
 ---
 
 # 사용 복기 개선 결정 기록
