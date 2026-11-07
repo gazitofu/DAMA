@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "차수 A 통과(QA A · A2, AC-01–08). T-07 fixture 커밋. 다음 = T-08 버전 0.5.20(38) · QA 앱 빌드 → 게이트 ② 막힘 1–3 확인 요청."
+resume: "T-08 버전 0.5.20(38) 커밋, check.sh run-20261107T082026Z-HJGlkU PASS. 다음 = QA 앱 빌드 → 게이트 ② 막힘 1–3 확인 요청(실화면·설치·실데이터)."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
