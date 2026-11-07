@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "/build 진입 2026-11-07. 진행 = T-01 착수 전. 태스크 경계마다 갱신."
+resume: "T-02 완료(저장 타입·검증). 다음 = T-03 응답 검증 Turn 격리·엔진 v7."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거

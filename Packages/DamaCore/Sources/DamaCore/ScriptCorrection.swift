@@ -26,6 +26,18 @@ public struct CorrectionEdit: Codable, Sendable, Equatable {
     }
 }
 
+/// correction-turn-isolation: Turn 하나가 응답 검증에서 처음 걸린 규칙 (검사 순서는 `ContextCorrection.validated`).
+public enum CorrectionRejectionRule: String, Codable, Sendable, CaseIterable {
+    case quote, overlap, text, limit, reason, other
+}
+
+/// 검증 실패로 원문을 유지한 Turn과 규칙 코드. 원문·응답 내용은 담지 않는다.
+public struct CorrectionRejectedTurn: Codable, Sendable, Equatable {
+    public let turnID: String
+    public let rule: CorrectionRejectionRule
+    public init(turnID: String, rule: CorrectionRejectionRule) { self.turnID = turnID; self.rule = rule }
+}
+
 public struct ScriptCorrection: Codable, Sendable {
     public enum State: String, Codable, Sendable { case running, completed, failed }
     public var state: State
@@ -39,17 +51,29 @@ public struct ScriptCorrection: Codable, Sendable {
     public var nameEvidence: [String: String] = [:]
     public var completedChunks = 0
     public var totalChunks = 0
+    /// correction-turn-isolation D-02: 검증 실패로 원문을 유지한 Turn. 비어 있으면 nil로 두어 키를 쓰지 않는다(기존 파일 바이트 유지).
+    /// 교정 시점 기록이며, 뒤에 사람이 그 Turn을 고치거나 지워도 그대로 둔다.
+    public var rejectedTurns: [CorrectionRejectedTurn]? = nil
     public var visibleEdits: [CorrectionEdit] { edits.filter { !$0.isDisplayOnly } }
     public init(input: ConversionNotes, engine: String, state: State = .running) {
         self.input = input; self.engine = engine; self.state = state; startedAt = Date(); id = UUID().uuidString
     }
+    /// 주어진 원구간 중 `rejectedTurns`에 든 수 (구간 정보·Markdown 문단 줄의 {k}).
+    public func rejectedCount(in turnIDs: [String]) -> Int {
+        let rejected = Set((rejectedTurns ?? []).map(\.turnID))
+        return turnIDs.filter(rejected.contains).count
+    }
     public func validate(transcript: TranscriptDocument) throws {
         if let id, UUID(uuidString: id) == nil { throw LibraryFailure.invalidScript }
         let ids = Set(transcript.turns.filter { $0.kind == .speech }.map(\.id))
+        let rejected = (rejectedTurns ?? []).map(\.turnID)
         guard Set(edits.map(\.turnID)).count == edits.count,
               Set(edits.map(\.turnID)).isSubset(of: ids),
               Set(speakerNames.keys).isSubset(of: Set(transcript.speakers.map(\.id))),
-              completedChunks >= 0, totalChunks >= completedChunks else { throw LibraryFailure.invalidScript }
+              completedChunks >= 0, totalChunks >= completedChunks,
+              // D-02 저장 검증: 발화 Turn 안 · 중복 없음 · 편집 기록과 겹치지 않음 (규칙 코드는 해독에서 6종으로 제한).
+              Set(rejected).count == rejected.count, Set(rejected).isSubset(of: ids),
+              Set(rejected).isDisjoint(with: edits.map(\.turnID)) else { throw LibraryFailure.invalidScript }
         for edit in edits { try CorrectionSpans.validateStored(edit) }
     }
 }
