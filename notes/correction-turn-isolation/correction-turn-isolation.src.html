@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>correction-turn-isolation 스펙</title>
+<style>
+/*__FONTS__*/
+
+/* ══════════ 토큰 (ssot 디자인 시스템 정본 값 그대로. 임의 수정 금지) ══════════ */
+:root{
+  /* 지면 */
+  --paper:#FFFFFF; --paper-2:#F7F7F7; --paper-3:#EDEDED;
+  /* 잉크 */
+  --ink:#1A1A1A; --ink-2:#4A4A4A; --ink-3:#6A6A6A;
+  /* 선 */
+  --hair:#DDDDDD;
+  /* 포인트 6색 (apricot 은 본문 #태그 밑줄 전용) */
+  --rose:#FF4D79; --lilac:#8A4BFF; --sky:#1E8AFF; --lemon:#FFF056; --sage:#29C06E; --apricot:#FFC24D;
+  /* 소프트 14% */
+  --rose-soft:#FFE6EC; --lilac-soft:#EFE6FF; --sky-soft:#DFEFFF; --lemon-soft:#FFFDE7; --sage-soft:#E1F6EB; --apricot-soft:#FFF6E6;
+  /* 틴트 8% */
+  --rose-tint:#FFF1F4; --lilac-tint:#F6F1FF; --sky-tint:#EDF6FF; --lemon-tint:#FFFEF1; --sage-tint:#EEFAF3; --apricot-tint:#FFFAF1;
+  /* 스크림 (이미지 위 텍스트 받침) */
+  --scrim:rgba(34,28,22,.62);
+  /* 내비 모션 공통 이징 */
+  --ease-nav:cubic-bezier(.22,1,.36,1);
+  /* 폰트 */
+  --serif:'KoPub Batang',serif;
+  --sans:'KoPub Dotum',-apple-system,'Apple SD Gothic Neo',sans-serif;
+  --num:'Fraunces',Georgia,serif;
+  --w-num:400; --w-num-strong:600;
+  /* 선 굵기 */
+  --lw:0.5px; --lw-strong:1px;
+  /* 라운딩 */
+  --r:3px;
+  /* 여백 자리 */
+  --sp-page:24px; --sp-block:24px; --sp-el:12px;
+  --sp-sec-above:48px; --sp-sec-head:24px; --sp-sec-body:32px;
+  --sp-grid:24px; --sp-grid-tight:16px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;font-weight:300;line-height:1.8;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+img{max-width:100%;display:block}
+
+/* ── 라인 아이콘 (Phosphor, 잉크색 단색 에셋) ── */
+.ic{display:inline-block;width:22px;height:22px;background:var(--m) center/contain no-repeat;flex:0 0 auto}
+.ic.inv{--m:url('assets/icons-a/add-inv.svg')}
+.ic-home{--m:url('assets/icons-a/home.svg')}
+.ic-chat{--m:url('assets/icons-a/chat.svg')}
+.ic-tools{--m:url('assets/icons-a/tools.svg')}
+.ic-world{--m:url('assets/icons-a/world.svg')}
+.ic-lounge{--m:url('assets/icons-a/lounge.svg')}
+.ic-add{--m:url('assets/icons-a/add.svg')}
+.ic-player{--m:url('assets/icons-a/player.svg')}
+.ic-turn{--m:url('assets/icons-a/turn.svg')}
+
+.col{max-width:920px;margin:0 auto;padding:0 24px}
+
+/* ── 문서 헤더 ── */
+header.doc{padding:64px 0 40px;border-bottom:var(--lw-strong) solid var(--ink)}
+.doc .date{font-family:var(--num);font-weight:var(--w-num-strong);font-size:64px;line-height:.95;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.doc .meta{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-top:10px;letter-spacing:.03em}
+.doc h1{font-family:var(--serif);font-weight:700;font-size:30px;line-height:1.35;margin-top:22px;letter-spacing:-.01em}
+.doc .sub{margin-top:12px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.hl{background:linear-gradient(transparent 60%, var(--lemon) 60%);font-weight:500;color:var(--ink)}
+code{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;background:var(--paper-2);padding:1px 5px}
+
+/* ── 00 판정 블록 (헤더 바로 아래 · 사용자가 답할 것만 · 열림/닫힘 2상태) ── */
+.verdict{margin-top:28px;border:var(--lw-strong) solid var(--ink);background:var(--paper)}
+.verdict .vh{display:flex;align-items:baseline;gap:12px;padding:14px 20px;border-bottom:var(--lw) solid var(--ink);background:var(--paper-2)}
+.verdict .vh h2{font-family:var(--serif);font-size:18px;font-weight:700}
+.verdict .vh .cnt{font-family:var(--num);font-size:13px;color:var(--ink-3)}
+.verdict .vh .stamp{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--lemon);padding:2px 8px}
+.verdict[data-state="open"] .stamp{display:none}
+.verdict .vb{padding:6px 20px 18px}
+.vitem{padding:14px 0;border-bottom:var(--lw) solid var(--hair)}
+.vitem:last-child{border-bottom:0}
+.vitem .vt{display:flex;gap:10px;align-items:baseline;font-weight:700;font-size:14.5px}
+.vitem .vt .id{font-family:var(--num);font-weight:400;color:var(--ink-3);font-size:13px;min-width:44px;flex:0 0 auto}
+.vitem .vq{margin:6px 0 0 54px;color:var(--ink-2);font-size:13.5px;max-width:66ch}
+.vitem .vq b{color:var(--ink)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0 54px}
+.opts label{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer;user-select:none;line-height:1.4}
+.opts label:has(input:checked){background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.opts label code{color:inherit}
+.opts label:has(input:checked) code{background:rgba(255,255,255,.18)}
+.opts input{position:absolute;opacity:0;width:0;height:0}
+.memo{margin:8px 0 0 54px}
+.memo input{font-family:var(--sans);font-weight:300;font-size:13.5px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--hair);background:none;padding:6px 2px;width:100%;outline:none;border-radius:0}
+.memo input:focus{border-bottom-color:var(--ink)}
+.memo input::placeholder{color:var(--ink-3)}
+.vfoot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 20px;border-top:var(--lw-strong) solid var(--ink);background:var(--paper-2)}
+.vfoot .ok{font-size:12.5px;color:var(--ink-3)}
+.verdict pre.md{margin:0;padding:14px 20px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6;color:var(--ink-2);background:var(--paper);border-top:var(--lw) solid var(--hair);white-space:pre-wrap;user-select:all}
+.verdict[data-state="closed"] .opts,.verdict[data-state="closed"] .memo,.verdict[data-state="closed"] .vfoot,.verdict[data-state="closed"] pre.md{display:none}
+
+/* ── 문서 내비 ── */
+.tabs{position:sticky;top:0;z-index:40;background:var(--paper);border-bottom:var(--lw) solid var(--hair)}
+.tabs .row{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;padding:0 24px;max-width:920px;margin:0 auto}
+.tabs .row::-webkit-scrollbar{display:none}
+.tabs a{text-decoration:none;font-family:var(--sans);font-size:13.5px;font-weight:700;color:var(--ink-3);padding:14px 0 12px;white-space:nowrap}
+.tabs a:hover{color:var(--ink)}
+
+/* ── 섹션 문법 ── */
+section.sec{padding-top:88px}
+.sec>.rule{border-top:var(--lw-strong) solid var(--ink);padding-top:20px;display:flex;align-items:baseline;gap:14px}
+.sec>.rule .no{font-family:var(--num);font-weight:var(--w-num);font-size:15px;color:var(--ink-3)}
+.sec>.rule h2{font-family:var(--serif);font-weight:700;font-size:22px;letter-spacing:-.01em}
+.sec .intro{margin-top:14px;color:var(--ink-2);font-size:14.5px;max-width:66ch}
+.sec p:not([class]){margin-top:14px;max-width:66ch}
+.sec h3{font-family:var(--sans);font-weight:700;font-size:15px;margin-top:46px;padding-top:12px;border-top:var(--lw) solid var(--ink)}
+.sec h4{font-family:var(--serif);font-weight:700;font-size:15.5px;margin-top:22px}
+.note{margin-top:12px;font-size:12.5px;color:var(--ink-3);max-width:66ch}
+
+/* ── 리스트 (병렬 항목은 본문·표 셀 어디서든 한 항목 한 줄 · 가운뎃점 연결 금지) ── */
+.sec ol,.sec ul{margin:10px 0 0;padding-left:1.6em;max-width:66ch}
+.sec li{margin-top:5px;padding-left:.2em}
+.sec li::marker{font-family:var(--num);color:var(--ink-3);font-size:13px}
+td ol,td ul{margin:0;padding-left:1.5em;max-width:none}
+td li{margin-top:3px}
+td li:first-child{margin-top:0}
+.sec td p:not([class]){margin-top:6px;max-width:none}
+.sec td p:not([class]):first-child{margin-top:0}
+.then{display:block;margin-top:6px}
+
+/* ── 표 (2차원 데이터만 · 셀 안 병렬 항목은 리스트) ── */
+.twrap{overflow-x:auto;margin-top:16px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.65}
+th{text-align:left;font-weight:700;font-size:12px;color:var(--ink-3);background:var(--paper-2);padding:8px 12px;border-bottom:var(--lw) solid var(--ink);white-space:nowrap}
+td{padding:10px 12px;border-bottom:var(--lw) solid var(--hair);vertical-align:top;font-weight:300}
+td strong,td b{font-weight:700}
+td.num,.tnum{font-family:var(--num);font-weight:var(--w-num);font-variant-numeric:tabular-nums;font-size:14px;white-space:nowrap}
+
+/* ── 각주 (본문에는 번호만 · 정보는 최하단 · 클릭 팝오버. 저자는 span.fn 으로 근거를 쓰고 빌드가 번호를 단다) ── */
+sup.fn{font-family:var(--num);font-size:11px;line-height:0;vertical-align:super;margin-left:1px}
+sup.fn a{color:var(--sky);text-decoration:none;padding:0 2px;border-radius:2px;cursor:pointer}
+sup.fn a:hover,sup.fn a.open{background:var(--sky-soft)}
+.pop{position:absolute;z-index:50;max-width:400px;min-width:220px;padding:10px 12px 11px;background:var(--paper);border:var(--lw) solid var(--ink);box-shadow:0 6px 24px rgba(0,0,0,.10);font-size:12.5px;line-height:1.65;color:var(--ink-2);font-weight:300}
+.pop .pn{font-family:var(--num);color:var(--ink-3);margin-right:6px}
+.pop::after{content:'';position:absolute;left:10px;bottom:-6px;width:10px;height:10px;background:var(--paper);border-right:var(--lw) solid var(--ink);border-bottom:var(--lw) solid var(--ink);transform:rotate(45deg)}
+.pop.below::after{bottom:auto;top:-6px;transform:rotate(225deg)}
+.fnlist{margin-top:14px;padding-left:0;list-style:none;font-size:12.5px;color:var(--ink-2);line-height:1.65;max-width:72ch}
+.fnlist li{display:flex;gap:10px;padding:5px 0;border-bottom:var(--lw) solid var(--hair)}
+.fnlist li:target{background:var(--sky-soft)}
+.fnlist .n{font-family:var(--num);color:var(--ink-3);min-width:22px;flex:0 0 auto}
+.fnlist .t{flex:1 1 auto}
+.fnlist .back{margin-left:6px;color:var(--sky);text-decoration:none;flex:0 0 auto}
+details.audit{margin-top:28px;border-top:var(--lw) solid var(--hair);padding-top:10px}
+details.audit summary{cursor:pointer;font-size:12.5px;color:var(--ink-3);font-weight:500}
+details.audit .body{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.65}
+details.audit table{font-size:12.5px}
+
+/* ── 데모 프레임과 스펙 ── */
+.stage{display:flex;flex-wrap:wrap;gap:24px;margin-top:20px;align-items:flex-start}
+.frame{width:400px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);flex:0 0 auto}
+.frame .fbody{padding:20px 18px 24px}
+.spec{flex:1 1 260px;min-width:240px;font-size:13px}
+.spec dt{font-weight:700;font-size:12.5px;margin-top:12px}
+.spec dd{color:var(--ink-2);margin-top:2px;line-height:1.65}
+
+/* ── 컴포넌트 (디자인 시스템 정본 발췌) ── */
+.btn{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:14px;line-height:1;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.fill{background:var(--ink);color:var(--paper);border:var(--lw) solid var(--ink);height:44px;padding:0 22px}
+.btn.line{background:var(--paper);color:var(--ink);border:var(--lw) solid var(--ink);height:40px;padding:0 18px}
+.btn.soft{background:var(--paper-2);color:var(--ink);border:0;height:40px;padding:0 18px}
+.btn.sm{height:34px;padding:0 14px;font-size:13px}
+.btn.text{background:none;border:0;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;height:auto;padding:4px 2px;font-weight:500}
+.btn:disabled{background:var(--paper-3);border-color:var(--paper-3);color:var(--ink-3);cursor:default}
+.btn:not(:disabled):active{transform:translateY(1px)}
+.btnrow{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:13.5px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.chip.sel{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+.chiprow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.htag{display:inline-block;font-size:12px;font-weight:500;color:var(--ink-2);line-height:1.5;padding:0 2px;background:linear-gradient(transparent 62%, var(--lemon) 62%)}
+.in-line{font-family:var(--sans);font-weight:300;font-size:16px;color:var(--ink);border:0;border-bottom:var(--lw) solid var(--ink-3);background:none;padding:7px 2px;width:100%;outline:none;border-radius:0}
+.in-line:focus{border-bottom:var(--lw-strong) solid var(--ink)}
+.in-line::placeholder{color:var(--ink-3)}
+.in-area{font-family:var(--sans);font-weight:300;font-size:14.5px;color:var(--ink);background:var(--paper-2);border:var(--lw) solid transparent;border-radius:var(--r);padding:12px 14px;width:100%;outline:none;line-height:1.7;resize:vertical}
+.in-area:focus{border-color:var(--ink)}
+.in-area::placeholder{color:var(--ink-3)}
+.in-label{display:block;font-size:12.5px;font-weight:500;color:var(--ink-3);margin-bottom:6px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 0;border-bottom:var(--lw) solid var(--hair);font-size:13px}
+.kv .k{color:var(--ink-3);font-weight:500}
+.kv .v{font-weight:500;color:var(--ink)}
+.stat{display:inline-flex;align-items:center;gap:5px;font-family:var(--num);font-weight:var(--w-num);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.stat .ic{width:14px;height:14px;opacity:.72}
+.sechead h4{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.01em}
+.sechead .sub{font-size:13px;color:var(--ink-2);margin-top:4px}
+
+/* ── 폰 프레임 (모바일 프로토타입) ── */
+.phone{width:390px;max-width:100%;border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;position:relative;overflow:hidden}
+.phone .pbody{padding:18px 20px 120px}
+.pdock{position:absolute;left:0;right:0;bottom:0;height:118px;pointer-events:none;background:linear-gradient(to top, var(--paper) 0%, var(--paper) 34%, rgba(255,255,255,0) 100%);display:flex;align-items:flex-end}
+.pdock .icons{width:100%;display:flex;justify-content:space-around;align-items:center;padding:0 10px 18px}
+.pdock .icons .ic{opacity:.38}
+.pdock .icons .ic.on{opacity:1}
+
+/* ── 데스크탑 조합 목업 ── */
+.mock{border:var(--lw) solid var(--ink);background:var(--paper);margin-top:20px;overflow:hidden}
+.mock .mkhead{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:var(--lw) solid var(--hair)}
+.mock .mkhead .lg{height:16px;width:auto;display:block}
+.mock .mkhead nav{display:flex;gap:20px;font-size:14px;font-weight:700}
+.mock .mkhead nav span{color:var(--ink-3)}
+.mock .mkhead nav span.on{color:var(--ink)}
+.mock .mkhead .util{display:flex;gap:14px;align-items:center;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.mock .mkbody{padding:26px 24px 34px}
+
+/* ── 데스크탑 실척 스테이지 (맥북 뷰포트 1440x820 을 가로폭에 맞춰 비율 그대로 축소.
+     내부는 1440px 고정 가상 뷰포트라 실서비스 데스크탑 레이아웃이 그대로 재현된다.
+     문서 본문 col(920px)보다 넓게 브레이크아웃해 화면 가로폭을 최대로 쓴다) ── */
+.deskwrap{width:calc(100vw - 48px);max-width:1440px;margin:20px auto 0;margin-left:calc(50% - min(50vw - 24px, 720px))}
+.deskstage{position:relative;width:100%;aspect-ratio:1440/820;border:var(--lw) solid var(--ink);background:var(--paper);overflow:hidden}
+.deskvp{position:absolute;left:0;top:0;width:1440px;height:820px;transform-origin:0 0;transform:scale(var(--ds,1));overflow-y:auto;overscroll-behavior:contain}
+.deskcap{font-size:12.5px;color:var(--ink-3);margin-top:10px;font-weight:500}
+
+/* 상태 세그 (프로토타입 상태 전환 컨트롤) */
+.segrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.seg{height:32px;padding:0 13px;border-radius:var(--r);border:var(--lw) solid var(--hair);background:var(--paper);font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center}
+.seg.on{background:var(--ink);border-color:var(--ink);color:var(--paper);font-weight:700}
+
+@media (max-width:760px){
+  .col{padding:0 18px}
+  header.doc{padding:44px 0 30px}
+  .doc .date{font-size:46px}
+  .doc h1{font-size:23px}
+  .sec>.rule h2{font-size:19px}
+  .vitem .vq,.opts,.memo{margin-left:0}
+  .pop{max-width:calc(100vw - 36px)}
+}
+</style>
+</head>
+<body>
+
+<div class="col">
+<header class="doc">
+  <div class="date">11.07</div>
+  <div class="meta">DAMA UNIT SPEC · correction-turn-isolation · r1</div>
+  <h1>AI 교정 Turn 단위 검증 격리</h1>
+  <p class="sub">AI 응답에서 검증을 통과하지 못한 Turn 하나가 청크 전체를 버리게 하던 규칙을 바꾼다. 그 Turn만 원문을 유지하고 같은 청크의 다른 Turn은 지금 규칙대로 검증·반영하며, 버린 Turn과 걸린 규칙을 본문 없이 남긴다.<span class="fn">입력 = 사용자 «A로 가고 작은 유닛으로 /spec부터 하자» (2026-11-07) · <code>notes/usage-review/correction-measure.md</code> 진단 · <code>notes/usage-review/decisions.md</code> 부칙 2026-11-07 ①.</span></p>
+</header>
+
+<section class="verdict" id="s-verdict" data-unit="correction-turn-isolation" data-round="r1" data-gate="①" data-state="open">
+  <div class="vh"><h2>판정</h2><span class="cnt">열린 결정 2 · 판정 축 3</span><span class="stamp">게이트 ① 컨펌 M.DD</span></div>
+  <div class="vb">
+    <div class="vitem" data-k="D-01">
+      <div class="vt"><span class="id">D-01</span>계약 개정 문안과 엔진 버전 (§05)</div>
+      <p class="vq">컨펌된 계약의 «응답 실패»를 «그 Turn의 응답 실패»로 바꾸는 <code>library-script.md</code> 5곳 문안이다. 엔진 버전을 <code>context-correction-7</code>로 올리면 저장된 교정이 Turn 격리로 만들어졌는지 엔진 문자열로 가릴 수 있다. 대신 v6로 시작한 미완료 시도 1건은 «이어서 교정»이 안 된다(끝난 청크 0개). 정책·화면 절은 어느 쪽이든 같다.<span class="fn">현행 문언 <code>ssot/contracts/library-script.md:215</code> «… 불일치는 응답 실패다». 버전 정의 <code>ScriptCorrection.swift:98</code>. 이어서 교정의 엔진 일치 조건 <code>CorrectionRunner.swift:75–82</code>. 미완료 시도 실측 = <code>CorrectionAttempts/</code> 1개(<code>44F4E8DD</code> 0/44), 2026-11-07.</span></p>
+      <div class="opts">
+        <label><input type="radio" name="D-01" value="ⓐ §05 문안대로 · 엔진 v7 (권고)" checked>ⓐ §05 문안대로 · 엔진 v7 (권고)</label>
+        <label><input type="radio" name="D-01" value="ⓑ §05 문안대로 · 엔진 v6 유지">ⓑ §05 문안대로 · 엔진 v6 유지</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="문안을 고치려면 어디를 어떻게"></div>
+    </div>
+    <div class="vitem" data-k="D-02">
+      <div class="vt"><span class="id">D-02</span>버린 Turn을 남기는 방식 (§02-3)</div>
+      <p class="vq">ⓐ는 교정 기록에 선택 필드 <code>rejectedTurns</code>(Turn ID와 규칙 코드)를 더한다. 기존 파일은 그대로 열리고 다시 저장해도 바이트가 같다. ⓑ는 새 필드 없이 기존 편집 기록에 «원문 유지»로 넣는다. 이 경우 구간 정보의 «AI 후보:»와 Markdown의 «교정안:»에 원문이 그대로 찍히고, 기존의 «불확실해 원문 유지» 기록과 모양이 같아 구분되지 않는다. 화면 절 문구는 ⓐ 기준이다.<span class="fn">구간 정보 «AI 교정/AI 후보» 줄 <code>UI/ScriptReadingView.swift:256</code>. Markdown «교정 전/교정안» <code>LibraryScript.swift:259–262</code>. 기존 불확실 기록 = 원문 그대로·미적용 <code>ScriptCorrection.swift:186–197</code>. 선택 필드는 nil이면 인코딩에서 빠진다(Swift 합성 Codable의 <code>encodeIfPresent</code>).</span></p>
+      <div class="opts">
+        <label><input type="radio" name="D-02" value="ⓐ 선택 필드 rejectedTurns (권고)" checked>ⓐ 선택 필드 rejectedTurns (권고)</label>
+        <label><input type="radio" name="D-02" value="ⓑ 기존 편집 기록에 원문 유지로">ⓑ 기존 편집 기록에 원문 유지로</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+    </div>
+    <div class="vitem" data-k="①">
+      <div class="vt"><span class="id">①</span>정책 (§02)</div>
+      <p class="vq">무엇이 청크 실패로 남고 무엇이 Turn 실패가 되는지, 청크 안 Turn이 전부 실패해도 청크를 성공으로 세는지, 버린 Turn을 다시 보내지 않는지를 본다.</p>
+      <div class="opts">
+        <label><input type="radio" name="①" value="확정" checked>확정</label>
+        <label><input type="radio" name="①" value="수정">수정</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+    </div>
+    <div class="vitem" data-k="②">
+      <div class="vt"><span class="id">②</span>화면·문구 (§03 · §04)</div>
+      <p class="vq">구간 정보 항목 1개, 완료 안내 띠 덧붙임 1문장, Markdown 줄 2종, 신규 문구 5개를 본다. 새 버튼은 없다.</p>
+      <div class="opts">
+        <label><input type="radio" name="②" value="확정" checked>확정</label>
+        <label><input type="radio" name="②" value="수정">수정</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+    </div>
+    <div class="vitem" data-k="③">
+      <div class="vt"><span class="id">③</span>검산 자 (§04)</div>
+      <p class="vq">축 9개와 «안 잼» 목록을 본다. 실데이터 확인은 게이트 ②에서 사용자가 설치 앱으로 1회 실행한다.</p>
+      <div class="opts">
+        <label><input type="radio" name="③" value="확정" checked>확정</label>
+        <label><input type="radio" name="③" value="수정">수정</label>
+      </div>
+      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+    </div>
+  </div>
+  <div class="vfoot">
+    <button class="btn fill sm" type="button" data-act="copy">MD 복사</button>
+    <button class="btn line sm" type="button" data-act="reset">초기화</button>
+    <span class="ok">고른 대로 아래 회신이 만들어진다. 복사해 채팅에 붙이면 된다.</span>
+  </div>
+  <pre class="md"></pre>
+</section>
+</div>
+
+<nav class="tabs" aria-label="문서 목차">
+  <div class="row">
+    <a href="#s-verdict">판정</a>
+    <a href="#s-dir">방향</a>
+    <a href="#s-policy">정책</a>
+    <a href="#s-screen">화면</a>
+    <a href="#s-spec">규격</a>
+    <a href="#s-impact">시스템 영향</a>
+    <a href="#s-fn">각주</a>
+  </div>
+</nav>
+
+<div class="col">
+
+<section class="sec" id="s-dir">
+  <div class="rule"><span class="no">01</span><h2>방향</h2></div>
+  <p class="intro">현행 AI 교정은 실데이터에서 끝나지 못한다. 측정 실행에서 첫 청크가 «형식»으로 실패했고, 같은 청크를 같은 인자로 3번 다시 보냈더니 3번 모두 같은 방식으로 실패했다. Codex 정상 종료·JSON 해독·Turn id 일치는 통과했고, Turn 13개 중 1–2개가 인용 위치·재구성 규칙에 걸려 청크 전체가 버려졌다.<span class="fn">측정 실행 = 사용자, 설치 앱 0.5.19, 2026-11-07 05:28:06Z. 진단 = <code>CorrectionFormatProbeTests</code>(환경변수 게이트, 커밋 <code>2a20b08</code>), 2026-11-07 14:38–14:42 KST, 결과 <code>.build/eval/correction-measure-1/probe-chunk0.json</code>(개수·규칙 이름만). 기록 <code>notes/usage-review/correction-measure.md</code>.</span></p>
+  <h4>원칙</h4>
+  <ol>
+    <li>검증하지 않은 수정은 하나도 반영하지 않는다. 지금과 같다.</li>
+    <li>검증 단위를 결과를 쓰는 단위(Turn)에 맞춘다. 한 Turn의 실패가 다른 Turn의 검증된 결과를 무효로 만들지 않는다.</li>
+    <li>응답을 입력과 짝지을 수 없는 실패(해독 실패, Turn id 순서·개수 불일치, 필수 배열 누락)는 지금처럼 청크 실패다.</li>
+    <li>버린 Turn은 원문을 유지하고, 어느 규칙에 걸렸는지 본문 없이 남겨 실사용에서 원인 자료가 쌓이게 한다.</li>
+  </ol>
+  <h4>실측 (2026-11-07)</h4>
+  <div class="twrap"><table>
+    <tr><th style="width:240px">항목</th><th>값</th></tr>
+    <tr><td>측정 실행</td><td><code>44F4E8DD</code> 청크 0/44 · 형식 · 종료 코드 0 · 71.8초</td></tr>
+    <tr><td>진단 3회 (같은 청크·같은 인자)</td><td>
+      <ul>
+        <li>앱 검증 실패 3/3, 걸린 Turn 1 · 2 · 2개 (Turn 13개 중)</li>
+        <li>규칙별: 수정 인용 위치 실패 3 · 미해결 인용 위치 실패 1 · 전체 text와 수정 재구성 불일치 1</li>
+        <li>JSON 해독 실패 0 · Turn id 불일치 0 · 필수 배열 누락 0 · 공백만 다른 불일치 0</li>
+      </ul></td></tr>
+    <tr><td>청크 0</td><td>13 Turn · 2,655자 · 다시 만든 계획 해시 = 시도 기록</td></tr>
+    <tr><td>과거 교정 7건</td><td>성공 3 (11–22분 · 4–8청크) · 실패 4 (41–141분 · 11–44청크)<span class="fn">스크립트 38개 메타데이터 집계, 2026-11-07. 10-08 실패 2건은 실패 진단 도입 전이라 분류가 없다.</span></td></tr>
+  </table></div>
+  <p>청크마다 Turn 1–2개가 걸리는 일이 이어진다면 44청크 스크립트는 사실상 끝나지 않는다(추정, 진단 표본 = 청크 1개 · 3회). 이 유닛 뒤에도 Turn 하나가 걸리는 비율은 그대로이고, 얼마나 쌓이는지는 실사용 기록의 규칙 코드로 본다.</p>
+  <h4>비범위</h4>
+  <ul>
+    <li>인용 불일치의 원인 수정(유니코드 정규화·프롬프트 보강 등)</li>
+    <li>버린 Turn만 골라 다시 보내기</li>
+    <li>모델 응답 원문 저장</li>
+    <li>청크 경계 규칙 변경, 공급자 추가(T4-5)</li>
+  </ul>
+</section>
+
+<section class="sec" id="s-policy">
+  <div class="rule"><span class="no">02</span><h2>정책</h2></div>
+
+  <h3>02-1 실패 구분</h3>
+  <div class="twrap"><table>
+    <tr><th style="width:150px">단위</th><th>실패</th><th style="width:220px">결과</th></tr>
+    <tr><td>청크 (지금과 같음)</td><td>
+      <ul>
+        <li>프로세스: 실행 불가 · 시간 초과 · 인증 · 네트워크 · 설정 · 취소 · 미분류</li>
+        <li>출력 파일 없음 · 2 MB 초과 · JSON 해독 실패 · 어느 Turn이든 <code>changes</code>/<code>unresolved</code> 누락</li>
+        <li>응답 Turn id 목록이 입력과 순서·개수까지 같지 않음</li>
+      </ul></td><td>청크 실패. 분류·안내 띠·시도 기록·이어서 교정 모두 지금과 같다(뒤 두 줄은 «형식»).<span class="fn">어댑터 <code>CodexCorrectionClient.swift:227–231</code>, id 검사 <code>ScriptCorrection.swift:174</code>, 분류 8종 <code>library-script.md:203</code>.</span></td></tr>
+    <tr><td>Turn (신규)</td><td>
+      <ul>
+        <li><code>quote</code>: change 또는 unresolved의 인용이 비었거나, 원문에 없거나, 위치 번호가 비중첩 출현 수를 넘음</li>
+        <li><code>overlap</code>: change 범위끼리 겹침</li>
+        <li><code>text</code>: change 전부를 원문에 적용한 결과가 응답의 그 Turn <code>text</code>와 다름</li>
+        <li><code>limit</code>: Turn text가 max(256, 원문 글자 수×3) 초과 · Turn·change·unresolved 이유 600자 초과 · change 또는 unresolved 100개 초과 · 대체 문자열이 max(256, 원문 글자 수×3) 초과</li>
+        <li><code>reason</code>: unresolved 이유가 비었음</li>
+        <li><code>other</code>: 그 밖에 Turn 검증이 거절한 경우(예: Turn certain=false인데 원문이 빈 Turn)</li>
+      </ul></td><td>그 Turn만 실패(02-2). 상한 값은 기존 초기 자원 한도 그대로다.<span class="fn">Turn 검사 <code>ScriptCorrection.swift:177</code> · <code>CorrectionSpans.swift:40–80</code>. 상한은 계약이 «초기 자원 한도»로 적은 값 <code>library-script.md:200</code> · <code>:215</code>.</span></td></tr>
+  </table></div>
+  <p>Turn 하나에는 규칙 코드 1개를 남긴다. 검사 순서는 지금 검증 순서와 같고(길이·이유 → 개수 → change 인용·길이 → 겹침 → 재구성 → unresolved), 처음 걸린 규칙을 쓴다.</p>
+
+  <h3>02-2 Turn 실패의 처리</h3>
+  <ol>
+    <li>그 Turn은 편집 기록을 만들지 않는다. 본문은 지금 표시 우선순위(사람 수정 → 적용된 AI 교정 → 원문) 그대로이므로 원문(사람 수정이 있으면 사람 수정)이 보인다.</li>
+    <li><code>rejectedTurns</code>에 항목 1개(<code>turnID</code>, <code>rule</code>)를 남긴다(D-02 ⓐ).</li>
+    <li>같은 청크의 다른 Turn은 지금 규칙대로 검증하고, 수정별 판정(<code>context-correction-6</code> ①–④)과 의미 보호를 그대로 적용한다.</li>
+    <li>이름 매핑(참석자 목록 + 자기소개 인용)은 지금처럼 청크의 원문 Turn으로 따로 검증한다. Turn 실패와 관계없다.</li>
+    <li>청크는 성공으로 센다. 청크 안 Turn이 전부 실패해도 성공이고, 완료 안내 띠에 버린 수가 보인다(03-2).</li>
+    <li>모든 청크가 성공해야 한 번에 적용하는 규칙, 중단·오류 때 원문/이전 성공본 유지, 자동 재호출 없음은 지금과 같다.</li>
+    <li>시도 기록의 끝난 청크 결과에 그 청크의 버린 Turn도 함께 둔다. 이어서 교정은 끝난 청크를 다시 보내지 않으므로 버린 Turn도 다시 보내지 않는다.</li>
+  </ol>
+  <p><span class="then">근거 = 표시 우선순위 <code>library-script.md:195</code>, 적용 시점 <code>:205</code>, 이어서 교정 <code>:206</code>, 이름 검증 <code>ScriptCorrection.swift:203–214</code>.</span></p>
+
+  <h3>02-3 저장 (D-02 ⓐ 기준)</h3>
+  <ul>
+    <li><code>ScriptCorrection.rejectedTurns</code>: 선택 배열. 항목 = <code>turnID</code>(문자열) · <code>rule</code>(<code>quote</code> · <code>overlap</code> · <code>text</code> · <code>limit</code> · <code>reason</code> · <code>other</code>). 비어 있으면 nil로 두어 키를 쓰지 않는다. 그래서 기존 파일은 그대로 열리고 다시 저장해도 바이트가 같다.</li>
+    <li>저장 검증(<code>validate</code>)에 더한다: turnID는 발화 Turn ID 안, 중복 없음, <code>edits</code>의 turnID와 겹치지 않음, rule은 6개 중 하나. 어기면 지금처럼 손상(<code>invalidScript</code>)이다.</li>
+    <li>시도 기록 <code>CorrectionChunkResult.rejected</code>: 같은 항목의 선택 배열. 형식 버전은 올리지 않는다(선택 필드가 없는 기존 기록도 해독된다).</li>
+    <li>상태가 failed면 <code>edits</code>처럼 비운다.</li>
+    <li>«저장된 AI 교정 반영»은 <code>rejectedTurns</code>를 그대로 옮긴다. 버린 Turn은 다시 판정하지 않는다.<span class="fn">재반영이 새 결과로 옮기는 값 = 편집·이름·근거·청크 수 <code>CorrectionReapplication.swift:25–28</code>.</span></li>
+    <li>교정 뒤 사람이 그 Turn을 고치거나 지워도 <code>rejectedTurns</code>는 교정 시점 기록으로 그대로 둔다. 본문 표시는 사람 수정을 따른다.</li>
+  </ul>
+  <p>D-02 ⓑ면: 버린 Turn을 <code>CorrectionEdit</code>(text = 원문, applied = false, changes·unresolved·appliedText = nil, 이유 = 문구 2)로 넣는다. 새 필드와 저장 검증 추가는 없고, 규칙 코드는 이유 문자열 끝 괄호로만 남는다.</p>
+
+  <h3>02-4 엔진 버전 (D-01)</h3>
+  <ul>
+    <li>ⓐ: <code>ContextCorrection.version</code> <code>context-correction-6</code> → <code>context-correction-7</code>. 수정별 판정 순서와 의미 보호는 v6 그대로이고, 바뀌는 것은 응답 검증 실패의 단위뿐이다. v6로 시작한 미완료 시도는 «이어서 교정» 대신 기존 문구 «스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.»가 뜬다. 실데이터 해당 1건, 끝난 청크 0개.<span class="fn">문구 확정 <code>ssot/tone/usage-bundle1.md:60</code>.</span></li>
+    <li>ⓑ: v6 유지. 위 영향은 없고, Turn 격리가 적용됐는지는 <code>rejectedTurns</code> 키 유무로만 보인다(버린 Turn 0개면 구분 불가).</li>
+  </ul>
+</section>
+
+<section class="sec" id="s-screen">
+  <div class="rule"><span class="no">03</span><h2>화면</h2></div>
+  <p class="intro">새 버튼·새 화면은 없다. 버린 Turn이 있을 때만 세 자리에 문장이 붙고, 없으면 지금과 글자 하나 다르지 않다. 색으로 상태를 나타내지 않는다.</p>
+
+  <h3>03-1 구간 정보 (선택한 문단)</h3>
+  <ul>
+    <li>위치: 기존 AI 교정 항목들 다음, «모델 원문» 접힘 앞.<span class="fn">현행 배치 <code>UI/ScriptReadingView.swift:252–262</code>.</span></li>
+    <li>조건: 선택한 문단의 원구간 중 <code>rejectedTurns</code>에 든 것이 1개 이상. 원문 보기 전환과 관계없이 보인다(기존 교정 항목과 같음).</li>
+    <li>내용: 첫 줄(굵게) 문구 1, 둘째 줄 문구 2. 그 문단의 버린 원구간이 2개 이상이면 둘째 줄 끝에 문구 2a. 글자 크기는 기존 교정 항목과 같은 caption.</li>
+    <li>규칙 코드는 화면에 보이지 않는다.</li>
+  </ul>
+
+  <h3>03-2 완료 안내 띠</h3>
+  <p>현행 «AI 보정 결과를 저장했습니다. 다른 결과 보기에서 이전 버전을 확인할 수 있습니다.» 뒤에, 버린 원구간 수 N ≥ 1이면 공백 하나와 문구 3을 붙인다. N = 0이면 현행 그대로다.<span class="fn">현행 문장 <code>App/CorrectionWorkspace.swift:151</code>.</span></p>
+
+  <h3>03-3 Markdown 내보내기</h3>
+  <ul>
+    <li>«## AI 교정 정보» 목록에서 «- 원문·시간·화자 경계 보존. …» 줄 다음에, N ≥ 1이면 문구 4 한 줄.</li>
+    <li>각 문단(«### [시작 – 끝] 이름») 아래 기존 AI 교정 줄들 다음에, 그 문단에 버린 원구간이 있으면 «&gt; AI 검증 실패: » + 문구 2 (+ 2개 이상이면 문구 2a) 한 줄과 빈 줄.<span class="fn">현행 형식 «&gt; AI {상태}: {이유}» <code>LibraryScript.swift:259–262</code>, 머리 목록 <code>:237–241</code>.</span></li>
+    <li>상태가 failed면 <code>rejectedTurns</code>가 비어 있어 아무 줄도 생기지 않는다.</li>
+  </ul>
+
+  <h3>03-4 바뀌지 않는 것</h3>
+  <ul>
+    <li>읽기 본문(문단 텍스트·경고 줄), 진행 표시, 하단 미완료 줄, 확인창.</li>
+    <li>실패 안내 띠 8종. «형식» 문구는 이제 02-1의 청크 실패에서만 뜬다.</li>
+    <li>검수 이슈 6종(<code>ambiguous_speaker</code> · <code>overlapping_speech</code> · <code>missing_speech</code> · <code>boundary_conflict</code> · <code>capture_interrupted</code> · <code>result_expired</code>) 문구는 이 유닛에서 바뀌지 않는다.</li>
+  </ul>
+</section>
+
+<section class="sec" id="s-spec">
+  <div class="rule"><span class="no">04</span><h2>규격</h2></div>
+  <h3>문구</h3>
+  <div class="twrap"><table>
+    <tr><th style="width:44px">#</th><th style="width:210px">자리</th><th>문구</th><th style="width:150px">상태</th></tr>
+    <tr><td>1</td><td>구간 정보 첫 줄</td><td>원문 유지 · AI 응답 검증 실패</td><td>신규<span class="fn">«원문 유지»는 확정 표기 <code>ssot/tone/uiux-reading.md:52</code>.</span></td></tr>
+    <tr><td>2</td><td>구간 정보 둘째 줄 · Markdown 문단 줄 본문</td><td>AI 응답이 이 문단의 원문과 맞지 않아 쓰지 않았습니다.</td><td>신규</td></tr>
+    <tr><td>2a</td><td>버린 원구간 2개 이상일 때 덧붙임</td><td> ({k}개 원구간)</td><td>신규<span class="fn">«원구간» 표기 = 현행 «연결된 원구간 N개» <code>UI/ScriptReadingView.swift:238</code>.</span></td></tr>
+    <tr><td>3</td><td>완료 안내 띠 덧붙임</td><td>AI 응답이 원문과 맞지 않은 {N}개 원구간은 원문을 유지했습니다.</td><td>신규</td></tr>
+    <tr><td>4</td><td>Markdown «AI 교정 정보» 목록</td><td>- 검증 실패로 원문 유지: {N}개 원구간</td><td>신규</td></tr>
+    <tr><td>5</td><td>Markdown 문단 줄 접두</td><td>&gt; AI 검증 실패: </td><td>신규</td></tr>
+  </table></div>
+
+  <h3>값</h3>
+  <div class="twrap"><table>
+    <tr><th style="width:210px">조각</th><th>값</th></tr>
+    <tr><td>규칙 코드</td><td><code>quote</code> · <code>overlap</code> · <code>text</code> · <code>limit</code> · <code>reason</code> · <code>other</code> (신규 6개)</td></tr>
+    <tr><td>엔진 버전</td><td><code>context-correction-7</code> (D-01 ⓐ · 신규) / <code>context-correction-6</code> (ⓑ)</td></tr>
+    <tr><td>상한</td><td>지금과 같음. Turn text·대체 문자열 max(256, 원문×3)자 · 이유 600자 · change/unresolved 각 100개 · 응답 2 MB (계약상 초기 자원 한도)</td></tr>
+    <tr><td>청크 경계</td><td>지금과 같음. 5분 · 100발화 · 16k자 (초기 자원 한도)<span class="fn"><code>library-script.md:200</code> · <code>ScriptCorrection.swift:119</code>.</span></td></tr>
+  </table></div>
+
+  <h3>검산 자</h3>
+  <div class="twrap"><table>
+    <tr><th style="width:44px">#</th><th style="width:150px">축</th><th>자</th><th style="width:170px">모집단 · 문턱</th></tr>
+    <tr><td>1</td><td>Turn 격리</td><td>합성 청크(3 Turn) 중 1개만 규칙 위반 → 나머지 2 Turn은 지금 판정대로 결과가 나오고, 버린 Turn 1개의 규칙 코드가 위반 규칙과 같다.</td><td>규칙 6종 각 1사례 + 위반 없음 1사례 · 전부 일치</td></tr>
+    <tr><td>2</td><td>청크 실패 유지</td><td>해독 실패 · id 순서 불일치 · id 개수 불일치 · 필수 배열 누락 → 청크 실패(형식), 결과 기록 없음.</td><td>4사례 · 전부 형식</td></tr>
+    <tr><td>3</td><td>저장</td><td>
+      <ul>
+        <li><code>rejectedTurns</code> 없는 기존 파일: 해독·재인코딩 바이트 동일</li>
+        <li>저장 검증 위반 4종(발화 밖 ID · 중복 · <code>edits</code>와 겹침 · 모르는 규칙) → 손상</li>
+      </ul></td><td>기존 합성 fixture + 합성 4 · 전부</td></tr>
+    <tr><td>4</td><td>시도 기록</td><td>버린 Turn이 끝난 청크 결과에 남고 합칠 때 모인다 · 이어서 교정 때 다시 보내지 않는다 · 선택 필드 없는 기존 시도 기록이 해독된다.</td><td>합성 · 전부</td></tr>
+    <tr><td>5</td><td>재반영</td><td>«저장된 AI 교정 반영» 뒤 <code>rejectedTurns</code>가 같다.</td><td>합성 1 · 일치</td></tr>
+    <tr><td>6</td><td>화면·Markdown 문구</td><td>구간 정보·완료 띠·Markdown 문구가 04 문구표와 글자 그대로 같다. N = 0이면 완료 띠·Markdown이 현행과 바이트 동일.</td><td>합성 · 전부</td></tr>
+    <tr><td>7</td><td>역뮤테이션</td><td>Turn 실패를 청크 실패로 되돌리면 축 1이 붉어진다. 원본 바이트 보관·복원, 해시 대조.</td><td>1회 · 붉음 건수 기록</td></tr>
+    <tr><td>8</td><td>회귀</td><td>check.sh 1–4 PASS · swift test 수 ≥ 343 + 신규 · 기존 테스트 삭제·완화 0. D-01 ⓐ면 버전 단정 2곳의 기대값만 옮긴다.<span class="fn">기준선 <code>run-20261107T054209Z-rLUe93</code> 343 통과 + 2 skipped. 버전 단정 <code>MeaningGuardTests.swift:67</code> · <code>:106</code>.</span></td><td>문턱 = 실패 0</td></tr>
+    <tr><td>9</td><td>실데이터 (게이트 ②)</td><td>설치 앱으로 30–40분 결합본 1개를 사용자가 교정 1회 → 완료 여부, 버린 Turn 수, 규칙 코드 분포(개수만)를 메인이 메타데이터로 잰다. 이어서 묶음 3 ①의 원음 대조로 넘어간다.</td><td>1회 · 문턱 없음(모델 응답에 달림)</td></tr>
+  </table></div>
+  <h4>안 잼</h4>
+  <ul>
+    <li>교정 품질(맞음·틀림): 묶음 3 ① 대조표 몫</li>
+    <li>인용 불일치의 원인과 Turn 실패율 변화</li>
+    <li>새 문장의 키보드·VoiceOver 청취(묶음 5)</li>
+    <li>다른 공급자(T4-5)</li>
+  </ul>
+</section>
+
+<section class="sec" id="s-impact">
+  <div class="rule"><span class="no">05</span><h2>시스템 영향</h2></div>
+  <h3>재사용</h3>
+  <ul>
+    <li>청크 계획 <code>CorrectionPlan.chunks</code> · 계획 해시</li>
+    <li>Codex 어댑터 <code>CodexCorrectionClient</code>(인자·stderr 분류·출력 검사)</li>
+    <li>실패 분류 8종과 안내 띠, 시도 기록 저장소, 이어서 교정 판단</li>
+    <li>수정별 판정 ①–④와 의미 보호 <code>MeaningGuard</code>, 이름 검증</li>
+  </ul>
+  <h3>변경 (이전 → 이후)</h3>
+  <ul>
+    <li><code>ContextCorrection.validated</code>: Turn 하나의 검증 실패가 청크 전체를 throw → id 검사는 그대로 두고, Turn 검증 실패는 그 Turn을 버린 목록으로 돌려 나머지를 계속 판정. 반환값에 버린 목록 추가.<span class="fn"><code>ScriptCorrection.swift:173–216</code>.</span></li>
+    <li><code>CorrectionSpans.validated</code>: 일반 <code>invalidScript</code> → 규칙 코드를 알 수 있는 실패.<span class="fn"><code>CorrectionSpans.swift:40–80</code>.</span></li>
+    <li><code>CorrectionChunkResult</code> · <code>CorrectionAttempt.merged</code>: 버린 목록 선택 필드와 합치기.<span class="fn"><code>CorrectionAttempt.swift:34–38</code> · <code>:87–99</code>.</span></li>
+    <li><code>ScriptCorrection</code>: <code>rejectedTurns</code> 선택 필드와 저장 검증(D-02 ⓐ).<span class="fn"><code>ScriptCorrection.swift:29–55</code>.</span></li>
+    <li><code>ContextCorrection.version</code>: 6 → 7 (D-01 ⓐ).</li>
+    <li><code>CorrectionRunner.run</code>: 검증 결과의 버린 목록을 청크 결과에 기록.<span class="fn"><code>CorrectionRunner.swift:107–113</code>.</span></li>
+    <li><code>CorrectionWorkspace</code>: 완료 때 <code>rejectedTurns</code> 저장, 실패 때 비움, 완료 문장에 문구 3.<span class="fn"><code>App/CorrectionWorkspace.swift:142–158</code>.</span></li>
+    <li><code>ContextCorrection.reapplyingPending</code>: <code>rejectedTurns</code>를 새 결과로 옮김.</li>
+    <li>구간 정보(<code>UI/ScriptReadingView.swift</code>)와 Markdown(<code>LibraryScript.swift</code>): 03 문장 추가.</li>
+    <li>계약 <code>ssot/contracts/library-script.md</code>: 아래 개정 문안 5곳(D-01, <code>/build</code>가 반영).</li>
+    <li>테스트: D-01 ⓐ면 <code>MeaningGuardTests.swift:67</code> · <code>:106</code> 기대값을 v7로 옮김(형태·건수 유지, 역뮤테이션 1회).</li>
+  </ul>
+  <h3>신규</h3>
+  <ul>
+    <li><code>CorrectionRejectedTurn</code>(<code>turnID</code>, <code>rule</code>)과 규칙 코드 6개</li>
+    <li>검산 자 1–7의 단위 테스트</li>
+  </ul>
+  <p><span class="then">진단 테스트 <code>CorrectionFormatProbeTests</code>는 이 유닛에서 바꾸지 않는다.</span></p>
+
+  <h3>계약 개정 문안 (D-01 · 5곳)</h3>
+  <ol>
+    <li><code>library-script.md:215</code> 첫 문장 «인용이 없거나 빈 인용·음수/초과 위치·중첩 수정·전체 제안 text와 수정 재구성의 불일치는 응답 실패다.» → «인용이 없거나 빈 인용·음수/초과 위치·중첩 수정·전체 제안 text와 수정 재구성의 불일치는 그 Turn의 응답 실패다. 그 Turn은 편집 기록 없이 원문을 유지하고 `rejectedTurns`에 Turn ID와 규칙 코드(quote·overlap·text·limit·reason·other)를 남기며, 같은 청크의 다른 Turn 검증·판정·반영은 계속한다. Turn text·이유 길이와 change/unresolved 개수 상한 초과도 그 Turn의 실패다. 응답 해독 실패·Turn id 순서/개수 불일치·`changes`/`unresolved` 누락은 청크 실패(형식)다.» 나머지 문장은 그대로.</li>
+    <li><code>library-script.md:194</code> «…화자 이름/자기소개 인용, 완료/전체 청크 수를 보존한다.» → «…화자 이름/자기소개 인용, 완료/전체 청크 수, 검증 실패로 원문을 유지한 Turn ID와 규칙 코드(`rejectedTurns`, 없으면 키 생략)를 보존한다.»</li>
+    <li><code>library-script.md:206</code> «끝난 청크의 검증된 결과» → «끝난 청크의 검증된 결과(검증 실패 Turn 포함)».</li>
+    <li><code>library-script.md:188</code> 끝에 «검증 실패 Turn 기록은 그대로 옮긴다.» 한 문장.</li>
+    <li><code>library-script.md:181</code> 다음 줄 신설 «- `context-correction-7` (2026-11-07 correction-turn-isolation): 수정별 판정 순서와 의미 보호는 v6 그대로, 응답 검증 실패를 Turn 단위로 격리한다(아래 응답 실패 문단).» D-01 ⓑ면 이 줄은 넣지 않는다.</li>
+  </ol>
+  <p><span class="then">고치지 않는 것: <code>:196</code>(모든 소유 Turn ID가 순서대로 정확히 한 번 반환) · <code>:200</code>(청크 경계·자원 한도) · <code>:205</code>(모든 청크 성공 후 적용) · <code>CLAUDE.md</code> 최상위 경계 4.</span></p>
+</section>
+
+<section class="sec" id="s-fn">
+  <div class="rule"><span class="no">주</span><h2>각주 · 근거</h2></div>
+  <!--__FOOTNOTES__-->
+  <details class="audit">
+    <summary>참조 근거 (읽은 목록)</summary>
+    <div class="body">
+      <div class="twrap"><table>
+        <tr><th style="width:280px">문서·코드</th><th>확인한 것</th></tr>
+        <tr><td>규율 메모리 15종</td><td>rule-purpose-first · rule-ambiguous-instructions · rule-scope-stop · rule-gate-hygiene · rule-measurement · rule-negative-claims · rule-carryover-remeasure · rule-verify-at-consumption · rule-delegation-artifacts · rule-destructive-writes · rule-shared-tree-commits · rule-numeric-test-integrity · rule-external-media-verify · rule-longrun-watchdog · rule-branch-base-is-main (2026-11-07 같은 세션 /ship에서 로드)</td></tr>
+        <tr><td><code>ssot/doc-template/README.md</code> · <code>template.src.html</code></td><td>양식·판정 블록·각주 규칙</td></tr>
+        <tr><td><code>ssot/design/00_README.md</code></td><td>하이브리드 채택. 02·03·04는 정본, 01만 재확정 대상. 이 유닛은 설계 02·03·04를 바꾸지 않는다</td></tr>
+        <tr><td><code>ssot/api/pyannote-verified.md</code></td><td>머리 확인. 이 유닛 외부 API 호출 0</td></tr>
+        <tr><td><code>ssot/tone/usage-bundle1.md</code> · <code>uiux-reading.md</code> · <code>library-workspace.md</code></td><td>교정 실패 안내 띠 8종·하단 줄·이어하기 불가 문구, «원문 유지» 등 교정 상태 표기</td></tr>
+        <tr><td><code>ssot/contracts/library-script.md</code> :181 · :186 · :188 · :194 · :195 · :196 · :200 · :203 · :205 · :206 · :214 · :215</td><td>AI 교정 정책·응답 실패 정의·저장 필드·시도 기록·자원 한도</td></tr>
+        <tr><td><code>ScriptCorrection.swift</code> · <code>CorrectionSpans.swift</code> · <code>CorrectionAttempt.swift</code> · <code>CorrectionReapplication.swift</code></td><td>검증 순서와 throw 지점, 저장 검증, 청크 결과·합치기, 재반영이 옮기는 값</td></tr>
+        <tr><td><code>CorrectionRunner.swift</code> · <code>CodexCorrectionClient.swift</code></td><td>형식 실패 두 자리(어댑터·검증), 엔진 일치 조건</td></tr>
+        <tr><td><code>App/CorrectionWorkspace.swift</code> · <code>UI/ScriptReadingView.swift</code> · <code>LibraryScript.swift</code></td><td>완료·실패 처리와 문장, 구간 정보 교정 항목, Markdown 교정 줄</td></tr>
+        <tr><td><code>notes/usage-review/correction-measure.md</code> · <code>decisions.md</code></td><td>측정 실행·진단 결과, 묶음 3 순서 변경</td></tr>
+      </table></div>
+    </div>
+  </details>
+  <p class="note">r1 (11.07) 초판.</p>
+</section>
+
+<div style="height:140px"></div>
+</div>
+
+<script>
+// 00 판정 블록: 고른 선택지·메모로 MD 회신을 만든다 (data-state="open" 일 때만)
+(function(){
+  const v = document.getElementById('s-verdict');
+  if (!v || v.dataset.state !== 'open') return;
+  const md = v.querySelector('pre.md'), ok = v.querySelector('.ok');
+  const items = [...v.querySelectorAll('.vitem')];
+  const d = new Date();
+  const date = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  function build(){
+    const L = ['## ' + v.dataset.unit + ' 스펙 ' + v.dataset.round + ' · 게이트 ' + v.dataset.gate + ' 회신 (' + date + ')', ''];
+    items.forEach(it => {
+      const k = it.dataset.k;
+      const sel = it.querySelector('input[type=radio]:checked');
+      const memoEl = it.querySelector('input[type=text]');
+      const memo = memoEl ? memoEl.value.trim() : '';
+      const title = it.querySelector('.vt').textContent.replace(k, '').trim();
+      L.push('- ' + k + ' ' + title + ': ' + (sel ? sel.value : '(미선택)') + (memo ? ' · ' + memo : ''));
+    });
+    md.textContent = L.join('\n');
+  }
+  v.addEventListener('input', build);
+  v.querySelector('[data-act=copy]').onclick = async () => {
+    build();
+    try { await navigator.clipboard.writeText(md.textContent); ok.textContent = '복사됨.'; }
+    catch { const r = document.createRange(); r.selectNodeContents(md); const s = getSelection(); s.removeAllRanges(); s.addRange(r); ok.textContent = '클립보드 권한 없음. 선택된 텍스트를 복사하면 된다.'; }
+  };
+  v.querySelector('[data-act=reset]').onclick = () => {
+    items.forEach(it => { const r = it.querySelector('input[type=radio]'); if (r) r.checked = true; const m = it.querySelector('input[type=text]'); if (m) m.value = ''; });
+    build(); ok.textContent = '초기화됨.';
+  };
+  build();
+})();
+
+// 각주 팝오버: 번호 클릭 → 마커 우상단에 상자. 바깥 클릭·ESC·재클릭·스크롤에 닫힌다
+(function(){
+  let pop = null, cur = null;
+  function close(){ if (pop) pop.remove(); pop = null; if (cur) cur.classList.remove('open'); cur = null; }
+  document.querySelectorAll('sup.fn a[data-fn]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    if (cur === a) { close(); return; }
+    close();
+    const src = document.getElementById('fn-' + a.dataset.fn);
+    if (!src) return;
+    const t = src.querySelector('.t');
+    pop = document.createElement('div'); pop.className = 'pop';
+    pop.innerHTML = '<span class="pn">' + a.dataset.fn + '</span>' + (t ? t.innerHTML : src.innerHTML);
+    document.body.appendChild(pop);
+    const r = a.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = r.left + scrollX - 8, top = r.top + scrollY - ph - 10, below = false;
+    if (left + pw > scrollX + innerWidth - 12) left = scrollX + innerWidth - 12 - pw;
+    if (left < scrollX + 12) left = scrollX + 12;
+    if (r.top - ph - 10 < 8) { top = r.bottom + scrollY + 10; below = true; }
+    pop.style.left = left + 'px'; pop.style.top = top + 'px'; pop.classList.toggle('below', below);
+    cur = a; a.classList.add('open');
+  }));
+  document.addEventListener('click', e => { if (pop && !pop.contains(e.target) && !e.target.closest('sup.fn')) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  addEventListener('scroll', () => { if (pop) close(); }, {passive:true});
+})();
+
+// 데스크탑 실척 스테이지: 컨테이너 폭 / 1440 비율로 가상 뷰포트를 축소한다
+(function(){
+  const fit = () => document.querySelectorAll('.deskstage').forEach(st => {
+    st.querySelectorAll(':scope > .deskvp').forEach(vp => vp.style.setProperty('--ds', st.clientWidth / 1440));
+  });
+  addEventListener('resize', fit);
+  addEventListener('DOMContentLoaded', fit);
+  fit();
+})();
+</script>
+
+</body>
+</html>
