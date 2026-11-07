@@ -241,61 +241,30 @@ details.audit table{font-size:12.5px}
   <p class="sub">AI 응답에서 검증을 통과하지 못한 Turn 하나가 청크 전체를 버리게 하던 규칙을 바꾼다. 그 Turn만 원문을 유지하고 같은 청크의 다른 Turn은 지금 규칙대로 검증·반영하며, 버린 Turn과 걸린 규칙을 본문 없이 남긴다.<sup class="fn" id="fnr-1"><a href="#fn-1" data-fn="1">1</a></sup></p>
 </header>
 
-<section class="verdict" id="s-verdict" data-unit="correction-turn-isolation" data-round="r1" data-gate="①" data-state="open">
-  <div class="vh"><h2>판정</h2><span class="cnt">열린 결정 2 · 판정 축 3</span><span class="stamp">게이트 ① 컨펌 M.DD</span></div>
+<section class="verdict" id="s-verdict" data-unit="correction-turn-isolation" data-round="r1" data-gate="①" data-state="closed">
+  <div class="vh"><h2>판정</h2><span class="cnt">결정 2 · 판정 축 3 · 전부 확정</span><span class="stamp">게이트 ① 컨펌 11.07</span></div>
   <div class="vb">
     <div class="vitem" data-k="D-01">
       <div class="vt"><span class="id">D-01</span>계약 개정 문안과 엔진 버전 (§05)</div>
-      <p class="vq">컨펌된 계약의 «응답 실패»를 «그 Turn의 응답 실패»로 바꾸는 <code>library-script.md</code> 5곳 문안이다. 엔진 버전을 <code>context-correction-7</code>로 올리면 저장된 교정이 Turn 격리로 만들어졌는지 엔진 문자열로 가릴 수 있다. 대신 v6로 시작한 미완료 시도 1건은 «이어서 교정»이 안 된다(끝난 청크 0개). 정책·화면 절은 어느 쪽이든 같다.<sup class="fn" id="fnr-2"><a href="#fn-2" data-fn="2">2</a></sup></p>
-      <div class="opts">
-        <label><input type="radio" name="D-01" value="ⓐ §05 문안대로 · 엔진 v7 (권고)" checked>ⓐ §05 문안대로 · 엔진 v7 (권고)</label>
-        <label><input type="radio" name="D-01" value="ⓑ §05 문안대로 · 엔진 v6 유지">ⓑ §05 문안대로 · 엔진 v6 유지</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="문안을 고치려면 어디를 어떻게"></div>
+      <p class="vq">ⓐ 확정. §05 문안 5곳대로 계약을 개정하고 엔진 버전을 <code>context-correction-7</code>로 올린다. v6로 시작한 미완료 시도 1건(끝난 청크 0개)은 «이어서 교정» 대신 처음부터 다시 실행한다.<sup class="fn" id="fnr-2"><a href="#fn-2" data-fn="2">2</a></sup></p>
     </div>
     <div class="vitem" data-k="D-02">
       <div class="vt"><span class="id">D-02</span>버린 Turn을 남기는 방식 (§02-3)</div>
-      <p class="vq">ⓐ는 교정 기록에 선택 필드 <code>rejectedTurns</code>(Turn ID와 규칙 코드)를 더한다. 기존 파일은 그대로 열리고 다시 저장해도 바이트가 같다. ⓑ는 새 필드 없이 기존 편집 기록에 «원문 유지»로 넣는다. 이 경우 구간 정보의 «AI 후보:»와 Markdown의 «교정안:»에 원문이 그대로 찍히고, 기존의 «불확실해 원문 유지» 기록과 모양이 같아 구분되지 않는다. 화면 절 문구는 ⓐ 기준이다.<sup class="fn" id="fnr-3"><a href="#fn-3" data-fn="3">3</a></sup></p>
-      <div class="opts">
-        <label><input type="radio" name="D-02" value="ⓐ 선택 필드 rejectedTurns (권고)" checked>ⓐ 선택 필드 rejectedTurns (권고)</label>
-        <label><input type="radio" name="D-02" value="ⓑ 기존 편집 기록에 원문 유지로">ⓑ 기존 편집 기록에 원문 유지로</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="메모 (선택)"></div>
+      <p class="vq">ⓐ 확정. 버린 Turn은 교정 기록의 선택 필드 <code>rejectedTurns</code>(Turn ID와 규칙 코드)로 남긴다. 비어 있으면 키를 쓰지 않아 기존 파일은 그대로 열리고 다시 저장해도 바이트가 같다.<sup class="fn" id="fnr-3"><a href="#fn-3" data-fn="3">3</a></sup></p>
     </div>
     <div class="vitem" data-k="①">
       <div class="vt"><span class="id">①</span>정책 (§02)</div>
-      <p class="vq">무엇이 청크 실패로 남고 무엇이 Turn 실패가 되는지, 청크 안 Turn이 전부 실패해도 청크를 성공으로 세는지, 버린 Turn을 다시 보내지 않는지를 본다.</p>
-      <div class="opts">
-        <label><input type="radio" name="①" value="확정" checked>확정</label>
-        <label><input type="radio" name="①" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. §02 그대로.</p>
     </div>
     <div class="vitem" data-k="②">
       <div class="vt"><span class="id">②</span>화면·문구 (§03 · §04)</div>
-      <p class="vq">구간 정보 항목 1개, 완료 안내 띠 덧붙임 1문장, Markdown 줄 2종, 신규 문구 5개를 본다. 새 버튼은 없다.</p>
-      <div class="opts">
-        <label><input type="radio" name="②" value="확정" checked>확정</label>
-        <label><input type="radio" name="②" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. §03 화면과 §04 문구표(신규 5개 + 덧붙임 2a) 그대로.</p>
     </div>
     <div class="vitem" data-k="③">
       <div class="vt"><span class="id">③</span>검산 자 (§04)</div>
-      <p class="vq">축 9개와 «안 잼» 목록을 본다. 실데이터 확인은 게이트 ②에서 사용자가 설치 앱으로 1회 실행한다.</p>
-      <div class="opts">
-        <label><input type="radio" name="③" value="확정" checked>확정</label>
-        <label><input type="radio" name="③" value="수정">수정</label>
-      </div>
-      <div class="memo"><input type="text" placeholder="수정이면 어디를 어떻게"></div>
+      <p class="vq">확정. §04 검산 자 9축과 «안 잼» 그대로. 실데이터 확인은 게이트 ②에서 사용자가 설치 앱으로 1회 실행한다.</p>
     </div>
   </div>
-  <div class="vfoot">
-    <button class="btn fill sm" type="button" data-act="copy">MD 복사</button>
-    <button class="btn line sm" type="button" data-act="reset">초기화</button>
-    <span class="ok">고른 대로 아래 회신이 만들어진다. 복사해 채팅에 붙이면 된다.</span>
-  </div>
-  <pre class="md"></pre>
 </section>
 </div>
 
@@ -373,7 +342,7 @@ details.audit table{font-size:12.5px}
   <h3>02-2 Turn 실패의 처리</h3>
   <ol>
     <li>그 Turn은 편집 기록을 만들지 않는다. 본문은 지금 표시 우선순위(사람 수정 → 적용된 AI 교정 → 원문) 그대로이므로 원문(사람 수정이 있으면 사람 수정)이 보인다.</li>
-    <li><code>rejectedTurns</code>에 항목 1개(<code>turnID</code>, <code>rule</code>)를 남긴다(D-02 ⓐ).</li>
+    <li><code>rejectedTurns</code>에 항목 1개(<code>turnID</code>, <code>rule</code>)를 남긴다(D-02).</li>
     <li>같은 청크의 다른 Turn은 지금 규칙대로 검증하고, 수정별 판정(<code>context-correction-6</code> ①–④)과 의미 보호를 그대로 적용한다.</li>
     <li>이름 매핑(참석자 목록 + 자기소개 인용)은 지금처럼 청크의 원문 Turn으로 따로 검증한다. Turn 실패와 관계없다.</li>
     <li>청크는 성공으로 센다. 청크 안 Turn이 전부 실패해도 성공이고, 완료 안내 띠에 버린 수가 보인다(03-2).</li>
@@ -382,7 +351,7 @@ details.audit table{font-size:12.5px}
   </ol>
   <p><span class="then">근거 = 표시 우선순위 <code>library-script.md:195</code>, 적용 시점 <code>:205</code>, 이어서 교정 <code>:206</code>, 이름 검증 <code>ScriptCorrection.swift:203–214</code>.</span></p>
 
-  <h3>02-3 저장 (D-02 ⓐ 기준)</h3>
+  <h3>02-3 저장 (D-02)</h3>
   <ul>
     <li><code>ScriptCorrection.rejectedTurns</code>: 선택 배열. 항목 = <code>turnID</code>(문자열) · <code>rule</code>(<code>quote</code> · <code>overlap</code> · <code>text</code> · <code>limit</code> · <code>reason</code> · <code>other</code>). 비어 있으면 nil로 두어 키를 쓰지 않는다. 그래서 기존 파일은 그대로 열리고 다시 저장해도 바이트가 같다.</li>
     <li>저장 검증(<code>validate</code>)에 더한다: turnID는 발화 Turn ID 안, 중복 없음, <code>edits</code>의 turnID와 겹치지 않음, rule은 6개 중 하나. 어기면 지금처럼 손상(<code>invalidScript</code>)이다.</li>
@@ -391,12 +360,10 @@ details.audit table{font-size:12.5px}
     <li>«저장된 AI 교정 반영»은 <code>rejectedTurns</code>를 그대로 옮긴다. 버린 Turn은 다시 판정하지 않는다.<sup class="fn" id="fnr-8"><a href="#fn-8" data-fn="8">8</a></sup></li>
     <li>교정 뒤 사람이 그 Turn을 고치거나 지워도 <code>rejectedTurns</code>는 교정 시점 기록으로 그대로 둔다. 본문 표시는 사람 수정을 따른다.</li>
   </ul>
-  <p>D-02 ⓑ면: 버린 Turn을 <code>CorrectionEdit</code>(text = 원문, applied = false, changes·unresolved·appliedText = nil, 이유 = 문구 2)로 넣는다. 새 필드와 저장 검증 추가는 없고, 규칙 코드는 이유 문자열 끝 괄호로만 남는다.</p>
 
   <h3>02-4 엔진 버전 (D-01)</h3>
   <ul>
-    <li>ⓐ: <code>ContextCorrection.version</code> <code>context-correction-6</code> → <code>context-correction-7</code>. 수정별 판정 순서와 의미 보호는 v6 그대로이고, 바뀌는 것은 응답 검증 실패의 단위뿐이다. v6로 시작한 미완료 시도는 «이어서 교정» 대신 기존 문구 «스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.»가 뜬다. 실데이터 해당 1건, 끝난 청크 0개.<sup class="fn" id="fnr-9"><a href="#fn-9" data-fn="9">9</a></sup></li>
-    <li>ⓑ: v6 유지. 위 영향은 없고, Turn 격리가 적용됐는지는 <code>rejectedTurns</code> 키 유무로만 보인다(버린 Turn 0개면 구분 불가).</li>
+    <li><code>ContextCorrection.version</code> <code>context-correction-6</code> → <code>context-correction-7</code>. 수정별 판정 순서와 의미 보호는 v6 그대로이고, 바뀌는 것은 응답 검증 실패의 단위뿐이다. v6로 시작한 미완료 시도는 «이어서 교정» 대신 기존 문구 «스크립트가 바뀌어 이어서 교정할 수 없습니다. AI 검수/보정으로 처음부터 다시 실행해 주세요.»가 뜬다. 실데이터 해당 1건, 끝난 청크 0개.<sup class="fn" id="fnr-9"><a href="#fn-9" data-fn="9">9</a></sup></li>
   </ul>
 </section>
 
@@ -447,7 +414,7 @@ details.audit table{font-size:12.5px}
   <div class="twrap"><table>
     <tr><th style="width:210px">조각</th><th>값</th></tr>
     <tr><td>규칙 코드</td><td><code>quote</code> · <code>overlap</code> · <code>text</code> · <code>limit</code> · <code>reason</code> · <code>other</code> (신규 6개)</td></tr>
-    <tr><td>엔진 버전</td><td><code>context-correction-7</code> (D-01 ⓐ · 신규) / <code>context-correction-6</code> (ⓑ)</td></tr>
+    <tr><td>엔진 버전</td><td><code>context-correction-7</code> (D-01 · 신규)</td></tr>
     <tr><td>상한</td><td>지금과 같음. Turn text·대체 문자열 max(256, 원문×3)자 · 이유 600자 · change/unresolved 각 100개 · 응답 2 MB (계약상 초기 자원 한도)</td></tr>
     <tr><td>청크 경계</td><td>지금과 같음. 5분 · 100발화 · 16k자 (초기 자원 한도)<sup class="fn" id="fnr-15"><a href="#fn-15" data-fn="15">15</a></sup></td></tr>
   </table></div>
@@ -466,7 +433,7 @@ details.audit table{font-size:12.5px}
     <tr><td>5</td><td>재반영</td><td>«저장된 AI 교정 반영» 뒤 <code>rejectedTurns</code>가 같다.</td><td>합성 1 · 일치</td></tr>
     <tr><td>6</td><td>화면·Markdown 문구</td><td>구간 정보·완료 띠·Markdown 문구가 04 문구표와 글자 그대로 같다. N = 0이면 완료 띠·Markdown이 현행과 바이트 동일.</td><td>합성 · 전부</td></tr>
     <tr><td>7</td><td>역뮤테이션</td><td>Turn 실패를 청크 실패로 되돌리면 축 1이 붉어진다. 원본 바이트 보관·복원, 해시 대조.</td><td>1회 · 붉음 건수 기록</td></tr>
-    <tr><td>8</td><td>회귀</td><td>check.sh 1–4 PASS · swift test 수 ≥ 343 + 신규 · 기존 테스트 삭제·완화 0. D-01 ⓐ면 버전 단정 2곳의 기대값만 옮긴다.<sup class="fn" id="fnr-16"><a href="#fn-16" data-fn="16">16</a></sup></td><td>문턱 = 실패 0</td></tr>
+    <tr><td>8</td><td>회귀</td><td>check.sh 1–4 PASS · swift test 수 ≥ 343 + 신규 · 기존 테스트 삭제·완화 0. 버전 단정 2곳의 기대값만 옮긴다.<sup class="fn" id="fnr-16"><a href="#fn-16" data-fn="16">16</a></sup></td><td>문턱 = 실패 0</td></tr>
     <tr><td>9</td><td>실데이터 (게이트 ②)</td><td>설치 앱으로 30–40분 결합본 1개를 사용자가 교정 1회 → 완료 여부, 버린 Turn 수, 규칙 코드 분포(개수만)를 메인이 메타데이터로 잰다. 이어서 묶음 3 ①의 원음 대조로 넘어간다.</td><td>1회 · 문턱 없음(모델 응답에 달림)</td></tr>
   </table></div>
   <h4>안 잼</h4>
@@ -492,14 +459,14 @@ details.audit table{font-size:12.5px}
     <li><code>ContextCorrection.validated</code>: Turn 하나의 검증 실패가 청크 전체를 throw → id 검사는 그대로 두고, Turn 검증 실패는 그 Turn을 버린 목록으로 돌려 나머지를 계속 판정. 반환값에 버린 목록 추가.<sup class="fn" id="fnr-17"><a href="#fn-17" data-fn="17">17</a></sup></li>
     <li><code>CorrectionSpans.validated</code>: 일반 <code>invalidScript</code> → 규칙 코드를 알 수 있는 실패.<sup class="fn" id="fnr-18"><a href="#fn-18" data-fn="18">18</a></sup></li>
     <li><code>CorrectionChunkResult</code> · <code>CorrectionAttempt.merged</code>: 버린 목록 선택 필드와 합치기.<sup class="fn" id="fnr-19"><a href="#fn-19" data-fn="19">19</a></sup></li>
-    <li><code>ScriptCorrection</code>: <code>rejectedTurns</code> 선택 필드와 저장 검증(D-02 ⓐ).<sup class="fn" id="fnr-20"><a href="#fn-20" data-fn="20">20</a></sup></li>
-    <li><code>ContextCorrection.version</code>: 6 → 7 (D-01 ⓐ).</li>
+    <li><code>ScriptCorrection</code>: <code>rejectedTurns</code> 선택 필드와 저장 검증(D-02).<sup class="fn" id="fnr-20"><a href="#fn-20" data-fn="20">20</a></sup></li>
+    <li><code>ContextCorrection.version</code>: 6 → 7 (D-01).</li>
     <li><code>CorrectionRunner.run</code>: 검증 결과의 버린 목록을 청크 결과에 기록.<sup class="fn" id="fnr-21"><a href="#fn-21" data-fn="21">21</a></sup></li>
     <li><code>CorrectionWorkspace</code>: 완료 때 <code>rejectedTurns</code> 저장, 실패 때 비움, 완료 문장에 문구 3.<sup class="fn" id="fnr-22"><a href="#fn-22" data-fn="22">22</a></sup></li>
     <li><code>ContextCorrection.reapplyingPending</code>: <code>rejectedTurns</code>를 새 결과로 옮김.</li>
     <li>구간 정보(<code>UI/ScriptReadingView.swift</code>)와 Markdown(<code>LibraryScript.swift</code>): 03 문장 추가.</li>
     <li>계약 <code>ssot/contracts/library-script.md</code>: 아래 개정 문안 5곳(D-01, <code>/build</code>가 반영).</li>
-    <li>테스트: D-01 ⓐ면 <code>MeaningGuardTests.swift:67</code> · <code>:106</code> 기대값을 v7로 옮김(형태·건수 유지, 역뮤테이션 1회).</li>
+    <li>테스트: <code>MeaningGuardTests.swift:67</code> · <code>:106</code> 기대값을 v7로 옮김(형태·건수 유지, 역뮤테이션 1회).</li>
   </ul>
   <h3>신규</h3>
   <ul>
@@ -514,7 +481,7 @@ details.audit table{font-size:12.5px}
     <li><code>library-script.md:194</code> «…화자 이름/자기소개 인용, 완료/전체 청크 수를 보존한다.» → «…화자 이름/자기소개 인용, 완료/전체 청크 수, 검증 실패로 원문을 유지한 Turn ID와 규칙 코드(`rejectedTurns`, 없으면 키 생략)를 보존한다.»</li>
     <li><code>library-script.md:206</code> «끝난 청크의 검증된 결과» → «끝난 청크의 검증된 결과(검증 실패 Turn 포함)».</li>
     <li><code>library-script.md:188</code> 끝에 «검증 실패 Turn 기록은 그대로 옮긴다.» 한 문장.</li>
-    <li><code>library-script.md:181</code> 다음 줄 신설 «- `context-correction-7` (2026-11-07 correction-turn-isolation): 수정별 판정 순서와 의미 보호는 v6 그대로, 응답 검증 실패를 Turn 단위로 격리한다(아래 응답 실패 문단).» D-01 ⓑ면 이 줄은 넣지 않는다.</li>
+    <li><code>library-script.md:181</code> 다음 줄 신설 «- `context-correction-7` (2026-11-07 correction-turn-isolation): 수정별 판정 순서와 의미 보호는 v6 그대로, 응답 검증 실패를 Turn 단위로 격리한다(아래 응답 실패 문단).»</li>
   </ol>
   <p><span class="then">고치지 않는 것: <code>:196</code>(모든 소유 Turn ID가 순서대로 정확히 한 번 반환) · <code>:200</code>(청크 경계·자원 한도) · <code>:205</code>(모든 청크 성공 후 적용) · <code>CLAUDE.md</code> 최상위 경계 4.</span></p>
 </section>
@@ -523,8 +490,8 @@ details.audit table{font-size:12.5px}
   <div class="rule"><span class="no">주</span><h2>각주 · 근거</h2></div>
   <ol class="fnlist" id="fnlist">
     <li id="fn-1"><span class="n">1</span><span class="t">입력 = 사용자 «A로 가고 작은 유닛으로 /spec부터 하자» (2026-11-07) · <code>notes/usage-review/correction-measure.md</code> 진단 · <code>notes/usage-review/decisions.md</code> 부칙 2026-11-07 ①.</span><a class="back" href="#fnr-1" title="본문으로">↩</a></li>
-    <li id="fn-2"><span class="n">2</span><span class="t">현행 문언 <code>ssot/contracts/library-script.md:215</code> «… 불일치는 응답 실패다». 버전 정의 <code>ScriptCorrection.swift:98</code>. 이어서 교정의 엔진 일치 조건 <code>CorrectionRunner.swift:75–82</code>. 미완료 시도 실측 = <code>CorrectionAttempts/</code> 1개(<code>44F4E8DD</code> 0/44), 2026-11-07.</span><a class="back" href="#fnr-2" title="본문으로">↩</a></li>
-    <li id="fn-3"><span class="n">3</span><span class="t">구간 정보 «AI 교정/AI 후보» 줄 <code>UI/ScriptReadingView.swift:256</code>. Markdown «교정 전/교정안» <code>LibraryScript.swift:259–262</code>. 기존 불확실 기록 = 원문 그대로·미적용 <code>ScriptCorrection.swift:186–197</code>. 선택 필드는 nil이면 인코딩에서 빠진다(Swift 합성 Codable의 <code>encodeIfPresent</code>).</span><a class="back" href="#fnr-3" title="본문으로">↩</a></li>
+    <li id="fn-2"><span class="n">2</span><span class="t">기각안 = 엔진 v6 유지. 현행 문언 <code>ssot/contracts/library-script.md:215</code>, 버전 정의 <code>ScriptCorrection.swift:98</code>, 엔진 일치 조건 <code>CorrectionRunner.swift:75–82</code>, 미완료 시도 <code>44F4E8DD</code> 0/44 (2026-11-07).</span><a class="back" href="#fnr-2" title="본문으로">↩</a></li>
+    <li id="fn-3"><span class="n">3</span><span class="t">기각안 = 기존 편집 기록에 «원문 유지»로 넣기(구간 정보 «AI 후보:»·Markdown «교정안:»에 원문이 찍히고 기존 불확실 기록과 구분 불가, <code>UI/ScriptReadingView.swift:256</code> · <code>LibraryScript.swift:259–262</code>).</span><a class="back" href="#fnr-3" title="본문으로">↩</a></li>
     <li id="fn-4"><span class="n">4</span><span class="t">측정 실행 = 사용자, 설치 앱 0.5.19, 2026-11-07 05:28:06Z. 진단 = <code>CorrectionFormatProbeTests</code>(환경변수 게이트, 커밋 <code>2a20b08</code>), 2026-11-07 14:38–14:42 KST, 결과 <code>.build/eval/correction-measure-1/probe-chunk0.json</code>(개수·규칙 이름만). 기록 <code>notes/usage-review/correction-measure.md</code>.</span><a class="back" href="#fnr-4" title="본문으로">↩</a></li>
     <li id="fn-5"><span class="n">5</span><span class="t">스크립트 38개 메타데이터 집계, 2026-11-07. 10-08 실패 2건은 실패 진단 도입 전이라 분류가 없다.</span><a class="back" href="#fnr-5" title="본문으로">↩</a></li>
     <li id="fn-6"><span class="n">6</span><span class="t">어댑터 <code>CodexCorrectionClient.swift:227–231</code>, id 검사 <code>ScriptCorrection.swift:174</code>, 분류 8종 <code>library-script.md:203</code>.</span><a class="back" href="#fnr-6" title="본문으로">↩</a></li>
@@ -564,6 +531,7 @@ details.audit table{font-size:12.5px}
     </div>
   </details>
   <p class="note">r1 (11.07) 초판.</p>
+  <p class="note">r1 게이트 ① (11.07) D-01 ⓐ(§05 문안 · 엔진 v7) · D-02 ⓐ(<code>rejectedTurns</code>) 확정, 판정 축 ①–③ 확정. 해소된 선택지 서술(엔진 v6 유지안, 기존 편집 기록안)을 본문에서 지움.</p>
 </section>
 
 <div style="height:140px"></div>

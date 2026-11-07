@@ -1,5 +1,5 @@
 ---
-status: diagnosing
+status: waiting-fix
 decided_at: 2026-11-07
 source: notes/usage-review/decisions.md 부칙 2026-11-07 ①
 ---
@@ -53,4 +53,5 @@ source: notes/usage-review/decisions.md 부칙 2026-11-07 ①
     - 3회 모두 종료 코드 0 · JSON 해독 성공 · Turn id 순서·개수 일치 · `changes`/`unresolved` 누락 0 · **앱 검증 실패 3/3**. 경과 70.6 · 60.7 · 81.8초.
     - 걸린 규칙(Turn 13개 중): 1회 = 인용 위치 실패(change) 1 · 통과 12 / 2회 = 인용 위치 실패(change) 1 · 미해결 인용 위치 실패 1 · 통과 11 / 3회 = 인용 위치 실패(change) 1 · 전체 text와 수정 재구성 불일치 1 · 통과 11. 공백만 다른 불일치 0.
     - 판정: 실패는 재현된다(3/3). 매회 Turn 1–2개가 계약 `library-script.md:215`의 «응답 실패» 조건에 걸리고, 구현은 응답 실패를 청크 실패로 처리해 나머지 11–12 Turn의 검증된 결과까지 버린다. 인용 불일치의 하위 원인(위치 번호 어긋남 · 공백 · 유니코드 정규화 · 인용 자체 없음)과 같은 Turn인지는 기록하지 않아 미확인.
+  - 조치: 유닛 `correction-turn-isolation`(Turn 단위 검증 격리, 엔진 `context-correction-7`) 스펙 게이트 ① 컨펌 2026-11-07. 출시 뒤 30–40분 결합본으로 A를 다시 실행한다.
 - B: 대조표 생성 2026-11-07 (`.build/eval/correction-measure-1/sheet-B-A9B577CB.md`, 0600). 상태 completed · 청크 4/4 · 수정 기록 23 · 적용 8 · 보류 0 · 미해결 인용 18(판정 안 함) · 표본 8(전부) · 원문 위치 못 찾음 0. 사용자 판정 대기.
