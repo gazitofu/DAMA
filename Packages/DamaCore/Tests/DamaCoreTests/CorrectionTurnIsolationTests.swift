@@ -161,6 +161,67 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         }
     }
 
+    // MARK: AC-07 재반영 · 오류 형식 (스펙 §02-3)
+
+    /// MeaningGuardTests.testReapplicationHoldsMeaningChangesWithBasis와 같은 구성 + 버린 Turn 1개.
+    func testReapplicationCarriesRejectedTurnsUnchanged() throws {
+        var script = try Self.fixtureScript()
+        let sources = try ContextCorrection.chunks(script).flatMap(\.turns).prefix(2)
+        XCTAssertEqual(sources.map(\.id), ["t1", "t2"])
+        let replacements = ["합성 교정 0", "합성 교정 나"]
+        var old = ScriptCorrection(input: script.input, engine: "synthetic context-correction-6", state: .completed)
+        old.edits = try sources.enumerated().map { index, source in
+            let object: [String: Any] = ["turnID": source.id, "original": source.text, "text": replacements[index],
+                "reason": "이전 보류", "applied": false, "appliedText": source.text, "unresolved": [],
+                "changes": [["applied": false, "basis": "이전 보류", "change": [
+                    "quote": source.text, "occurrence": 0, "replacement": replacements[index], "certain": true, "reason": "합성"]]]]
+            return try JSONDecoder().decode(CorrectionEdit.self, from: JSONSerialization.data(withJSONObject: object))
+        }
+        old.rejectedTurns = [.init(turnID: "t3", rule: .quote)]
+        script.correction = old
+        let result = try XCTUnwrap(ContextCorrection.reapplyingPending(in: script))
+        XCTAssertEqual(result.rejectedTurns, [.init(turnID: "t3", rule: .quote)])
+        XCTAssertEqual(result.edits[0].changes?.first?.applied, false)   // 숫자 보호로 보류 유지(현행).
+        XCTAssertEqual(result.edits[1].changes?.first?.applied, true)    // 표식 변화 없음 → 반영(현행).
+        XCTAssertTrue(result.engine.hasSuffix("저장 후보 반영 context-correction-7"))
+        XCTAssertNoThrow(try result.validate(transcript: script.transcript))
+        // 바뀔 후보가 없으면 새 결과를 만들지 않는다(현행).
+        var nothing = ScriptCorrection(input: script.input, engine: "synthetic", state: .completed)
+        nothing.rejectedTurns = [.init(turnID: "t3", rule: .quote)]
+        script.correction = nothing
+        XCTAssertNil(try ContextCorrection.reapplyingPending(in: script))
+    }
+
+    /// 저장 검증·재반영이 밖으로 내는 오류는 현행 `LibraryFailure.invalidScript`뿐이다(내부 규칙 오류 형식이 새지 않는다).
+    func testStoredValidationAndReapplicationKeepLibraryFailureForm() throws {
+        let source = CorrectionTurn(id: "t", speakerID: nil, startUs: 0, endUs: 1, text: "🙂 30억원 30억원")
+        let chunk = CorrectionChunk(turns: [source], contextBefore: [], contextAfter: [])
+        let change = CorrectionChange(quote: "30억원", occurrence: 1, replacement: "30억 원", certain: true, reason: "공백", termID: nil)
+        var edit = try XCTUnwrap(ContextCorrection.validated(.init(turns: [.init(id: "t", text: "🙂 30억원 30억 원", certain: true, reason: "",
+            changes: [change], unresolved: [])], names: []), chunk: chunk, input: ConversionNotes()).edits.first)
+        edit.appliedText = "🙂 50억원"                                          // ContextCorrectionTests:76 같은 변조
+        XCTAssertThrowsError(try CorrectionSpans.validateStored(edit)) { XCTAssertEqual($0 as? LibraryFailure, .invalidScript) }
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(XCTUnwrap(ContextCorrection.validated(.init(turns: [.init(id: "t",
+            text: "🙂 30억원 30억 원", certain: true, reason: "", changes: [change], unresolved: [])], names: []), chunk: chunk, input: ConversionNotes()).edits.first))) as! [String: Any]
+        var decisions = json["changes"] as! [[String: Any]]
+        var tampered = decisions[0]["change"] as! [String: Any]
+        tampered["quote"] = "없는말"                                            // 인용 변조 → 내부에서는 quote 규칙
+        decisions[0]["change"] = tampered; json["changes"] = decisions
+        let quoteTampered = try JSONDecoder().decode(CorrectionEdit.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertThrowsError(try CorrectionSpans.validateStored(quoteTampered)) { XCTAssertEqual($0 as? LibraryFailure, .invalidScript) }
+        // 재반영도 같은 형식: 변조된 저장 후보가 있는 스크립트.
+        var script = try Self.fixtureScript()
+        let first = try XCTUnwrap(ContextCorrection.chunks(script).flatMap(\.turns).first)
+        let object: [String: Any] = ["turnID": first.id, "original": first.text, "text": "합성 교정 나", "reason": "이전 보류",
+            "applied": false, "appliedText": first.text, "unresolved": [],
+            "changes": [["applied": false, "basis": "이전 보류", "change": [
+                "quote": "없는말", "occurrence": 0, "replacement": "합성 교정 나", "certain": true, "reason": "합성"]]]]
+        var old = ScriptCorrection(input: script.input, engine: "synthetic", state: .completed)
+        old.edits = [try JSONDecoder().decode(CorrectionEdit.self, from: JSONSerialization.data(withJSONObject: object))]
+        script.correction = old
+        XCTAssertThrowsError(try ContextCorrection.reapplyingPending(in: script)) { XCTAssertEqual($0 as? LibraryFailure, .invalidScript) }
+    }
+
     func testRejectedCountCountsOnlyListedTurns() throws {
         var correction = ScriptCorrection(input: ConversionNotes(), engine: "synthetic", state: .completed)
         XCTAssertEqual(correction.rejectedCount(in: ["t1", "t2"]), 0)

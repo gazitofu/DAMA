@@ -16,8 +16,11 @@ extension ContextCorrection {
             // Turn-wide uncertainty was already expanded into saved unresolved spans by the validator.
             let reply = CorrectionReply.Turn(id: turn.id, text: edit.text, certain: true, reason: "",
                 changes: decisions.map(\.change), unresolved: unresolved)
-            guard let updated = try CorrectionSpans.validated(reply, source: source, input: previous.input),
-                  updated.effectiveText != edit.effectiveText else { return edit }
+            // 재반영 밖으로는 현행 손상 형식만 낸다. Turn 격리는 새 응답 검증에만 쓴다(correction-turn-isolation AC-07).
+            let revalidated: CorrectionEdit?
+            do { revalidated = try CorrectionSpans.validated(reply, source: source, input: previous.input) }
+            catch is CorrectionTurnRejection { throw LibraryFailure.invalidScript }
+            guard let updated = revalidated, updated.effectiveText != edit.effectiveText else { return edit }
             changed = true
             return updated
         }
@@ -26,6 +29,8 @@ extension ContextCorrection {
             engine: previous.engine + " · 저장 후보 반영 " + version, state: .completed)
         result.edits = edits; result.speakerNames = previous.speakerNames; result.nameEvidence = previous.nameEvidence
         result.completedChunks = previous.completedChunks; result.totalChunks = previous.totalChunks
+        // 버린 Turn은 다시 판정하지 않고 교정 시점 기록 그대로 옮긴다(스펙 §02-3).
+        result.rejectedTurns = previous.rejectedTurns
         result.completedAt = Date()
         return result
     }

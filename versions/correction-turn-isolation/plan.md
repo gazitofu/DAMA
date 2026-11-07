@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-04 완료(시도 기록·실행기, 역뮤테이션 ⓐ 누계 17). 다음 = T-05 재반영·오류 형식."
+resume: "T-05 완료(재반영 운반·오류 형식). 다음 = T-06 문구·Markdown·구간 정보·완료 띠, Markdown N=0 SHA256 기준선 먼저."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
