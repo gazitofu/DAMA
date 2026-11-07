@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "차수 A 통과 · T-07 fixture · T-08 버전 완료. QA 앱 .build/xcode-qa 0.5.20(38) 빌드, fixture /private/tmp/dama-reading-qa-cti-a. 대기 = 막힘 1(설치 승인) · 2(실화면 시간) · 3(실데이터 교정 1회, 사용자 실행)."
+resume: "설치 0.5.20(38) 완료(AC-11 툴팁 관측만 남음). AC-09 실화면 = 이 세션 System Events 무응답으로 조작 불가, 처리 방식 사용자 확인 대기. AC-12 = 사용자 실데이터 교정 1회 대기."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
@@ -117,9 +117,9 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 |---|---|---|
 | 01–03 · 05–08 | 통과 (A) | AC-08 구간 정보·완료 띠는 코드 대조까지. 실화면 = AC-09 · 게이트 ② |
 | 04 | 통과 (A2, D-1 해소) | |
-| 09 | 대기 | 막힘 2 (실화면 시간) |
+| 09 | 막힘 | 합성 QA 앱 0.5.20 (38) · fixture a 실행, QASnapshot 창 캡처 1장 성공(`ui/` 기본 화면). System Events 질의가 10초 안에 끝나지 않아(SIGALRM, 이 백그라운드 세션의 자동화·접근성 권한 없음으로 봄) «정보»·결과 전환·문단 선택 조작 불가. «원문 보기 전환» 컨트롤은 UI에 없음(`toggleOriginal` 호출처 0) → fixture b `showsOriginal = true` 사본 준비. 처리 방식 사용자 확인 |
 | 10 | 메인 실측 충족 (check.sh 1–4 PASS · 360 통과 · 삭제·완화 0 · 진단 테스트·어댑터 diff 0) | 최종 판정은 전달 차수 QA |
-| 11 | 버전 커밋·빌드 Bundle 0.5.20 (38) | 막힘 1 (설치 승인) |
+| 11 | 설치 2026-11-07 20:2x (사용자 승인): 설치 앱 0.5.19 (37) 종료 → 백업 `.build/backups/DAMA-0.5.19-37-before-correction-turn-isolation.app` 11파일 SHA256 = 설치본 → `/Applications/DAMA.app` 교체 11파일 SHA256 = `.build/xcode/Build/Products/Debug/DAMA.app`, adhoc·linker-signed. 실행 pid 적재 경로 `/Applications/DAMA.app`, `lsappinfo` bundleID `com.gazitofu.Dama` · Version 38, Info.plist 0.5.20 | 메뉴바 툴팁 = 사용자 관측 (접근성 불가) |
 | 12 | 대기 | 막힘 3 (사용자 실행) |
 
 ## 작업 분해
