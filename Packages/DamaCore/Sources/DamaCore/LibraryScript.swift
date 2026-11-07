@@ -236,8 +236,10 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
         if let correction {
             lines += ["## AI 교정 정보", "", "- 엔진: \(Self.escape(correction.engine))",
                       "- 상태: \(correction.state.rawValue)", "- 내보낸 본문: \(showsOriginal == true || correction.state != .completed ? "교정 전" : "AI 교정 반영") · 사용자 수정 우선",
-                      "- 원문·시간·화자 경계 보존. AI는 원음을 듣지 않고 텍스트 문맥을 참고했습니다.",
-                      "", "### 교정에 사용한 입력", "", Self.escape(correction.input.participants ?? ""),
+                      "- 원문·시간·화자 경계 보존. AI는 원음을 듣지 않고 텍스트 문맥을 참고했습니다."]
+            // correction-turn-isolation 문구 4: 버린 원구간이 있을 때만.
+            if let count = correction.rejectedTurns?.count, count >= 1 { lines.append(CorrectionRejectionText.markdownSummary(count: count)) }
+            lines += ["", "### 교정에 사용한 입력", "", Self.escape(correction.input.participants ?? ""),
                       Self.escape(correction.input.context), Self.escape(correction.input.reference), ""]
             for source in correction.input.referenceExcerpts ?? [] {
                 lines += ["- 참고 자료: \(Self.escape(source.name)) · SHA256 \(source.sha256)", "", Self.escape(source.text), ""]
@@ -269,6 +271,10 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
                 for item in edit.unresolved ?? [] {
                     lines += ["> 미해결: \(Self.escape(item.quote)) · 출현 \(item.occurrence + 1) · \(Self.escape(item.reason))", ""]
                 }
+            }
+            // correction-turn-isolation 문구 5 + 2(·2a): 이 문단에 검증 실패로 원문을 유지한 원구간이 있을 때만.
+            if let rejected = correction?.rejectedCount(in: block.turnIDs), rejected >= 1 {
+                lines += [CorrectionRejectionText.markdownPrefix + CorrectionRejectionText.paragraphNote(count: rejected), ""]
             }
         }
         return Data(lines.joined(separator: "\n").utf8)

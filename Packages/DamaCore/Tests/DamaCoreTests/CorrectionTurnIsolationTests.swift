@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import XCTest
 @testable import DamaCore
@@ -220,6 +221,81 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         old.edits = [try JSONDecoder().decode(CorrectionEdit.self, from: JSONSerialization.data(withJSONObject: object))]
         script.correction = old
         XCTAssertThrowsError(try ContextCorrection.reapplyingPending(in: script)) { XCTAssertEqual($0 as? LibraryFailure, .invalidScript) }
+    }
+
+    // MARK: AC-08 문구·Markdown (스펙 §03 · §04 문구표)
+
+    /// 기대 문자열은 `ssot/tone/correction-turn-isolation.md` 표에서 옮겼다(코드와 독립).
+    func testRejectionTextMatchesToneTable() {
+        let note = "AI 응답이 이 문단의 원문과 맞지 않아 쓰지 않았습니다."
+        let current = "AI 보정 결과를 저장했습니다. 다른 결과 보기에서 이전 버전을 확인할 수 있습니다." // App/CorrectionWorkspace.swift:151 @7b59b85
+        XCTAssertEqual(CorrectionRejectionText.inspectorTitle, "원문 유지 · AI 응답 검증 실패")
+        XCTAssertEqual(CorrectionRejectionText.paragraphNote(count: 1), note)
+        XCTAssertEqual(CorrectionRejectionText.paragraphNote(count: 2), note + " (2개 원구간)")
+        XCTAssertEqual(CorrectionRejectionText.paragraphNote(count: 3), note + " (3개 원구간)")
+        XCTAssertEqual(Data(CorrectionRejectionText.completionMessage(rejectedCount: 0).utf8), Data(current.utf8))
+        XCTAssertEqual(CorrectionRejectionText.completionMessage(rejectedCount: 1), current + " AI 응답이 원문과 맞지 않은 1개 원구간은 원문을 유지했습니다.")
+        XCTAssertEqual(CorrectionRejectionText.completionMessage(rejectedCount: 12), current + " AI 응답이 원문과 맞지 않은 12개 원구간은 원문을 유지했습니다.")
+        XCTAssertEqual(CorrectionRejectionText.markdownSummary(count: 1), "- 검증 실패로 원문 유지: 1개 원구간")
+        XCTAssertEqual(CorrectionRejectionText.markdownSummary(count: 12), "- 검증 실패로 원문 유지: 12개 원구간")
+        XCTAssertEqual(CorrectionRejectionText.markdownPrefix, "> AI 검증 실패: ")
+    }
+
+    /// 시각·revision을 고정한 합성 스크립트(fixture 문단 = [t1, t2] · [t3]).
+    static func markdownScript(editT1: Bool = true, rejected: [CorrectionRejectedTurn]?) throws -> LibraryScript {
+        var repo = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { repo.deleteLastPathComponent() }
+        let model = try JSONDecoder().decode(TranscriptDocument.self, from: Data(contentsOf: repo.appendingPathComponent("fixtures/normalized-transcript.json")))
+        var script = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", timeZoneID: "Asia/Seoul",
+                                       input: ConversionNotes(context: "합성 맥락", reference: ""), createdAt: Date(timeIntervalSinceReferenceDate: 800_000_000))
+        script.revisionID = "00000000-0000-4000-8000-000000000001"
+        var correction = ScriptCorrection(input: script.input, engine: "synthetic", state: .completed)
+        correction.id = "00000000-0000-4000-8000-000000000002"
+        if editT1 { correction.edits = [legacyEdit("t1", original: script.text(for: script.transcript.turns[0]))] }
+        correction.rejectedTurns = rejected
+        script.correction = correction
+        return script
+    }
+    static func sha(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
+
+    func testMarkdownAddsLinesOnlyForRejectedTurns() throws {
+        let baselineSHA = "5dc04eb6a97e4749f81224038cfd1742d9e86cab9783897a77f60ec0173e1e8d" // T-06 착수 전 현행 코드 실측 (HEAD 6267108, 1,564 B)
+        let none = try Self.markdownScript(rejected: nil).markdown()
+        XCTAssertEqual(none.count, 1_564)
+        XCTAssertEqual(Self.sha(none), baselineSHA)
+        XCTAssertEqual(try Self.markdownScript(rejected: []).markdown(), none)
+
+        let note = "> AI 검증 실패: AI 응답이 이 문단의 원문과 맞지 않아 쓰지 않았습니다."
+        let summary = "- 검증 실패로 원문 유지: 1개 원구간"
+        // t3 문단 1개: 머리 줄 1 · t3 문단 줄 1 · 다른 문단 0. 두 줄(+빈 줄)을 빼면 기준선과 바이트가 같다.
+        let lines = String(decoding: try Self.markdownScript(rejected: [.init(turnID: "t3", rule: .quote)]).markdown(), as: UTF8.self)
+            .components(separatedBy: "\n")
+        XCTAssertEqual(lines.filter { $0 == summary }.count, 1)
+        XCTAssertEqual(lines.filter { $0.hasPrefix("> AI 검증 실패: ") }, [note])
+        let summaryAt = try XCTUnwrap(lines.firstIndex(of: summary))
+        XCTAssertTrue(lines[summaryAt - 1].hasPrefix("- 원문·시간·화자 경계 보존."))
+        let noteAt = try XCTUnwrap(lines.firstIndex(of: note))
+        let headers = lines.indices.filter { lines[$0].hasPrefix("### [") }
+        XCTAssertEqual(headers.count, 2)
+        XCTAssertGreaterThan(noteAt, headers[1])                                   // t3 문단 안
+        XCTAssertEqual(lines[noteAt + 1], "")
+        var stripped = lines; stripped.remove(at: noteAt + 1); stripped.remove(at: noteAt); stripped.remove(at: summaryAt)
+        XCTAssertEqual(Self.sha(Data(stripped.joined(separator: "\n").utf8)), baselineSHA)
+
+        // 같은 문단의 AI 교정 줄 다음에 붙는다(t1 편집 · t2 버림).
+        let mixed = String(decoding: try Self.markdownScript(rejected: [.init(turnID: "t2", rule: .text)]).markdown(), as: UTF8.self)
+            .components(separatedBy: "\n")
+        let mixedNote = try XCTUnwrap(mixed.firstIndex(of: note))
+        let candidate = try XCTUnwrap(mixed.firstIndex(of: "> 교정안: 합성 후보"))
+        let mixedHeaders = mixed.indices.filter { mixed[$0].hasPrefix("### [") }
+        XCTAssertGreaterThan(mixedNote, candidate)
+        XCTAssertLessThan(mixedNote, mixedHeaders[1])
+
+        // 한 문단에 버린 원구간 2개 → 문구 2a.
+        let two = String(decoding: try Self.markdownScript(editT1: false, rejected: [.init(turnID: "t1", rule: .quote), .init(turnID: "t2", rule: .limit)]).markdown(), as: UTF8.self)
+            .components(separatedBy: "\n")
+        XCTAssertEqual(two.filter { $0.hasPrefix("> AI 검증 실패: ") }, [note + " (2개 원구간)"])
+        XCTAssertEqual(two.filter { $0 == "- 검증 실패로 원문 유지: 2개 원구간" }.count, 1)
     }
 
     func testRejectedCountCountsOnlyListedTurns() throws {

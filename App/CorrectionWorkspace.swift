@@ -143,14 +143,16 @@ import SwiftUI
                 case .completed(let finished):
                     let merged = finished.merged()
                     correction.edits = merged.edits; correction.speakerNames = merged.names; correction.nameEvidence = merged.evidence
+                    correction.rejectedTurns = merged.rejected.isEmpty ? nil : merged.rejected
                     correction.completedChunks = finished.totalChunks
                     correction.state = .completed; correction.completedAt = Date()
                     try await LibraryWorkspace.shared.storeCorrection(correction, file: file)
                     // 성공 저장 직후 시도 기록을 지운다.
                     try? runner.discard(scriptID: file.id)
-                    message = "AI 보정 결과를 저장했습니다. 다른 결과 보기에서 이전 버전을 확인할 수 있습니다."
+                    message = CorrectionRejectionText.completionMessage(rejectedCount: merged.rejected.count)
                 case .failed(let failed, let error):
                     correction.state = .failed; correction.edits = []; correction.speakerNames = [:]; correction.nameEvidence = [:]
+                    correction.rejectedTurns = nil
                     correction.completedChunks = failed.completedChunks
                     if !hasPreviousResult { try? await LibraryWorkspace.shared.storeCorrection(correction, file: file) }
                     // 분류별 안내 띠 (tone 문구 18). 원문·stderr 내용은 쓰지 않는다.
@@ -159,6 +161,7 @@ import SwiftUI
             } catch {
                 // 청크 계획·시도 기록·저장 단계 실패(프로세스 실행 전). 원문을 쓰지 않는다.
                 correction.state = .failed; correction.edits = []; correction.speakerNames = [:]; correction.nameEvidence = [:]
+                correction.rejectedTurns = nil
                 if !hasPreviousResult { try? await LibraryWorkspace.shared.storeCorrection(correction, file: file) }
                 message = "AI 보정을 완료하지 못했습니다. 기존 결과는 유지됩니다."
             }
