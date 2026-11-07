@@ -119,7 +119,7 @@ public struct CorrectionReply: Codable, Sendable {
 }
 
 public enum ContextCorrection {
-    public static let version = "context-correction-6"
+    public static let version = "context-correction-7"
     /// Limits bound resources; they are not measured accuracy thresholds.
     public static func chunks(_ script: LibraryScript) throws -> [CorrectionChunk] {
         try script.validate()
@@ -194,35 +194,19 @@ public enum ContextCorrection {
         guard data.count <= 512_000 else { throw LibraryFailure.invalidInput }
         return data
     }
-    public static func validated(_ reply: CorrectionReply, chunk: CorrectionChunk, input: ConversionNotes) throws -> (edits: [CorrectionEdit], names: [String: String], evidence: [String: String]) {
-        guard reply.turns.map(\.id) == chunk.turns.map(\.id) else { throw LibraryFailure.invalidScript }
-        var edits: [CorrectionEdit] = []
+    /// 청크 하나의 응답 검증 (context-correction-7). 응답을 입력과 짝지을 수 없으면(Turn id 순서·개수 불일치,
+    /// `changes`/`unresolved` 중 하나만 있음) 청크 실패로 throw한다. Turn 하나의 검증 실패는 그 Turn만 버리고
+    /// `rejected`에 처음 걸린 규칙을 남긴 뒤 나머지 Turn을 계속 판정한다(correction-turn-isolation §02-1·§02-2).
+    public static func validated(_ reply: CorrectionReply, chunk: CorrectionChunk, input: ConversionNotes) throws -> (edits: [CorrectionEdit], names: [String: String], evidence: [String: String], rejected: [CorrectionRejectedTurn]) {
+        guard reply.turns.map(\.id) == chunk.turns.map(\.id),
+              reply.turns.allSatisfy({ ($0.changes == nil) == ($0.unresolved == nil) }) else { throw LibraryFailure.invalidScript }
+        var edits: [CorrectionEdit] = [], rejected: [CorrectionRejectedTurn] = []
         for (source, candidate) in zip(chunk.turns, reply.turns) {
-            guard candidate.text.count <= max(256, source.text.count * 3), candidate.reason.count <= 600 else { throw LibraryFailure.invalidScript }
-            if candidate.changes != nil || candidate.unresolved != nil {
-                if let edit = try CorrectionSpans.validated(candidate, source: source, input: input) { edits.append(edit) }
-                continue
+            do {
+                if let edit = try validatedTurn(candidate, source: source, input: input) { edits.append(edit) }
+            } catch let rejection as CorrectionTurnRejection {
+                rejected.append(CorrectionRejectedTurn(turnID: source.id, rule: rejection.rule))
             }
-            let sourceTrimmed = source.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            let candidateTrimmed = candidate.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            let displayOnly = sourceTrimmed == candidateTrimmed
-            // No-op formatting is not a correction. Model uncertainty is independent and survives.
-            if displayOnly && candidate.certain { continue }
-            let formatOnly = !candidateTrimmed.isEmpty &&
-                canonicalFormat(sourceTrimmed) == canonicalFormat(candidateTrimmed)
-            let acceptable = candidate.certain && formatOnly
-            let modelReason = candidate.reason.trimmingCharacters(in: .whitespacesAndNewlines)
-            let decisionReason: String
-            if !candidate.certain {
-                decisionReason = "발화가 불확실해 원문을 유지했습니다."
-            } else if acceptable {
-                decisionReason = "문자·숫자·부정 표현을 유지한 형식 정리입니다."
-            } else {
-                decisionReason = "의미 보존 근거가 필요한 변경이어서 원문을 유지했습니다."
-            }
-            edits.append(CorrectionEdit(turnID: source.id, original: source.text,
-                text: displayOnly ? source.text : candidate.text,
-                reason: decisionReason + (modelReason.isEmpty ? "" : " " + modelReason), applied: acceptable))
         }
         let roster = Set((input.participants ?? "").split(whereSeparator: \.isNewline).compactMap { $0.split(whereSeparator: { $0.isWhitespace || $0 == "·" || $0 == "|" || $0 == "," }).first.map(String.init) })
         var names: [String: String] = [:], evidence: [String: String] = [:], conflicts = Set<String>()
@@ -237,7 +221,36 @@ public enum ContextCorrection {
             evidence[name.speakerID] = "\(name.evidenceTurnID): \(name.quote)"
         }
         for id in conflicts { names.removeValue(forKey: id); evidence.removeValue(forKey: id) }
-        return (edits, names, evidence)
+        return (edits, names, evidence, rejected)
+    }
+    /// Turn 하나. 검증 실패는 `CorrectionTurnRejection`(처음 걸린 규칙)으로 낸다. 검사 순서는 v6와 같다.
+    static func validatedTurn(_ candidate: CorrectionReply.Turn, source: CorrectionTurn, input: ConversionNotes) throws -> CorrectionEdit? {
+        guard candidate.text.count <= max(256, source.text.count * 3), candidate.reason.count <= 600 else {
+            throw CorrectionTurnRejection(rule: .limit)
+        }
+        if candidate.changes != nil || candidate.unresolved != nil {
+            return try CorrectionSpans.validated(candidate, source: source, input: input)
+        }
+        let sourceTrimmed = source.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidateTrimmed = candidate.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayOnly = sourceTrimmed == candidateTrimmed
+        // No-op formatting is not a correction. Model uncertainty is independent and survives.
+        if displayOnly && candidate.certain { return nil }
+        let formatOnly = !candidateTrimmed.isEmpty &&
+            canonicalFormat(sourceTrimmed) == canonicalFormat(candidateTrimmed)
+        let acceptable = candidate.certain && formatOnly
+        let modelReason = candidate.reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        let decisionReason: String
+        if !candidate.certain {
+            decisionReason = "발화가 불확실해 원문을 유지했습니다."
+        } else if acceptable {
+            decisionReason = "문자·숫자·부정 표현을 유지한 형식 정리입니다."
+        } else {
+            decisionReason = "의미 보존 근거가 필요한 변경이어서 원문을 유지했습니다."
+        }
+        return CorrectionEdit(turnID: source.id, original: source.text,
+            text: displayOnly ? source.text : candidate.text,
+            reason: decisionReason + (modelReason.isEmpty ? "" : " " + modelReason), applied: acceptable)
     }
     /// An explicit formatting allowlist, NOT a general Korean/semantic normalizer.
     /// Retains every non-space character, number sign, unit, relation and punctuation.

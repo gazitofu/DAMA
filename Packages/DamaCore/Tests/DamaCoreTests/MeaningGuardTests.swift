@@ -64,7 +64,7 @@ final class MeaningGuardTests: XCTestCase {
         XCTAssertEqual(decisions[3].basis, "원문 위치와 제한 형식 동등성을 확인했습니다.")
         XCTAssertEqual(edit.appliedText, "매출 30억원 계획 안 됩니다 SMR 1,000억")
         XCTAssertFalse(edit.applied)
-        XCTAssertEqual(ContextCorrection.version, "context-correction-6")
+        XCTAssertEqual(ContextCorrection.version, "context-correction-7")
     }
 
     /// «저장된 AI 교정 반영»(재검증)도 같은 규칙. 열기·조회만으로는 판정이 바뀌지 않는다.
@@ -103,6 +103,6 @@ final class MeaningGuardTests: XCTestCase {
         // 숫자가 새로 생기면 숫자 묶음 수도 달라져 단위 표식(묶음별 단위 목록)도 바뀐다 (measure-b1.py unit_sig와 같음).
         XCTAssertEqual(recheck.changes?.first?.basis, "숫자·단위 표현이 바뀌는 수정이라 자동 반영하지 않았습니다. 원음으로 확인해 주세요.")
         XCTAssertEqual(result.edits[1].changes?.first?.applied, true)
-        XCTAssertTrue(result.engine.hasSuffix("저장 후보 반영 context-correction-6"))
+        XCTAssertTrue(result.engine.hasSuffix("저장 후보 반영 context-correction-7"))
     }
 }

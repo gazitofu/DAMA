@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-02 완료(저장 타입·검증). 다음 = T-03 응답 검증 Turn 격리·엔진 v7."
+resume: "T-03 완료(Turn 격리·v7·가드 이동 8·역뮤테이션 ⓐ 15 · ⓑ 2). 다음 = T-04 시도 기록·실행기."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거

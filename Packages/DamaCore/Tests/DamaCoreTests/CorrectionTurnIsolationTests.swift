@@ -74,6 +74,93 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         XCTAssertEqual(CorrectionRejectionRule.allCases.map(\.rawValue), ["quote", "overlap", "text", "limit", "reason", "other"])
     }
 
+    // MARK: AC-02 Turn 격리 · AC-03 청크 실패 유지 (스펙 §02-1 · §02-2)
+
+    static let turnA = CorrectionTurn(id: "a", speakerID: "SPEAKER_00", startUs: 0, endUs: 1_000_000, text: "디마 앱 검토")
+    static let turnB = CorrectionTurn(id: "b", speakerID: "SPEAKER_01", startUs: 1_000_000, endUs: 2_000_000, text: "저는 김가상입니다")
+    static let names = [CorrectionReply.Name(speakerID: "SPEAKER_01", name: "김가상", evidenceTurnID: "b", quote: "저는 김가상입니다")]
+    static let input = ConversionNotes(participants: "김가상 · 개발")
+    static func change(_ quote: String, _ replacement: String) -> CorrectionChange {
+        CorrectionChange(quote: quote, occurrence: 0, replacement: replacement, certain: true, reason: "합성", termID: nil)
+    }
+    static func reply(_ id: String, _ text: String, certain: Bool = true, changes: [CorrectionChange]? = [],
+                      unresolved: [CorrectionUnresolved]? = []) -> CorrectionReply.Turn {
+        CorrectionReply.Turn(id: id, text: text, certain: certain, reason: certain ? "" : "합성 불확실", changes: changes, unresolved: unresolved)
+    }
+    /// A = 확실한 수정 1개(반영) · B = 수정 없음(자기소개 이름 근거) · C = 사례별.
+    static func validate(c source: String, _ candidate: CorrectionReply.Turn, a: CorrectionReply.Turn? = nil, b: CorrectionReply.Turn? = nil) throws
+        -> (edits: [CorrectionEdit], names: [String: String], evidence: [String: String], rejected: [CorrectionRejectedTurn]) {
+        let c = CorrectionTurn(id: "c", speakerID: "SPEAKER_00", startUs: 2_000_000, endUs: 3_000_000, text: source)
+        let chunk = CorrectionChunk(turns: [turnA, turnB, c], contextBefore: [], contextAfter: [])
+        let replyA = a ?? reply("a", "DAMA 앱 검토", changes: [change("디마", "DAMA")])
+        return try ContextCorrection.validated(.init(turns: [replyA, b ?? reply("b", turnB.text), candidate], names: names), chunk: chunk, input: input)
+    }
+
+    func testOneFailingTurnIsKeptAsOriginalWhileOthersAreJudged() throws {
+        let base = "가나다 라마바"
+        let cases: [(String, String, CorrectionReply.Turn, [CorrectionRejectedTurn])] = [
+            ("limit", base, Self.reply("c", String(repeating: "가", count: 257)), [.init(turnID: "c", rule: .limit)]),
+            ("quote", base, Self.reply("c", "가나다 라마사", changes: [Self.change("없는말", "라마사")]), [.init(turnID: "c", rule: .quote)]),
+            ("overlap", base, Self.reply("c", base, changes: [Self.change("가나다 라", "X"), Self.change("라마바", "Y")]), [.init(turnID: "c", rule: .overlap)]),
+            ("text", base, Self.reply("c", base, changes: [Self.change("라마바", "라마사")]), [.init(turnID: "c", rule: .text)]),
+            ("reason", base, Self.reply("c", base, unresolved: [.init(quote: "라마바", occurrence: 0, reason: "  ")]), [.init(turnID: "c", rule: .reason)]),
+            ("other", "", Self.reply("c", "", certain: false), [.init(turnID: "c", rule: .other)]),
+            ("none", base, Self.reply("c", base), []),
+        ]
+        let expectedA = try XCTUnwrap(CorrectionSpans.validated(Self.reply("a", "DAMA 앱 검토", changes: [Self.change("디마", "DAMA")]),
+                                                               source: Self.turnA, input: Self.input))
+        XCTAssertTrue(expectedA.applied)
+        let reference = try Self.validate(c: base, Self.reply("c", base))
+        XCTAssertEqual(reference.names, ["SPEAKER_01": "김가상"])
+        for (label, source, candidate, rejected) in cases {
+            // 사례마다 따로 판정한다(한 사례의 throw가 나머지 사례를 가리지 않게).
+            let result: (edits: [CorrectionEdit], names: [String: String], evidence: [String: String], rejected: [CorrectionRejectedTurn])
+            do { result = try Self.validate(c: source, candidate) } catch { XCTFail("\(label): \(error)"); continue }
+            XCTAssertEqual(result.rejected, rejected, label)
+            XCTAssertEqual(result.edits, [expectedA], label)   // B·C 편집 없음, A는 단독 판정과 같다.
+            XCTAssertEqual(result.names, reference.names, label)
+            XCTAssertEqual(result.evidence, reference.evidence, label)
+        }
+    }
+
+    func testFirstFailingRuleWinsAndAllFailingChunkStillSucceeds() throws {
+        let base = "가나다 라마바"
+        // 길이 상한이 인용 검사보다 먼저.
+        XCTAssertEqual(try Self.validate(c: base, Self.reply("c", String(repeating: "가", count: 257), changes: [Self.change("없는말", "라마사")])).rejected,
+                       [.init(turnID: "c", rule: .limit)])
+        // 미해결 이유가 미해결 인용보다 먼저.
+        XCTAssertEqual(try Self.validate(c: base, Self.reply("c", base, unresolved: [.init(quote: "없는말", occurrence: 0, reason: "  ")])).rejected,
+                       [.init(turnID: "c", rule: .reason)])
+        // 청크 안 Turn이 전부 실패해도 청크는 성공이다. 이름 검증은 원문 Turn으로 따로 한다.
+        let all: (edits: [CorrectionEdit], names: [String: String], evidence: [String: String], rejected: [CorrectionRejectedTurn])
+        do {
+            all = try Self.validate(c: base, Self.reply("c", base, changes: [Self.change("없는말", "X")]),
+                                    a: Self.reply("a", "X", changes: [Self.change("없는말", "X")]),
+                                    b: Self.reply("b", "X", changes: [Self.change("없는말", "X")]))
+        } catch { return XCTFail("all failing: \(error)") }
+        XCTAssertEqual(all.rejected, ["a", "b", "c"].map { CorrectionRejectedTurn(turnID: $0, rule: .quote) })
+        XCTAssertTrue(all.edits.isEmpty)
+        XCTAssertEqual(all.names, ["SPEAKER_01": "김가상"])
+    }
+
+    func testUnpairableReplyRemainsChunkFailure() throws {
+        let base = "가나다 라마바"
+        let c = CorrectionTurn(id: "c", speakerID: "SPEAKER_00", startUs: 2_000_000, endUs: 3_000_000, text: base)
+        let chunk = CorrectionChunk(turns: [Self.turnA, Self.turnB, c], contextBefore: [], contextAfter: [])
+        let a = Self.reply("a", Self.turnA.text), b = Self.reply("b", Self.turnB.text), ok = Self.reply("c", base)
+        let replies: [[CorrectionReply.Turn]] = [
+            [b, a, ok],                                                     // id 순서 뒤바뀜
+            [a, b],                                                         // id 1개 빠짐
+            [a, b, Self.reply("c", base, unresolved: nil)],                 // 필수 배열 하나 누락
+            [Self.reply("a", "X", changes: [Self.change("없는말", "X")]), b, Self.reply("c", base, unresolved: nil)], // 누락이 Turn 실패보다 먼저
+        ]
+        for turns in replies {
+            XCTAssertThrowsError(try ContextCorrection.validated(.init(turns: turns, names: []), chunk: chunk, input: Self.input)) {
+                XCTAssertEqual($0 as? LibraryFailure, .invalidScript)
+            }
+        }
+    }
+
     func testRejectedCountCountsOnlyListedTurns() throws {
         var correction = ScriptCorrection(input: ConversionNotes(), engine: "synthetic", state: .completed)
         XCTAssertEqual(correction.rejectedCount(in: ["t1", "t2"]), 0)
