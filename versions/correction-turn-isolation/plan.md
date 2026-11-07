@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "QA A D-1 수정(이동 단정 사례당 1, edits 검사 분리). 다음 = QA A2(D-1만) → T-07."
+resume: "차수 A 통과(QA A · A2, AC-01–08). T-07 fixture 커밋. 다음 = T-08 버전 0.5.20(38) · QA 앱 빌드 → 게이트 ② 막힘 1–3 확인 요청."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
@@ -46,8 +46,8 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 
 ### 차수 A · 계약·Core·문구 (합성)
 
-- [ ] AC-01 계약 (D-01): 스펙 §05 문안 5곳이 글자 그대로 들어갔다. ① :215 첫 문장 교체 (나머지 문장 유지) ② :194 «완료/전체 청크 수를 보존한다.» 구절 교체 ③ :206 «끝난 청크의 검증된 결과» → «끝난 청크의 검증된 결과(검증 실패 Turn 포함)» ④ :188 끝에 «검증 실패 Turn 기록은 그대로 옮긴다.» ⑤ :181 줄 다음에 `context-correction-7` 줄 신설. 줄 번호가 밀리므로 문안의 앵커 문자열로 편집한다. 고치지 않는 것 diff 0: :196 · :200 · :205 문장 · `CLAUDE.md` 최상위 경계 4. 자 = 문안 대조 (QA), 모집단 5곳. `validate_contracts.py` 31 OK.
-- [ ] AC-02 Turn 격리 (§02-1 · §02-2, 축 1): `ContextCorrection.validated` 합성 청크 3 Turn [A = 확실한 change 1개 · B = changes `[]` · unresolved `[]` · text 원문 · C = 사례별]. C 원문 «가나다 라마바»(7자) 기준:
+- [x] AC-01 계약 (D-01): 스펙 §05 문안 5곳이 글자 그대로 들어갔다. ① :215 첫 문장 교체 (나머지 문장 유지) ② :194 «완료/전체 청크 수를 보존한다.» 구절 교체 ③ :206 «끝난 청크의 검증된 결과» → «끝난 청크의 검증된 결과(검증 실패 Turn 포함)» ④ :188 끝에 «검증 실패 Turn 기록은 그대로 옮긴다.» ⑤ :181 줄 다음에 `context-correction-7` 줄 신설. 줄 번호가 밀리므로 문안의 앵커 문자열로 편집한다. 고치지 않는 것 diff 0: :196 · :200 · :205 문장 · `CLAUDE.md` 최상위 경계 4. 자 = 문안 대조 (QA), 모집단 5곳. `validate_contracts.py` 31 OK.
+- [x] AC-02 Turn 격리 (§02-1 · §02-2, 축 1): `ContextCorrection.validated` 합성 청크 3 Turn [A = 확실한 change 1개 · B = changes `[]` · unresolved `[]` · text 원문 · C = 사례별]. C 원문 «가나다 라마바»(7자) 기준:
 
   | 사례 | C 응답 | 기대 `rejected` |
   |---|---|---|
@@ -63,30 +63,30 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
   - 처음 걸린 규칙 2사례: C text 257자 + change 인용 없음 → `limit` · unresolved 하나가 이유 공백 + 인용 없음 → `reason`.
   - 전부 실패: A · B · C 모두 quote 위반 → throw 없음, edits `[]`, `rejected` 3개 입력 순서.
   - 검사 순서 = 현행 throw 순서 (첫 위반 1개만 기록): ① `ScriptCorrection.swift:177` Turn text·reason 상한 → limit ② `CorrectionSpans.swift:65` unresolved > 100 → limit ③ :41 changes > 100 → limit ④ change마다 순서대로 :43 reason·replacement 상한 → limit, 이어서 :28–37 인용 → quote ⑤ :49–50 → overlap ⑥ :70 → text ⑦ :73 → other ⑧ unresolved마다 :78 이유 공백 → reason · 600 초과 → limit, 이어서 :81 인용 → quote. legacy 경로(changes · unresolved 둘 다 nil) Turn은 ①만.
-- [ ] AC-03 청크 실패 유지 (§02-1, 축 2): 4사례 → 청크 실패(형식), 결과 기록 없음.
+- [x] AC-03 청크 실패 유지 (§02-1, 축 2): 4사례 → 청크 실패(형식), 결과 기록 없음.
   - `ContextCorrection.validated` 단위: id 순서 뒤바뀜 · id 1개 빠짐 · Turn 하나 `unresolved` nil(`changes` 있음) → `LibraryFailure.invalidScript` throw. 배열 누락은 응답 전체를 먼저 훑어 판정한다: index 0 Turn quote 위반 + index 2 Turn `unresolved` nil → throw (Turn 격리로 넘어가지 않음).
   - `CorrectionRunner.run` (가짜 CLI 모드 파일): 해독 실패(출력 «{») · id 순서 뒤바뀜 · id 1개 빠짐 · Turn 하나 `unresolved` 키 없음 → 4사례 모두 `.failed`, `lastFailure.kind == .format`, `exitCode == 0`, `results` 0개.
   - 어댑터 불변: `git diff 7b59b85 -- Packages/DamaCore/Sources/DamaManaged/CodexCorrectionClient.swift` 빈 출력.
-- [ ] AC-04 엔진·가드 이동 (D-01 · §02-4, 축 7 · 8):
+- [x] AC-04 엔진·가드 이동 (D-01 · §02-4, 축 7 · 8):
   - `ContextCorrection.version == "context-correction-7"`, `CorrectionRunner.engine` 끝 « · context-correction-7».
   - 가드 이동 8단정 (형태·건수 유지, 사례당 단정 1): `MeaningGuardTests.swift:67` 기대값 v7 · `:106` `hasSuffix("저장 후보 반영 context-correction-7")` · `ContextCorrectionTests.swift:70–73` 5사례 `XCTAssertThrowsError` → `rejected == [t · 규칙]` (인용 «없음» quote · 위치 −1 quote · 위치 2 quote · 같은 change 2개 overlap · «30억원 30억원» + change() overlap) · `:74` → `[t · text]`. 스펙 축 8의 «버전 단정 2곳»은 실측 8단정으로 정정 (§02-1이 :70–74 6사례를 Turn 실패로 정한다).
   - 역뮤테이션 (원본 바이트 보관·복원·해시 대조): ⓐ Turn 실패를 다시 throw → 붉음 = AC-02 10사례 중 위반 9 + 이동 6 + AC-06 runner 사례 (건수 기록) ⓑ version을 v6로 → 붉음 2 (:67 · :106).
   - 수정 없이 PASS: `ContextCorrectionTests.swift:77` · `:112` · `:236` · `CorrectionRunnerTests.swift:146`.
-- [ ] AC-05 저장 (D-02 · §02-3, 축 3):
+- [x] AC-05 저장 (D-02 · §02-3, 축 3):
   - ⓐ 타입: `public enum CorrectionRejectionRule: String, Codable, Sendable, CaseIterable { case quote, overlap, text, limit, reason, other }` · `public struct CorrectionRejectedTurn: Codable, Sendable, Equatable { public let turnID: String; public let rule: CorrectionRejectionRule }` · `ScriptCorrection.rejectedTurns: [CorrectionRejectedTurn]? = nil` (합성 Codable, nil이면 키 없음) · `ScriptCorrection.rejectedCount(in turnIDs: [String]) -> Int`.
   - ⓑ 기존 파일 바이트: 현행 형태로 고정한 `ScriptCorrection` JSON 리터럴 1개 (키 정렬, `rejectedTurns` 없음, edits 1 · speakerNames 1) 해독 → `.sortedKeys` 재인코딩 = 리터럴 바이트. `fixtures/normalized-transcript.json` 기반 `LibraryScript`(교정 completed, `rejectedTurns` nil) 인코딩 → 해독 → 재인코딩 바이트 동일, `rejectedTurns` 문자열 0.
   - ⓒ 저장 검증 위반 4종 → 손상: (1) turnID `t-marker` (fixture의 missingSpeech Turn = 발화 밖) (2) 같은 turnID 2개 (3) edits에 있는 turnID (4) rule «bogus». (1)–(3) `ScriptCorrection.validate` → `LibraryFailure.invalidScript`. (4) `JSONDecoder().decode(LibraryScript.self)` 실패. 폴더 조회에서 4종 모두 목록 제외 · issue `.unreadable` (현행 손상 분류 `FolderLibraryStore.swift:346–353`).
   - ⓓ 왕복: `rejectedTurns [t3 · quote]` 결과 `saveCorrection` → 다시 열기 → 같은 값, 저장 바이트에 키 1개.
   - ⓔ 경계 4 · INV-09 · INV-06/RC-01: 교정 저장 전후 `transcript` 인코딩 바이트 동일 (Turn ID·시간·화자·Turn 수 불변, 다른 Run 매핑 0).
-- [ ] AC-06 시도 기록·실행기 (§02-2 ⑦ · §02-3, 축 4):
+- [x] AC-06 시도 기록·실행기 (§02-2 ⑦ · §02-3, 축 4):
   - `CorrectionChunkResult.rejected: [CorrectionRejectedTurn]?` (init 기본값 nil, 빈 목록 → nil). `CorrectionAttempt.currentFormatVersion` 1 유지. `merged()` 반환에 `rejected` (청크 순서 → 청크 안 입력 순서). `CorrectionRunner.run`이 검증 결과의 rejected를 청크 결과에 기록.
   - 가짜 CLI «reject» 모드 (청크마다 첫 Turn change quote를 «없는말»로): `CorrectionRunnerTests.script()` 12청크 → `.completed`, 청크 결과마다 rejected 1개 (quote), `merged().rejected` 12개, `merged().edits` 1,188 (현행 기준선 1,200 = `CorrectionRunnerTests.swift:91` − 12).
   - 이어서: reject 모드 + fail-at 5 → 실패, 시도 기록 파일의 완료 4청크 결과에 rejected 각 1 → 이어서 교정 → 호출 13 (5 + 8, 현행 :112와 같음) → `merged().rejected` = 한 번에 끝낸 reject 기준선과 같은 12개·같은 순서.
   - 기존 시도 기록: 현행 형태 JSON 리터럴 (formatVersion 1, 결과 1개 `rejected` 키 없음) → `CorrectionAttemptStore.load` 성공 · `save` 재인코딩 바이트 = 리터럴.
-- [ ] AC-07 재반영·오류 형식 (§02-3, 축 5):
+- [x] AC-07 재반영·오류 형식 (§02-3, 축 5):
   - `MeaningGuardTests.testReapplication…` 구성 (fixture t1 · t2 보류 후보 2) + `rejectedTurns [t3 · quote]` → `reapplyingPending` 결과 `rejectedTurns == [t3 · quote]`, edits 단정은 현행 :94–105 그대로. 바뀔 후보 없으면 nil (현행).
   - 밖으로 나가는 오류 형식은 현행 `LibraryFailure.invalidScript`만: `validateStored` 변조 (`ContextCorrectionTests.swift:76` 같은 `appliedText` 변조 1 + change quote 변조 1) → 오류가 `LibraryFailure.invalidScript`. `reapplyingPending`도 같은 형식 (Turn 격리는 새 응답 검증에만).
-- [ ] AC-08 문구·Markdown·구간 정보·완료 띠 (§03 · §04 문구표, 축 6):
+- [x] AC-08 문구·Markdown·구간 정보·완료 띠 (§03 · §04 문구표, 축 6):
   - DamaCore `CorrectionRejectionText`: `inspectorTitle` = 문구 1 · `paragraphNote(count:)` = 문구 2, count ≥ 2면 « ({count}개 원구간)» · `completionSuffix(count:)` = count ≥ 1이면 « » + 문구 3, 0이면 «» · `markdownSummary(count:)` = 문구 4 · `markdownPrefix` = 문구 5. 단위: k = 1 · 2 · 3, N = 0 · 1 · 12 글자 그대로 (tone 표와 대조).
   - 리터럴 1곳: 문구 1 · 2 · 4 · 5와 «원구간은 원문을 유지했습니다.» 각각 `git grep -n -F '<문구>' -- App UI Packages/DamaCore/Sources scripts` = 1줄 (`CorrectionRejectionText`, 기준선 0).
   - 완료 띠: `CorrectionWorkspace` 완료 문장 = 현행 :151 리터럴 + `completionSuffix(count: merged.rejected.count)`, 완료 시 빈 목록 → `rejectedTurns` nil. 실패 두 자리 (:153 · :161) `rejectedTurns = nil`. N = 0 → 현행 리터럴과 바이트 동일 (단위). 자 = 단위 + 코드 대조 (QA).

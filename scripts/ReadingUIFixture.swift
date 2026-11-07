@@ -59,6 +59,17 @@ import Foundation
         let current = try await store.createScript(model, speech: speech, input: notes, in: scriptFolder)
         var ai = ScriptCorrection(input: notes, engine: "합성 UI 검증 · 실제 AI 호출 없음", state: .completed)
         ai.completedAt = Date()
+        // correction-turn-isolation 실화면 검증용(합성, 실제 AI 응답 아님): 원구간 2개 이상인 첫 문단 = AI 교정 항목 1(보류)
+        // + 버린 원구간 1, 원구간 2개 이상인 둘째 문단 = 버린 원구간 2(«(2개 원구간)»), 나머지 문단 = 없음.
+        let multi = current.script.blocks().filter { $0.isSpeech && $0.turnIDs.count >= 2 }
+        guard multi.count >= 2, let editTurn = current.script.transcript.turns.first(where: { $0.id == multi[0].turnIDs[0] }) else {
+            fatalError("Fixture paragraphs changed; correction-turn-isolation needs two multi-turn paragraphs")
+        }
+        let editObject: [String: Any] = ["turnID": editTurn.id, "original": current.script.text(for: editTurn), "text": "합성 교정 후보",
+                                         "reason": "합성 UI 검증 보류", "applied": false]
+        ai.edits = [try JSONDecoder().decode(CorrectionEdit.self, from: JSONSerialization.data(withJSONObject: editObject))]
+        ai.rejectedTurns = [CorrectionRejectedTurn(turnID: multi[0].turnIDs[1], rule: .quote)] +
+            multi[1].turnIDs.prefix(2).map { CorrectionRejectedTurn(turnID: $0, rule: .text) }
         let versioned = try await store.saveCorrection(ai, for: current)
         _ = try await store.saveTitle("제품 검토 회의", for: versioned)
         var comparison = model
