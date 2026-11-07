@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "AC-09 닫음(사용자 결정, F-03). 대기 = AC-11 메뉴바 툴팁 관측 · AC-12 사용자 실데이터 교정 1회(설치 앱 0.5.20). 그 뒤 메인 메타데이터 측정 → 전달 차수 QA(AC-10–12) → built."
+resume: "게이트 ② 상신(1차). 대기 = AC-11 메뉴바 툴팁 관측 · AC-12 사용자 실데이터 교정 1회(대상 조건 30–40분 Nemotron 결합본 0개, 선택은 사용자). 회신 뒤 메인 메타데이터 측정(AC12-before.txt 대조) → 전달 차수 QA → built."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
@@ -120,7 +120,7 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 | 09 | 닫음 (사용자 결정 «미검증으로 닫기», 코드 대조 = QA A AC-08 통과) · 시도 기록: 합성 QA 앱 0.5.20 (38) · fixture a 실행, QASnapshot 창 캡처 1장 성공(`ui/` 기본 화면). System Events 질의가 10초 안에 끝나지 않아(SIGALRM, 이 백그라운드 세션의 자동화·접근성 권한 없음으로 봄) «정보»·결과 전환·문단 선택 조작 불가. «원문 보기 전환» 컨트롤은 UI에 없음(`toggleOriginal` 호출처 0) → fixture b `showsOriginal = true` 사본 준비. 사용자 «권한 허용 후 재시도» → 1회 재시도 = «osascript is not allowed assistive access (-25211)» (자동화는 통과, 손쉬운 사용 권한 없음) → 사용자 «미검증으로 닫기» | 미검증 = F-03 |
 | 10 | 메인 실측 충족 (check.sh 1–4 PASS · 360 통과 · 삭제·완화 0 · 진단 테스트·어댑터 diff 0) | 최종 판정은 전달 차수 QA |
 | 11 | 설치 2026-11-07 20:2x (사용자 승인): 설치 앱 0.5.19 (37) 종료 → 백업 `.build/backups/DAMA-0.5.19-37-before-correction-turn-isolation.app` 11파일 SHA256 = 설치본 → `/Applications/DAMA.app` 교체 11파일 SHA256 = `.build/xcode/Build/Products/Debug/DAMA.app`, adhoc·linker-signed. 실행 pid 적재 경로 `/Applications/DAMA.app`, `lsappinfo` bundleID `com.gazitofu.Dama` · Version 38, Info.plist 0.5.20 | 메뉴바 툴팁 = 사용자 관측 (접근성 불가) |
-| 12 | 대기 | 막힘 3 (사용자 실행) |
+| 12 | 대기 | 막힘 3 (사용자 실행). 기준선 `.build/qa/correction-turn-isolation/AC12-before.txt` (스크립트 38 · 교정 기록 7 · 시도 기록 `44F4E8DD` 1). 대상 조건 «30–40분 Soniox + Nemotron 결합본» 실데이터 0개: Nemotron 결합본 = 80.3분 3 (`7A430186` · `108E3A3C` · `E33ADFD9`, 교정 없음) · 140.6분 1 (`44F4E8DD`). 가장 가까운 길이 = Soniox + pyannote 결합본 28.0분 2 (`57C3F857` · `3E66BE55`, 교정 없음). 대상 선택은 사용자 |
 
 ## 작업 분해
 
