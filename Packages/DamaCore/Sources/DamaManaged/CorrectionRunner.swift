@@ -107,10 +107,11 @@ public struct CorrectionRunner: Sendable {
             do {
                 let result = try await client.correct(chunk: chunks[index], input: attempt.input, executable: executable, timeout: timeout)
                 guard let validated = try? ContextCorrection.validated(result.reply, chunk: chunks[index], input: attempt.input) else {
-                    // 응답 검증(ContextCorrection.validated) 실패 = 형식.
+                    // 응답을 입력과 짝지을 수 없음(ContextCorrection.validated throw) = 형식. Turn 하나의 실패는 청크 결과의 rejected로 남는다.
                     return fail(CodexCorrectionError(kind: .format, exitCode: 0, elapsedMs: result.elapsedMs, stderrBytes: result.stderrBytes))
                 }
-                attempt.record(CorrectionChunkResult(chunkIndex: index, edits: validated.edits, names: validated.names, evidence: validated.evidence))
+                attempt.record(CorrectionChunkResult(chunkIndex: index, edits: validated.edits, names: validated.names,
+                                                     evidence: validated.evidence, rejected: validated.rejected))
                 do { try store.save(attempt) } catch { return fail(CodexCorrectionError(kind: .unclassified)) }
                 await progress(attempt.completedChunks)
             } catch let error as CodexCorrectionError {

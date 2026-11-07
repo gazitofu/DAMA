@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-03 완료(Turn 격리·v7·가드 이동 8·역뮤테이션 ⓐ 15 · ⓑ 2). 다음 = T-04 시도 기록·실행기."
+resume: "T-04 완료(시도 기록·실행기, 역뮤테이션 ⓐ 누계 17). 다음 = T-05 재반영·오류 형식."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
