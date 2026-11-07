@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "T-08 버전 0.5.20(38) 커밋, check.sh run-20261107T082026Z-HJGlkU PASS. 다음 = QA 앱 빌드 → 게이트 ② 막힘 1–3 확인 요청(실화면·설치·실데이터)."
+resume: "차수 A 통과 · T-07 fixture · T-08 버전 완료. QA 앱 .build/xcode-qa 0.5.20(38) 빌드, fixture /private/tmp/dama-reading-qa-cti-a. 대기 = 막힘 1(설치 승인) · 2(실화면 시간) · 3(실데이터 교정 1회, 사용자 실행)."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
@@ -102,6 +102,25 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 - [ ] AC-10 회귀 (축 8): check.sh 1–4 PASS · swift test 통과 ≥ 343 + 신규 · skipped 2 유지 · 기존 테스트 삭제 0 · 완화 0 (이동 = AC-04 8단정뿐) · `git diff 7b59b85 -- Packages/DamaCore/Tests/DamaManagedTests/CorrectionFormatProbeTests.swift` 빈 출력, 그 안의 상시 테스트 `testProbeClassifierNamesTheFirstFailingRule` PASS.
 - [ ] AC-11 버전·설치: `MARKETING_VERSION` 0.5.20 · `CURRENT_PROJECT_VERSION` 38 (Debug/Release). check.sh 4단계 PASS. 설치 앱 교체 (막힘 1) 뒤 실행 중 Bundle 0.5.20 (38), 메뉴바 툴팁.
 - [ ] AC-12 실데이터 (축 9, 게이트 ②, 막힘 3): 사용자가 설치 앱 0.5.20에서 30–40분 Soniox + Nemotron 결합본 1개를 «AI 검수/보정» 1회. 메인이 메타데이터로 잰다 (출력 = 개수·규칙 이름·ID 앞 8자): 상태 · 완료/전체 청크 · `rejectedTurns` 수 · 규칙별 수 · 발화 Turn 수 · edits 수 · 실패면 분류·종료 코드·경과. 문턱 없음 (모델 응답에 달림). 완료 띠 글자는 사용자 관측. 이어서 묶음 3 ① 원음 대조 (`correction-measure.md` 프로토콜, 이 유닛 밖).
+
+## /build 결과 (2026-11-07 · 1차, 막힘 대기)
+
+커밋 `d557f8c`(T-01) · `0f3c797`(T-02) · `a6bb767`(T-03) · `f65f6dc`(T-04) · `6267108`(T-05) · `fc73e21`(T-06) · `61fa996`(QA A D-1) · `5be318c`(T-07 fixture) · `0e4c51a`(T-08 버전 0.5.20 (38)). 구현 = 메인 직접. QA = GPT-6.1-sol `codex exec -m gpt-6.1-sol --sandbox read-only --ignore-user-config -c model_reasoning_effort="high"` (codex-cli 0.166.0), 증거·판정 `.build/qa/correction-turn-isolation/` (A · A2).
+
+- check.sh `run-20261107T082026Z-HJGlkU` (HEAD `0e4c51a`): 계약 31 · byte-exact · SmokeCheck · swift test 362 실행 = 360 통과 + skipped 2 (Managed 66 / Core 212 / Audio 84), 실패 0 · xcodebuild Debug PASS, 산출물 Bundle 0.5.20 (38). 기준선 343 + 2 → 360 + 2 (신규 17, 사라진 테스트 이름 0, 이동 = AC-04 8단정).
+- 역뮤테이션 (러너 = 원본 바이트 보관·복원·SHA256 대조, 전부 복원 해시 같음): ⓐ Turn 실패 → 청크 throw = 붉음 23 (AC-02 위반 9 · 이동 6 · 분리 신규 6 · 실행기 2) · ⓑ 버전 v6 = 2 · ⓒ 재반영 운반 삭제 = 1 · ⓓ 저장 검증 오류 변환 삭제 = 2.
+- Markdown N = 0 기준선 SHA256 `5dc04eb6…` · 1,564 B (T-06 착수 전 HEAD `6267108` 실측) = 변경 뒤 nil · `[]` 같은 값.
+- QA 앱: `.build/xcode-qa/Build/Products/Debug/DAMA.app` `com.gazitofu.Dama.ReadingQA` 0.5.20 (38), 로그 `.build/check-logs/cti-qa-app-build.log` BUILD SUCCEEDED (첫 시도는 소문자 cwd 모듈 캐시 충돌, `cd "$(/bin/pwd -P)"` 뒤 성공 · dev.md 부칙 11-07과 같은 원인). 합성 fixture `/private/tmp/dama-reading-qa-cti-a` (임시 패키지 = job tmp, `scripts/ReadingUIFixture.swift`와 같은 소스): 스크립트 `8DEED307` 편집 t0 · 버림 t1(quote) · t4 · t5(text), 문단 [t0 t1 t2] · [t3] · [t4 t5] …
+- 실제로 쓴 것: 이 Mac의 사용자 데이터 읽기 1회 (plan 근거 `CorrectionAttempts/` 메타데이터, 개수·ID 앞 8자). 앱 실행·마이크·API·네트워크(QA용 codex 호출 제외)·음성 전송·키체인·설치 0. 사용자 데이터 쓰기 0.
+
+| AC | 판정 (QA) | 남은 것 |
+|---|---|---|
+| 01–03 · 05–08 | 통과 (A) | AC-08 구간 정보·완료 띠는 코드 대조까지. 실화면 = AC-09 · 게이트 ② |
+| 04 | 통과 (A2, D-1 해소) | |
+| 09 | 대기 | 막힘 2 (실화면 시간) |
+| 10 | 메인 실측 충족 (check.sh 1–4 PASS · 360 통과 · 삭제·완화 0 · 진단 테스트·어댑터 diff 0) | 최종 판정은 전달 차수 QA |
+| 11 | 버전 커밋·빌드 Bundle 0.5.20 (38) | 막힘 1 (설치 승인) |
+| 12 | 대기 | 막힘 3 (사용자 실행) |
 
 ## 작업 분해
 
