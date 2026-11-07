@@ -1,9 +1,9 @@
 ---
 unit: correction-turn-isolation
 branch: work/m0-fixture-review
-status: ready-to-build
+status: building
 decisions_resolved: true
-resume: "plan 작성 2026-11-07 15:5x KST, 열린 결정 없음. 다음 = /build T-01."
+resume: "/build 진입 2026-11-07. 진행 = T-01 착수 전. 태스크 경계마다 갱신."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
