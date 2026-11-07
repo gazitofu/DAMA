@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "설치 0.5.20(38) 완료(AC-11 툴팁 관측만 남음). AC-09 실화면 = 이 세션 System Events 무응답으로 조작 불가, 처리 방식 사용자 확인 대기. AC-12 = 사용자 실데이터 교정 1회 대기."
+resume: "AC-09 닫음(사용자 결정, F-03). 대기 = AC-11 메뉴바 툴팁 관측 · AC-12 사용자 실데이터 교정 1회(설치 앱 0.5.20). 그 뒤 메인 메타데이터 측정 → 전달 차수 QA(AC-10–12) → built."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
@@ -95,7 +95,7 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 
 ### 차수 B · 실화면
 
-- [ ] AC-09 구간 정보 실화면 (막힘 2): `ReadingUIFixture.swift`의 합성 AI 결과에 문단 P1 = AI 교정 항목 1 (legacy 보류 edit) + 버린 원구간 1 · P2 = 버린 원구간 ≥ 2 · P3 = 없음 (fixture 실측 후 문단 선택). 합성 QA 앱 `com.gazitofu.Dama.ReadingQA` + fixture `/private/tmp/dama-reading-qa-cti-*` QASnapshot: P1 = AI 교정 항목 → 문구 1 → 문구 2 → «모델 원문» 순, 2a 없음 · P2 = 문구 2 끝 « ({k}개 원구간)» · P3 = 문구 1 · 2 없음 · P1을 원문 보기 전환 켠 상태로 1장 더 (문구 1 · 2 그대로). 수집기 = 실행 전 AC 문언·조작 경로·관측 수단 대조표.
+- [x] AC-09 구간 정보 실화면 (막힘 2) → **닫음, 실화면 미검증 (사용자 결정 2026-11-07 «미검증으로 닫기», F-03)**: `ReadingUIFixture.swift`의 합성 AI 결과에 문단 P1 = AI 교정 항목 1 (legacy 보류 edit) + 버린 원구간 1 · P2 = 버린 원구간 ≥ 2 · P3 = 없음 (fixture 실측 후 문단 선택). 합성 QA 앱 `com.gazitofu.Dama.ReadingQA` + fixture `/private/tmp/dama-reading-qa-cti-*` QASnapshot: P1 = AI 교정 항목 → 문구 1 → 문구 2 → «모델 원문» 순, 2a 없음 · P2 = 문구 2 끝 « ({k}개 원구간)» · P3 = 문구 1 · 2 없음 · P1을 원문 보기 전환 켠 상태로 1장 더 (문구 1 · 2 그대로). 수집기 = 실행 전 AC 문언·조작 경로·관측 수단 대조표.
 
 ### 전달
 
@@ -117,7 +117,7 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 |---|---|---|
 | 01–03 · 05–08 | 통과 (A) | AC-08 구간 정보·완료 띠는 코드 대조까지. 실화면 = AC-09 · 게이트 ② |
 | 04 | 통과 (A2, D-1 해소) | |
-| 09 | 막힘 | 합성 QA 앱 0.5.20 (38) · fixture a 실행, QASnapshot 창 캡처 1장 성공(`ui/` 기본 화면). System Events 질의가 10초 안에 끝나지 않아(SIGALRM, 이 백그라운드 세션의 자동화·접근성 권한 없음으로 봄) «정보»·결과 전환·문단 선택 조작 불가. «원문 보기 전환» 컨트롤은 UI에 없음(`toggleOriginal` 호출처 0) → fixture b `showsOriginal = true` 사본 준비. 처리 방식 사용자 확인 |
+| 09 | 닫음 (사용자 결정 «미검증으로 닫기», 코드 대조 = QA A AC-08 통과) · 시도 기록: 합성 QA 앱 0.5.20 (38) · fixture a 실행, QASnapshot 창 캡처 1장 성공(`ui/` 기본 화면). System Events 질의가 10초 안에 끝나지 않아(SIGALRM, 이 백그라운드 세션의 자동화·접근성 권한 없음으로 봄) «정보»·결과 전환·문단 선택 조작 불가. «원문 보기 전환» 컨트롤은 UI에 없음(`toggleOriginal` 호출처 0) → fixture b `showsOriginal = true` 사본 준비. 사용자 «권한 허용 후 재시도» → 1회 재시도 = «osascript is not allowed assistive access (-25211)» (자동화는 통과, 손쉬운 사용 권한 없음) → 사용자 «미검증으로 닫기» | 미검증 = F-03 |
 | 10 | 메인 실측 충족 (check.sh 1–4 PASS · 360 통과 · 삭제·완화 0 · 진단 테스트·어댑터 diff 0) | 최종 판정은 전달 차수 QA |
 | 11 | 설치 2026-11-07 20:2x (사용자 승인): 설치 앱 0.5.19 (37) 종료 → 백업 `.build/backups/DAMA-0.5.19-37-before-correction-turn-isolation.app` 11파일 SHA256 = 설치본 → `/Applications/DAMA.app` 교체 11파일 SHA256 = `.build/xcode/Build/Products/Debug/DAMA.app`, adhoc·linker-signed. 실행 pid 적재 경로 `/Applications/DAMA.app`, `lsappinfo` bundleID `com.gazitofu.Dama` · Version 38, Info.plist 0.5.20 | 메뉴바 툴팁 = 사용자 관측 (접근성 불가) |
 | 12 | 대기 | 막힘 3 (사용자 실행) |
@@ -157,3 +157,4 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 
 - F-01 (기록) 이 유닛 뒤 `CorrectionFormatProbeTests`의 `r["validated"]`는 Turn 실패만 있는 응답에서도 true가 된다 (코드 불변, 스펙 §05). 묶음 3 진단을 다시 돌리면 판정은 `turnRule` 집계로 읽는다.
 - F-02 (관측, 이 유닛 범위 밖) `CorrectionFailureTests.testNetworkMarkerDuringTimeoutIsNetworkAndOtherConfigMarker`가 check.sh `run-20261107T081450Z-MtBELu`에서 1회 실패(«timeout» ≠ «network»). 400ms 시간 초과 안에 셸 루프가 stderr 표식을 내야 하는 시간 경쟁. 이 테스트가 든 check 실행 40회 중 1회, 직전 PASS 이후 바뀐 것은 Core 테스트 2파일뿐(`CodexCorrectionClient` 무변경), 같은 트리 재실행 `run-20261107T081612Z-tmygxn` PASS. 시간 여유를 넓힐지는 별도 결정.
+- F-03 (AC-09, 사용자 결정 2026-11-07 «미검증으로 닫기») 구간 정보의 새 문구 실화면 미검증: 배치(AI 교정 항목 다음 · «모델 원문» 앞) · 굵기 · caption · k = 1 / ≥ 2 표시 · 원문 보기 상태. 코드 판정은 QA A AC-08 통과. 수집 시도: 합성 QA 앱 0.5.20 (38) + fixture `/private/tmp/dama-reading-qa-cti-a`(·`-b` `showsOriginal = true`)에서 창 캡처는 됐으나 이 백그라운드 세션의 osascript에 손쉬운 사용 권한이 없어 조작 불가(-25211). 문언 차이: AC-09 «원문 보기 전환 켠 상태»의 화면 컨트롤은 현행 UI에 없다(`LibraryWorkspace.toggleOriginal` 호출처 0, `showsOriginal`은 데이터로만 존재). 다음 실화면 기회(게이트 ② 실데이터 교정의 구간 정보 · 묶음 5 실기기 확인)에 본다.
