@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "게이트 ② 1차 회신 2026-11-09: AC-11 닫음(툴팁 사용자 관측). 대기 = AC-12 실데이터 교정 1회(대상·실행 주체 확인). 회신 뒤 메인 메타데이터 측정(AC12-before.txt 대조) → 전달 차수 QA → built."
+resume: "게이트 ② 1차 회신 2026-11-09: AC-11 닫음(툴팁 사용자 관측). AC-12 대상 = 57C3F857 (28.0분 · 9/21 녹음 · Soniox+pyannote, 사용자 선택), 실행 = 사용자. 회신 뒤 메인 메타데이터 측정(AC12-before.txt 대조) → 전달 차수 QA → built."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
