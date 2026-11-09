@@ -3,7 +3,7 @@ unit: correction-turn-isolation
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "게이트 ② 상신(1차). 대기 = AC-11 메뉴바 툴팁 관측 · AC-12 사용자 실데이터 교정 1회(대상 조건 30–40분 Nemotron 결합본 0개, 선택은 사용자). 회신 뒤 메인 메타데이터 측정(AC12-before.txt 대조) → 전달 차수 QA → built."
+resume: "게이트 ② 1차 회신 2026-11-09: AC-11 닫음(툴팁 사용자 관측). 대기 = AC-12 실데이터 교정 1회(대상·실행 주체 확인). 회신 뒤 메인 메타데이터 측정(AC12-before.txt 대조) → 전달 차수 QA → built."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
@@ -100,7 +100,7 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 ### 전달
 
 - [ ] AC-10 회귀 (축 8): check.sh 1–4 PASS · swift test 통과 ≥ 343 + 신규 · skipped 2 유지 · 기존 테스트 삭제 0 · 완화 0 (이동 = AC-04 8단정뿐) · `git diff 7b59b85 -- Packages/DamaCore/Tests/DamaManagedTests/CorrectionFormatProbeTests.swift` 빈 출력, 그 안의 상시 테스트 `testProbeClassifierNamesTheFirstFailingRule` PASS.
-- [ ] AC-11 버전·설치: `MARKETING_VERSION` 0.5.20 · `CURRENT_PROJECT_VERSION` 38 (Debug/Release). check.sh 4단계 PASS. 설치 앱 교체 (막힘 1) 뒤 실행 중 Bundle 0.5.20 (38), 메뉴바 툴팁.
+- [x] AC-11 버전·설치 (메뉴바 툴팁 = 사용자 관측 2026-11-09 «이상없음»): `MARKETING_VERSION` 0.5.20 · `CURRENT_PROJECT_VERSION` 38 (Debug/Release). check.sh 4단계 PASS. 설치 앱 교체 (막힘 1) 뒤 실행 중 Bundle 0.5.20 (38), 메뉴바 툴팁.
 - [ ] AC-12 실데이터 (축 9, 게이트 ②, 막힘 3): 사용자가 설치 앱 0.5.20에서 30–40분 Soniox + Nemotron 결합본 1개를 «AI 검수/보정» 1회. 메인이 메타데이터로 잰다 (출력 = 개수·규칙 이름·ID 앞 8자): 상태 · 완료/전체 청크 · `rejectedTurns` 수 · 규칙별 수 · 발화 Turn 수 · edits 수 · 실패면 분류·종료 코드·경과. 문턱 없음 (모델 응답에 달림). 완료 띠 글자는 사용자 관측. 이어서 묶음 3 ① 원음 대조 (`correction-measure.md` 프로토콜, 이 유닛 밖).
 
 ## /build 결과 (2026-11-07 · 1차, 막힘 대기)
@@ -119,7 +119,7 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 | 04 | 통과 (A2, D-1 해소) | |
 | 09 | 닫음 (사용자 결정 «미검증으로 닫기», 코드 대조 = QA A AC-08 통과) · 시도 기록: 합성 QA 앱 0.5.20 (38) · fixture a 실행, QASnapshot 창 캡처 1장 성공(`ui/` 기본 화면). System Events 질의가 10초 안에 끝나지 않아(SIGALRM, 이 백그라운드 세션의 자동화·접근성 권한 없음으로 봄) «정보»·결과 전환·문단 선택 조작 불가. «원문 보기 전환» 컨트롤은 UI에 없음(`toggleOriginal` 호출처 0) → fixture b `showsOriginal = true` 사본 준비. 사용자 «권한 허용 후 재시도» → 1회 재시도 = «osascript is not allowed assistive access (-25211)» (자동화는 통과, 손쉬운 사용 권한 없음) → 사용자 «미검증으로 닫기» | 미검증 = F-03 |
 | 10 | 메인 실측 충족 (check.sh 1–4 PASS · 360 통과 · 삭제·완화 0 · 진단 테스트·어댑터 diff 0) | 최종 판정은 전달 차수 QA |
-| 11 | 설치 2026-11-07 20:2x (사용자 승인): 설치 앱 0.5.19 (37) 종료 → 백업 `.build/backups/DAMA-0.5.19-37-before-correction-turn-isolation.app` 11파일 SHA256 = 설치본 → `/Applications/DAMA.app` 교체 11파일 SHA256 = `.build/xcode/Build/Products/Debug/DAMA.app`, adhoc·linker-signed. 실행 pid 적재 경로 `/Applications/DAMA.app`, `lsappinfo` bundleID `com.gazitofu.Dama` · Version 38, Info.plist 0.5.20 · 재확인 2026-11-09 09:27 재실행 pid 29947 `lsappinfo` Version 38 · Info.plist 0.5.20 · 100초 생존 (F-04) | 메뉴바 툴팁 = 사용자 관측 (접근성은 이제 통과하나 상태 항목이 AX 트리에 없음: `AXExtrasMenuBar` missing · Control Center 0건) |
+| 11 | 설치 2026-11-07 20:2x (사용자 승인): 설치 앱 0.5.19 (37) 종료 → 백업 `.build/backups/DAMA-0.5.19-37-before-correction-turn-isolation.app` 11파일 SHA256 = 설치본 → `/Applications/DAMA.app` 교체 11파일 SHA256 = `.build/xcode/Build/Products/Debug/DAMA.app`, adhoc·linker-signed. 실행 pid 적재 경로 `/Applications/DAMA.app`, `lsappinfo` bundleID `com.gazitofu.Dama` · Version 38, Info.plist 0.5.20 · 재확인 2026-11-09 09:27 재실행 pid 29947 `lsappinfo` Version 38 · Info.plist 0.5.20 · 100초 생존 (F-04) | 메뉴바 툴팁 = 사용자 관측 2026-11-09 «이상없음» (메인 AX 판독 불가: 접근성은 이제 통과하나 상태 항목이 AX 트리에 없음: `AXExtrasMenuBar` missing · Control Center 0건) |
 | 12 | 대기 | 막힘 3 (사용자 실행). 기준선 `.build/qa/correction-turn-isolation/AC12-before.txt` (스크립트 38 · 교정 기록 7 · 시도 기록 `44F4E8DD` 1). 대상 조건 «30–40분 Soniox + Nemotron 결합본» 실데이터 0개: Nemotron 결합본 = 80.3분 3 (`7A430186` · `108E3A3C` · `E33ADFD9`, 교정 없음) · 140.6분 1 (`44F4E8DD`). 가장 가까운 길이 = Soniox + pyannote 결합본 28.0분 2 (`57C3F857` · `3E66BE55`, 교정 없음). 대상 선택은 사용자 |
 
 ## 작업 분해
