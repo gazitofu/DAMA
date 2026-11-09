@@ -2,6 +2,47 @@
 
 형식은 유닛 단위. `/ship`이 최상단에 엔트리를 추가한다. 안 잰 축을 반드시 함께 적는다.
 
+## [v0.5.20] correction-turn-isolation · 2026-11-09
+
+AI 교정 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유지하고 `rejectedTurns`(Turn ID · 규칙 코드)에 남긴다. 같은 청크의 다른 Turn은 v6 판정대로 반영한다. 응답을 입력과 짝지을 수 없는 실패(해독 실패 · Turn id 순서/개수 불일치 · `changes`/`unresolved` 누락)만 청크 실패(형식)로 남는다. 엔진 `context-correction-7`. 앱 0.5.20(38).
+
+같은 브랜치에 쌓인 이 유닛의 입력(사용 복기 묶음 3 측정 문서 4커밋 · 환경변수 게이트 진단 테스트 `CorrectionFormatProbeTests` 1커밋)이 함께 main에 들어간다.
+
+### Added
+- `ScriptCorrection.rejectedTurns`: `CorrectionRejectedTurn`(turnID · 규칙 `quote`·`overlap`·`text`·`limit`·`reason`·`other`), 없으면 키 생략. 저장 검증: 발화 밖 turnID · 같은 turnID 중복 · edits와 겹침은 손상(`invalidScript`), 모르는 규칙은 해독 실패. 기존 스크립트 파일은 바이트 그대로 읽고 다시 쓴다.
+- 시도 기록 청크 결과 `rejected`(형식 버전 1 유지, 기존 기록 그대로 읽음). 이어서 교정 뒤 합친 목록은 한 번에 끝낸 결과와 같은 개수·순서.
+- 문구(`ssot/tone/correction-turn-isolation.md` 1–5 · 2a, DamaCore `CorrectionRejectionText` 1곳): 구간 정보 «원문 유지 · AI 응답 검증 실패» + «AI 응답이 이 문단의 원문과 맞지 않아 쓰지 않았습니다.»(2개 이상이면 « ({k}개 원구간)»), 완료 띠 덧붙임 «AI 응답이 원문과 맞지 않은 {N}개 원구간은 원문을 유지했습니다.», Markdown 머리 줄 «- 검증 실패로 원문 유지: {N}개 원구간» · 문단 줄 «> AI 검증 실패: …». 버린 원구간이 0이면 현행과 같다.
+- 환경변수 게이트 진단 테스트 `CorrectionFormatProbeTests`(`DAMA_PROBE_*`가 없으면 skip, 상시 테스트는 합성 분류기 1개).
+
+### Changed
+- 응답 검증 `context-correction-6` → `context-correction-7`: 인용 없음 · 위치 오류 · 겹침 · text 재구성 불일치 · 길이/개수 상한 · 미해결 이유 공백은 그 Turn의 실패(첫 위반 1개 기록). 수정별 반영 판정과 의미 보호는 v6 그대로.
+- 저장된 AI 교정 반영(재반영)이 `rejectedTurns`를 그대로 옮긴다. 저장 재검증의 오류 형식은 현행 `invalidScript` 그대로.
+- 계약(D-01): `ssot/contracts/library-script.md` 5곳(v7 줄 신설 · 응답 실패 문단 · overlay 보존 목록 · 재반영 · 시도 기록). `transcript.v1.schema.json` · `DomainContracts.swift` 변경 없음.
+- 합성 QA fixture(`scripts/ReadingUIFixture.swift`)에 버린 원구간 추가.
+
+### Fixed
+- Turn 하나의 검증 실패로 청크 전체를 버려 교정이 형식 실패로 멈추던 것. 묶음 3 진단(140.6분 결합본 청크 0, 3회)에서 해독 · id · 배열 실패 0/3, Turn 13개 중 1–2개 규칙 위반으로 3/3 청크 폐기였다.
+
+### 결정
+- 게이트 ① D-01 ⓐ 엔진 v7 + 계약 문안 5곳 · D-02 ⓐ `rejectedTurns`.
+- 게이트 ② AC-09 «미검증으로 닫기»(F-03) · AC-12 «미검증으로 닫고 built»(D-1 · F-06). AC-12 대상은 사용자 선택: 조건 «30–40분 Soniox + Nemotron 결합본» 실데이터 0개 → 28.0분 Soniox + pyannote 결합본.
+
+### 실측
+- check.sh `run-20261109T023854Z-yYAlik`(HEAD `ae0b1db`, /ship 재실행): 계약 31 · byte-exact · SmokeCheck · swift test 362 실행 = 360 통과 + skipped 2(환경변수 게이트) · 실패 0(Core 212 · Audio 84 · Managed 66) · xcodebuild Debug PASS. 기준선 343 + 2 → 360 + 2(신규 17, 사라진 테스트 이름 0, 가드 이동 8단정). 역뮤테이션 4종 붉음 23 · 2 · 1 · 2, 복원 해시 일치.
+- Markdown 버린 원구간 0: SHA256 `5dc04eb6…` 1,564 B = 변경 전 코드 출력.
+- QA GPT-6.1-sol 판정 A · A2 · D: AC-01–08 · AC-10 통과.
+- 설치 앱 0.5.20(38): 실행 Bundle(`lsappinfo` Version 38 · Info.plist 0.5.20) 확인, 메뉴바 툴팁은 사용자 관측.
+- 실데이터 1건(사용자 실행, `57C3F857` 28.0분 Soniox + pyannote, 발화 Turn 765): 1차 실행에서 청크 0의 Turn 1개 `text` 격리 + 편집 2 반영(v6였다면 청크 전체 폐기), 2번째 청크 형식 실패 → 이어서 교정 2회 → completed 8/8 · edits 28 · rejectedTurns 10(`text` 6 · `quote` 4, 전부 발화 Turn · edits와 겹침 0) · transcript 해시 8판 + 현재 동일. 완료 띠 문구 3(N = 10) 사용자 관측.
+
+### 안 잰 축
+- 구간 정보 새 문구 실화면(F-03): 배치 · 굵기 · k = 1 / ≥ 2 · 원문 보기 상태. 코드 대조(QA A)만. 원문 보기 전환 컨트롤은 현행 UI에 없다.
+- 실데이터 두 번째 실패(5/8)의 분류 · 종료 코드 · 경과(D-1 · F-06): 교정이 완료되면 시도 기록이 실패 이력째 지워지는 계약(`library-script.md:207`)으로 소실.
+- 실데이터 형식 실패 2회의 하위 원인(F-05): 응답 원문을 설계상 버려 기록 없음.
+- 설치 앱 0.5.20 1회 종료(11-07 20:54, 크래시 리포트 0, 원인 미확정 · F-04). 11-09 재실행 정상.
+- 교정 품질과 원음 대조 · 인용 불일치 원인 · Turn 실패율 변화(묶음 3 ①) · Nemotron 결합본과 30–40분 조건 · 새 문장 키보드 · VoiceOver · 다른 공급자 · 다른 Mac.
+- 실패 분류 테스트 1건의 시간 경쟁 실패 1회 관측(F-02, 이 테스트가 든 check 40회 중 1회, 재실행 PASS).
+- 한국어 화자 분리 정확도(이 유닛 범위 밖). 정확한 화자 분리를 주장하지 않는다.
+
 ## [v0.5.19] usage-bundle2 · 2026-11-07
 
 사용 복기 묶음 2(T2a). 녹음마다 최근 결과 2세대와 사람이 고친 결과를 남기고, 그 밖의 이전 결과 스크립트는 휴지통으로 옮긴다. 대표 결과는 가장 늦은 결과다. 스크립트를 지우면 그 내부 수정 이력과 교정 시도 기록도 함께 지운다. 수정 이력은 스크립트별 폴더에 raw DEFLATE로 저장하고, 기존분은 설정 «저장 공간 정리…»로 한 번 옮긴다. 녹음 원음과 전사 원응답은 지우지 않는다. 앱 0.5.19(37).

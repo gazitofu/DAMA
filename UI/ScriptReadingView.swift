@@ -261,6 +261,14 @@ struct ScriptReadingView: View {
                             ForEach(Array((edit.unresolved ?? []).enumerated()), id: \.offset) { _, item in Text("\(item.quote) · \(item.reason)") }
                         }.font(.caption)
                     }
+                    // correction-turn-isolation: 이 문단에 AI 응답 검증 실패로 원문을 유지한 원구간이 있을 때만(원문 보기 전환과 무관).
+                    let rejected = shown.script.correction?.rejectedCount(in: block.turnIDs) ?? 0
+                    if rejected > 0 {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(CorrectionRejectionText.inspectorTitle).fontWeight(.semibold)
+                            Text(CorrectionRejectionText.paragraphNote(count: rejected))
+                        }.font(.caption)
+                    }
                     DisclosureGroup("모델 원문") { Text(block.turns.map { shown.script.modelText(for: $0) }.joined(separator: "\n")).font(.caption) }
                 }
                 Divider()

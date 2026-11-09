@@ -15,7 +15,9 @@ final class CorrectionRunnerTests: XCTestCase {
 
     /// 가짜 CLI: stdin 프롬프트 끝의 JSON에서 청크 원구간을 읽어 모든 원구간에 «.»를 붙이는 확실한 수정과
     /// 자기소개 이름을 돌려준다. 같은 폴더의 `count`에 호출을 한 줄씩 남기고, `fail-at`의 번째 호출이면
-    /// 고유 표식을 stderr에 쓰고 exit 1.
+    /// 고유 표식을 stderr에 쓰고 exit 1. correction-turn-isolation: 같은 폴더의 `mode` 파일이 있으면 응답을 바꾼다
+    /// (reject = 첫 원구간 수정의 인용을 «없는말»로 · garbage = 출력 «{» · swap = 앞 두 원구간 순서 · drop = 끝 원구간 뺌 ·
+    /// missing = 첫 원구간 `unresolved` 키 뺌).
     private func fake(in folder: URL, marker: String) throws -> URL {
         let url = folder.appendingPathComponent("fake-codex")
         let script = """
@@ -38,6 +40,14 @@ final class CorrectionRunnerTests: XCTestCase {
             turns.append({"id": t["id"], "text": text + "." if text else text, "certain": True, "reason": "", "changes": changes, "unresolved": []})
             if "저는 김가상입니다" in text:
                 names.append({"speakerID": t["speakerID"], "name": "김가상", "evidenceTurnID": t["id"], "quote": "저는 김가상입니다"})
+        mode_path = os.path.join(here, "mode")
+        mode = open(mode_path).read().strip() if os.path.exists(mode_path) else ""
+        if mode == "garbage":
+            open(result, "w").write("{"); sys.exit(0)
+        if mode == "reject" and turns and turns[0]["changes"]: turns[0]["changes"][0]["quote"] = "없는말"
+        if mode == "swap" and len(turns) > 1: turns[0], turns[1] = turns[1], turns[0]
+        if mode == "drop": turns = turns[:-1]
+        if mode == "missing" and turns: del turns[0]["unresolved"]
         with open(result, "w") as f: json.dump({"turns": turns, "names": names}, f, ensure_ascii=False)
         """
         try Data(script.utf8).write(to: url)
@@ -180,5 +190,81 @@ final class CorrectionRunnerTests: XCTestCase {
         try store.save(attempt)
         XCTAssertEqual(try store.load(scriptID: "s"), attempt)
         XCTAssertTrue(FileManager.default.fileExists(atPath: store.folder.appendingPathComponent("s.json").path))
+    }
+
+    // MARK: correction-turn-isolation AC-06 · AC-03 (가짜 CLI, 실제 호출 없음)
+
+    private func runner(mode: String, failAt: Int? = nil) throws -> (CorrectionRunner, URL) {
+        let folder = try directory(), root = try directory()
+        try Data(mode.utf8).write(to: folder.appendingPathComponent("mode"))
+        if let failAt { try Data(String(failAt).utf8).write(to: folder.appendingPathComponent("fail-at")) }
+        let runner = CorrectionRunner(store: CorrectionAttemptStore(root: root), executable: try fake(in: folder, marker: "M"), timeout: .seconds(30))
+        return (runner, folder)
+    }
+
+    /// 청크마다 첫 원구간이 검증 실패 → 청크는 성공, 버린 Turn은 청크 결과에 남고 합칠 때 청크 순서로 모인다.
+    func testRejectedTurnsAreRecordedPerChunkAndMergedInOrder() async throws {
+        let script = try script()
+        let chunks = try CorrectionPlan.chunks(for: script)
+        let (runner, folder) = try runner(mode: "reject")
+        let (attempt, planned) = try runner.begin(script: script, input: script.input)
+        guard case .completed(let finished) = await runner.run(attempt, chunks: planned) else { return XCTFail("reject mode") }
+        XCTAssertEqual(calls(folder), 12)
+        XCTAssertEqual(finished.results.map(\.rejected), chunks.map { [CorrectionRejectedTurn(turnID: $0.turns[0].id, rule: .quote)] })
+        let merged = finished.merged()
+        XCTAssertEqual(merged.rejected, chunks.map { CorrectionRejectedTurn(turnID: $0.turns[0].id, rule: .quote) })
+        XCTAssertEqual(merged.edits.count, 1_188) // 기준선 1,200 − 버린 12.
+        XCTAssertEqual(merged.names.count, 1)
+        XCTAssertTrue(Set(merged.edits.map(\.turnID)).isDisjoint(with: merged.rejected.map(\.turnID)))
+    }
+
+    /// 이어서 교정은 끝난 청크(버린 Turn 포함)를 다시 보내지 않고, 합친 결과는 한 번에 끝낸 것과 같다.
+    func testResumeKeepsRejectedTurnsOfFinishedChunks() async throws {
+        let script = try script()
+        let (base, _) = try runner(mode: "reject")
+        let (baseAttempt, baseChunks) = try base.begin(script: script, input: script.input)
+        guard case .completed(let oneShot) = await base.run(baseAttempt, chunks: baseChunks) else { return XCTFail("baseline") }
+        let (runner, folder) = try runner(mode: "reject", failAt: 5)
+        let (attempt, chunks) = try runner.begin(script: script, input: script.input)
+        guard case .failed(let failed, _) = await runner.run(attempt, chunks: chunks) else { return XCTFail("expected failure") }
+        XCTAssertEqual(failed.completedChunks, 4)
+        XCTAssertEqual(failed.results.compactMap(\.rejected).map(\.count), [1, 1, 1, 1])
+        XCTAssertEqual(try runner.store.load(scriptID: script.id), failed) // 시도 기록 파일에 그대로 남는다.
+        try FileManager.default.removeItem(at: folder.appendingPathComponent("fail-at"))
+        let (resume, again) = try runner.prepareResume(script: script)
+        guard case .completed(let finished) = await runner.run(resume, chunks: again) else { return XCTFail("resume") }
+        XCTAssertEqual(calls(folder), 13) // 5 + 8.
+        XCTAssertEqual(finished.merged().rejected, oneShot.merged().rejected)
+        XCTAssertEqual(finished.merged().rejected.count, 12)
+        XCTAssertEqual(finished.merged().edits, oneShot.merged().edits)
+    }
+
+    /// 응답을 입력과 짝지을 수 없으면 지금처럼 청크 실패(형식), 결과 기록 없음.
+    func testUnpairableRepliesRemainFormatFailures() async throws {
+        let script = try script()
+        for mode in ["garbage", "swap", "drop", "missing"] {
+            let (runner, folder) = try runner(mode: mode)
+            let (attempt, chunks) = try runner.begin(script: script, input: script.input)
+            guard case .failed(let failed, let error) = await runner.run(attempt, chunks: chunks) else { XCTFail(mode); continue }
+            XCTAssertEqual(error.kind, .format, mode)
+            XCTAssertEqual(error.exitCode, 0, mode)
+            XCTAssertEqual(failed.lastFailure?.kind, .format, mode)
+            XCTAssertTrue(failed.results.isEmpty, mode)
+            XCTAssertEqual(calls(folder), 1, mode)
+        }
+    }
+
+    /// 선택 필드가 없는 기존 시도 기록(usage-bundle1 형식 1)은 그대로 해독되고 다시 써도 바이트가 같다.
+    func testLegacyAttemptWithoutRejectedDecodesByteForByte() throws {
+        let literal = #"{"attemptID":"A1","chunkSHA256s":["c0","c1"],"engine":"Codex CLI · 합성 · context-correction-6","failures":[],"formatVersion":1,"input":{"context":"","reference":""},"planSHA256":"p","results":[{"chunkIndex":0,"edits":[{"applied":false,"original":"합성 원문","reason":"합성 보류","text":"합성 후보","turnID":"t1"}],"evidence":{},"names":{}}],"scriptID":"S1","startedAt":800000000}"#
+        let store = CorrectionAttemptStore(root: try directory())
+        try FileManager.default.createDirectory(at: store.folder, withIntermediateDirectories: true)
+        let url = store.folder.appendingPathComponent("S1.json")
+        try Data(literal.utf8).write(to: url)
+        let attempt = try XCTUnwrap(try store.load(scriptID: "S1"))
+        XCTAssertNil(attempt.results.first?.rejected)
+        XCTAssertEqual(attempt.merged().rejected, [])
+        try store.save(attempt)
+        XCTAssertEqual(String(decoding: try Data(contentsOf: url), as: UTF8.self), literal)
     }
 }

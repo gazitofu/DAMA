@@ -26,6 +26,18 @@ public struct CorrectionEdit: Codable, Sendable, Equatable {
     }
 }
 
+/// correction-turn-isolation: Turn 하나가 응답 검증에서 처음 걸린 규칙 (검사 순서는 `ContextCorrection.validated`).
+public enum CorrectionRejectionRule: String, Codable, Sendable, CaseIterable {
+    case quote, overlap, text, limit, reason, other
+}
+
+/// 검증 실패로 원문을 유지한 Turn과 규칙 코드. 원문·응답 내용은 담지 않는다.
+public struct CorrectionRejectedTurn: Codable, Sendable, Equatable {
+    public let turnID: String
+    public let rule: CorrectionRejectionRule
+    public init(turnID: String, rule: CorrectionRejectionRule) { self.turnID = turnID; self.rule = rule }
+}
+
 public struct ScriptCorrection: Codable, Sendable {
     public enum State: String, Codable, Sendable { case running, completed, failed }
     public var state: State
@@ -39,17 +51,29 @@ public struct ScriptCorrection: Codable, Sendable {
     public var nameEvidence: [String: String] = [:]
     public var completedChunks = 0
     public var totalChunks = 0
+    /// correction-turn-isolation D-02: 검증 실패로 원문을 유지한 Turn. 비어 있으면 nil로 두어 키를 쓰지 않는다(기존 파일 바이트 유지).
+    /// 교정 시점 기록이며, 뒤에 사람이 그 Turn을 고치거나 지워도 그대로 둔다.
+    public var rejectedTurns: [CorrectionRejectedTurn]? = nil
     public var visibleEdits: [CorrectionEdit] { edits.filter { !$0.isDisplayOnly } }
     public init(input: ConversionNotes, engine: String, state: State = .running) {
         self.input = input; self.engine = engine; self.state = state; startedAt = Date(); id = UUID().uuidString
     }
+    /// 주어진 원구간 중 `rejectedTurns`에 든 수 (구간 정보·Markdown 문단 줄의 {k}).
+    public func rejectedCount(in turnIDs: [String]) -> Int {
+        let rejected = Set((rejectedTurns ?? []).map(\.turnID))
+        return turnIDs.filter(rejected.contains).count
+    }
     public func validate(transcript: TranscriptDocument) throws {
         if let id, UUID(uuidString: id) == nil { throw LibraryFailure.invalidScript }
         let ids = Set(transcript.turns.filter { $0.kind == .speech }.map(\.id))
+        let rejected = (rejectedTurns ?? []).map(\.turnID)
         guard Set(edits.map(\.turnID)).count == edits.count,
               Set(edits.map(\.turnID)).isSubset(of: ids),
               Set(speakerNames.keys).isSubset(of: Set(transcript.speakers.map(\.id))),
-              completedChunks >= 0, totalChunks >= completedChunks else { throw LibraryFailure.invalidScript }
+              completedChunks >= 0, totalChunks >= completedChunks,
+              // D-02 저장 검증: 발화 Turn 안 · 중복 없음 · 편집 기록과 겹치지 않음 (규칙 코드는 해독에서 6종으로 제한).
+              Set(rejected).count == rejected.count, Set(rejected).isSubset(of: ids),
+              Set(rejected).isDisjoint(with: edits.map(\.turnID)) else { throw LibraryFailure.invalidScript }
         for edit in edits { try CorrectionSpans.validateStored(edit) }
     }
 }
@@ -95,7 +119,7 @@ public struct CorrectionReply: Codable, Sendable {
 }
 
 public enum ContextCorrection {
-    public static let version = "context-correction-6"
+    public static let version = "context-correction-7"
     /// Limits bound resources; they are not measured accuracy thresholds.
     public static func chunks(_ script: LibraryScript) throws -> [CorrectionChunk] {
         try script.validate()
@@ -170,35 +194,19 @@ public enum ContextCorrection {
         guard data.count <= 512_000 else { throw LibraryFailure.invalidInput }
         return data
     }
-    public static func validated(_ reply: CorrectionReply, chunk: CorrectionChunk, input: ConversionNotes) throws -> (edits: [CorrectionEdit], names: [String: String], evidence: [String: String]) {
-        guard reply.turns.map(\.id) == chunk.turns.map(\.id) else { throw LibraryFailure.invalidScript }
-        var edits: [CorrectionEdit] = []
+    /// 청크 하나의 응답 검증 (context-correction-7). 응답을 입력과 짝지을 수 없으면(Turn id 순서·개수 불일치,
+    /// `changes`/`unresolved` 중 하나만 있음) 청크 실패로 throw한다. Turn 하나의 검증 실패는 그 Turn만 버리고
+    /// `rejected`에 처음 걸린 규칙을 남긴 뒤 나머지 Turn을 계속 판정한다(correction-turn-isolation §02-1·§02-2).
+    public static func validated(_ reply: CorrectionReply, chunk: CorrectionChunk, input: ConversionNotes) throws -> (edits: [CorrectionEdit], names: [String: String], evidence: [String: String], rejected: [CorrectionRejectedTurn]) {
+        guard reply.turns.map(\.id) == chunk.turns.map(\.id),
+              reply.turns.allSatisfy({ ($0.changes == nil) == ($0.unresolved == nil) }) else { throw LibraryFailure.invalidScript }
+        var edits: [CorrectionEdit] = [], rejected: [CorrectionRejectedTurn] = []
         for (source, candidate) in zip(chunk.turns, reply.turns) {
-            guard candidate.text.count <= max(256, source.text.count * 3), candidate.reason.count <= 600 else { throw LibraryFailure.invalidScript }
-            if candidate.changes != nil || candidate.unresolved != nil {
-                if let edit = try CorrectionSpans.validated(candidate, source: source, input: input) { edits.append(edit) }
-                continue
+            do {
+                if let edit = try validatedTurn(candidate, source: source, input: input) { edits.append(edit) }
+            } catch let rejection as CorrectionTurnRejection {
+                rejected.append(CorrectionRejectedTurn(turnID: source.id, rule: rejection.rule))
             }
-            let sourceTrimmed = source.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            let candidateTrimmed = candidate.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            let displayOnly = sourceTrimmed == candidateTrimmed
-            // No-op formatting is not a correction. Model uncertainty is independent and survives.
-            if displayOnly && candidate.certain { continue }
-            let formatOnly = !candidateTrimmed.isEmpty &&
-                canonicalFormat(sourceTrimmed) == canonicalFormat(candidateTrimmed)
-            let acceptable = candidate.certain && formatOnly
-            let modelReason = candidate.reason.trimmingCharacters(in: .whitespacesAndNewlines)
-            let decisionReason: String
-            if !candidate.certain {
-                decisionReason = "발화가 불확실해 원문을 유지했습니다."
-            } else if acceptable {
-                decisionReason = "문자·숫자·부정 표현을 유지한 형식 정리입니다."
-            } else {
-                decisionReason = "의미 보존 근거가 필요한 변경이어서 원문을 유지했습니다."
-            }
-            edits.append(CorrectionEdit(turnID: source.id, original: source.text,
-                text: displayOnly ? source.text : candidate.text,
-                reason: decisionReason + (modelReason.isEmpty ? "" : " " + modelReason), applied: acceptable))
         }
         let roster = Set((input.participants ?? "").split(whereSeparator: \.isNewline).compactMap { $0.split(whereSeparator: { $0.isWhitespace || $0 == "·" || $0 == "|" || $0 == "," }).first.map(String.init) })
         var names: [String: String] = [:], evidence: [String: String] = [:], conflicts = Set<String>()
@@ -213,7 +221,36 @@ public enum ContextCorrection {
             evidence[name.speakerID] = "\(name.evidenceTurnID): \(name.quote)"
         }
         for id in conflicts { names.removeValue(forKey: id); evidence.removeValue(forKey: id) }
-        return (edits, names, evidence)
+        return (edits, names, evidence, rejected)
+    }
+    /// Turn 하나. 검증 실패는 `CorrectionTurnRejection`(처음 걸린 규칙)으로 낸다. 검사 순서는 v6와 같다.
+    static func validatedTurn(_ candidate: CorrectionReply.Turn, source: CorrectionTurn, input: ConversionNotes) throws -> CorrectionEdit? {
+        guard candidate.text.count <= max(256, source.text.count * 3), candidate.reason.count <= 600 else {
+            throw CorrectionTurnRejection(rule: .limit)
+        }
+        if candidate.changes != nil || candidate.unresolved != nil {
+            return try CorrectionSpans.validated(candidate, source: source, input: input)
+        }
+        let sourceTrimmed = source.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidateTrimmed = candidate.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayOnly = sourceTrimmed == candidateTrimmed
+        // No-op formatting is not a correction. Model uncertainty is independent and survives.
+        if displayOnly && candidate.certain { return nil }
+        let formatOnly = !candidateTrimmed.isEmpty &&
+            canonicalFormat(sourceTrimmed) == canonicalFormat(candidateTrimmed)
+        let acceptable = candidate.certain && formatOnly
+        let modelReason = candidate.reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        let decisionReason: String
+        if !candidate.certain {
+            decisionReason = "발화가 불확실해 원문을 유지했습니다."
+        } else if acceptable {
+            decisionReason = "문자·숫자·부정 표현을 유지한 형식 정리입니다."
+        } else {
+            decisionReason = "의미 보존 근거가 필요한 변경이어서 원문을 유지했습니다."
+        }
+        return CorrectionEdit(turnID: source.id, original: source.text,
+            text: displayOnly ? source.text : candidate.text,
+            reason: decisionReason + (modelReason.isEmpty ? "" : " " + modelReason), applied: acceptable)
     }
     /// An explicit formatting allowlist, NOT a general Korean/semantic normalizer.
     /// Retains every non-space character, number sign, unit, relation and punctuation.

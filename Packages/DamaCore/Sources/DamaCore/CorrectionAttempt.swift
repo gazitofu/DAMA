@@ -30,14 +30,19 @@ public struct CorrectionFailureRecord: Codable, Sendable, Equatable {
     }
 }
 
-/// 끝난 청크 하나의 검증된 결과(수정·이름·이름 근거).
+/// 끝난 청크 하나의 검증된 결과(수정·이름·이름 근거·검증 실패 Turn).
 public struct CorrectionChunkResult: Codable, Sendable, Equatable {
     public let chunkIndex: Int
     public let edits: [CorrectionEdit]
     public let names: [String: String]
     public let evidence: [String: String]
-    public init(chunkIndex: Int, edits: [CorrectionEdit], names: [String: String], evidence: [String: String]) {
+    /// correction-turn-isolation: 이 청크에서 검증 실패로 원문을 유지한 Turn. 없으면 nil(키 생략, 기존 기록 그대로 해독).
+    /// 이어서 교정은 끝난 청크를 다시 보내지 않으므로 이 Turn들도 다시 보내지 않는다.
+    public let rejected: [CorrectionRejectedTurn]?
+    public init(chunkIndex: Int, edits: [CorrectionEdit], names: [String: String], evidence: [String: String],
+                rejected: [CorrectionRejectedTurn]? = nil) {
         self.chunkIndex = chunkIndex; self.edits = edits; self.names = names; self.evidence = evidence
+        self.rejected = (rejected ?? []).isEmpty ? nil : rejected
     }
 }
 
@@ -84,10 +89,13 @@ public struct CorrectionAttempt: Codable, Sendable, Equatable {
     }
 
     /// 기록된 모든 청크 결과를 청크 순서로 합친다. 청크 사이 이름 충돌은 그 화자의 자동 이름을 뺀다(현행 규칙).
-    public func merged() -> (edits: [CorrectionEdit], names: [String: String], evidence: [String: String]) {
+    /// 검증 실패 Turn은 청크 순서 → 청크 안 입력 순서로 모은다.
+    public func merged() -> (edits: [CorrectionEdit], names: [String: String], evidence: [String: String], rejected: [CorrectionRejectedTurn]) {
         var edits: [CorrectionEdit] = [], names: [String: String] = [:], evidence: [String: String] = [:], conflicts = Set<String>()
+        var rejected: [CorrectionRejectedTurn] = []
         for result in results.sorted(by: { $0.chunkIndex < $1.chunkIndex }) {
             edits += result.edits
+            rejected += result.rejected ?? []
             for (id, name) in result.names {
                 if let previous = names[id], previous != name { conflicts.insert(id) }
                 names[id] = name
@@ -95,7 +103,7 @@ public struct CorrectionAttempt: Codable, Sendable, Equatable {
             }
         }
         for id in conflicts { names.removeValue(forKey: id); evidence.removeValue(forKey: id) }
-        return (edits, names, evidence)
+        return (edits, names, evidence, rejected)
     }
 }
 

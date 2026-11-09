@@ -67,11 +67,15 @@ final class ContextCorrectionTests: XCTestCase {
             try ContextCorrection.validated(.init(turns: [.init(id: "t", text: text, certain: true, reason: "", changes: changes, unresolved: [])], names: []), chunk: chunk, input: ConversionNotes()).edits.first
         }
         XCTAssertEqual(try check([change()], "🙂 30억원 30억 원")?.effectiveText, "🙂 30억원 30억 원")
-        for changes in [[change("없음")], [change("30억원", -1)], [change("30억원", 2)],
-                        [change(), change()], [change("30억원 30억원", 0), change()]] {
-            XCTAssertThrowsError(try check(changes, "🙂 30억원 30억 원"))
+        // correction-turn-isolation 가드 이동 (형태·건수 유지): Turn 하나의 검증 실패는 청크 throw가 아니라 그 Turn의 규칙 기록이다.
+        func rejected(_ changes: [CorrectionChange], _ text: String) throws -> [CorrectionRejectedTurn] {
+            try ContextCorrection.validated(.init(turns: [.init(id: "t", text: text, certain: true, reason: "", changes: changes, unresolved: [])], names: []), chunk: chunk, input: ConversionNotes()).rejected
         }
-        XCTAssertThrowsError(try check([change()], "🙂 30억원 30억 원."))
+        for (changes, rule) in [([change("없음")], CorrectionRejectionRule.quote), ([change("30억원", -1)], .quote), ([change("30억원", 2)], .quote),
+                                ([change(), change()], .overlap), ([change("30억원 30억원", 0), change()], .overlap)] {
+            XCTAssertEqual(try rejected(changes, "🙂 30억원 30억 원"), [CorrectionRejectedTurn(turnID: "t", rule: rule)])
+        }
+        XCTAssertEqual(try rejected([change()], "🙂 30억원 30억 원."), [CorrectionRejectedTurn(turnID: "t", rule: .text)])
         var edit = try XCTUnwrap(check([change()], "🙂 30억원 30억 원"))
         edit.appliedText = "🙂 50억원"
         XCTAssertThrowsError(try CorrectionSpans.validateStored(edit))
