@@ -1,9 +1,10 @@
 ---
 unit: correction-turn-isolation
 branch: work/m0-fixture-review
-status: built
+status: released
+released_at: 2026-11-09
 decisions_resolved: true
-resume: "built 2026-11-09. 전달 QA D = AC-10 · 11 통과 · AC-12 부분 → 사용자 결정으로 D-1 미검증 닫음. 다음 = /ship (GO 게이트). 미검증 = F-03 · D-1(F-06) · F-04 · F-05."
+resume: "released v0.5.20 (2026-11-09). main 머지·태그·origin push(main·태그·작업 브랜치, GO 게이트 사용자 «GO + push»). 작업 브랜치 work/m0-fixture-review는 선례대로 유지(main과 같은 지점으로 맞춤). 미검증 = F-03 · D-1(F-06) · F-04 · F-05. 다음 = 묶음 3 ① 재실행(30–40분 결합본 + 원음 대조)."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
