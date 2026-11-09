@@ -1,9 +1,9 @@
 ---
 unit: correction-turn-isolation
 branch: work/m0-fixture-review
-status: building
+status: built
 decisions_resolved: true
-resume: "전달 QA D = AC-10 · 11 통과, AC-12 부분(D-1 두 번째 실패 메타데이터 소실, 보충 불가). 대기 = 사용자 결정 «미검증으로 닫기» 여부 → 닫으면 status built."
+resume: "built 2026-11-09. 전달 QA D = AC-10 · 11 통과 · AC-12 부분 → 사용자 결정으로 D-1 미검증 닫음. 다음 = /ship (GO 게이트). 미검증 = F-03 · D-1(F-06) · F-04 · F-05."
 spec: notes/correction-turn-isolation/correction-turn-isolation.src.html
 ---
 ## 근거
@@ -101,7 +101,7 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 
 - [x] AC-10 회귀 (축 8) (전달 QA D 통과 2026-11-09, check.sh `run-20261109T021537Z-618mMs` HEAD `eb65ebc`): check.sh 1–4 PASS · swift test 통과 ≥ 343 + 신규 · skipped 2 유지 · 기존 테스트 삭제 0 · 완화 0 (이동 = AC-04 8단정뿐) · `git diff 7b59b85 -- Packages/DamaCore/Tests/DamaManagedTests/CorrectionFormatProbeTests.swift` 빈 출력, 그 안의 상시 테스트 `testProbeClassifierNamesTheFirstFailingRule` PASS.
 - [x] AC-11 버전·설치 (메뉴바 툴팁 = 사용자 관측 2026-11-09 «이상없음»): `MARKETING_VERSION` 0.5.20 · `CURRENT_PROJECT_VERSION` 38 (Debug/Release). check.sh 4단계 PASS. 설치 앱 교체 (막힘 1) 뒤 실행 중 Bundle 0.5.20 (38), 메뉴바 툴팁.
-- [ ] AC-12 실데이터 (축 9, 게이트 ②, 막힘 3): 사용자가 설치 앱 0.5.20에서 30–40분 Soniox + Nemotron 결합본 1개를 «AI 검수/보정» 1회. 메인이 메타데이터로 잰다 (출력 = 개수·규칙 이름·ID 앞 8자): 상태 · 완료/전체 청크 · `rejectedTurns` 수 · 규칙별 수 · 발화 Turn 수 · edits 수 · 실패면 분류·종료 코드·경과. 문턱 없음 (모델 응답에 달림). 완료 띠 글자는 사용자 관측. 이어서 묶음 3 ① 원음 대조 (`correction-measure.md` 프로토콜, 이 유닛 밖).
+- [x] AC-12 실데이터 (축 9, 게이트 ②, 막힘 3) → **닫음, 두 번째 실패 메타데이터 미검증 (사용자 결정 2026-11-09 «미검증으로 닫고 built», D-1 · F-06)**: 사용자가 설치 앱 0.5.20에서 30–40분 Soniox + Nemotron 결합본 1개를 «AI 검수/보정» 1회. 메인이 메타데이터로 잰다 (출력 = 개수·규칙 이름·ID 앞 8자): 상태 · 완료/전체 청크 · `rejectedTurns` 수 · 규칙별 수 · 발화 Turn 수 · edits 수 · 실패면 분류·종료 코드·경과. 문턱 없음 (모델 응답에 달림). 완료 띠 글자는 사용자 관측. 이어서 묶음 3 ① 원음 대조 (`correction-measure.md` 프로토콜, 이 유닛 밖).
 
 ## /build 결과 (2026-11-07 · 1차, 막힘 대기)
 
@@ -120,7 +120,7 @@ AI 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유�
 | 09 | 닫음 (사용자 결정 «미검증으로 닫기», 코드 대조 = QA A AC-08 통과) · 시도 기록: 합성 QA 앱 0.5.20 (38) · fixture a 실행, QASnapshot 창 캡처 1장 성공(`ui/` 기본 화면). System Events 질의가 10초 안에 끝나지 않아(SIGALRM, 이 백그라운드 세션의 자동화·접근성 권한 없음으로 봄) «정보»·결과 전환·문단 선택 조작 불가. «원문 보기 전환» 컨트롤은 UI에 없음(`toggleOriginal` 호출처 0) → fixture b `showsOriginal = true` 사본 준비. 사용자 «권한 허용 후 재시도» → 1회 재시도 = «osascript is not allowed assistive access (-25211)» (자동화는 통과, 손쉬운 사용 권한 없음) → 사용자 «미검증으로 닫기» | 미검증 = F-03 |
 | 10 | 통과 (전달 QA D, GPT-6.1-sol `.build/qa/correction-turn-isolation/D-verdict.md`): 재실행 `run-20261109T021537Z-618mMs` (HEAD `eb65ebc`, 코드 변경 = `0e4c51a` 이후 0) 1–4 PASS · 362 실행 = 360 통과 + skipped 2 · 실패 0 · 테스트 이름 삭제 0 · 신규 17 · 진단 테스트·어댑터·계약 diff 0 | |
 | 11 | 설치 2026-11-07 20:2x (사용자 승인): 설치 앱 0.5.19 (37) 종료 → 백업 `.build/backups/DAMA-0.5.19-37-before-correction-turn-isolation.app` 11파일 SHA256 = 설치본 → `/Applications/DAMA.app` 교체 11파일 SHA256 = `.build/xcode/Build/Products/Debug/DAMA.app`, adhoc·linker-signed. 실행 pid 적재 경로 `/Applications/DAMA.app`, `lsappinfo` bundleID `com.gazitofu.Dama` · Version 38, Info.plist 0.5.20 · 재확인 2026-11-09 09:27 재실행 pid 29947 `lsappinfo` Version 38 · Info.plist 0.5.20 · 100초 생존 (F-04) | 메뉴바 툴팁 = 사용자 관측 2026-11-09 «이상없음» (메인 AX 판독 불가: 접근성은 이제 통과하나 상태 항목이 AX 트리에 없음: `AXExtrasMenuBar` missing · Control Center 0건) |
-| 12 | **부분 (전달 QA D · D-1)**: 완료 측정 `AC12-after-2.txt` = completed · 8/8 · edits 28 · rejectedTurns 10 (`text` 6 · `quote` 4, 중복 0 · 전부 발화 · edits와 겹침 0) · 발화 765 · 완료 띠 사용자 관측 = 문구 3 N=10 글자 일치 (QA 85자 대조) · transcript 해시 8판+현재 동일 (`AC12-revisions.txt`) · 이어서 교정 2회. D-1 = 두 번째 실패 (10:37:50, 5/8) 분류·종료 코드·경과 없음: 완료 시 시도 기록 삭제(계약 `library-script.md:207`)로 소실, 제품 결함 아님. 보충 불가 → 미검증 닫기 여부 사용자 결정 대기. 이하 1차 기록 · 측정 `.build/qa/correction-turn-isolation/AC12-after-1.txt`: 대상 `57C3F857` (사용자 선택, 28.0분 Soniox + pyannote, 발화 765) · 사용자 실행 2026-11-09 10:20:18 · 엔진 `context-correction-7` · 상태 failed · 청크 1/8 완료 · 청크 0 = edits 2 · 이름 0 · rejected 1 (`text`) → **실데이터 Turn 격리 관측** (v6였다면 청크 0 전체 폐기) · 실패 = chunkIndex 1 (표시 2번째) / 8 · kind format · 종료 코드 0 · 경과 68,468 ms · stderr 50,758 B · 스크립트 `rejectedTurns` 0 (미완료라 미저장, 시도 기록에만). 사용자 관측 문구 = 기존 형식 실패 문장 «AI 응답이 요구한 형식과 맞지 않아 쓰지 않았습니다. 이어서 교정으로 그 구간부터 다시 보낼 수 있습니다. 기존 결과는 유지됩니다.» 완료 띠 문구 3 미관측 | 막힘 3 (사용자 실행). 기준선 `.build/qa/correction-turn-isolation/AC12-before.txt` (스크립트 38 · 교정 기록 7 · 시도 기록 `44F4E8DD` 1). 대상 조건 «30–40분 Soniox + Nemotron 결합본» 실데이터 0개: Nemotron 결합본 = 80.3분 3 (`7A430186` · `108E3A3C` · `E33ADFD9`, 교정 없음) · 140.6분 1 (`44F4E8DD`). 가장 가까운 길이 = Soniox + pyannote 결합본 28.0분 2 (`57C3F857` · `3E66BE55`, 교정 없음). 대상 선택은 사용자 |
+| 12 | **부분 (전달 QA D · D-1)**: 완료 측정 `AC12-after-2.txt` = completed · 8/8 · edits 28 · rejectedTurns 10 (`text` 6 · `quote` 4, 중복 0 · 전부 발화 · edits와 겹침 0) · 발화 765 · 완료 띠 사용자 관측 = 문구 3 N=10 글자 일치 (QA 85자 대조) · transcript 해시 8판+현재 동일 (`AC12-revisions.txt`) · 이어서 교정 2회. D-1 = 두 번째 실패 (10:37:50, 5/8) 분류·종료 코드·경과 없음: 완료 시 시도 기록 삭제(계약 `library-script.md:207`)로 소실, 제품 결함 아님. 보충 불가 → 사용자 결정 2026-11-09 «미검증으로 닫고 built». 이하 1차 기록 · 측정 `.build/qa/correction-turn-isolation/AC12-after-1.txt`: 대상 `57C3F857` (사용자 선택, 28.0분 Soniox + pyannote, 발화 765) · 사용자 실행 2026-11-09 10:20:18 · 엔진 `context-correction-7` · 상태 failed · 청크 1/8 완료 · 청크 0 = edits 2 · 이름 0 · rejected 1 (`text`) → **실데이터 Turn 격리 관측** (v6였다면 청크 0 전체 폐기) · 실패 = chunkIndex 1 (표시 2번째) / 8 · kind format · 종료 코드 0 · 경과 68,468 ms · stderr 50,758 B · 스크립트 `rejectedTurns` 0 (미완료라 미저장, 시도 기록에만). 사용자 관측 문구 = 기존 형식 실패 문장 «AI 응답이 요구한 형식과 맞지 않아 쓰지 않았습니다. 이어서 교정으로 그 구간부터 다시 보낼 수 있습니다. 기존 결과는 유지됩니다.» 완료 띠 문구 3 미관측 | 막힘 3 (사용자 실행). 기준선 `.build/qa/correction-turn-isolation/AC12-before.txt` (스크립트 38 · 교정 기록 7 · 시도 기록 `44F4E8DD` 1). 대상 조건 «30–40분 Soniox + Nemotron 결합본» 실데이터 0개: Nemotron 결합본 = 80.3분 3 (`7A430186` · `108E3A3C` · `E33ADFD9`, 교정 없음) · 140.6분 1 (`44F4E8DD`). 가장 가까운 길이 = Soniox + pyannote 결합본 28.0분 2 (`57C3F857` · `3E66BE55`, 교정 없음). 대상 선택은 사용자 |
 
 ## 작업 분해
 
