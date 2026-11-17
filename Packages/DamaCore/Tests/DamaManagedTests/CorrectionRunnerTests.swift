@@ -17,7 +17,8 @@ final class CorrectionRunnerTests: XCTestCase {
     /// 자기소개 이름을 돌려준다. 같은 폴더의 `count`에 호출을 한 줄씩 남기고, `fail-at`의 번째 호출이면
     /// 고유 표식을 stderr에 쓰고 exit 1. correction-turn-isolation: 같은 폴더의 `mode` 파일이 있으면 응답을 바꾼다
     /// (reject = 첫 원구간 수정의 인용을 «없는말»로 · garbage = 출력 «{» · swap = 앞 두 원구간 순서 · drop = 끝 원구간 뺌 ·
-    /// missing = 첫 원구간 `unresolved` 키 뺌).
+    /// missing = 첫 원구간 `unresolved` 키 뺌). turn-continuity: `fail-at`은 «5» · «5-10» · «1,4» 형식이고, `fail-kind`가
+    /// auth면 «ERROR: 401 Unauthorized» exit 1 · config면 «error: unexpected argument» exit 2 (없으면 고유 표식 exit 1).
     private func fake(in folder: URL, marker: String) throws -> URL {
         let url = folder.appendingPathComponent("fake-codex")
         let script = """
@@ -30,7 +31,18 @@ final class CorrectionRunnerTests: XCTestCase {
         with open(os.path.join(here, "count"), "a") as f: f.write("x\\n")
         with open(os.path.join(here, "count")) as f: count = len(f.read().splitlines())
         fail = os.path.join(here, "fail-at")
-        if os.path.exists(fail) and int(open(fail).read()) == count:
+        def failing(spec, n):
+            for part in spec.strip().split(","):
+                if "-" in part:
+                    a, b = part.split("-")
+                    if int(a) <= n <= int(b): return True
+                elif part and int(part) == n: return True
+            return False
+        if os.path.exists(fail) and failing(open(fail).read(), count):
+            kind_path = os.path.join(here, "fail-kind")
+            kind = open(kind_path).read().strip() if os.path.exists(kind_path) else ""
+            if kind == "auth": sys.stderr.write("ERROR: 401 Unauthorized\\n"); sys.exit(1)
+            if kind == "config": sys.stderr.write("error: unexpected argument '--bogus' found\\n"); sys.exit(2)
             sys.stderr.write("\(marker)\\n"); sys.exit(1)
         payload = json.loads([l for l in data.splitlines() if l.startswith("{")][-1])
         turns, names = [], []
@@ -44,6 +56,11 @@ final class CorrectionRunnerTests: XCTestCase {
         mode = open(mode_path).read().strip() if os.path.exists(mode_path) else ""
         if mode == "garbage":
             open(result, "w").write("{"); sys.exit(0)
+        if mode == "nooutput": sys.exit(0)
+        if mode == "empty":
+            open(result, "w").write(""); sys.exit(0)
+        if mode == "huge":
+            open(result, "w").write("{" + " " * 2000000 + "}"); sys.exit(0)
         if mode == "reject" and turns and turns[0]["changes"]: turns[0]["changes"][0]["quote"] = "없는말"
         if mode == "swap" and len(turns) > 1: turns[0], turns[1] = turns[1], turns[0]
         if mode == "drop": turns = turns[:-1]
@@ -71,9 +88,8 @@ final class CorrectionRunnerTests: XCTestCase {
         ((try? String(contentsOf: folder.appendingPathComponent("count"), encoding: .utf8)) ?? "").split(separator: "\n").count
     }
 
-    /// 1,200 원구간(화자 A·B 번갈아) = 100원구간 청크 12개. 2번째·9번째 청크에 자기소개.
-    private func script() throws -> LibraryScript {
-        let count = 1_200
+    /// 1,200 원구간(화자 A·B 번갈아) = 100원구간 청크 12개. 2번째·9번째 청크에 자기소개. `count` 50 = 청크 1개.
+    private func script(count: Int = 1_200) throws -> LibraryScript {
         let intervals: [[String: Any]] = (0..<count).map { ["start": Double($0 * 2), "end": Double($0 * 2 + 1), "speaker": $0 % 2 == 0 ? "A" : "B"] }
         let words: [[String: Any]] = (0..<count).map { i in
             ["start": Double(i * 2), "end": Double(i * 2) + 0.8, "speaker": i % 2 == 0 ? "A" : "B",
@@ -103,15 +119,16 @@ final class CorrectionRunnerTests: XCTestCase {
         // 5번째 호출에서 실패.
         let folder = try directory(), root = try directory()
         let executable = try fake(in: folder, marker: marker)
-        try Data("5".utf8).write(to: folder.appendingPathComponent("fail-at"))
+        // turn-continuity G-11: 재시도가 생겨 한 번 실패로는 멈추지 않는다. 5–10번째 호출 = 청크 4 · 5를 3회씩 실패 → 연속 2개 건너뜀으로 멈춤.
+        try Data("5-10".utf8).write(to: folder.appendingPathComponent("fail-at"))
         let store = CorrectionAttemptStore(root: root)
-        let runner = CorrectionRunner(store: store, executable: executable, timeout: .seconds(30))
+        let runner = CorrectionRunner(store: store, executable: executable, timeout: .seconds(30), wait: { _ in })
         let (attempt, chunks) = try runner.begin(script: script, input: script.input)
         guard case .failed(let failed, let error) = await runner.run(attempt, chunks: chunks) else { return XCTFail("expected failure") }
         XCTAssertEqual(error.kind, .unclassified)
         XCTAssertEqual(failed.completedChunks, 4)
         XCTAssertEqual(failed.remainingChunks, Array(4..<12))
-        XCTAssertEqual(failed.lastFailure?.chunkIndex, 4)
+        XCTAssertEqual(failed.lastFailure?.chunkIndex, 5)
         XCTAssertEqual(failed.lastFailure?.exitCode, 1)
         XCTAssertGreaterThan(failed.lastFailure?.stderrBytes ?? 0, 0) // 양성 대조: stderr는 왔다.
         XCTAssertEqual(try store.load(scriptID: script.id), failed) // 앱 재시작 뒤에도 파일로 남는다.
@@ -121,7 +138,7 @@ final class CorrectionRunnerTests: XCTestCase {
         let (resume, again) = try runner.prepareResume(script: script)
         XCTAssertEqual(resume.input, script.input) // 기록된 입력 스냅숏.
         guard case .completed(let finished) = await runner.run(resume, chunks: again) else { return XCTFail("resume") }
-        XCTAssertEqual(calls(folder), 13) // 5 + 8.
+        XCTAssertEqual(calls(folder), 18) // 10 + 8.
         let merged = finished.merged()
         XCTAssertEqual(merged.edits, expected.edits)
         XCTAssertEqual(merged.names, expected.names)
@@ -146,8 +163,9 @@ final class CorrectionRunnerTests: XCTestCase {
     func testPlanOrEngineChangeBlocksResumeAndNewStartDiscardsRecord() async throws {
         var script = try script()
         let folder = try directory(), root = try directory()
-        let runner = CorrectionRunner(store: CorrectionAttemptStore(root: root), executable: try fake(in: folder, marker: "M"), timeout: .seconds(30))
-        try Data("1".utf8).write(to: folder.appendingPathComponent("fail-at"))
+        let runner = CorrectionRunner(store: CorrectionAttemptStore(root: root), executable: try fake(in: folder, marker: "M"), timeout: .seconds(30),
+                                      wait: { _ in })
+        try Data("1-6".utf8).write(to: folder.appendingPathComponent("fail-at")) // turn-continuity G-11: 청크 0 · 1을 3회씩 실패.
         let (attempt, chunks) = try runner.begin(script: script, input: script.input)
         guard case .failed(let failed, _) = await runner.run(attempt, chunks: chunks) else { return XCTFail() }
         // 0개 완료 → «같은 입력으로 다시 시도» (completed 0).
@@ -194,11 +212,13 @@ final class CorrectionRunnerTests: XCTestCase {
 
     // MARK: correction-turn-isolation AC-06 · AC-03 (가짜 CLI, 실제 호출 없음)
 
-    private func runner(mode: String, failAt: Int? = nil) throws -> (CorrectionRunner, URL) {
+    private func runner(mode: String, failAt: String? = nil, failKind: String? = nil, waits: WaitLog = WaitLog()) throws -> (CorrectionRunner, URL) {
         let folder = try directory(), root = try directory()
         try Data(mode.utf8).write(to: folder.appendingPathComponent("mode"))
-        if let failAt { try Data(String(failAt).utf8).write(to: folder.appendingPathComponent("fail-at")) }
-        let runner = CorrectionRunner(store: CorrectionAttemptStore(root: root), executable: try fake(in: folder, marker: "M"), timeout: .seconds(30))
+        if let failAt { try Data(failAt.utf8).write(to: folder.appendingPathComponent("fail-at")) }
+        if let failKind { try Data(failKind.utf8).write(to: folder.appendingPathComponent("fail-kind")) }
+        let runner = CorrectionRunner(store: CorrectionAttemptStore(root: root), executable: try fake(in: folder, marker: "M"), timeout: .seconds(30),
+                                      wait: { await waits.add($0) })
         return (runner, folder)
     }
 
@@ -224,7 +244,7 @@ final class CorrectionRunnerTests: XCTestCase {
         let (base, _) = try runner(mode: "reject")
         let (baseAttempt, baseChunks) = try base.begin(script: script, input: script.input)
         guard case .completed(let oneShot) = await base.run(baseAttempt, chunks: baseChunks) else { return XCTFail("baseline") }
-        let (runner, folder) = try runner(mode: "reject", failAt: 5)
+        let (runner, folder) = try runner(mode: "reject", failAt: "5-10") // turn-continuity G-11
         let (attempt, chunks) = try runner.begin(script: script, input: script.input)
         guard case .failed(let failed, _) = await runner.run(attempt, chunks: chunks) else { return XCTFail("expected failure") }
         XCTAssertEqual(failed.completedChunks, 4)
@@ -233,7 +253,7 @@ final class CorrectionRunnerTests: XCTestCase {
         try FileManager.default.removeItem(at: folder.appendingPathComponent("fail-at"))
         let (resume, again) = try runner.prepareResume(script: script)
         guard case .completed(let finished) = await runner.run(resume, chunks: again) else { return XCTFail("resume") }
-        XCTAssertEqual(calls(folder), 13) // 5 + 8.
+        XCTAssertEqual(calls(folder), 18) // 10 + 8.
         XCTAssertEqual(finished.merged().rejected, oneShot.merged().rejected)
         XCTAssertEqual(finished.merged().rejected.count, 12)
         XCTAssertEqual(finished.merged().edits, oneShot.merged().edits)
@@ -249,15 +269,21 @@ final class CorrectionRunnerTests: XCTestCase {
         XCTAssertEqual(calls(dropFolder), 12)
         XCTAssertEqual(dropped.merged().rejected, dropChunks.map { CorrectionRejectedTurn(turnID: $0.turns.last!.id, rule: .missing) })
         XCTAssertEqual(dropped.merged().edits.count, 1_188) // 기준선 1,200 − 빠진 12.
-        for mode in ["garbage", "swap", "missing"] {
-            let (runner, folder) = try runner(mode: mode)
+        // turn-continuity G-11: 형식은 바로 2회 다시 보내고(대기 없음) 청크 0 · 1이 건너뜀 → 연속 2개로 멈춤 = 호출 6.
+        for (mode, detail) in [("garbage", CorrectionFormatDetail.decode), ("swap", .idOrder), ("missing", .missingArrays)] {
+            let waits = WaitLog()
+            let (runner, folder) = try runner(mode: mode, waits: waits)
             let (attempt, chunks) = try runner.begin(script: script, input: script.input)
             guard case .failed(let failed, let error) = await runner.run(attempt, chunks: chunks) else { XCTFail(mode); continue }
             XCTAssertEqual(error.kind, .format, mode)
             XCTAssertEqual(error.exitCode, 0, mode)
             XCTAssertEqual(failed.lastFailure?.kind, .format, mode)
             XCTAssertTrue(failed.results.isEmpty, mode)
-            XCTAssertEqual(calls(folder), 1, mode)
+            XCTAssertEqual(calls(folder), 6, mode)
+            XCTAssertEqual(failed.failures.map(\.detail), [CorrectionFormatDetail?](repeating: detail, count: 6), mode)
+            XCTAssertEqual(failed.failures.map(\.retry), [0, 1, 2, 0, 1, 2], mode)
+            XCTAssertEqual(failed.failures.map(\.chunkIndex), [0, 0, 0, 1, 1, 1], mode)
+            let waited = await waits.values; XCTAssertEqual(waited, [], mode)
         }
     }
 
@@ -274,4 +300,166 @@ final class CorrectionRunnerTests: XCTestCase {
         try store.save(attempt)
         XCTAssertEqual(String(decoding: try Data(contentsOf: url), as: UTF8.self), literal)
     }
+
+    // MARK: turn-continuity AC-10 재시도 · 완주 (§02-5 ② ③, 가짜 CLI)
+
+    func testRetryConstants() {
+        XCTAssertEqual(CorrectionRunner.maximumRetries, 2)
+        XCTAssertEqual(CorrectionRunner.retryDelay, .seconds(5))
+        XCTAssertEqual(CorrectionRunner.consecutiveSkipLimit, 2)
+        XCTAssertEqual(CorrectionRunner.engine.hasSuffix(" · context-correction-8"), true)
+    }
+
+    /// 한 번 실패 뒤 성공: 5초 대기 1회 · 호출 = 청크 수 + 1 · 결과는 한 번에 끝낸 것과 같다.
+    func testOneFailureThenSuccessCompletes() async throws {
+        let script = try script()
+        let waits = WaitLog(), retries = RetryLog()
+        let (runner, folder) = try runner(mode: "", failAt: "5", waits: waits)
+        let (attempt, chunks) = try runner.begin(script: script, input: script.input)
+        guard case .completed(let finished) = await runner.run(attempt, chunks: chunks, retrying: { await retries.add($0) }) else { return XCTFail() }
+        XCTAssertEqual(calls(folder), 13)
+        XCTAssertEqual(finished.merged().edits.count, 1_200)
+        XCTAssertEqual(finished.merged().rejected, [])
+        let waited = await waits.values; XCTAssertEqual(waited, [.seconds(5)])
+        let seen = await retries.values; XCTAssertEqual(seen, [1, nil])
+        XCTAssertEqual(finished.failures.map(\.kind), [.unclassified])
+        XCTAssertEqual(finished.failures.map(\.retry), [0])
+        XCTAssertEqual(finished.failures.map(\.chunkIndex), [4])
+    }
+
+    /// 한 청크 3회 실패: 건너뛰고 완주 · 그 청크 Turn 전부 `chunk` · 호출 = 청크 수 + 2 · 완료 조립이 실패 기록을 옮긴다.
+    func testOneChunkFailingThreeTimesIsKeptAsOriginalAndCompletes() async throws {
+        let script = try script()
+        let waits = WaitLog(), progress = RetryLog()
+        let (runner, folder) = try runner(mode: "", failAt: "5-7", waits: waits)
+        let (attempt, chunks) = try runner.begin(script: script, input: script.input)
+        guard case .completed(let finished) = await runner.run(attempt, chunks: chunks, progress: { await progress.add($0) }) else { return XCTFail() }
+        XCTAssertEqual(calls(folder), 14)
+        XCTAssertEqual(finished.results.count, 12)
+        let merged = finished.merged()
+        XCTAssertEqual(merged.rejected, chunks[4].turns.map { CorrectionRejectedTurn(turnID: $0.id, rule: .chunk) })
+        XCTAssertEqual(merged.edits.count, 1_100)
+        XCTAssertEqual(merged.names.count, 1)
+        let waited = await waits.values; XCTAssertEqual(waited, [.seconds(5), .seconds(5)])
+        let done = await progress.values; XCTAssertEqual(done, (1...12).map { Optional($0) }) // k = 성공 + 건너뜀
+        // 건너뛴 청크는 저장소의 시도 기록에서 끝난 청크가 아니다.
+        XCTAssertEqual(try runner.store.load(scriptID: script.id)?.remainingChunks, [4])
+        var correction = ScriptCorrection(input: script.input, engine: CorrectionRunner.engine)
+        let date = Date(timeIntervalSinceReferenceDate: 800_000_000)
+        correction.complete(with: finished, at: date)
+        XCTAssertEqual(correction.state, .completed); XCTAssertEqual(correction.completedAt, date)
+        XCTAssertEqual(correction.completedChunks, 12); XCTAssertEqual(correction.totalChunks, 12)
+        XCTAssertEqual(correction.rejectedTurns, merged.rejected)
+        XCTAssertEqual(correction.failures?.map(\.retry), [0, 1, 2])
+        XCTAssertEqual(correction.noResponseTotal, 100); XCTAssertEqual(correction.rejectedTotal, 0)
+        var stored = script; stored.correction = correction
+        XCTAssertNoThrow(try stored.validate())
+    }
+
+    /// 연속 두 청크가 3회씩 실패하면 멈추고, 이어서 교정이 그 두 청크부터 다시 보낸다.
+    func testTwoConsecutiveSkippedChunksStopAndResumeResendsThem() async throws {
+        let script = try script()
+        let (base, _) = try runner(mode: "")
+        let (baseAttempt, baseChunks) = try base.begin(script: script, input: script.input)
+        guard case .completed(let oneShot) = await base.run(baseAttempt, chunks: baseChunks) else { return XCTFail("baseline") }
+        let (runner, folder) = try runner(mode: "", failAt: "5-10")
+        let (attempt, chunks) = try runner.begin(script: script, input: script.input)
+        guard case .failed(let failed, let error) = await runner.run(attempt, chunks: chunks) else { return XCTFail() }
+        XCTAssertEqual(error.kind, .unclassified)
+        XCTAssertEqual(calls(folder), 10)
+        XCTAssertEqual(failed.completedChunks, 4)
+        XCTAssertEqual(failed.remainingChunks, Array(4..<12))
+        XCTAssertEqual(failed.failures.map(\.retry), [0, 1, 2, 0, 1, 2])
+        XCTAssertEqual(runner.resumeState(for: script), .available(completed: 4, total: 12, lastFailure: failed.lastFailure))
+        try FileManager.default.removeItem(at: folder.appendingPathComponent("fail-at"))
+        let (resume, again) = try runner.prepareResume(script: script)
+        guard case .completed(let finished) = await runner.run(resume, chunks: again) else { return XCTFail("resume") }
+        XCTAssertEqual(calls(folder), 18)
+        XCTAssertEqual(finished.merged().edits, oneShot.merged().edits)
+        XCTAssertEqual(finished.merged().names, oneShot.merged().names)
+    }
+
+    /// 어댑터 형식 실패 세부: 출력 파일 없음 · 0바이트 = noOutput · 2,000,000 B 초과 = tooLarge · 해독 = decode · 배열 누락.
+    func testAdapterFormatDetails() async throws {
+        let script = try script(count: 50)
+        let chunk = try XCTUnwrap(CorrectionPlan.chunks(for: script).first)
+        for (mode, detail) in [("nooutput", CorrectionFormatDetail.noOutput), ("empty", .noOutput), ("huge", .tooLarge),
+                               ("garbage", .decode), ("missing", .missingArrays)] {
+            let folder = try directory()
+            try Data(mode.utf8).write(to: folder.appendingPathComponent("mode"))
+            do {
+                _ = try await CodexCorrectionClient().correct(chunk: chunk, input: script.input, executable: try fake(in: folder, marker: "M"),
+                                                               timeout: .seconds(30))
+                XCTFail(mode)
+            } catch let error as CodexCorrectionError {
+                XCTAssertEqual(error.kind, .format, mode); XCTAssertEqual(error.exitCode, 0, mode); XCTAssertEqual(error.detail, detail, mode)
+                XCTAssertNil(error.expectedTurns, mode)
+            }
+        }
+        // id 관련 세부는 실행기가 기대·반환 Turn 수와 함께 남긴다.
+        let (runner, _) = try runner(mode: "swap")
+        let (attempt, chunks) = try runner.begin(script: script, input: script.input)
+        guard case .failed(let failed, _) = await runner.run(attempt, chunks: chunks) else { return XCTFail("swap") }
+        XCTAssertEqual(failed.lastFailure?.detail, .idOrder)
+        XCTAssertEqual(failed.lastFailure?.expectedTurns, 50); XCTAssertEqual(failed.lastFailure?.returnedTurns, 50)
+    }
+
+    /// 성공 0개(청크 1개, 형식 3회)면 completed가 아니라 failed. 형식은 대기 없이 바로 다시 보낸다.
+    func testNoSuccessfulChunkFails() async throws {
+        let script = try script(count: 50)
+        let waits = WaitLog()
+        let (runner, folder) = try runner(mode: "garbage", waits: waits)
+        let (attempt, chunks) = try runner.begin(script: script, input: script.input)
+        XCTAssertEqual(chunks.count, 1)
+        guard case .failed(let failed, let error) = await runner.run(attempt, chunks: chunks) else { return XCTFail() }
+        XCTAssertEqual(error.kind, .format)
+        XCTAssertEqual(calls(folder), 3)
+        XCTAssertTrue(failed.results.isEmpty)
+        XCTAssertEqual(failed.failures.map(\.detail), [.decode, .decode, .decode])
+        let waited = await waits.values; XCTAssertEqual(waited, [])
+    }
+
+    /// 인증 · 설정 · 실행 불가는 첫 실패에서 멈춘다. 재시도 대기 중 취소도 멈춘다.
+    func testStoppingFailuresDoNotRetry() async throws {
+        let script = try script()
+        for (kind, expected) in [("auth", CorrectionFailureKind.auth), ("config", .config)] {
+            let waits = WaitLog()
+            let (runner, folder) = try runner(mode: "", failAt: "1", failKind: kind, waits: waits)
+            let (attempt, chunks) = try runner.begin(script: script, input: script.input)
+            guard case .failed(let failed, let error) = await runner.run(attempt, chunks: chunks) else { XCTFail(kind); continue }
+            XCTAssertEqual(error.kind, expected, kind)
+            XCTAssertEqual(calls(folder), 1, kind)
+            XCTAssertEqual(failed.failures.map(\.retry), [0], kind)
+            let waited = await waits.values; XCTAssertEqual(waited, [], kind)
+        }
+        let missing = CorrectionRunner(store: CorrectionAttemptStore(root: try directory()),
+                                       executable: try directory().appendingPathComponent("no-codex"), wait: { _ in XCTFail("wait") })
+        let (attempt, chunks) = try missing.begin(script: script, input: script.input)
+        guard case .failed(let failed, let error) = await missing.run(attempt, chunks: chunks) else { return XCTFail("unavailable") }
+        XCTAssertEqual(error.kind, .unavailable)
+        XCTAssertEqual(failed.failures.map(\.retry), [0])
+        // 5초 대기 중 취소 → 취소로 멈춤, 다시 보내지 않는다.
+        let folder = try directory(), root = try directory()
+        try Data("1".utf8).write(to: folder.appendingPathComponent("fail-at"))
+        let cancelling = CorrectionRunner(store: CorrectionAttemptStore(root: root), executable: try fake(in: folder, marker: "M"),
+                                          timeout: .seconds(30), wait: { _ in throw CancellationError() })
+        let (start, planned) = try cancelling.begin(script: script, input: script.input)
+        guard case .failed(let stopped, let cancelled) = await cancelling.run(start, chunks: planned) else { return XCTFail("cancel") }
+        XCTAssertEqual(cancelled.kind, .cancelled)
+        XCTAssertEqual(calls(folder), 1)
+        XCTAssertEqual(stopped.failures.map(\.kind), [.unclassified, .cancelled])
+        XCTAssertEqual(stopped.failures.map(\.retry), [0, 1])
+    }
+}
+
+/// 재시도 대기 기록 (실제로 기다리지 않는다).
+actor WaitLog {
+    private(set) var values: [Duration] = []
+    func add(_ value: Duration) { values.append(value) }
+}
+
+/// 재시도 차수 · 진행 숫자 기록.
+actor RetryLog {
+    private(set) var values: [Int?] = []
+    func add(_ value: Int?) { values.append(value) }
 }

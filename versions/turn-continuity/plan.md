@@ -3,7 +3,7 @@ unit: turn-continuity
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "building (2026-11-17). T-01 e63926b · T-02 9ecf78b · T-03 a078132 · T-04 8142e9e · T-05 완료 (G-11 drop 사례는 짝짓기 변경과 함께 T-05에서 이동). 다음 = T-06 실행기 재시도·완주. 기준선 HEAD 200f7d8 · check run-20261117T064312Z-7nDMlN (362 실행 = 360 통과 + skipped 2)."
+resume: "building (2026-11-17). T-01 e63926b · T-02 9ecf78b · T-03 a078132 · T-04 8142e9e · T-05 67f37c1 (G-11 drop 사례는 짝짓기 변경과 함께 T-05에서 이동) · T-06 완료. 다음 = T-07 문구·화면. 기준선 HEAD 200f7d8 · check run-20261117T064312Z-7nDMlN (362 실행 = 360 통과 + skipped 2)."
 spec: notes/turn-continuity/turn-continuity.src.html
 ---
 ## 근거

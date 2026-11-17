@@ -63,6 +63,16 @@ public struct ScriptCorrection: Codable, Sendable {
     public init(input: ConversionNotes, engine: String, state: State = .running) {
         self.input = input; self.engine = engine; self.state = state; startedAt = Date(); id = UUID().uuidString
     }
+    /// turn-continuity §02-5 ③ ④: 모든 청크를 처리한 시도 기록(건너뛴 청크의 원문 유지 결과 포함)을 교정 결과로 적용하고,
+    /// 시도 기록의 실패 기록(최근 20건)을 옮긴다. 빈 목록은 nil(키 생략).
+    public mutating func complete(with attempt: CorrectionAttempt, at date: Date = Date()) {
+        let merged = attempt.merged()
+        edits = merged.edits; speakerNames = merged.names; nameEvidence = merged.evidence
+        rejectedTurns = merged.rejected.isEmpty ? nil : merged.rejected
+        failures = attempt.failures.isEmpty ? nil : attempt.failures
+        completedChunks = attempt.totalChunks; totalChunks = attempt.totalChunks
+        state = .completed; completedAt = date
+    }
     /// 주어진 원구간 중 검증 실패 6종으로 원문을 유지한 수 (구간 정보·Markdown 문단 줄의 {k}, 문구 1–5).
     public func rejectedCount(in turnIDs: [String]) -> Int { count(in: turnIDs, noResponse: false) }
     /// 주어진 원구간 중 응답 없음(`missing` · `chunk`)으로 원문을 유지한 수 (문구 6–10의 {k}).
