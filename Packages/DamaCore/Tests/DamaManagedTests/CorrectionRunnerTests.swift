@@ -450,6 +450,20 @@ final class CorrectionRunnerTests: XCTestCase {
         XCTAssertEqual(stopped.failures.map(\.kind), [.unclassified, .cancelled])
         XCTAssertEqual(stopped.failures.map(\.retry), [0, 1])
     }
+
+    /// QA A D-2: 실패 기록 1건이 든 기존 시도 기록 (형식 1, 새 선택 키 없음)도 그대로 해독되고 다시 써도 바이트가 같다.
+    func testLegacyAttemptWithFailureRecordDecodesByteForByte() throws {
+        let literal = #"{"attemptID":"A2","chunkSHA256s":["c0","c1"],"engine":"Codex CLI · 합성 · context-correction-7","failures":[{"chunkIndex":1,"elapsedMs":68468,"exitCode":0,"kind":"format","recordedAt":800000000,"stderrBytes":50758,"totalChunks":2}],"formatVersion":1,"input":{"context":"","reference":""},"planSHA256":"p","results":[{"chunkIndex":0,"edits":[],"evidence":{},"names":{},"rejected":[{"rule":"quote","turnID":"t1"}]}],"scriptID":"S2","startedAt":800000000}"#
+        let store = CorrectionAttemptStore(root: try directory())
+        try FileManager.default.createDirectory(at: store.folder, withIntermediateDirectories: true)
+        let url = store.folder.appendingPathComponent("S2.json")
+        try Data(literal.utf8).write(to: url)
+        let attempt = try XCTUnwrap(try store.load(scriptID: "S2"))
+        XCTAssertNil(attempt.lastFailure?.retry); XCTAssertNil(attempt.lastFailure?.detail)
+        XCTAssertEqual(attempt.lastFailure?.kind, .format)
+        try store.save(attempt)
+        XCTAssertEqual(String(decoding: try Data(contentsOf: url), as: UTF8.self), literal)
+    }
 }
 
 /// 재시도 대기 기록 (실제로 기다리지 않는다).

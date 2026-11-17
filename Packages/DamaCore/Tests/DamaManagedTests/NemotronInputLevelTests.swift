@@ -112,4 +112,16 @@ final class NemotronInputLevelTests: XCTestCase {
         XCTAssertTrue(text.contains(#""inputLevel":{"gainDb":22.97,"p90Dbfs":-42.97,"version":"nemotron-input-level-v1"}"#), text)
         XCTAssertEqual(try JSONDecoder().decode(NemotronMeta.self, from: Data(text.utf8)), current)
     }
+
+    /// QA A D-1: dB → 배율 고정값. 20 dB → ×10.0 · 6.02 dB → ×2.0 (허용 1e−3), 무릎 아래 진폭이라 리미터 없음.
+    func testGainToRatioFixedValues() {
+        for (decibels, ratio) in [(-40.0, 10.0), (-26.02, 2.0)] {
+            var samples = windows([Double](repeating: decibels, count: 10))
+            let original = samples
+            let record = NemotronInputLevel.apply(&samples)
+            XCTAssertEqual(record.gainDb, -20 - decibels, accuracy: 1e-9)
+            XCTAssertEqual(Double(samples[0] / original[0]), ratio, accuracy: 1e-3)
+            XCTAssertEqual(Double(samples[samples.count - 1] / original[samples.count - 1]), ratio, accuracy: 1e-3)
+        }
+    }
 }

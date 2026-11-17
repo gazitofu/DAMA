@@ -522,4 +522,52 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         XCTAssertEqual(only.filter { $0.hasPrefix("> AI 응답 없음: ") }, [note10])
         XCTAssertFalse(only.contains { $0.hasPrefix("> AI 검증 실패: ") })
     }
+
+    /// QA A D-2: 검증 실패 규칙만 든 기존 교정 기록 (failures 키 없음, correction-turn-isolation 형태 고정 리터럴)은 바이트가 같다.
+    func testLegacyCorrectionWithRejectedTurnsKeepsBytes() throws {
+        let literal = #"{"completedAt":800000100,"completedChunks":1,"edits":[{"applied":false,"original":"합성 원문","reason":"합성 보류","text":"합성 후보","turnID":"t1"}],"engine":"synthetic context-correction-7","id":"6F1C2E2A-0000-4000-8000-000000000003","input":{"context":"합성 맥락","reference":""},"nameEvidence":{},"rejectedTurns":[{"rule":"quote","turnID":"t2"},{"rule":"text","turnID":"t3"}],"speakerNames":{},"startedAt":800000000,"state":"completed","totalChunks":1}"#
+        let decoded = try JSONDecoder().decode(ScriptCorrection.self, from: Data(literal.utf8))
+        XCTAssertNil(decoded.failures)
+        XCTAssertEqual(decoded.rejectedTotal, 2); XCTAssertEqual(decoded.noResponseTotal, 0)
+        XCTAssertEqual(String(decoding: try sorted.encode(decoded), as: UTF8.self), literal)
+    }
+
+    /// QA A D-4 (계획 AC-11 합성): 검증 실패 1 + 응답 없음 2가 같은 문단, chunk 1이 다른 문단.
+    /// 미상 3 Turn을 읽기 v9로 한 문단에 잇고(라벨 x · 간격 100 ms), 라벨 y Turn은 따로다.
+    func testMarkdownMixedParagraphOrder() throws {
+        let tokens: [[String: Any]] = [("가", 100, 200, "x"), (" 나", 300, 400, "x"), (" 다", 500, 600, "x"), (" 라", 2_000, 2_100, "y")].map {
+            ["text": $0.0, "start_ms": $0.1, "end_ms": $0.2, "speaker": $0.3, "confidence": 0.9]
+        }
+        let asr = try JSONSerialization.data(withJSONObject: ["id": "job", "text": "가 나 다 라", "tokens": tokens])
+        var data = Data()
+        for value in [Float](repeating: 0.02, count: 300 * 8) { withUnsafeBytes(of: value.bitPattern.littleEndian) { data.append(contentsOf: $0) } }
+        let doc = try SonioxNemotronReconciler.normalize(soniox: asr, probabilities: data, frameCount: 300, channels: 8, sonioxJobID: "job",
+            sessionID: "s", runID: "00000000-0000-4000-8000-00000000e0d1", durationUs: 3_000_000, audioSHA256: String(repeating: "a", count: 64),
+            model: "stt-async-v5", createdAt: "2026-11-17T00:00:00Z", synthetic: true, version: .v3)
+        var script = try LibraryScript(transcript: doc, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        let ids = script.transcript.turns.filter { $0.kind == .speech }.map(\.id)
+        XCTAssertEqual(ids.count, 4)
+        XCTAssertEqual(script.blocks().map(\.turnIDs), [Array(ids.prefix(3)), [ids[3]]])
+        var correction = ScriptCorrection(input: script.input, engine: "synthetic", state: .completed)
+        correction.rejectedTurns = [.init(turnID: ids[0], rule: .quote), .init(turnID: ids[1], rule: .missing),
+                                    .init(turnID: ids[2], rule: .missing), .init(turnID: ids[3], rule: .chunk)]
+        script.correction = correction
+        XCTAssertNoThrow(try script.validate())
+        let lines = String(decoding: try script.markdown(), as: UTF8.self).components(separatedBy: "\n")
+        let four = try XCTUnwrap(lines.firstIndex(of: "- 검증 실패로 원문 유지: 1개 원구간"))
+        XCTAssertEqual(lines[four + 1], "- 응답 없음으로 원문 유지: 3개 원구간")
+        let headers = lines.indices.filter { lines[$0].hasPrefix("### [") }
+        XCTAssertEqual(headers.count, 2)
+        // 첫 문단: 검증 실패 줄 → 빈 줄 → 응답 없음 줄 (2개 원구간) → 빈 줄.
+        let five = try XCTUnwrap(lines.firstIndex(of: "> AI 검증 실패: AI 응답이 이 문단의 원문과 맞지 않아 쓰지 않았습니다."))
+        XCTAssertTrue(five > headers[0] && five < headers[1])
+        XCTAssertEqual(lines[five + 1], "")
+        XCTAssertEqual(lines[five + 2], "> AI 응답 없음: AI 응답을 받지 못해 이 문단은 원문을 유지했습니다. (2개 원구간)")
+        XCTAssertEqual(lines[five + 3], "")
+        // 둘째 문단: 응답 없음 1개 (2a 없음), 검증 실패 줄 없음.
+        let second = Array(lines[headers[1]...])
+        XCTAssertEqual(second.filter { $0.hasPrefix("> AI 응답 없음: ") }, ["> AI 응답 없음: AI 응답을 받지 못해 이 문단은 원문을 유지했습니다."])
+        XCTAssertFalse(second.contains { $0.hasPrefix("> AI 검증 실패: ") })
+        XCTAssertEqual(lines.filter { $0.hasPrefix("> AI 응답 없음: ") }.count, 2)
+    }
 }
