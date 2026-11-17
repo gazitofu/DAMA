@@ -471,4 +471,55 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         script.correction = old
         XCTAssertEqual(try XCTUnwrap(ContextCorrection.reapplyingPending(in: script)).failures, [failure])
     }
+
+    // MARK: turn-continuity AC-11 문구 6–11 · Markdown (기대 문자열은 `ssot/tone/turn-continuity.md` 표에서 옮겼다)
+
+    func testNoResponseTextMatchesToneTable() {
+        let current = "AI 보정 결과를 저장했습니다. 다른 결과 보기에서 이전 버전을 확인할 수 있습니다."
+        let three = " AI 응답이 원문과 맞지 않은 %d개 원구간은 원문을 유지했습니다."
+        let eight = " AI 응답을 받지 못한 %d개 원구간은 원문을 유지했습니다."
+        let note7 = "AI 응답을 받지 못해 이 문단은 원문을 유지했습니다."
+        XCTAssertEqual(CorrectionRejectionText.noResponseTitle, "원문 유지 · AI 응답 없음")
+        XCTAssertEqual(CorrectionRejectionText.noResponseNote(count: 1), note7)
+        XCTAssertEqual(CorrectionRejectionText.noResponseNote(count: 2), note7 + " (2개 원구간)")
+        XCTAssertEqual(CorrectionRejectionText.noResponseNote(count: 3), note7 + " (3개 원구간)")
+        for n in [0, 1, 12] {
+            for m in [0, 1, 12] {
+                let expected = current + (n >= 1 ? String(format: three, n) : "") + (m >= 1 ? String(format: eight, m) : "")
+                XCTAssertEqual(CorrectionRejectionText.completionMessage(rejectedCount: n, noResponseCount: m), expected, "\(n) \(m)")
+            }
+        }
+        XCTAssertEqual(Data(CorrectionRejectionText.completionMessage(rejectedCount: 0, noResponseCount: 0).utf8), Data(current.utf8))
+        XCTAssertEqual(CorrectionRejectionText.markdownNoResponseSummary(count: 1), "- 응답 없음으로 원문 유지: 1개 원구간")
+        XCTAssertEqual(CorrectionRejectionText.markdownNoResponseSummary(count: 12), "- 응답 없음으로 원문 유지: 12개 원구간")
+        XCTAssertEqual(CorrectionRejectionText.markdownNoResponsePrefix, "> AI 응답 없음: ")
+        XCTAssertEqual(CorrectionRejectionText.retrySuffix(1), " · 응답 다시 받는 중 (1/2)")
+        XCTAssertEqual(CorrectionRejectionText.retrySuffix(2), " · 응답 다시 받는 중 (2/2)")
+    }
+
+    /// 검증 실패 1 + 응답 없음 2(같은 문단) + 응답 없음 1(다른 문단). 응답 없음만 있으면 문구 4는 없다.
+    func testMarkdownNoResponseLines() throws {
+        let note5 = "> AI 검증 실패: AI 응답이 이 문단의 원문과 맞지 않아 쓰지 않았습니다."
+        let note10 = "> AI 응답 없음: AI 응답을 받지 못해 이 문단은 원문을 유지했습니다."
+        // fixture 문단 = [t1, t2] · [t3]. t1 편집이 없어야 t1을 버린 원구간으로 쓸 수 있다.
+        let lines = String(decoding: try Self.markdownScript(editT1: false, rejected: [
+            .init(turnID: "t1", rule: .missing), .init(turnID: "t2", rule: .chunk), .init(turnID: "t3", rule: .quote)]).markdown(), as: UTF8.self)
+            .components(separatedBy: "\n")
+        let four = try XCTUnwrap(lines.firstIndex(of: "- 검증 실패로 원문 유지: 1개 원구간"))
+        XCTAssertEqual(lines[four + 1], "- 응답 없음으로 원문 유지: 2개 원구간")
+        let headers = lines.indices.filter { lines[$0].hasPrefix("### [") }
+        XCTAssertEqual(headers.count, 2)
+        let missingAt = try XCTUnwrap(lines.firstIndex(of: note10 + " (2개 원구간)"))
+        XCTAssertTrue(missingAt > headers[0] && missingAt < headers[1])
+        XCTAssertEqual(lines[missingAt + 1], "")
+        XCTAssertGreaterThan(try XCTUnwrap(lines.firstIndex(of: note5)), headers[1])
+        XCTAssertEqual(lines.filter { $0.hasPrefix("> AI 응답 없음: ") }.count, 1)
+        // 응답 없음만: 문구 4 없음 · 문구 9 · 문단 줄 1 (k = 1이면 2a 없음).
+        let only = String(decoding: try Self.markdownScript(rejected: [.init(turnID: "t3", rule: .missing)]).markdown(), as: UTF8.self)
+            .components(separatedBy: "\n")
+        XCTAssertFalse(only.contains { $0.hasPrefix("- 검증 실패로 원문 유지") })
+        XCTAssertEqual(only.filter { $0 == "- 응답 없음으로 원문 유지: 1개 원구간" }.count, 1)
+        XCTAssertEqual(only.filter { $0.hasPrefix("> AI 응답 없음: ") }, [note10])
+        XCTAssertFalse(only.contains { $0.hasPrefix("> AI 검증 실패: ") })
+    }
 }
