@@ -241,12 +241,12 @@ details.audit table{font-size:12.5px}
   <p class="sub">Nemotron 결합본에서 화자 미확정 문단과 어절 중간 끊김이 늘어난 원인을 셋으로 나눠 각각 고치고, AI 검수/보정이 «이어서 교정» 없이 한 번에 끝나게 한다. 화자 배정을 문맥으로 추정하지 않고, 원문·시간·사람 수정은 보존한다.<sup class="fn" id="fnr-1"><a href="#fn-1" data-fn="1">1</a></sup></p>
 </header>
 
-<section class="verdict" id="s-verdict" data-unit="turn-continuity" data-round="r1" data-gate="①" data-state="open">
-  <div class="vh"><h2>판정</h2><span class="cnt">열린 결정 5 · 판정 축 3</span><span class="stamp">게이트 ① 컨펌 M.DD</span></div>
+<section class="verdict" id="s-verdict" data-unit="turn-continuity" data-round="r2" data-gate="①" data-state="closed">
+  <div class="vh"><h2>판정</h2><span class="cnt">결정 5 · 판정 축 3 · 전부 확정</span><span class="stamp">게이트 ① 컨펌 11.17</span></div>
   <div class="vb">
     <div class="vitem" data-k="D-01">
       <div class="vt"><span class="id">D-01</span>어절 안 화자 미상 조각 (§02-2 ①)</div>
-      <p class="vq">한 어절 안에서 다른 조각이 모두 한 화자로 배정됐는데 일부 조각만 미배정이면 그 조각을 그 화자로 맞춘다. 화면의 어절 중간 문단 끊김 중 미상 조각 때문인 것이 6개 녹음 합계 203 → 27로 줄고, 바뀌는 단어는 녹음당 7–57개다(모의). <b>2026-10-31 D-07 «미배정 조각 null 유지»를 뒤집는 안이다.</b> ⓑ면 지금처럼 null로 둔다.<sup class="fn" id="fnr-2"><a href="#fn-2" data-fn="2">2</a></sup></p>
+      <p class="vq">ⓐ 확정. 결합 <code>soniox-nemotron-word-v4</code>에서 한 어절 안 배정 토큰이 모두 한 화자이면 그 어절의 미배정 lexical 조각을 그 화자로 맞춘다(근거 = 같은 어절 배정 토큰, alignmentScore null). 어절 전체가 미배정이면 null 그대로다. 2026-10-31 D-07 «미배정 조각 null 유지»는 이 경우에 한해 대체된다.<sup class="fn" id="fnr-2"><a href="#fn-2" data-fn="2">2</a></sup></p>
       <div class="opts">
         <label><input type="radio" name="D-01" value="ⓐ 어절의 단일 화자로 맞춤 (권고)" checked>ⓐ 어절의 단일 화자로 맞춤 (권고)</label>
         <label><input type="radio" name="D-01" value="ⓑ null 유지 (D-07 유지)">ⓑ null 유지 (D-07 유지)</label>
@@ -255,7 +255,7 @@ details.audit table{font-size:12.5px}
     </div>
     <div class="vitem" data-k="D-02">
       <div class="vt"><span class="id">D-02</span>이웃한 화자 미상 어절 잇기 (§02-4 · 읽기 v9)</div>
-      <p class="vq">읽기 화면에서 미배정 어절이 연달아 나오면 지금은 어절마다 «화자 미확정» 문단이 따로 생긴다. 같은 ASR 화자 라벨이고 사이에 다른 발화가 없으며 간격이 300ms 이하인 미배정 어절은 한 문단으로 잇는다. 화자는 null 그대로다. 85분·141분 녹음은 화면 문단의 절반이 «화자 미확정»이고(120/240 · 667/1,411), D-01과 함께 적용하면 47 · 363으로 준다(모의). <b>현행 읽기 계약 «서로 다른 미배정 어절은 합치지 않는다»를 바꾼다.</b> ⓑ면 지금처럼 어절마다 따로 둔다.<sup class="fn" id="fnr-3"><a href="#fn-3" data-fn="3">3</a></sup></p>
+      <p class="vq">ⓐ 확정. 읽기 <code>reading-v9</code>: 이웃한 미배정 어절이 같은 ASR 라벨이고 사이에 부호 외 토큰이 없으며 간격이 300ms 이하이면 «화자 미확정» 한 문단으로 잇는다. 화자는 null 그대로이고 사람 문단 편집·수동 나눔이 우선한다. 기존 결과에도 앱 재시작 후 적용된다.<sup class="fn" id="fnr-3"><a href="#fn-3" data-fn="3">3</a></sup></p>
       <div class="opts">
         <label><input type="radio" name="D-02" value="ⓐ 잇기 (권고)" checked>ⓐ 잇기 (권고)</label>
         <label><input type="radio" name="D-02" value="ⓑ 어절마다 따로 (현행)">ⓑ 어절마다 따로 (현행)</label>
@@ -264,7 +264,7 @@ details.audit table{font-size:12.5px}
     </div>
     <div class="vitem" data-k="D-03">
       <div class="vt"><span class="id">D-03</span>Turn 장벽 개정 · INV-06과 설계 04 §7 (§02-3)</div>
-      <p class="vq">11-17 사전 승인. 같은 어절 안의 같은 화자 토큰 사이에서는 다른 화자 구간을 Turn 장벽으로 쓰지 않는다. <b>근거 정정:</b> 승인 때 드린 «화면에 A: …투 / A: 자를…로 보인다»는 설명은 읽기 화면에 대해 틀렸다. 읽기 화면과 Markdown은 이미 같은 화자 Turn을 한 문단으로 이어 보여 준다(모의 문단 수 변화 0–1). 바뀌는 것은 Turn 데이터와 AI 교정 입력이다. Turn 수가 32–42% 줄고 어절 중간 Turn 경계가 79–90% 준다(모의).<sup class="fn" id="fnr-4"><a href="#fn-4" data-fn="4">4</a></sup></p>
+      <p class="vq">ⓐ 확정. v4부터 한 어절 안의 같은 화자 토큰 사이에서는 다른 화자 구간을 Turn 장벽으로 쓰지 않고, 같은 어절의 미배정 조각은 원 순서가 이어지고 같은 ASR 라벨이면 한 Turn으로 둔다. 어절과 어절 사이 장벽, 누락 marker, 중단 장벽은 그대로다. 효과는 Turn 데이터와 AI 교정 입력이며 읽기 화면 문단은 거의 바뀌지 않는다(근거 정정 반영).<sup class="fn" id="fnr-4"><a href="#fn-4" data-fn="4">4</a></sup></p>
       <div class="opts">
         <label><input type="radio" name="D-03" value="ⓐ 사전 승인대로 개정 (권고)" checked>ⓐ 사전 승인대로 개정 (권고)</label>
         <label><input type="radio" name="D-03" value="ⓑ 철회 (Turn 장벽 현행 유지)">ⓑ 철회 (Turn 장벽 현행 유지)</label>
@@ -273,7 +273,7 @@ details.audit table{font-size:12.5px}
     </div>
     <div class="vitem" data-k="D-04">
       <div class="vt"><span class="id">D-04</span>AI 교정 완주 · 교정 계약 개정 (§02-5 · §05)</div>
-      <p class="vq">11-17 사전 승인. 응답에서 빠진 Turn만 원문 유지로 받고, 형식·시간 초과·네트워크·미분류 실패는 같은 청크를 최대 2회 자동으로 다시 보내며, 그래도 실패한 청크는 원문 유지로 남기고 다음 청크로 간다. 연속 2개 청크가 그렇게 끝나거나 인증·설정·실행 불가·취소이면 지금처럼 멈추고 «이어서 교정»이 남는다. 재시도 횟수·연속 한도·대기 시간은 신규 후보값이다.<sup class="fn" id="fnr-5"><a href="#fn-5" data-fn="5">5</a></sup></p>
+      <p class="vq">ⓐ 확정. 교정 엔진 <code>context-correction-8</code>: 응답 Turn id가 입력 순서를 지킨 부분열이고 절반 이상이면 받고 빠진 Turn은 원문 유지(<code>missing</code>)로 남긴다. 형식·시간 초과·네트워크·미분류 실패는 같은 청크를 최대 2회 자동으로 다시 보내고, 그래도 실패한 청크는 원문 유지(<code>chunk</code>)로 남기고 다음 청크로 간다. 연속 2개 청크가 그렇게 끝나거나 인증·설정·실행 불가·취소이면 멈추고 «이어서 교정»이 남는다. 2회 · 연속 2개 · 5초 · 절반은 신규 후보값이다.<sup class="fn" id="fnr-5"><a href="#fn-5" data-fn="5">5</a></sup></p>
       <div class="opts">
         <label><input type="radio" name="D-04" value="ⓐ 사전 승인대로 개정 (권고)" checked>ⓐ 사전 승인대로 개정 (권고)</label>
         <label><input type="radio" name="D-04" value="ⓑ 값 수정">ⓑ 값 수정</label>
@@ -282,7 +282,7 @@ details.audit table{font-size:12.5px}
     </div>
     <div class="vitem" data-k="D-05">
       <div class="vt"><span class="id">D-05</span>Nemotron 입력 음량 맞춤 · 운영 계약 개정 (§02-1 · §05)</div>
-      <p class="vq">11-17 사전 승인. Nemotron에 넣는 음성만 메모리에서 키운다. 0.1초 RMS의 상위 10% 지점이 −20dBFS가 되게 0–24dB 이득을 주고 0.7 위는 부드럽게 누른다. 녹음 원본·분석본·Soniox 입력·재생은 그대로다. 재사용 키에 처리 버전이 들어가므로 «다시 전사»하면 Nemotron만 이 Mac에서 다시 돈다. 목표값·상한은 신규 후보값이다.<sup class="fn" id="fnr-6"><a href="#fn-6" data-fn="6">6</a></sup></p>
+      <p class="vq">ⓐ 확정. <code>nemotron-input-level-v1</code>: Nemotron에 넣는 음성만 메모리에서 0.1초 RMS 상위 10% 지점이 −20dBFS가 되게 0–24dB 이득을 주고 0.7 위는 부드럽게 누른다. 녹음 원본·분석본·Soniox 입력·재생은 그대로이고, 재사용 키에 처리 버전이 들어가 «다시 전사»하면 Nemotron만 이 Mac에서 다시 돈다. 목표값·상한은 신규 후보값이다.<sup class="fn" id="fnr-6"><a href="#fn-6" data-fn="6">6</a></sup></p>
       <div class="opts">
         <label><input type="radio" name="D-05" value="ⓐ 사전 승인대로 개정 (권고)" checked>ⓐ 사전 승인대로 개정 (권고)</label>
         <label><input type="radio" name="D-05" value="ⓑ 값 수정">ⓑ 값 수정</label>
@@ -291,7 +291,7 @@ details.audit table{font-size:12.5px}
     </div>
     <div class="vitem" data-k="①">
       <div class="vt"><span class="id">①</span>정책 (§02)</div>
-      <p class="vq">입력 음량 · 결합 v4 · Turn 구성 · 읽기 v9 · 교정 v8의 상태 전이와 값이 §02대로면 확정.</p>
+      <p class="vq">확정. §02 그대로.</p>
       <div class="opts">
         <label><input type="radio" name="①" value="확정" checked>확정</label>
         <label><input type="radio" name="①" value="수정">수정</label>
@@ -300,7 +300,7 @@ details.audit table{font-size:12.5px}
     </div>
     <div class="vitem" data-k="②">
       <div class="vt"><span class="id">②</span>화면·문구 (§03 · §04)</div>
-      <p class="vq">새 버튼·새 화면 없음. 교정 진행 줄 덧붙임 1, «응답 없음» 계열 문구 5개가 §04 문구표대로면 확정.</p>
+      <p class="vq">확정. 새 버튼·새 화면 없음. §03 화면과 §04 문구표(신규 6–11) 그대로이며 <code>ssot/tone/turn-continuity.md</code>에 편입했다.</p>
       <div class="opts">
         <label><input type="radio" name="②" value="확정" checked>확정</label>
         <label><input type="radio" name="②" value="수정">수정</label>
@@ -309,7 +309,7 @@ details.audit table{font-size:12.5px}
     </div>
     <div class="vitem" data-k="③">
       <div class="vt"><span class="id">③</span>검산 자 (§04)</div>
-      <p class="vq">§04 검산 자와 «안 잼». 화자 정확도는 재지 않는다(청취 없음). 실데이터 확인은 게이트 ②에서 사용자가 다시 전사와 AI 검수/보정을 1회씩 실행한다.</p>
+      <p class="vq">확정. §04 검산 자 14축과 «안 잼» 그대로. 화자 정확도는 재지 않고, 실데이터 확인은 게이트 ②에서 사용자가 다시 전사와 AI 검수/보정을 1회씩 실행한다.</p>
       <div class="opts">
         <label><input type="radio" name="③" value="확정" checked>확정</label>
         <label><input type="radio" name="③" value="수정">수정</label>
@@ -670,11 +670,11 @@ details.audit table{font-size:12.5px}
   <div class="rule"><span class="no">주</span><h2>각주 · 근거</h2></div>
   <ol class="fnlist" id="fnlist">
     <li id="fn-1"><span class="n">1</span><span class="t">입력 = 사용자 2026-11-17 «화자 미배정과 단어 끊김이 늘었음 · AI 검수/보정이 계속 중단되어 이어하기를 눌러야 하는 부분을 없애고자 함», 같은 날 «모두 권장대로 가자»(교정 계약 개정 동의, 한 유닛으로 진행, INV-06 개정, 입력 음량 맞춤 채택, 목소리 대조는 청취 후 결정). 같은 날 청취 결과 «모두 소음이 맞음, 무음으로 처리하는 게 맞는 수준»이라 목소리 대조는 하지 않는다. 진단은 이 세션 실측(읽기 전용, 네트워크 0).</span><a class="back" href="#fnr-1" title="본문으로">↩</a></li>
-    <li id="fn-2"><span class="n">2</span><span class="t">근거 원칙 = «한 어절을 두 사람이 나눠 말할 수는 없다» <code>SonioxPrecisionReconciler.swift:213</code> 주석(비교 정책 v5) · 같은 어절 근거 공유 선례 <code>operating-baseline.md</code> «soniox-p2-word-v3(B)». D-07 = <code>versions/nemotron-diarization/plan.md:14</code>. 모의 = §01 표 2.</span><a class="back" href="#fnr-2" title="본문으로">↩</a></li>
-    <li id="fn-3"><span class="n">3</span><span class="t">현행 <code>library-script.md:134</code> · 코드 <code>ScriptReadingStructure.swift:57–66</code>. 300ms = 설계 04 §7 «최대 간격 300ms» 읽기 편의 초기값(한국어 실측 전). 모의 = §01 표 2.</span><a class="back" href="#fnr-3" title="본문으로">↩</a></li>
-    <li id="fn-4"><span class="n">4</span><span class="t">INV-06 <code>ssot/design/04_DATA_AND_RECONCILIATION.md:46</code> · §7 <code>:117</code>. 문단 연결 <code>ScriptReadingStructure.swift:56</code> · <code>LibraryPresentation.swift:123–170</code>. 교정 입력은 Turn 단위 <code>ScriptCorrection.swift:136</code>.</span><a class="back" href="#fnr-4" title="본문으로">↩</a></li>
-    <li id="fn-5"><span class="n">5</span><span class="t">현행 «자동 재호출 없음» <code>library-script.md:206–207</code> · «모든 소유 Turn ID가 순서대로 정확히 한 번» <code>:197</code> · 첫 실패에서 멈춤 <code>CorrectionRunner.swift:111</code>.</span><a class="back" href="#fnr-5" title="본문으로">↩</a></li>
-    <li id="fn-6"><span class="n">6</span><span class="t">실험 = §01 표 3. 현행 재사용 키 <code>ManagedProcessor.swift:215–229</code> · 계약 <code>operating-baseline.md</code> «Nemotron 3 운영 경로» 첫 항목.</span><a class="back" href="#fnr-6" title="본문으로">↩</a></li>
+    <li id="fn-2"><span class="n">2</span><span class="t">기각안 = null 유지(D-07 유지). 근거 원칙 = «한 어절을 두 사람이 나눠 말할 수는 없다» <code>SonioxPrecisionReconciler.swift:213</code> 주석(비교 정책 v5) · 같은 어절 근거 공유 선례 <code>operating-baseline.md</code> «soniox-p2-word-v3(B)». D-07 = <code>versions/nemotron-diarization/plan.md:14</code>. 모의 = §01 표 2.</span><a class="back" href="#fnr-2" title="본문으로">↩</a></li>
+    <li id="fn-3"><span class="n">3</span><span class="t">기각안 = 어절마다 따로(<code>reading-v8</code>). 현행 <code>library-script.md:134</code> · 코드 <code>ScriptReadingStructure.swift:57–66</code>, 개정 문안 §05. 300ms = 설계 04 §7 «최대 간격 300ms» 읽기 편의 초기값(한국어 실측 전). 모의 = §01 표 2.</span><a class="back" href="#fnr-3" title="본문으로">↩</a></li>
+    <li id="fn-4"><span class="n">4</span><span class="t">기각안 = Turn 장벽 현행 유지. INV-06 <code>ssot/design/04_DATA_AND_RECONCILIATION.md:46</code> · §7 <code>:117</code>, 개정 문안 §05. 문단 연결 <code>ScriptReadingStructure.swift:56</code> · <code>LibraryPresentation.swift:123–170</code>. 교정 입력은 Turn 단위 <code>ScriptCorrection.swift:136</code>. 정정 전 설명 = 11-17 «화면에 A: …투 / A: 자를…로 보인다»(읽기 화면에 대해 틀림, 모의 문단 수 변화 0–1).</span><a class="back" href="#fnr-4" title="본문으로">↩</a></li>
+    <li id="fn-5"><span class="n">5</span><span class="t">기각안 = 값 수정. 현행 «자동 재호출 없음» <code>library-script.md:206–207</code> · «모든 소유 Turn ID가 순서대로 정확히 한 번» <code>:197</code> · 첫 실패에서 멈춤 <code>CorrectionRunner.swift:111</code>. 개정 문안 §05.</span><a class="back" href="#fnr-5" title="본문으로">↩</a></li>
+    <li id="fn-6"><span class="n">6</span><span class="t">기각안 = 값 수정 · 1초 창 자동 음량(141분 녹음 무음 6.64%, 유지 85.7%). 실험 = §01 표 3. 현행 재사용 키 <code>ManagedProcessor.swift:215–229</code> · 계약 <code>operating-baseline.md</code> «Nemotron 3 운영 경로» 첫 항목.</span><a class="back" href="#fnr-6" title="본문으로">↩</a></li>
     <li id="fn-7"><span class="n">7</span><span class="t">모집단 = Nemotron v3 Run 6개: <code>9F73A02B</code>(11-17 · 9분) · <code>AB66A52D</code>(11-12 · 13분) · <code>0FAACD0C</code>(11-12 · 47분) · <code>E2B926E5</code>(11-13 · 85분) · <code>44F4E8DD</code>(11-07 · 141분) · <code>7A430186</code>(10-31 · 80분). 내부 Sessions의 <code>normalized/model.json</code>·<code>raw/</code> 읽기 전용, 2026-11-17.</span><a class="back" href="#fnr-7" title="본문으로">↩</a></li>
     <li id="fn-8"><span class="n">8</span><span class="t">음량 = 단어 시간 구간의 분석 WAV RMS. 정상 배정 중앙값 −42.8 · −48.5 · −43.4 · −26.9dBFS, 무음 판정 −57.3 · −56.5 · −51.3 · −42.6dBFS (<code>44F4E8DD</code> · <code>E2B926E5</code> · <code>0FAACD0C</code> · <code>9F73A02B</code>). 녹음 6개 0.1초 RMS 중앙값 −47.3 · −50.1 · −44.3 · −42.5 · −27.7 · −49.1dBFS. 정규화 없음 = FluidAudio 0.18.0 <code>Shared/AudioMelSpectrogram.swift:16</code> «normalize: NA».</span><a class="back" href="#fnr-8" title="본문으로">↩</a></li>
     <li id="fn-9"><span class="n">9</span><span class="t"><code>ScriptReadingStructure.swift:56–66</code> · 계약 <code>library-script.md:134</code>.</span><a class="back" href="#fnr-9" title="본문으로">↩</a></li>
@@ -714,7 +714,7 @@ details.audit table{font-size:12.5px}
       </table></div>
     </div>
   </details>
-  <p class="note">r1 (11.17) 초판. 11-17 사전 승인(D-03 · D-04 · D-05)을 결정 항목으로 옮기고, D-03 근거를 정정(읽기 화면은 이미 같은 화자 Turn을 이어 보여 줌)하며, 문단 실측에서 나온 D-01 · D-02를 새로 올림.<br>r2 (11.17) 청취 결과 반영: 141분 녹음 긴 무음 10구간 10/10 소음, 목소리 대조를 비범위로 확정.</p>
+  <p class="note">r1 (11.17) 초판. 11-17 사전 승인(D-03 · D-04 · D-05)을 결정 항목으로 옮기고, D-03 근거를 정정(읽기 화면은 이미 같은 화자 Turn을 이어 보여 줌)하며, 문단 실측에서 나온 D-01 · D-02를 새로 올림.<br>r2 (11.17) 청취 결과 반영: 141분 녹음 긴 무음 10구간 10/10 소음, 목소리 대조를 비범위로 확정. 같은 날 게이트 ① 컨펌(D-01–D-05 전부 ⓐ, 판정 축 3 확정).</p>
 </section>
 
 <div style="height:140px"></div>
