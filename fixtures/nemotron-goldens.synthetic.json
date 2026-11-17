@@ -14,6 +14,11 @@
     "normalized" : "dffd4aaa029d73ef3509add1a235465dfe892da0263ab57c35bb1a47d6a22a26",
     "reading" : "ddc86e4f25fdc50be65cf78c3fd533cf7ea909cf7d91fe7f0a2e438676c5b403"
   },
+  "interjection\/soniox-nemotron-word-v4" : {
+    "markdown" : "9da312ef9c303a59079a215310811708e0081cb8c51e41b3abb875a3acc808ec",
+    "normalized" : "c71d1a2519c4d6c49497f9d099d20de51b347b51324ad55fe962c61efea42489",
+    "reading" : "ddc86e4f25fdc50be65cf78c3fd533cf7ea909cf7d91fe7f0a2e438676c5b403"
+  },
   "overlap\/soniox-nemotron-word-v1" : {
     "markdown" : "f0a5aabe7526c914901156ff116724d88534daa3489b5647ab16cac25bbe04c6",
     "normalized" : "13bcbd94dc5f3050bcb816a472a98c800b0e7b07adf6ff325da2af2ea0f51c78",
@@ -27,6 +32,11 @@
   "overlap\/soniox-nemotron-word-v3" : {
     "markdown" : "9f934de851a298ad89d05bf0c7c0b90862a1881eec5026fcf7f06658ad017da3",
     "normalized" : "f74049dd872e750a307ca9b57a03e3305813ebd17a37880d0961685ca2d959a6",
+    "reading" : "623fab15703cc6bfea15183090f843ddcc215266e7accb90a102de7344ba6c49"
+  },
+  "overlap\/soniox-nemotron-word-v4" : {
+    "markdown" : "cbea58778208a1dbf72fcf120c32432b1a8982fcd353cfa37c925488f40ecb2d",
+    "normalized" : "1575d471d1bfb62691fa9b4c8a3b3c339f1800e78b6aaebe9c7be603f78b0910",
     "reading" : "623fab15703cc6bfea15183090f843ddcc215266e7accb90a102de7344ba6c49"
   },
   "sentence-end\/soniox-nemotron-word-v1" : {
@@ -44,6 +54,11 @@
     "normalized" : "51b6026a8be64379739425bff82d40f5fc2c4bdc950367a9e3d8dfc4a4b015cb",
     "reading" : "01fe75c9c36e09b54e5b090d4953ddd68d1c1008e65b9db739ba68fde8ddf24f"
   },
+  "sentence-end\/soniox-nemotron-word-v4" : {
+    "markdown" : "2d83f5e91188086b4a90f14d1d6e23f704a2b62453c2be9c8584b03e7859996f",
+    "normalized" : "a6cec53c4f04437287f0d215c805bfcd657747ac6fd35be3972fe00563d12fdd",
+    "reading" : "2cbc65606fcc050a3d31e5073f82c02a691982a0a3b05e9e4b969f835c860b31"
+  },
   "split-word\/soniox-nemotron-word-v1" : {
     "markdown" : "166a28e9389c08a83ec6b0db001ee1b504dcf5b25bc6035f163fd552cd9fa125",
     "normalized" : "a627be2b9d67b454a9ff2bd01030b4ced3e124622a054dd3f390d8c179a7accf",
@@ -59,6 +74,11 @@
     "normalized" : "353e53e917b8f28526bcd940cdcefe57a8cbeeb5cf8abfc03558274285867791",
     "reading" : "76713de37712cc0ea7832f549a9203b5677ca53b5639b6d58442bd5c64d463a9"
   },
+  "split-word\/soniox-nemotron-word-v4" : {
+    "markdown" : "385874e73e0f41e5e48bb20c1d22144f7c3cdb12d3b1491365f4e161e8a1e69d",
+    "normalized" : "e2742a35a2ffbad5dc850bc3795464c89b4df087e15f2c0197900ca65e22d9c4",
+    "reading" : "76713de37712cc0ea7832f549a9203b5677ca53b5639b6d58442bd5c64d463a9"
+  },
   "tie\/soniox-nemotron-word-v1" : {
     "markdown" : "af5bbff85eb9d2ad6c343401381b263b9d92bd66e8be287a9583dd4a63e5b7de",
     "normalized" : "6e52d36a1f8b434c73ada3436160453e38be536314d8dd0bd2e63c13a5bcdf88",
@@ -72,6 +92,11 @@
   "tie\/soniox-nemotron-word-v3" : {
     "markdown" : "cecb99d333e9010b04f943d313e8c8217a1618ebd380962cdbffb1016990f540",
     "normalized" : "c19cfda283f97428c9f9394b34be3ff230a0eb1230e0bb38dd431d21c899d6c2",
+    "reading" : "5cc4bcd388ae5d53d8691d3ea5334d4e9cba8b5083398ae9abe0adf9529550f7"
+  },
+  "tie\/soniox-nemotron-word-v4" : {
+    "markdown" : "e05bf21ed419db1cc4fc5bf029b8a2850958487b919bfc5d79020af571e40ab2",
+    "normalized" : "6ed7b776e8d04d9bc84604925d42dbd0633621c8e10926a83b3eb07c01694f4b",
     "reading" : "5cc4bcd388ae5d53d8691d3ea5334d4e9cba8b5083398ae9abe0adf9529550f7"
   }
 }

@@ -46,9 +46,12 @@ public enum SonioxPrecisionReconciler {
     }
 
     /// `keepsSpeakerIDs` is for a base already built with this run's IDs (Nemotron); P2 sources are re-mapped.
+    /// turn-continuity (Nemotron v4만 켬, P2 경로는 기본값 false로 불변): `fillsWordFragments` = D-01 어절 안 미상 조각 맞춤,
+    /// `continuesWithinWords` = D-03 어절 안 Turn 잇기(T1 같은 화자 · N1 미상 조각).
     static func applying(_ source: TranscriptDocument, runID: String, createdAt: String,
                          policy: SonioxPrecisionComparison, version: String? = nil,
-                         keepsSpeakerIDs: Bool = false, unifiesSplitWords: Bool = false) throws -> TranscriptDocument {
+                         keepsSpeakerIDs: Bool = false, unifiesSplitWords: Bool = false,
+                         fillsWordFragments: Bool = false, continuesWithinWords: Bool = false) throws -> TranscriptDocument {
         var doc = source
         let mapping = Dictionary(uniqueKeysWithValues: source.speakers.enumerated().map {
             ($0.element.id, keepsSpeakerIDs ? $0.element.id : "\(runID)-p2-\($0.offset)")
@@ -83,6 +86,7 @@ public enum SonioxPrecisionReconciler {
                     regular: doc.diarization, exclusive: doc.exclusiveDiarization)
             }
         }
+        if fillsWordFragments { fillWordFragments(words: doc.words, choices: &choices) }
         attachClosingPunctuation(words: doc.words, choices: &choices)
 
         var issues: [ReviewIssue] = []
@@ -146,7 +150,7 @@ public enum SonioxPrecisionReconciler {
         for marker in markers.sorted(by: { $0.startUs! < $1.startUs! }) {
             doc.turns.insert(marker, at: doc.turns.firstIndex { ($0.startUs ?? Int64.min) >= marker.startUs! } ?? doc.turns.endIndex)
         }
-        if policy != .timeline { doc.turns = speakerTurns(doc) }
+        if policy != .timeline { doc.turns = speakerTurns(doc, continuesWithinWords: continuesWithinWords) }
         try TranscriptValidator().validate(doc)
         return doc
     }
@@ -171,7 +175,8 @@ public enum SonioxPrecisionReconciler {
             coverage: best?.coverage, overlap: evidence.overlap, boundary: evidence.boundary)
     }
 
-    private static func orthographicGroups(_ words: [TranscriptWord]) -> [[Int]] {
+    /// 어절 = ASR 원문에서 공백·줄바꿈 없이 이어진 토큰 묶음. `TranscriptValidator`의 INV-06 v4 단서도 이 정의를 쓴다.
+    static func orthographicGroups(_ words: [TranscriptWord]) -> [[Int]] {
         var groups: [[Int]] = [], current: [Int] = []
         for i in words.indices {
             let text = words[i].prefix + words[i].text
@@ -265,6 +270,24 @@ public enum SonioxPrecisionReconciler {
         }
     }
 
+    /// turn-continuity D-01 (`soniox-nemotron-word-v4`): 한 어절 안 배정된 lexical의 화자가 정확히 하나(S)이면
+    /// 그 어절의 미배정 lexical 조각을 S로 맞춘다. 근거 = 자기 ∪ 같은 어절 배정 lexical 근거, coverage 없음(INV-08).
+    /// 어절 전체가 미배정이거나 배정 화자가 둘 이상이면 건드리지 않는다. 시간이 없거나 0길이인 조각도 대상이다.
+    private static func fillWordFragments(words: [TranscriptWord], choices: inout [Choice]) {
+        for group in orthographicGroups(words) {
+            let lexical = group.filter { words[$0].tokenKind == .lexical }
+            let assigned = lexical.filter { choices[$0].speaker != nil }
+            let speakers = Set(assigned.compactMap { choices[$0].speaker })
+            guard speakers.count == 1, let speaker = speakers.first, assigned.count < lexical.count else { continue }
+            let support = assigned.flatMap { choices[$0].sourceIDs }
+            for i in lexical where choices[i].speaker == nil {
+                choices[i].speaker = speaker
+                choices[i].sourceIDs = Array(Set(choices[i].sourceIDs + support)).sorted()
+                choices[i].coverage = nil // 같은 어절 근거는 이 토큰의 coverage가 아니다.
+            }
+        }
+    }
+
     private static func attachClosingPunctuation(words: [TranscriptWord], choices: inout [Choice]) {
         let closing = CharacterSet(charactersIn: ".,?!。？！…，、:;\"'”’)]}」』").union(.whitespaces)
         var previousLexical: Int?
@@ -330,8 +353,15 @@ public enum SonioxPrecisionReconciler {
         }
     }
 
-    private static func speakerTurns(_ doc: TranscriptDocument) -> [TranscriptTurn] {
+    /// `continuesWithinWords` (turn-continuity D-03, v4): 두 토큰이 같은 어절(`orthographicGroups`)이면
+    /// T1 같은 화자 사이는 다른 화자 구간을 장벽으로 보지 않고, N1 둘 다 미상이면 원 ordinal이 이어지고 ASR 라벨이 같을 때 잇는다.
+    /// 시작 순행 · 누락 marker · 녹음 중단 장벽 · modelSpeakerId 일치는 모든 경우에 그대로다(INV-05 · INV-06).
+    private static func speakerTurns(_ doc: TranscriptDocument, continuesWithinWords: Bool = false) -> [TranscriptTurn] {
         let words = Dictionary(uniqueKeysWithValues: doc.words.map { ($0.id, $0) })
+        var wordGroup: [String: Int] = [:]
+        if continuesWithinWords {
+            for (n, group) in orthographicGroups(doc.words).enumerated() { for i in group { wordGroup[doc.words[i].id] = n } }
+        }
         let barriers = doc.turns.filter { $0.kind == .missingSpeech }.compactMap { t -> (Int64, Int64)? in
             guard let s = t.startUs, let e = t.endUs else { return nil }; return (s,e)
         } + doc.reviewIssues.filter { $0.kind == .capture_interrupted }.compactMap { issue -> (Int64, Int64)? in
@@ -340,15 +370,21 @@ public enum SonioxPrecisionReconciler {
         var result: [TranscriptTurn] = []
         for next in doc.turns {
             if let previous = result.last, previous.kind == .speech, next.kind == .speech,
-               let speaker = previous.speakerId, speaker == next.speakerId,
                let leftID = previous.wordIds.last, let rightID = next.wordIds.first,
                let left = words[leftID], let right = words[rightID],
                let a = left.startUs, let b = left.endUs, let c = right.startUs, let d = right.endUs,
                a <= c, left.modelSpeakerId == right.modelSpeakerId,
-               !(b <= c && barriers.contains { max(b, $0.0) < min(c, $0.1) }),
-               !(b <= c && (doc.diarization + doc.exclusiveDiarization).contains {
-                   $0.speakerId != speaker && max(b, $0.startUs) < min(c, $0.endUs)
-               }) {
+               !(b <= c && barriers.contains { max(b, $0.0) < min(c, $0.1) }) {
+                let sameWord = continuesWithinWords && wordGroup[leftID] != nil && wordGroup[leftID] == wordGroup[rightID]
+                let joins: Bool
+                if let speaker = previous.speakerId, speaker == next.speakerId {
+                    joins = sameWord || !(b <= c && (doc.diarization + doc.exclusiveDiarization).contains {
+                        $0.speakerId != speaker && max(b, $0.startUs) < min(c, $0.endUs)
+                    })
+                } else if previous.speakerId == nil, next.speakerId == nil, sameWord {
+                    joins = right.ordinal == left.ordinal + 1 && left.asrSpeakerLabel == right.asrSpeakerLabel
+                } else { joins = false }
+                guard joins else { result.append(next); continue }
                 result[result.count - 1].wordIds += next.wordIds
                 result[result.count - 1].endUs = max(previous.endUs!, d)
                 result[result.count - 1].reviewIssueIds = Array(Set(previous.reviewIssueIds + next.reviewIssueIds)).sorted()

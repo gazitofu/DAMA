@@ -166,6 +166,14 @@ public struct TranscriptValidator: Sendable {
             .compactMap { issue in issue.startUs.flatMap { start in issue.endUs.map { (start, $0) } } })
         let diarization = Dictionary(grouping: document.diarization, by: \.speakerId)
             .mapValues { IntervalIndex($0.map { ($0.startUs, $0.endUs) }) }
+        // INV-06 단서 (turn-continuity D-03): `soniox-nemotron-word-v4`부터 한 어절 안 같은 화자 토큰 사이는
+        // 다른 화자 구간을 장벽으로 보지 않는다. 누락 marker·중단 이슈·모델 화자 일치는 그대로 본다.
+        var wordGroup: [String: Int] = [:]
+        if SonioxNemotronReconciler.continuesWithinWords(document.provenance) {
+            for (n, group) in SonioxPrecisionReconciler.orthographicGroups(document.words).enumerated() {
+                for i in group { wordGroup[document.words[i].id] = n }
+            }
+        }
 
         for (index, turn) in document.turns.enumerated() {
             let path = "$.turns[\(index)]"
@@ -218,6 +226,7 @@ public struct TranscriptValidator: Sendable {
                     markers: markers,
                     interrupted: interrupted,
                     diarization: diarization,
+                    withinWord: wordGroup[previous.id] != nil && wordGroup[previous.id] == wordGroup[current.id],
                     path: "\(path).wordIds[\(pairIndex)]"
                 )
             }
@@ -234,6 +243,7 @@ public struct TranscriptValidator: Sendable {
         markers: IntervalIndex,
         interrupted: IntervalIndex,
         diarization: [String: IntervalIndex],
+        withinWord: Bool = false,
         path: @autoclosure () -> String
     ) throws {
         guard let previousEnd = previous.endUs, let currentStart = current.startUs,
@@ -244,6 +254,7 @@ public struct TranscriptValidator: Sendable {
 
         if let previousModel = previous.modelSpeakerId, let currentModel = current.modelSpeakerId {
             try require(previousModel == currentModel, .invalidBarrier, path())
+            guard !withinWord else { return }
             let interveningChange = diarization.contains { speaker, index in
                 speaker != previousModel && index.overlaps(previousEnd, currentStart)
             }

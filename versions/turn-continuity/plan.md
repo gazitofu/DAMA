@@ -3,7 +3,7 @@ unit: turn-continuity
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "building (2026-11-17). 다음 = T-01 계약 개정. 기준선 HEAD 200f7d8 · check run-20261117T064312Z-7nDMlN (362 실행 = 360 통과 + skipped 2)."
+resume: "building (2026-11-17). T-01 e63926b · T-02 9ecf78b · T-03 완료. 다음 = T-04 읽기 v9. 기준선 HEAD 200f7d8 · check run-20261117T064312Z-7nDMlN (362 실행 = 360 통과 + skipped 2)."
 spec: notes/turn-continuity/turn-continuity.src.html
 ---
 ## 근거
@@ -32,6 +32,7 @@ Nemotron에 넣는 음성만 메모리에서 음량을 맞추고(v1), 결합 v4�
 - `…/DamaManaged/ManagedProcessor.swift`: :215–229 `reusableNemotron` (6조건 + 확률 크기) · :270 새 parent 버전 = `SonioxNemotronReconciler.version` · :304–305 저장 버전 유지·미지원 실패 · :507 기존 자식 재개(버전 확인 없음, 불변) · :543 `Version(rawValue:) ?? currentVersion` · :597–635 `diarize` (:622–627 meta 작성).
 - `…/DamaCore/SonioxNemotronReconciler.swift`: :6–12 `Version` v1–v3 · :11 `unifiesSplitWords` · :14 `currentVersion = .v3` · :35–36 `applying` 호출.
 - `…/DamaCore/SonioxPrecisionReconciler.swift`: :49–51 `applying` 매개변수 · :64–86 단계 (:79 갈린 어절 맞춤 · :86 닫는 부호) · :95–108 이슈 (:105 `ambiguous_speaker`) · :143–149 Turn 생성 · :174–188 `orthographicGroups` · :333–358 `speakerTurns` (:343 화자 nil 비병합 · :347 시작 순행 · :348 marker·중단 장벽 · :349–351 다른 화자 구간 장벽).
+- (/build 실측 추가) `…/DamaCore/TranscriptValidator.swift` `validateBarrier`가 INV-06을 모든 문서에 적용해 v4 Turn을 `invalidBarrier`로 거부 → D-03 INV-06 단서를 같은 규칙으로 반영 (Nemotron v4 · 같은 어절일 때 다른 화자 구간 검사만 생략, marker · 중단 · 모델 화자 일치는 유지, 어절 = `SonioxPrecisionReconciler.orthographicGroups` 공유). 테스트 쪽 `ReferenceTranscriptValidator.swift`도 독립 구현으로 같은 단서, `TranscriptValidatorEquivalenceTests` 1 추가 (v4 받음 · v3 재표기 · 어절 사이 → 둘 다 invalidBarrier).
 - `…/DamaCore/ScriptReadingStructure.swift`: :36 원문 공백 보존 엔진 4종 · :40 `humanEdited` 제외 · :53–55 시간·이름 조건 · :56 같은 화자 잇기 · :57–66 미상 어절 안 조각 잇기 (ordinal +1 · 공백 없음 · `asrSpeakerLabel ==`).
 - `…/DamaCore/LibraryPresentation.swift:21` `ScriptReadingPolicy.algorithmVersion = "reading-v8"` → Markdown :230 «- 문단 표시» · `ScriptEvaluation.swift:100`.
 - `…/DamaCore/ScriptCorrection.swift`: :30–32 `CorrectionRejectionRule` 6종 · :56 `rejectedTurns` · :62–65 `rejectedCount(in:)` (전 규칙) · :66–78 `validate` · :122 `version = "context-correction-7"` · :176 프롬프트 «모든 id … 정확히 한 번» (불변) · :200–225 `validated` (:201–202 id 완전 일치 · 배열 하나만 nil → throw).
@@ -131,4 +132,5 @@ QA 판정 = GPT-6.1-sol (`codex exec -m gpt-6.1-sol --sandbox read-only --ignore
 
 - F-01 (기록) v8 뒤 `CorrectionFormatProbeTests` (환경변수 게이트) 의 `r["validated"]`는 일부 Turn이 빠진 응답에서도 true가 된다. 코드 불변 (AC-15). 진단을 다시 돌리면 `replyMismatch`로 읽는다.
 - F-02 (기록) 프롬프트 :176 «모든 id를 입력 순서 그대로 정확히 한 번씩» 은 그대로다 (스펙이 바꾸지 않음). 부분열 수용은 받는 쪽 규칙이다.
+- F-04 (기록) `scripts/validate_contracts.py`의 Python 장벽 검사는 INV-06 v4 단서를 넣지 않았다. 합성 fixture 전용이고 v4 입력이 없다 (check 1단계 31 OK). v4 export를 그 스크립트로 검사할 일이 생기면 같은 단서를 넣는다.
 - F-03 (실데이터) v7 이하 미완료 시도 2건 (`AB66A52D` 5/8 · `44F4E8DD` 0/44) 은 v8 설치 뒤 «이어서 교정» 대신 이어하기 불가 문구 (`usage-bundle1.md:60`). 새로 시작할지는 사용자.

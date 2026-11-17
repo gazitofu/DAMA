@@ -147,6 +147,16 @@ struct ReferenceTranscriptValidator: Sendable {
         var ownership: [String: Int] = [:]
         let markers = document.turns.filter { $0.kind == .missingSpeech }
         let interrupted = document.reviewIssues.filter { $0.kind == .capture_interrupted }
+        // INV-06 단서 (turn-continuity D-03): Nemotron v4 결과의 한 어절 안 같은 화자 토큰 사이. 결합기와 따로 쓴 참조 구현.
+        let continues = document.provenance.engine == .hybridSonioxNemotron &&
+            document.provenance.algorithmVersion == "soniox-nemotron-word-v4"
+        var wordGroup: [String: Int] = [:], group = 0, open = false
+        for word in document.words {
+            let text = word.prefix + word.text
+            if open && (text.first?.isWhitespace == true || text.contains("\n")) { group += 1 }
+            wordGroup[word.id] = group; open = true
+            if text.last?.isWhitespace == true { group += 1; open = false }
+        }
 
         for (index, turn) in document.turns.enumerated() {
             let path = "$.turns[\(index)]"
@@ -199,6 +209,7 @@ struct ReferenceTranscriptValidator: Sendable {
                     markers: markers,
                     interrupted: interrupted,
                     diarization: document.diarization,
+                    withinWord: continues && wordGroup[previous.id] == wordGroup[current.id],
                     path: "\(path).wordIds[\(pairIndex)]"
                 )
             }
@@ -215,6 +226,7 @@ struct ReferenceTranscriptValidator: Sendable {
         markers: [TranscriptTurn],
         interrupted: [ReviewIssue],
         diarization: [DiarizationInterval],
+        withinWord: Bool,
         path: String
     ) throws {
         guard let previousEnd = previous.endUs, let currentStart = current.startUs,
@@ -236,6 +248,7 @@ struct ReferenceTranscriptValidator: Sendable {
 
         if let previousModel = previous.modelSpeakerId, let currentModel = current.modelSpeakerId {
             try require(previousModel == currentModel, .invalidBarrier, path)
+            if withinWord { return }
             let interveningChange = diarization.contains { interval in
                 interval.speakerId != previousModel &&
                     overlaps(previousEnd, currentStart, interval.startUs, interval.endUs)
