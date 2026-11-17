@@ -211,7 +211,8 @@ public actor ManagedProcessor {
         }
         return nil
     }
-    /// Same session, analysis audio, pinned model files, FluidAudio version and preset.
+    /// Same session, analysis audio, pinned model files, FluidAudio version, preset and input level version
+    /// (turn-continuity D-05: meta without `inputLevel` is never reused for a new run).
     public func reusableNemotron(sessionID: String, audioHash: String) throws -> String? {
         for run in try runsForSession(sessionID) where run.provider == .nemotron && run.stage == "readyForReview" &&
             run.sourceAudioSHA256 == audioHash {
@@ -221,6 +222,7 @@ public actor ManagedProcessor {
                   meta.sessionID == sessionID, meta.audioSHA256 == audioHash,
                   meta.fluidAudioVersion == NemotronModel.fluidAudioVersion, meta.preset == NemotronModel.preset,
                   meta.modelManifestSHA256 == NemotronModel.manifestSHA256, meta.channels == NemotronModel.channels,
+                  meta.inputLevel?.version == NemotronInputLevel.version,
                   let size = (try? FileManager.default.attributesOfItem(atPath: raw.appendingPathComponent("nemotron-probabilities.f32").path))?[.size] as? Int,
                   size == meta.frameCount * meta.channels * 4 else { continue }
             return run.id
@@ -624,7 +626,7 @@ public actor ManagedProcessor {
             frameSeconds: NemotronModel.frameSeconds, channels: output.channels, preset: NemotronModel.preset,
             fluidAudioVersion: NemotronModel.fluidAudioVersion, modelRepo: NemotronModel.repo,
             modelManifestSHA256: NemotronModel.manifestSHA256, processingSeconds: output.processingSeconds,
-            createdAt: formatter.string(from: Date()))
+            createdAt: formatter.string(from: Date()), inputLevel: output.inputLevel)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let rawDir = try directory(child).appendingPathComponent("raw")
         try FileManager.default.createDirectory(at: rawDir, withIntermediateDirectories: true)
