@@ -1,5 +1,10 @@
 import Foundation
 
+/// turn-continuity §02-5 ④: 형식 실패의 세부 (어댑터 4종 · 짝짓기 4종 + 배열 누락). 원문은 담지 않는다.
+public enum CorrectionFormatDetail: String, Codable, Sendable, CaseIterable {
+    case noOutput, tooLarge, decode, missingArrays, idDuplicate, idUnknown, idOrder, idTooFew
+}
+
 /// usage-bundle1 AI 교정 실패 분류 8종 (스펙 §02-3 표, 위에서부터 처음 맞는 하나).
 public enum CorrectionFailureKind: String, Codable, Sendable, CaseIterable {
     case cancelled, unavailable, timeout, auth, network, config, format, unclassified

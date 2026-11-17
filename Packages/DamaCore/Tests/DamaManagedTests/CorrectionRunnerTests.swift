@@ -240,9 +240,16 @@ final class CorrectionRunnerTests: XCTestCase {
     }
 
     /// 응답을 입력과 짝지을 수 없으면 지금처럼 청크 실패(형식), 결과 기록 없음.
+    /// turn-continuity G-11 (drop): 끝 원구간 하나가 빠진 응답은 v8에서 받고, 그 Turn만 `missing`으로 원문 유지한다.
     func testUnpairableRepliesRemainFormatFailures() async throws {
         let script = try script()
-        for mode in ["garbage", "swap", "drop", "missing"] {
+        let (dropRunner, dropFolder) = try runner(mode: "drop")
+        let (dropAttempt, dropChunks) = try dropRunner.begin(script: script, input: script.input)
+        guard case .completed(let dropped) = await dropRunner.run(dropAttempt, chunks: dropChunks) else { return XCTFail("drop") }
+        XCTAssertEqual(calls(dropFolder), 12)
+        XCTAssertEqual(dropped.merged().rejected, dropChunks.map { CorrectionRejectedTurn(turnID: $0.turns.last!.id, rule: .missing) })
+        XCTAssertEqual(dropped.merged().edits.count, 1_188) // 기준선 1,200 − 빠진 12.
+        for mode in ["garbage", "swap", "missing"] {
             let (runner, folder) = try runner(mode: mode)
             let (attempt, chunks) = try runner.begin(script: script, input: script.input)
             guard case .failed(let failed, let error) = await runner.run(attempt, chunks: chunks) else { XCTFail(mode); continue }

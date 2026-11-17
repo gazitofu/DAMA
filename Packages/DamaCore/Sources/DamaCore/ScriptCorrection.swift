@@ -27,8 +27,11 @@ public struct CorrectionEdit: Codable, Sendable, Equatable {
 }
 
 /// correction-turn-isolation: Turn 하나가 응답 검증에서 처음 걸린 규칙 (검사 순서는 `ContextCorrection.validated`).
+/// turn-continuity (context-correction-8): `missing` = 응답에 그 Turn이 없음 · `chunk` = 재시도 뒤에도 청크 응답을 받지 못함.
 public enum CorrectionRejectionRule: String, Codable, Sendable, CaseIterable {
-    case quote, overlap, text, limit, reason, other
+    case quote, overlap, text, limit, reason, other, missing, chunk
+    /// 응답 없음(문구 6–10) 쪽인가. 아니면 검증 실패(문구 1–5).
+    public var isNoResponse: Bool { self == .missing || self == .chunk }
 }
 
 /// 검증 실패로 원문을 유지한 Turn과 규칙 코드. 원문·응답 내용은 담지 않는다.
@@ -54,14 +57,22 @@ public struct ScriptCorrection: Codable, Sendable {
     /// correction-turn-isolation D-02: 검증 실패로 원문을 유지한 Turn. 비어 있으면 nil로 두어 키를 쓰지 않는다(기존 파일 바이트 유지).
     /// 교정 시점 기록이며, 뒤에 사람이 그 Turn을 고치거나 지워도 그대로 둔다.
     public var rejectedTurns: [CorrectionRejectedTurn]? = nil
+    /// turn-continuity §02-5 ④: 완료한 교정의 실패 기록(시도 기록에서 옮긴 최근 20건, 원문 없음). 없으면 nil(키 생략).
+    public var failures: [CorrectionFailureRecord]? = nil
     public var visibleEdits: [CorrectionEdit] { edits.filter { !$0.isDisplayOnly } }
     public init(input: ConversionNotes, engine: String, state: State = .running) {
         self.input = input; self.engine = engine; self.state = state; startedAt = Date(); id = UUID().uuidString
     }
-    /// 주어진 원구간 중 `rejectedTurns`에 든 수 (구간 정보·Markdown 문단 줄의 {k}).
-    public func rejectedCount(in turnIDs: [String]) -> Int {
-        let rejected = Set((rejectedTurns ?? []).map(\.turnID))
-        return turnIDs.filter(rejected.contains).count
+    /// 주어진 원구간 중 검증 실패 6종으로 원문을 유지한 수 (구간 정보·Markdown 문단 줄의 {k}, 문구 1–5).
+    public func rejectedCount(in turnIDs: [String]) -> Int { count(in: turnIDs, noResponse: false) }
+    /// 주어진 원구간 중 응답 없음(`missing` · `chunk`)으로 원문을 유지한 수 (문구 6–10의 {k}).
+    public func noResponseCount(in turnIDs: [String]) -> Int { count(in: turnIDs, noResponse: true) }
+    /// 교정 전체의 검증 실패 원구간 수 {N} · 응답 없음 원구간 수 {M}.
+    public var rejectedTotal: Int { (rejectedTurns ?? []).filter { !$0.rule.isNoResponse }.count }
+    public var noResponseTotal: Int { (rejectedTurns ?? []).filter { $0.rule.isNoResponse }.count }
+    private func count(in turnIDs: [String], noResponse: Bool) -> Int {
+        let listed = Set((rejectedTurns ?? []).filter { $0.rule.isNoResponse == noResponse }.map(\.turnID))
+        return turnIDs.filter(listed.contains).count
     }
     public func validate(transcript: TranscriptDocument) throws {
         if let id, UUID(uuidString: id) == nil { throw LibraryFailure.invalidScript }
@@ -119,7 +130,7 @@ public struct CorrectionReply: Codable, Sendable {
 }
 
 public enum ContextCorrection {
-    public static let version = "context-correction-7"
+    public static let version = "context-correction-8"
     /// Limits bound resources; they are not measured accuracy thresholds.
     public static func chunks(_ script: LibraryScript) throws -> [CorrectionChunk] {
         try script.validate()
@@ -194,14 +205,32 @@ public enum ContextCorrection {
         guard data.count <= 512_000 else { throw LibraryFailure.invalidInput }
         return data
     }
-    /// 청크 하나의 응답 검증 (context-correction-7). 응답을 입력과 짝지을 수 없으면(Turn id 순서·개수 불일치,
-    /// `changes`/`unresolved` 중 하나만 있음) 청크 실패로 throw한다. Turn 하나의 검증 실패는 그 Turn만 버리고
-    /// `rejected`에 처음 걸린 규칙을 남긴 뒤 나머지 Turn을 계속 판정한다(correction-turn-isolation §02-1·§02-2).
+    /// 응답 Turn 수가 이보다 적으면 짝짓지 않는다: ⌈입력 Turn 수 / 2⌉ (turn-continuity 신규 후보값).
+    public static func minimumReturned(_ count: Int) -> Int { (count + 1) / 2 }
+    /// 응답을 입력과 짝지을 수 없는 이유 (context-correction-8 §02-5 ①). nil이면 짝지을 수 있다.
+    /// 검사 순서 = id 중복 → 모르는 id → 순서 뒤바뀜(입력의 부분열 아님) → 절반 미만 → `changes`/`unresolved` 하나만 있음.
+    public static func replyMismatch(_ reply: CorrectionReply, chunk: CorrectionChunk) -> CorrectionFormatDetail? {
+        let returned = reply.turns.map(\.id)
+        let position = Dictionary(chunk.turns.enumerated().map { ($0.element.id, $0.offset) }, uniquingKeysWith: { a, _ in a })
+        guard Set(returned).count == returned.count else { return .idDuplicate }
+        guard returned.allSatisfy({ position[$0] != nil }) else { return .idUnknown }
+        guard zip(returned, returned.dropFirst()).allSatisfy({ position[$0]! < position[$1]! }) else { return .idOrder }
+        guard returned.count >= minimumReturned(chunk.turns.count) else { return .idTooFew }
+        guard reply.turns.allSatisfy({ ($0.changes == nil) == ($0.unresolved == nil) }) else { return .missingArrays }
+        return nil
+    }
+    /// 청크 하나의 응답 검증 (context-correction-8). 응답을 입력과 짝지을 수 없으면(`replyMismatch`) 청크 실패로
+    /// `LibraryFailure.invalidScript`를 throw한다. 입력 순서를 지킨 부분열이고 절반 이상이면 받고, 빠진 Turn은 편집 없이
+    /// `rejected`에 `missing`으로 남긴다. Turn 하나의 검증 실패는 그 Turn만 버리고 처음 걸린 규칙을 남긴 뒤 나머지 Turn을
+    /// 계속 판정한다(v7 그대로). `rejected`는 입력 순서다.
     public static func validated(_ reply: CorrectionReply, chunk: CorrectionChunk, input: ConversionNotes) throws -> (edits: [CorrectionEdit], names: [String: String], evidence: [String: String], rejected: [CorrectionRejectedTurn]) {
-        guard reply.turns.map(\.id) == chunk.turns.map(\.id),
-              reply.turns.allSatisfy({ ($0.changes == nil) == ($0.unresolved == nil) }) else { throw LibraryFailure.invalidScript }
+        guard replyMismatch(reply, chunk: chunk) == nil else { throw LibraryFailure.invalidScript }
+        let candidates = Dictionary(reply.turns.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         var edits: [CorrectionEdit] = [], rejected: [CorrectionRejectedTurn] = []
-        for (source, candidate) in zip(chunk.turns, reply.turns) {
+        for source in chunk.turns {
+            guard let candidate = candidates[source.id] else {
+                rejected.append(CorrectionRejectedTurn(turnID: source.id, rule: .missing)); continue
+            }
             do {
                 if let edit = try validatedTurn(candidate, source: source, input: input) { edits.append(edit) }
             } catch let rejection as CorrectionTurnRejection {

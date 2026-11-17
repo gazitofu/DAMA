@@ -31,6 +31,7 @@ extension ContextCorrection {
         result.completedChunks = previous.completedChunks; result.totalChunks = previous.totalChunks
         // 버린 Turn은 다시 판정하지 않고 교정 시점 기록 그대로 옮긴다(스펙 §02-3).
         result.rejectedTurns = previous.rejectedTurns
+        result.failures = previous.failures // turn-continuity §02-5 ④: 실패 기록도 그대로 옮긴다.
         result.completedAt = Date()
         return result
     }
