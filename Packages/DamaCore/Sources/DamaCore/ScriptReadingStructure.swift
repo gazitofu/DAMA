@@ -34,6 +34,23 @@ struct ScriptReadingStructure {
         self.decorations = decorations
         self.opening = opening
         let sourceSpacing = script.transcript.provenance.engine == .hybridSonioxPyannote || script.transcript.provenance.engine == .hybridSonioxNemotron || script.transcript.provenance.engine == .managedSoniox || script.transcript.provenance.engine == .hybridPyannoteQwen
+        // reading-v9 (turn-continuity D-02): 원 ordinal 순서. 이웃한 미상 어절 사이에 부호 외 토큰이 있는지 본다.
+        let ordered = script.transcript.words.sorted { $0.ordinal < $1.ordinal }
+        let position = Dictionary(ordered.enumerated().map { ($0.element.id, $0.offset) }, uniquingKeysWith: { a, _ in a })
+        func lexical(_ turn: TranscriptTurn) -> [TranscriptWord] {
+            turn.wordIds.compactMap { words[$0] }.filter { $0.tokenKind == .lexical }
+        }
+        /// 앞 문단 마지막 lexical과 다음 Turn 첫 lexical이 같은 ASR label(둘 다 있음)이고, 원 ordinal 사이가 부호뿐이며,
+        /// 다음 시작 − 앞 끝 ≤ 300 ms(Int64 µs, 겹침 음수 포함)이면 잇는다. 화자는 null 그대로다.
+        func neighbouringUnknownWords(_ left: TranscriptTurn, _ next: TranscriptTurn) -> Bool {
+            guard let last = lexical(left).max(by: { $0.ordinal < $1.ordinal }),
+                  let first = lexical(next).min(by: { $0.ordinal < $1.ordinal }),
+                  let label = last.asrSpeakerLabel, label == first.asrSpeakerLabel,
+                  let end = last.endUs, let start = first.startUs,
+                  start - end <= ScriptReadingPolicy.unknownWordGapUs,
+                  let i = position[last.id], let j = position[first.id], i < j else { return false }
+            return ordered[(i + 1)..<j].allSatisfy { $0.tokenKind == .punctuation }
+        }
         var joins = Set<String>(), anchor: TranscriptTurn?
         for (i, next) in turns.enumerated() {
             defer { if !decorations.contains(next.id) { anchor = next } }
@@ -54,16 +71,19 @@ struct ScriptReadingStructure {
                   let a = left.startUs, let b = left.endUs, let c = next.startUs, let d = next.endUs,
                   a <= b, c <= d, a <= c, name(left) == name(next) else { continue }
             if let speaker = left.speakerId, speaker == next.speakerId { joins.insert(next.id); continue }
-            // Unknown is still unknown. Join only adjacent subword pieces of one orthographic word.
-            guard sourceSpacing, left.speakerId == nil, next.speakerId == nil,
-                  let last = left.wordIds.last.flatMap({ words[$0] }),
-                  let first = next.wordIds.first.flatMap({ words[$0] }),
-                  last.tokenKind == .lexical, first.tokenKind == .lexical,
-                  first.ordinal == last.ordinal + 1,
-                  (last.prefix + last.text).last?.isWhitespace == false,
-                  (first.prefix + first.text).first?.isWhitespace == false,
-                  last.asrSpeakerLabel == first.asrSpeakerLabel else { continue }
-            joins.insert(next.id)
+            // Unknown is still unknown. Join adjacent subword pieces of one orthographic word (reading-v8),
+            // or neighbouring unknown words of one ASR label with nothing but punctuation between (reading-v9).
+            guard sourceSpacing, left.speakerId == nil, next.speakerId == nil else { continue }
+            if let last = left.wordIds.last.flatMap({ words[$0] }),
+               let first = next.wordIds.first.flatMap({ words[$0] }),
+               last.tokenKind == .lexical, first.tokenKind == .lexical,
+               first.ordinal == last.ordinal + 1,
+               (last.prefix + last.text).last?.isWhitespace == false,
+               (first.prefix + first.text).first?.isWhitespace == false,
+               last.asrSpeakerLabel == first.asrSpeakerLabel {
+                joins.insert(next.id); continue
+            }
+            if neighbouringUnknownWords(left, next) { joins.insert(next.id) }
         }
         self.joinableBefore = joins
     }

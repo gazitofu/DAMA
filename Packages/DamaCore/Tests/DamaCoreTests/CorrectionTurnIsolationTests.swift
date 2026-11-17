@@ -277,7 +277,8 @@ final class CorrectionTurnIsolationTests: XCTestCase {
     static func sha(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
 
     func testMarkdownAddsLinesOnlyForRejectedTurns() throws {
-        let baselineSHA = "5dc04eb6a97e4749f81224038cfd1742d9e86cab9783897a77f60ec0173e1e8d" // T-06 착수 전 현행 코드 실측 (HEAD 6267108, 1,564 B)
+        // turn-continuity G-05: «- 문단 표시: reading-v9»(같은 길이). 이전 = 5dc04eb6… (HEAD 6267108, reading-v8, 1,564 B).
+        let baselineSHA = "8a04ba52c4dfe9c9fc7fbef87ff651c259fd9000fb74890d4db70109515289c1"
         let none = try Self.markdownScript(rejected: nil).markdown()
         XCTAssertEqual(none.count, 1_564)
         XCTAssertEqual(Self.sha(none), baselineSHA)

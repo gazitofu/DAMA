@@ -18,7 +18,9 @@ public final class ScriptReadingSnapshot: Sendable {
 
 /// Reading layout, separately versioned from model normalization.
 public enum ScriptReadingPolicy {
-    public static let algorithmVersion = "reading-v8"
+    public static let algorithmVersion = "reading-v9"
+    /// reading-v9 이웃 미상 어절 잇기 최대 간격 (Int64 µs). 설계 04 §7 «최대 간격 300ms» 읽기 편의 초기값, 한국어 실측 전.
+    public static let unknownWordGapUs: Int64 = 300_000
 
     /// Legacy Soniox source-Turn segmentation. Reading-v7 no longer uses this guard.
     static func endsSentence(_ text: String) -> Bool {
