@@ -3,7 +3,7 @@ unit: turn-continuity
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "building · 막힘 대기 (2026-11-17). AC-01–14 QA 통과 (A · B · 재판정), AC-15 메인 실측 통과 (전달 QA 대기). 남은 것 = 막힘 1 설치 승인 → AC-16 · 막힘 2 게이트 ② 사용자 실데이터 실행 → AC-17 → 전달 QA (AC-15–17)."
+resume: "building · 막힘 대기 (2026-11-17). AC-01–14 QA 통과 (A · B · 재판정), AC-15 메인 실측 통과 (전달 QA 대기). AC-16 설치 · 메인 실측 통과 (2026-11-17 19:20, 사용자 승인). 남은 것 = 막힘 2 게이트 ② 사용자 실데이터 실행 → AC-17 메인 측정 → 전달 QA (AC-15–17)."
 spec: notes/turn-continuity/turn-continuity.src.html
 ---
 ## 근거
@@ -113,7 +113,7 @@ QA 판정 = GPT-6.1-sol (`codex exec -m gpt-6.1-sol --sandbox read-only --ignore
 | 12 · 13 | 통과 (B) | |
 | 14 | 통과 (재판정 R, B의 D-1 · D-2 = 증거 문서 정정) | |
 | 15 | 메인 실측 통과 (위 check · 이름 대조) | 전달 QA |
-| 16 | 버전 0.5.21 (39) 빌드 확인 | 막힘 1 설치 |
+| 16 | 메인 실측 통과 (설치 2026-11-17 19:20): 백업 `.build/backups/DAMA-0.5.20-38-before-turn-continuity.app` = 설치본 0.5.20 (38) 파일 11 · 트리 SHA256 `b446a22eb3bb7b44` 같음 · 교체본 = Debug 산출물 파일 11 · 트리 `fe4aeed9e1128791` 같음 · 실행 중 pid 39964 `/Applications/DAMA.app` · `lsappinfo` Version 39 · Info.plist 0.5.21 (39). 서명 adhoc, `codesign --verify --strict` 메시지는 0.5.19 · 0.5.20 설치본과 같음 | 메뉴바 툴팁 사용자 관측 · 전달 QA |
 | 17 | | 막힘 2 사용자 실행 |
 
 ## 작업 분해
