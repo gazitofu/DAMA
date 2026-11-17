@@ -1,9 +1,9 @@
 ---
 unit: turn-continuity
 branch: work/m0-fixture-review
-status: ready-to-build
+status: building
 decisions_resolved: true
-resume: "ready-to-build (2026-11-17). /build 시작 = T-01. 기준선 HEAD 200f7d8 · check run-20261117T064312Z-7nDMlN (362 실행 = 360 통과 + skipped 2)."
+resume: "building (2026-11-17). 다음 = T-01 계약 개정. 기준선 HEAD 200f7d8 · check run-20261117T064312Z-7nDMlN (362 실행 = 360 통과 + skipped 2)."
 spec: notes/turn-continuity/turn-continuity.src.html
 ---
 ## 근거
