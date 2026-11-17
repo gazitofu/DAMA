@@ -3,7 +3,7 @@ unit: turn-continuity
 branch: work/m0-fixture-review
 status: building
 decisions_resolved: true
-resume: "building · 막힘 대기 (2026-11-17). AC-01–14 QA 통과 (A · B · 재판정), AC-15 메인 실측 통과 (전달 QA 대기). AC-16 설치 · 메인 실측 통과 (2026-11-17 19:20, 사용자 승인). 남은 것 = 막힘 2 게이트 ② 사용자 실데이터 실행 → AC-17 메인 측정 → 전달 QA (AC-15–17)."
+resume: "building · 게이트 ② 사용자 확인 대기 (2026-11-17). AC-01–15 QA 통과. AC-16 · AC-17 = 전달 QA C 부분: D-1 툴팁 사용자 관측 · D-2 AC-17 실행 조건 문언 (Soniox 새 전송 · 46.6분) 정정 승인 · D-3 진행 줄 재시도 글자 사용자 관측. 답을 받으면 AC-16 · 17 체크 → built."
 spec: notes/turn-continuity/turn-continuity.src.html
 ---
 ## 근거
@@ -93,11 +93,11 @@ QA 판정 = GPT-6.1-sol (`codex exec -m gpt-6.1-sol --sandbox read-only --ignore
 
 ### 전달
 
-- [ ] AC-15 회귀 (축 13): check.sh 1–4 PASS · swift test 실행 ≥ 362 + 신규 · skipped 2 유지 · 실패 0 · 테스트 이름 삭제 0 · 완화 0 (이동 = G-01–G-11뿐, 각 역뮤테이션 기록) · `git diff 200f7d8 -- Packages/DamaCore/Tests/DamaManagedTests/CorrectionFormatProbeTests.swift` 빈 출력.
+- [x] AC-15 회귀 (축 13): check.sh 1–4 PASS · swift test 실행 ≥ 362 + 신규 · skipped 2 유지 · 실패 0 · 테스트 이름 삭제 0 · 완화 0 (이동 = G-01–G-11뿐, 각 역뮤테이션 기록) · `git diff 200f7d8 -- Packages/DamaCore/Tests/DamaManagedTests/CorrectionFormatProbeTests.swift` 빈 출력.
 - [ ] AC-16 버전·설치: `MARKETING_VERSION` 0.5.21 · `CURRENT_PROJECT_VERSION` 39 (Debug/Release). 설치 (막힘 1) 뒤 실행 중 Bundle 0.5.21 (39) (`lsappinfo` · Info.plist), 메뉴바 툴팁 = 사용자 관측.
 - [ ] AC-17 실데이터 게이트 ② (축 14, 막힘 2): 사용자가 설치 앱에서 30분 안팎 Nemotron 결합본 1개를 «다시 전사» (Soniox 재사용 · Nemotron 로컬) → «AI 검수/보정» 1회. 메인이 메타데이터로 잰다: 새 parent 버전 v4 · 자식 meta `inputLevel` · 이어서 교정 없이 끝났는지 · 상태 · 완료/전체 청크 · 재시도 수 · 건너뛴 청크 · 규칙별 원구간 수 · `failures` 세부 · 화자 미확정 문단 수 (현행 Run 옆). 문턱 없음 (모델 응답에 달림). 완료 띠 · 진행 줄 글자는 사용자 관측.
 
-## /build 결과 (2026-11-17 · 1차, 막힘 대기)
+## /build 결과 (2026-11-17 · 1차, 게이트 ② 사용자 확인 대기)
 
 커밋 `e63926b` (T-01) · `9ecf78b` (T-02) · `a078132` (T-03) · `8142e9e` (T-04) · `67f37c1` (T-05) · `bbd34e8` (T-06) · `bf10216` (T-07) · `30aa06a` (T-08 도구) · `23f7506` (T-09 버전 0.5.21 (39)) · `750b86d` (QA A 보충 테스트). 구현 = 메인 직접. QA = GPT-6.1-sol `codex exec -m gpt-6.1-sol --sandbox read-only --ignore-user-config -c model_reasoning_effort="high"` (codex-cli 0.167.2), 발주 · 증거 · 판정 `.build/qa/turn-continuity/` (A · B · R).
 
@@ -112,9 +112,9 @@ QA 판정 = GPT-6.1-sol (`codex exec -m gpt-6.1-sol --sandbox read-only --ignore
 | 02 · 09 · 11 | 통과 (재판정 R, A의 D-1–D-4 = 테스트 증거 보충 `750b86d`) | AC-11 화면은 코드 대조까지. 실화면 = 게이트 ② 사용자 관측 |
 | 12 · 13 | 통과 (B) | |
 | 14 | 통과 (재판정 R, B의 D-1 · D-2 = 증거 문서 정정) | |
-| 15 | 메인 실측 통과 (위 check · 이름 대조) | 전달 QA |
-| 16 | 메인 실측 통과 (설치 2026-11-17 19:20): 백업 `.build/backups/DAMA-0.5.20-38-before-turn-continuity.app` = 설치본 0.5.20 (38) 파일 11 · 트리 SHA256 `b446a22eb3bb7b44` 같음 · 교체본 = Debug 산출물 파일 11 · 트리 `fe4aeed9e1128791` 같음 · 실행 중 pid 39964 `/Applications/DAMA.app` · `lsappinfo` Version 39 · Info.plist 0.5.21 (39). 서명 adhoc, `codesign --verify --strict` 메시지는 0.5.19 · 0.5.20 설치본과 같음 | 메뉴바 툴팁 사용자 관측 · 전달 QA |
-| 17 | | 막힘 2 사용자 실행 |
+| 15 | 통과 (전달 QA C, 이름 직접 재집계 362 → 408 · 삭제 0 · skipped 2 같음) | |
+| 16 | 메인 실측 통과 (설치 2026-11-17 19:20): 백업 `.build/backups/DAMA-0.5.20-38-before-turn-continuity.app` = 설치본 0.5.20 (38) 파일 11 · 트리 SHA256 `b446a22eb3bb7b44` 같음 · 교체본 = Debug 산출물 파일 11 · 트리 `fe4aeed9e1128791` 같음 · 실행 중 pid 39964 `/Applications/DAMA.app` · `lsappinfo` Version 39 · Info.plist 0.5.21 (39). 서명 adhoc, `codesign --verify --strict` 메시지는 0.5.19 · 0.5.20 설치본과 같음 | QA C 부분 (D-1): 메뉴바 툴팁 사용자 관측 미보고 |
+| 17 | 메인 측정 · QA C 부분 (기록 항목 전부 충족, 숫자 대조 일치): session `8EF2322B` 46.6분 · 새 parent `A9F0D3A5` v4 · 자식 meta `inputLevel` 17.06 dB / −37.06 dBFS (설치 앱 확률 = 차수 B 도구 확률 바이트 동일) · 저장 v4 재생 바이트 동일 · 교정 `FEE6A526` completed 10/10, 이어서 교정 없음 · 재시도 2 (청크 1/10 format idUnknown 100 → 106 · 110, 세 번째 성공) · 건너뜀 0 · 규칙 text 4 · quote 2 (응답 없음 0) = 완료 띠 6 글자 일치 · 화자 미확정 문단 45 (v3 현행) → 23 | D-2 Soniox가 재사용되지 않고 새 전송 (참고 발췌 3 → 0, 계약 operating-baseline :38대로) · 46.6분 → 문언 정정 승인. D-3 진행 줄 재시도 글자 사용자 관측 |
 
 ## 작업 분해
 
