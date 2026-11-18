@@ -4,7 +4,7 @@ branch: work/m0-fixture-review
 status: released
 released_at: 2026-11-18
 decisions_resolved: true
-resume: "released v0.5.21 (2026-11-18). main 머지·태그 로컬만 (GO 게이트 사용자 «go», push 미포함 → origin push 안 함). 작업 브랜치 work/m0-fixture-review는 선례대로 유지(main과 같은 지점으로 맞춤). 미검증 = 화자 배정 정확도 · F-05 · F-07 · Soniox 재사용 경로(게이트 ②는 새 전송) · 응답 없음 문구 실화면. 다음 = 사용자 결정 (후보: 묶음 3 ① 원음 대조, 게이트 ② 46.6분 v8 교정본을 대상으로 쓸지 · F-05 원인 분해)."
+resume: "released v0.5.21 (2026-11-18). main 머지·태그 (GO 게이트 사용자 «go»). origin push(main·태그·작업 브랜치)는 사용자 «push 하자» 뒤 2026-11-18. 작업 브랜치 work/m0-fixture-review는 선례대로 유지(main과 같은 지점으로 맞춤). 미검증 = 화자 배정 정확도 · F-05 · F-07 · Soniox 재사용 경로(게이트 ②는 새 전송) · 응답 없음 문구 실화면. 다음 = 사용자 결정 (후보: 묶음 3 ① 원음 대조, 게이트 ② 46.6분 v8 교정본을 대상으로 쓸지 · F-05 원인 분해)."
 spec: notes/turn-continuity/turn-continuity.src.html
 ---
 ## 근거
