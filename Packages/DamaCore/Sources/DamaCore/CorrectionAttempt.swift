@@ -13,7 +13,13 @@ public struct CorrectionFailureRecord: Codable, Sendable, Equatable {
     public let elapsedMs: Int64
     public let stderrBytes: Int
     public let recordedAt: Date
-    private enum CodingKeys: String, CodingKey { case chunkIndex, totalChunks, kind, exitCode, elapsedMs, stderrBytes, recordedAt }
+    /// turn-continuity §02-5 ④ (선택, 없으면 키 생략): 같은 청크의 몇 번째 재시도인지(0 · 1 · 2), 형식 실패 세부,
+    /// id 관련이면 기대·반환 Turn 수. 키가 없는 기존 기록도 그대로 해독된다.
+    public let retry: Int?
+    public let detail: CorrectionFormatDetail?
+    public let expectedTurns: Int?
+    public let returnedTurns: Int?
+    private enum CodingKeys: String, CodingKey { case chunkIndex, totalChunks, kind, exitCode, elapsedMs, stderrBytes, recordedAt, retry, detail, expectedTurns, returnedTurns }
     /// 종료 코드가 없으면 키를 빼지 않고 명시적 null로 쓴다 (스펙 §02-3 «없으면 null», QA C D-3).
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
@@ -22,11 +28,15 @@ public struct CorrectionFailureRecord: Codable, Sendable, Equatable {
         if let exitCode { try c.encode(exitCode, forKey: .exitCode) } else { try c.encodeNil(forKey: .exitCode) }
         try c.encode(elapsedMs, forKey: .elapsedMs); try c.encode(stderrBytes, forKey: .stderrBytes)
         try c.encode(recordedAt, forKey: .recordedAt)
+        try c.encodeIfPresent(retry, forKey: .retry); try c.encodeIfPresent(detail, forKey: .detail)
+        try c.encodeIfPresent(expectedTurns, forKey: .expectedTurns); try c.encodeIfPresent(returnedTurns, forKey: .returnedTurns)
     }
     public init(chunkIndex: Int, totalChunks: Int, kind: CorrectionFailureKind, exitCode: Int32?,
-                elapsedMs: Int64, stderrBytes: Int, recordedAt: Date = Date()) {
+                elapsedMs: Int64, stderrBytes: Int, recordedAt: Date = Date(), retry: Int? = nil,
+                detail: CorrectionFormatDetail? = nil, expectedTurns: Int? = nil, returnedTurns: Int? = nil) {
         self.chunkIndex = chunkIndex; self.totalChunks = totalChunks; self.kind = kind; self.exitCode = exitCode
         self.elapsedMs = elapsedMs; self.stderrBytes = stderrBytes; self.recordedAt = recordedAt
+        self.retry = retry; self.detail = detail; self.expectedTurns = expectedTurns; self.returnedTurns = returnedTurns
     }
 }
 

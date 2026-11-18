@@ -45,10 +45,10 @@ import XCTest
             nemotronModels: try models(root), allowsPyannote: false, sleep: { _ in })
         let done = try await processor.begin(sessionID: audio.id, confirmed: true, key: "", input: notes, sonioxKey: "soniox-key")
         XCTAssertEqual(done.stage, "readyForReview")
-        XCTAssertEqual(done.combinationAlgorithmVersion, "soniox-nemotron-word-v3")
+        XCTAssertEqual(done.combinationAlgorithmVersion, "soniox-nemotron-word-v4")
         let doc = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: done.id)
         XCTAssertEqual(doc.provenance.engine, .hybridSonioxNemotron)
-        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v3")
+        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v4")
         XCTAssertEqual(doc.words.compactMap(\.speakerId), ["\(done.id)-nm-0", "\(done.id)-nm-0"])
         for name in ["soniox-response.json", "nemotron-probabilities.f32", "nemotron-meta.json"] {
             XCTAssertTrue(FileManager.default.fileExists(atPath: runDir(root, audio.id, done.id).appendingPathComponent("raw/\(name)").path), name)
@@ -59,6 +59,11 @@ import XCTest
         XCTAssertEqual(meta.fluidAudioVersion, "0.18.0"); XCTAssertEqual(meta.preset, "offline")
         XCTAssertEqual(meta.channels, 8); XCTAssertEqual(meta.frameCount, 300); XCTAssertEqual(meta.sampleCount, 48_000)
         XCTAssertEqual(meta.audioSHA256, done.sourceAudioSHA256); XCTAssertEqual(meta.modelManifestSHA256, NemotronModel.manifestSHA256)
+        // turn-continuity AC-03 ⓐ: 새 Run meta에 입력 음량 v1 기록.
+        XCTAssertEqual(meta.inputLevel, FakeDiarizer.level)
+        XCTAssertEqual(meta.inputLevel?.version, "nemotron-input-level-v1")
+        let metaText = String(decoding: try Data(contentsOf: runDir(root, audio.id, childID).appendingPathComponent("raw/nemotron-meta.json")), as: UTF8.self)
+        XCTAssertTrue(metaText.contains("\"inputLevel\""))
         let calls = await p2.calls; XCTAssertEqual(calls, 0)
         let diarized = await diarizer.calls; XCTAssertEqual(diarized, 1)
         let posts = await soniox.posts; XCTAssertEqual(posts, 1)
@@ -101,6 +106,9 @@ import XCTest
             ("audioSHA256", { $0.audioSHA256 = String(repeating: "c", count: 64) }),
             ("channels", { $0.channels = 4 }),
             ("frameCount", { $0.frameCount += 1 }),
+            // turn-continuity AC-03 ⓑ ⓓ: 입력 음량 기록이 없거나 버전이 다르면 재사용하지 않는다.
+            ("inputLevel missing", { $0.inputLevel = nil }),
+            ("inputLevel version", { $0.inputLevel = NemotronInputLevel.Record(version: "nemotron-input-level-v0", gainDb: 3.5, p90Dbfs: -23.5) }),
         ]
         for (name, change) in changes {
             var meta = try JSONDecoder().decode(NemotronMeta.self, from: original)
@@ -177,7 +185,7 @@ import XCTest
         let gated = ManagedProcessor(root: root, transport: NoPyannote(), soniox: NmSoniox(), diarizer: FakeDiarizer(),
             nemotronModels: store, admitsLocalInference: { false }, allowsPyannote: false, sleep: { _ in })
         let queued = try await gated.begin(sessionID: audio.id, confirmed: true, key: "", input: notes, sonioxKey: "soniox-key")
-        XCTAssertEqual(queued.combinationAlgorithmVersion, "soniox-nemotron-word-v3")
+        XCTAssertEqual(queued.combinationAlgorithmVersion, "soniox-nemotron-word-v4")
         let stateURL = runDir(root, audio.id, queued.id).appendingPathComponent("state.json")
         func setVersion(_ value: String) throws {
             var run = try JSONDecoder().decode(ManagedRun.self, from: Data(contentsOf: stateURL))
@@ -214,6 +222,24 @@ import XCTest
         XCTAssertEqual(done.combinationAlgorithmVersion, "soniox-nemotron-word-v2")
         let doc = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: done.id)
         XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v2")
+    }
+
+    func testQueuedRunStoredAsV3KeepsV3() async throws {
+        // turn-continuity: v4 is only for new runs; a run stored as v3 resumes with v3.
+        let (root, audio) = try await setup(), store = try models(root)
+        let gated = ManagedProcessor(root: root, transport: NoPyannote(), soniox: NmSoniox(), diarizer: FakeDiarizer(),
+            nemotronModels: store, admitsLocalInference: { false }, allowsPyannote: false, sleep: { _ in })
+        let queued = try await gated.begin(sessionID: audio.id, confirmed: true, key: "", input: notes, sonioxKey: "soniox-key")
+        let stateURL = runDir(root, audio.id, queued.id).appendingPathComponent("state.json")
+        var run = try JSONDecoder().decode(ManagedRun.self, from: Data(contentsOf: stateURL))
+        run.combinationAlgorithmVersion = "soniox-nemotron-word-v3"
+        try JSONEncoder().encode(run).write(to: stateURL)
+        let done = try await ManagedProcessor(root: root, transport: NoPyannote(), soniox: NmSoniox(), diarizer: FakeDiarizer(),
+            nemotronModels: store, allowsPyannote: false, sleep: { _ in }).resume(queued.id, key: "", sonioxKey: "")
+        XCTAssertEqual(done.stage, "readyForReview")
+        XCTAssertEqual(done.combinationAlgorithmVersion, "soniox-nemotron-word-v3")
+        let doc = try await FileSessionRepository(rootURL: root).loadModel(sessionId: audio.id, runId: done.id)
+        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v3")
     }
 
     func testRetiredPyannotePathsAreRefusedWithoutTouchingState() async throws {
@@ -262,6 +288,8 @@ import XCTest
 }
 
 private actor FakeDiarizer: LocalDiarizing {
+    /// turn-continuity AC-03: 가짜 실행기가 돌려주는 입력 음량 기록 (처리 없이 값만).
+    static let level = NemotronInputLevel.Record(gainDb: 3.5, p90Dbfs: -23.5)
     var calls = 0
     var failures: Int
     let cancels: Bool
@@ -276,7 +304,8 @@ private actor FakeDiarizer: LocalDiarizing {
         for frame in 0..<100 { values[frame * 8] = 0.95 }
         var data = Data()
         for value in values { withUnsafeBytes(of: value.bitPattern.littleEndian) { data.append(contentsOf: $0) } }
-        return LocalDiarization(probabilities: data, frameCount: 300, channels: 8, sampleCount: 48_000, processingSeconds: 0.01)
+        return LocalDiarization(probabilities: data, frameCount: 300, channels: 8, sampleCount: 48_000, processingSeconds: 0.01,
+                                inputLevel: Self.level)
     }
 }
 

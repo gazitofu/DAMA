@@ -107,9 +107,12 @@ public struct LocalDiarization: Sendable {
     public let channels: Int
     public let sampleCount: Int
     public let processingSeconds: Double
-    public init(probabilities: Data, frameCount: Int, channels: Int, sampleCount: Int, processingSeconds: Double) {
+    /// turn-continuity D-05: Nemotron에 넣기 전 메모리에서 준 입력 음량 처리 (`NemotronInputLevel`).
+    public let inputLevel: NemotronInputLevel.Record
+    public init(probabilities: Data, frameCount: Int, channels: Int, sampleCount: Int, processingSeconds: Double,
+                inputLevel: NemotronInputLevel.Record) {
         self.probabilities = probabilities; self.frameCount = frameCount; self.channels = channels
-        self.sampleCount = sampleCount; self.processingSeconds = processingSeconds
+        self.sampleCount = sampleCount; self.processingSeconds = processingSeconds; self.inputLevel = inputLevel
     }
 }
 
@@ -133,4 +136,6 @@ public struct NemotronMeta: Codable, Sendable, Equatable {
     public var modelManifestSHA256: String
     public var processingSeconds: Double
     public var createdAt: String
+    /// turn-continuity D-05. 기존 meta에는 키가 없고(nil), 그런 결과는 새 Run에서 재사용하지 않는다.
+    public var inputLevel: NemotronInputLevel.Record? = nil
 }

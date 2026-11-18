@@ -72,7 +72,7 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         json["correction"] = object
         XCTAssertThrowsError(try JSONDecoder().decode(LibraryScript.self, from: JSONSerialization.data(withJSONObject: json)))
         XCTAssertEqual(try sorted.encode(stored.transcript), transcriptBytes)
-        XCTAssertEqual(CorrectionRejectionRule.allCases.map(\.rawValue), ["quote", "overlap", "text", "limit", "reason", "other"])
+        XCTAssertEqual(CorrectionRejectionRule.allCases.map(\.rawValue), ["quote", "overlap", "text", "limit", "reason", "other", "missing", "chunk"])
     }
 
     // MARK: AC-02 Turn 격리 · AC-03 청크 실패 유지 (스펙 §02-1 · §02-2)
@@ -169,7 +169,6 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         let a = Self.reply("a", Self.turnA.text), b = Self.reply("b", Self.turnB.text), ok = Self.reply("c", base)
         let replies: [[CorrectionReply.Turn]] = [
             [b, a, ok],                                                     // id 순서 뒤바뀜
-            [a, b],                                                         // id 1개 빠짐
             [a, b, Self.reply("c", base, unresolved: nil)],                 // 필수 배열 하나 누락
             [Self.reply("a", "X", changes: [Self.change("없는말", "X")]), b, Self.reply("c", base, unresolved: nil)], // 누락이 Turn 실패보다 먼저
         ]
@@ -178,6 +177,9 @@ final class CorrectionTurnIsolationTests: XCTestCase {
                 XCTAssertEqual($0 as? LibraryFailure, .invalidScript)
             }
         }
+        // turn-continuity G-05': id 1개 빠짐은 v8에서 받고, 빠진 Turn만 원문 유지(`missing`).
+        XCTAssertEqual(try ContextCorrection.validated(.init(turns: [a, b], names: []), chunk: chunk, input: Self.input).rejected,
+                       [.init(turnID: "c", rule: .missing)])
     }
 
     // MARK: AC-07 재반영 · 오류 형식 (스펙 §02-3)
@@ -202,7 +204,7 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         XCTAssertEqual(result.rejectedTurns, [.init(turnID: "t3", rule: .quote)])
         XCTAssertEqual(result.edits[0].changes?.first?.applied, false)   // 숫자 보호로 보류 유지(현행).
         XCTAssertEqual(result.edits[1].changes?.first?.applied, true)    // 표식 변화 없음 → 반영(현행).
-        XCTAssertTrue(result.engine.hasSuffix("저장 후보 반영 context-correction-7"))
+        XCTAssertTrue(result.engine.hasSuffix("저장 후보 반영 context-correction-8"))
         XCTAssertNoThrow(try result.validate(transcript: script.transcript))
         // 바뀔 후보가 없으면 새 결과를 만들지 않는다(현행).
         var nothing = ScriptCorrection(input: script.input, engine: "synthetic", state: .completed)
@@ -277,7 +279,8 @@ final class CorrectionTurnIsolationTests: XCTestCase {
     static func sha(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
 
     func testMarkdownAddsLinesOnlyForRejectedTurns() throws {
-        let baselineSHA = "5dc04eb6a97e4749f81224038cfd1742d9e86cab9783897a77f60ec0173e1e8d" // T-06 착수 전 현행 코드 실측 (HEAD 6267108, 1,564 B)
+        // turn-continuity G-05: «- 문단 표시: reading-v9»(같은 길이). 이전 = 5dc04eb6… (HEAD 6267108, reading-v8, 1,564 B).
+        let baselineSHA = "8a04ba52c4dfe9c9fc7fbef87ff651c259fd9000fb74890d4db70109515289c1"
         let none = try Self.markdownScript(rejected: nil).markdown()
         XCTAssertEqual(none.count, 1_564)
         XCTAssertEqual(Self.sha(none), baselineSHA)
@@ -322,5 +325,249 @@ final class CorrectionTurnIsolationTests: XCTestCase {
         correction.rejectedTurns = [.init(turnID: "t2", rule: .quote), .init(turnID: "t3", rule: .text)]
         XCTAssertEqual(correction.rejectedCount(in: ["t1", "t2"]), 1)
         XCTAssertEqual(correction.rejectedCount(in: ["t2", "t3", "t4"]), 2)
+    }
+
+    // MARK: turn-continuity AC-08 응답 짝짓기 (context-correction-8 §02-5 ①)
+
+    private static let turnC = CorrectionTurn(id: "c", speakerID: "SPEAKER_00", startUs: 2_000_000, endUs: 3_000_000, text: "가나다 라마바")
+    private static func chunk(_ ids: [String]) -> CorrectionChunk {
+        CorrectionChunk(turns: ids.map { CorrectionTurn(id: $0, speakerID: "SPEAKER_00", startUs: nil, endUs: nil, text: "합성 \($0)") },
+                        contextBefore: [], contextAfter: [])
+    }
+    private static func echo(_ ids: [String]) -> CorrectionReply {
+        CorrectionReply(turns: ids.map { reply($0, "합성 \($0)") }, names: [])
+    }
+
+    func testSubsequenceRepliesAreAcceptedAndMissingTurnsKeptAsOriginal() throws {
+        let chunk = CorrectionChunk(turns: [Self.turnA, Self.turnB, Self.turnC], contextBefore: [], contextAfter: [])
+        let a = Self.reply("a", "DAMA 앱 검토", changes: [Self.change("디마", "DAMA")])
+        let b = Self.reply("b", Self.turnB.text), c = Self.reply("c", Self.turnC.text)
+        let ac = try ContextCorrection.validated(.init(turns: [a, c], names: Self.names), chunk: chunk, input: Self.input)
+        XCTAssertEqual(ac.rejected, [.init(turnID: "b", rule: .missing)])
+        XCTAssertEqual(ac.edits.map(\.turnID), ["a"])
+        // 빠진 Turn의 자기소개는 원문 Turn 기준으로 이름 검증한다(v7 그대로).
+        XCTAssertEqual(ac.names, ["SPEAKER_01": "김가상"])
+        let ab = try ContextCorrection.validated(.init(turns: [a, b], names: []), chunk: chunk, input: Self.input)
+        XCTAssertEqual(ab.rejected, [.init(turnID: "c", rule: .missing)])
+        // 검증 실패와 응답 없음이 입력 순서로 섞인다.
+        let bad = Self.reply("a", "X", changes: [Self.change("없는말", "X")])
+        XCTAssertEqual(try ContextCorrection.validated(.init(turns: [bad, c], names: []), chunk: chunk, input: Self.input).rejected,
+                       [.init(turnID: "a", rule: .quote), .init(turnID: "b", rule: .missing)])
+        // 전부 받으면 missing 없음(v7과 같은 결과).
+        XCTAssertEqual(try ContextCorrection.validated(.init(turns: [a, b, c], names: []), chunk: chunk, input: Self.input).rejected, [])
+    }
+
+    func testUnpairableRepliesAreClassifiedInOrder() throws {
+        let chunk = Self.chunk(["a", "b", "c"])
+        let cases: [([String], CorrectionFormatDetail)] = [
+            (["a"], .idTooFew), ([], .idTooFew), (["a", "a", "c"], .idDuplicate), (["a", "b", "x"], .idUnknown),
+            (["b", "a", "c"], .idOrder), (["a", "x", "x"], .idDuplicate), (["c", "x"], .idUnknown), (["c", "a"], .idOrder),
+        ]
+        for (ids, detail) in cases {
+            let reply = Self.echo(ids)
+            XCTAssertEqual(ContextCorrection.replyMismatch(reply, chunk: chunk), detail, "\(ids)")
+            XCTAssertThrowsError(try ContextCorrection.validated(reply, chunk: chunk, input: Self.input)) {
+                XCTAssertEqual($0 as? LibraryFailure, .invalidScript)
+            }
+        }
+        var arrays = Self.echo(["a", "b", "c"]).turns; arrays[2].unresolved = nil
+        XCTAssertEqual(ContextCorrection.replyMismatch(.init(turns: arrays, names: []), chunk: chunk), .missingArrays)
+        // id 문제가 배열 누락보다 먼저다.
+        var both = Self.echo(["b", "a"]).turns; both[0].unresolved = nil
+        XCTAssertEqual(ContextCorrection.replyMismatch(.init(turns: both, names: []), chunk: chunk), .idOrder)
+        XCTAssertNil(ContextCorrection.replyMismatch(Self.echo(["a", "c"]), chunk: chunk))
+    }
+
+    /// 최소 반환 = ⌈입력 / 2⌉: 3 → 2 · 4 → 2 · 5 → 3 · 100 → 50.
+    func testMinimumReturnedBoundary() throws {
+        XCTAssertEqual([1, 2, 3, 4, 5, 100].map(ContextCorrection.minimumReturned), [1, 1, 2, 2, 3, 50])
+        XCTAssertNil(ContextCorrection.replyMismatch(Self.echo(["a", "d"]), chunk: Self.chunk(["a", "b", "c", "d"])))
+        XCTAssertEqual(ContextCorrection.replyMismatch(Self.echo(["b"]), chunk: Self.chunk(["a", "b", "c", "d"])), .idTooFew)
+        XCTAssertNil(ContextCorrection.replyMismatch(Self.echo(["a", "c", "e"]), chunk: Self.chunk(["a", "b", "c", "d", "e"])))
+        XCTAssertEqual(ContextCorrection.replyMismatch(Self.echo(["a", "e"]), chunk: Self.chunk(["a", "b", "c", "d", "e"])), .idTooFew)
+        let five = try ContextCorrection.validated(Self.echo(["a", "c", "e"]), chunk: Self.chunk(["a", "b", "c", "d", "e"]), input: Self.input)
+        XCTAssertEqual(five.rejected, [.init(turnID: "b", rule: .missing), .init(turnID: "d", rule: .missing)])
+    }
+
+    // MARK: turn-continuity AC-09 저장 (§02-5 ④)
+
+    func testRuleCodesAndCounts() throws {
+        XCTAssertEqual(CorrectionRejectionRule.allCases.filter(\.isNoResponse), [.missing, .chunk])
+        XCTAssertEqual(CorrectionFormatDetail.allCases.map(\.rawValue),
+                       ["noOutput", "tooLarge", "decode", "missingArrays", "idDuplicate", "idUnknown", "idOrder", "idTooFew"])
+        var value = ScriptCorrection(input: ConversionNotes(), engine: "synthetic", state: .completed)
+        value.rejectedTurns = [.init(turnID: "t1", rule: .quote), .init(turnID: "t2", rule: .missing), .init(turnID: "t3", rule: .chunk)]
+        XCTAssertEqual(value.rejectedCount(in: ["t1", "t2", "t3"]), 1)
+        XCTAssertEqual(value.noResponseCount(in: ["t1", "t2", "t3"]), 2)
+        XCTAssertEqual(value.noResponseCount(in: ["t2"]), 1)
+        XCTAssertEqual(value.rejectedTotal, 1); XCTAssertEqual(value.noResponseTotal, 2)
+    }
+
+    /// ⓐ 기존 형태 바이트 유지 (실패 기록 키 7개 · failures 없는 교정) · ⓑ 새 키 왕복.
+    func testFailureRecordAndCorrectionFailuresRoundTrip() throws {
+        let legacy = #"{"chunkIndex":1,"elapsedMs":68468,"exitCode":0,"kind":"format","recordedAt":800000000,"stderrBytes":50758,"totalChunks":8}"#
+        let record = try JSONDecoder().decode(CorrectionFailureRecord.self, from: Data(legacy.utf8))
+        XCTAssertNil(record.retry); XCTAssertNil(record.detail); XCTAssertNil(record.expectedTurns); XCTAssertNil(record.returnedTurns)
+        XCTAssertEqual(String(decoding: try sorted.encode(record), as: UTF8.self), legacy)
+        let current = CorrectionFailureRecord(chunkIndex: 3, totalChunks: 8, kind: .format, exitCode: 0, elapsedMs: 5, stderrBytes: 9,
+            recordedAt: Date(timeIntervalSinceReferenceDate: 800_000_000), retry: 2, detail: .idTooFew, expectedTurns: 100, returnedTurns: 12)
+        let text = String(decoding: try sorted.encode(current), as: UTF8.self)
+        XCTAssertEqual(text, #"{"chunkIndex":3,"detail":"idTooFew","elapsedMs":5,"exitCode":0,"expectedTurns":100,"kind":"format","recordedAt":800000000,"retry":2,"returnedTurns":12,"stderrBytes":9,"totalChunks":8}"#)
+        XCTAssertEqual(try JSONDecoder().decode(CorrectionFailureRecord.self, from: Data(text.utf8)), current)
+        // 모르는 세부 → 해독 실패.
+        XCTAssertThrowsError(try JSONDecoder().decode(CorrectionFailureRecord.self, from: Data(text.replacingOccurrences(of: "idTooFew", with: "bogus").utf8)))
+
+        var script = try Self.fixtureScript()
+        var correction = ScriptCorrection(input: script.input, engine: "synthetic", state: .completed)
+        correction.edits = [Self.legacyEdit("t1", original: script.text(for: script.transcript.turns[0]))]
+        correction.rejectedTurns = [.init(turnID: "t3", rule: .quote)]
+        script.correction = correction
+        let before = try sorted.encode(script)
+        XCTAssertFalse(String(decoding: before, as: UTF8.self).contains(#""failures""#))
+        XCTAssertEqual(try sorted.encode(JSONDecoder().decode(LibraryScript.self, from: before)), before)
+        correction.failures = [current]
+        correction.rejectedTurns = [.init(turnID: "t2", rule: .missing), .init(turnID: "t3", rule: .chunk)]
+        script.correction = correction
+        XCTAssertNoThrow(try script.validate())
+        let after = try sorted.encode(script)
+        let reopened = try JSONDecoder().decode(LibraryScript.self, from: after)
+        XCTAssertEqual(reopened.correction?.failures, [current])
+        XCTAssertEqual(reopened.correction?.rejectedTurns, correction.rejectedTurns)
+        XCTAssertEqual(try sorted.encode(reopened.transcript), try sorted.encode(script.transcript))
+    }
+
+    /// ⓓ 응답 없음 규칙도 현행 저장 검증 (발화 안 · 중복 없음 · 편집 기록과 겹침 없음).
+    func testNoResponseTurnsFollowStorageValidation() throws {
+        let script = try Self.fixtureScript()
+        func correction(_ rejected: [CorrectionRejectedTurn]) -> ScriptCorrection {
+            var value = ScriptCorrection(input: script.input, engine: "synthetic", state: .completed)
+            value.edits = [Self.legacyEdit("t1", original: script.text(for: script.transcript.turns[0]))]
+            value.rejectedTurns = rejected
+            return value
+        }
+        XCTAssertNoThrow(try correction([.init(turnID: "t2", rule: .missing), .init(turnID: "t3", rule: .chunk)]).validate(transcript: script.transcript))
+        for rejected in [[CorrectionRejectedTurn(turnID: "t-marker", rule: .missing)],
+                         [.init(turnID: "t3", rule: .chunk), .init(turnID: "t3", rule: .missing)],
+                         [.init(turnID: "t1", rule: .chunk)]] {
+            XCTAssertThrowsError(try correction(rejected).validate(transcript: script.transcript)) {
+                XCTAssertEqual($0 as? LibraryFailure, .invalidScript)
+            }
+        }
+    }
+
+    /// «저장된 AI 교정 반영»은 실패 기록도 그대로 옮긴다.
+    func testReapplicationCarriesFailures() throws {
+        var script = try Self.fixtureScript()
+        let source = try XCTUnwrap(ContextCorrection.chunks(script).flatMap(\.turns).first)
+        var old = ScriptCorrection(input: script.input, engine: "synthetic context-correction-7", state: .completed)
+        let object: [String: Any] = ["turnID": source.id, "original": source.text, "text": "합성 교정 나", "reason": "이전 보류",
+            "applied": false, "appliedText": source.text, "unresolved": [],
+            "changes": [["applied": false, "basis": "이전 보류", "change": ["quote": source.text, "occurrence": 0,
+                                                                          "replacement": "합성 교정 나", "certain": true, "reason": "합성"]]]]
+        old.edits = [try JSONDecoder().decode(CorrectionEdit.self, from: JSONSerialization.data(withJSONObject: object))]
+        let failure = CorrectionFailureRecord(chunkIndex: 0, totalChunks: 1, kind: .format, exitCode: 0, elapsedMs: 1, stderrBytes: 0,
+                                              recordedAt: Date(timeIntervalSinceReferenceDate: 0), retry: 1, detail: .decode)
+        old.failures = [failure]
+        script.correction = old
+        XCTAssertEqual(try XCTUnwrap(ContextCorrection.reapplyingPending(in: script)).failures, [failure])
+    }
+
+    // MARK: turn-continuity AC-11 문구 6–11 · Markdown (기대 문자열은 `ssot/tone/turn-continuity.md` 표에서 옮겼다)
+
+    func testNoResponseTextMatchesToneTable() {
+        let current = "AI 보정 결과를 저장했습니다. 다른 결과 보기에서 이전 버전을 확인할 수 있습니다."
+        let three = " AI 응답이 원문과 맞지 않은 %d개 원구간은 원문을 유지했습니다."
+        let eight = " AI 응답을 받지 못한 %d개 원구간은 원문을 유지했습니다."
+        let note7 = "AI 응답을 받지 못해 이 문단은 원문을 유지했습니다."
+        XCTAssertEqual(CorrectionRejectionText.noResponseTitle, "원문 유지 · AI 응답 없음")
+        XCTAssertEqual(CorrectionRejectionText.noResponseNote(count: 1), note7)
+        XCTAssertEqual(CorrectionRejectionText.noResponseNote(count: 2), note7 + " (2개 원구간)")
+        XCTAssertEqual(CorrectionRejectionText.noResponseNote(count: 3), note7 + " (3개 원구간)")
+        for n in [0, 1, 12] {
+            for m in [0, 1, 12] {
+                let expected = current + (n >= 1 ? String(format: three, n) : "") + (m >= 1 ? String(format: eight, m) : "")
+                XCTAssertEqual(CorrectionRejectionText.completionMessage(rejectedCount: n, noResponseCount: m), expected, "\(n) \(m)")
+            }
+        }
+        XCTAssertEqual(Data(CorrectionRejectionText.completionMessage(rejectedCount: 0, noResponseCount: 0).utf8), Data(current.utf8))
+        XCTAssertEqual(CorrectionRejectionText.markdownNoResponseSummary(count: 1), "- 응답 없음으로 원문 유지: 1개 원구간")
+        XCTAssertEqual(CorrectionRejectionText.markdownNoResponseSummary(count: 12), "- 응답 없음으로 원문 유지: 12개 원구간")
+        XCTAssertEqual(CorrectionRejectionText.markdownNoResponsePrefix, "> AI 응답 없음: ")
+        XCTAssertEqual(CorrectionRejectionText.retrySuffix(1), " · 응답 다시 받는 중 (1/2)")
+        XCTAssertEqual(CorrectionRejectionText.retrySuffix(2), " · 응답 다시 받는 중 (2/2)")
+    }
+
+    /// 검증 실패 1 + 응답 없음 2(같은 문단) + 응답 없음 1(다른 문단). 응답 없음만 있으면 문구 4는 없다.
+    func testMarkdownNoResponseLines() throws {
+        let note5 = "> AI 검증 실패: AI 응답이 이 문단의 원문과 맞지 않아 쓰지 않았습니다."
+        let note10 = "> AI 응답 없음: AI 응답을 받지 못해 이 문단은 원문을 유지했습니다."
+        // fixture 문단 = [t1, t2] · [t3]. t1 편집이 없어야 t1을 버린 원구간으로 쓸 수 있다.
+        let lines = String(decoding: try Self.markdownScript(editT1: false, rejected: [
+            .init(turnID: "t1", rule: .missing), .init(turnID: "t2", rule: .chunk), .init(turnID: "t3", rule: .quote)]).markdown(), as: UTF8.self)
+            .components(separatedBy: "\n")
+        let four = try XCTUnwrap(lines.firstIndex(of: "- 검증 실패로 원문 유지: 1개 원구간"))
+        XCTAssertEqual(lines[four + 1], "- 응답 없음으로 원문 유지: 2개 원구간")
+        let headers = lines.indices.filter { lines[$0].hasPrefix("### [") }
+        XCTAssertEqual(headers.count, 2)
+        let missingAt = try XCTUnwrap(lines.firstIndex(of: note10 + " (2개 원구간)"))
+        XCTAssertTrue(missingAt > headers[0] && missingAt < headers[1])
+        XCTAssertEqual(lines[missingAt + 1], "")
+        XCTAssertGreaterThan(try XCTUnwrap(lines.firstIndex(of: note5)), headers[1])
+        XCTAssertEqual(lines.filter { $0.hasPrefix("> AI 응답 없음: ") }.count, 1)
+        // 응답 없음만: 문구 4 없음 · 문구 9 · 문단 줄 1 (k = 1이면 2a 없음).
+        let only = String(decoding: try Self.markdownScript(rejected: [.init(turnID: "t3", rule: .missing)]).markdown(), as: UTF8.self)
+            .components(separatedBy: "\n")
+        XCTAssertFalse(only.contains { $0.hasPrefix("- 검증 실패로 원문 유지") })
+        XCTAssertEqual(only.filter { $0 == "- 응답 없음으로 원문 유지: 1개 원구간" }.count, 1)
+        XCTAssertEqual(only.filter { $0.hasPrefix("> AI 응답 없음: ") }, [note10])
+        XCTAssertFalse(only.contains { $0.hasPrefix("> AI 검증 실패: ") })
+    }
+
+    /// QA A D-2: 검증 실패 규칙만 든 기존 교정 기록 (failures 키 없음, correction-turn-isolation 형태 고정 리터럴)은 바이트가 같다.
+    func testLegacyCorrectionWithRejectedTurnsKeepsBytes() throws {
+        let literal = #"{"completedAt":800000100,"completedChunks":1,"edits":[{"applied":false,"original":"합성 원문","reason":"합성 보류","text":"합성 후보","turnID":"t1"}],"engine":"synthetic context-correction-7","id":"6F1C2E2A-0000-4000-8000-000000000003","input":{"context":"합성 맥락","reference":""},"nameEvidence":{},"rejectedTurns":[{"rule":"quote","turnID":"t2"},{"rule":"text","turnID":"t3"}],"speakerNames":{},"startedAt":800000000,"state":"completed","totalChunks":1}"#
+        let decoded = try JSONDecoder().decode(ScriptCorrection.self, from: Data(literal.utf8))
+        XCTAssertNil(decoded.failures)
+        XCTAssertEqual(decoded.rejectedTotal, 2); XCTAssertEqual(decoded.noResponseTotal, 0)
+        XCTAssertEqual(String(decoding: try sorted.encode(decoded), as: UTF8.self), literal)
+    }
+
+    /// QA A D-4 (계획 AC-11 합성): 검증 실패 1 + 응답 없음 2가 같은 문단, chunk 1이 다른 문단.
+    /// 미상 3 Turn을 읽기 v9로 한 문단에 잇고(라벨 x · 간격 100 ms), 라벨 y Turn은 따로다.
+    func testMarkdownMixedParagraphOrder() throws {
+        let tokens: [[String: Any]] = [("가", 100, 200, "x"), (" 나", 300, 400, "x"), (" 다", 500, 600, "x"), (" 라", 2_000, 2_100, "y")].map {
+            ["text": $0.0, "start_ms": $0.1, "end_ms": $0.2, "speaker": $0.3, "confidence": 0.9]
+        }
+        let asr = try JSONSerialization.data(withJSONObject: ["id": "job", "text": "가 나 다 라", "tokens": tokens])
+        var data = Data()
+        for value in [Float](repeating: 0.02, count: 300 * 8) { withUnsafeBytes(of: value.bitPattern.littleEndian) { data.append(contentsOf: $0) } }
+        let doc = try SonioxNemotronReconciler.normalize(soniox: asr, probabilities: data, frameCount: 300, channels: 8, sonioxJobID: "job",
+            sessionID: "s", runID: "00000000-0000-4000-8000-00000000e0d1", durationUs: 3_000_000, audioSHA256: String(repeating: "a", count: 64),
+            model: "stt-async-v5", createdAt: "2026-11-17T00:00:00Z", synthetic: true, version: .v3)
+        var script = try LibraryScript(transcript: doc, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        let ids = script.transcript.turns.filter { $0.kind == .speech }.map(\.id)
+        XCTAssertEqual(ids.count, 4)
+        XCTAssertEqual(script.blocks().map(\.turnIDs), [Array(ids.prefix(3)), [ids[3]]])
+        var correction = ScriptCorrection(input: script.input, engine: "synthetic", state: .completed)
+        correction.rejectedTurns = [.init(turnID: ids[0], rule: .quote), .init(turnID: ids[1], rule: .missing),
+                                    .init(turnID: ids[2], rule: .missing), .init(turnID: ids[3], rule: .chunk)]
+        script.correction = correction
+        XCTAssertNoThrow(try script.validate())
+        let lines = String(decoding: try script.markdown(), as: UTF8.self).components(separatedBy: "\n")
+        let four = try XCTUnwrap(lines.firstIndex(of: "- 검증 실패로 원문 유지: 1개 원구간"))
+        XCTAssertEqual(lines[four + 1], "- 응답 없음으로 원문 유지: 3개 원구간")
+        let headers = lines.indices.filter { lines[$0].hasPrefix("### [") }
+        XCTAssertEqual(headers.count, 2)
+        // 첫 문단: 검증 실패 줄 → 빈 줄 → 응답 없음 줄 (2개 원구간) → 빈 줄.
+        let five = try XCTUnwrap(lines.firstIndex(of: "> AI 검증 실패: AI 응답이 이 문단의 원문과 맞지 않아 쓰지 않았습니다."))
+        XCTAssertTrue(five > headers[0] && five < headers[1])
+        XCTAssertEqual(lines[five + 1], "")
+        XCTAssertEqual(lines[five + 2], "> AI 응답 없음: AI 응답을 받지 못해 이 문단은 원문을 유지했습니다. (2개 원구간)")
+        XCTAssertEqual(lines[five + 3], "")
+        // 둘째 문단: 응답 없음 1개 (2a 없음), 검증 실패 줄 없음.
+        let second = Array(lines[headers[1]...])
+        XCTAssertEqual(second.filter { $0.hasPrefix("> AI 응답 없음: ") }, ["> AI 응답 없음: AI 응답을 받지 못해 이 문단은 원문을 유지했습니다."])
+        XCTAssertFalse(second.contains { $0.hasPrefix("> AI 검증 실패: ") })
+        XCTAssertEqual(lines.filter { $0.hasPrefix("> AI 응답 없음: ") }.count, 2)
     }
 }

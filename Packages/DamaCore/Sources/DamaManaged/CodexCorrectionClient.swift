@@ -13,8 +13,14 @@ public struct CodexCorrectionError: Error, Sendable, Equatable {
     public let elapsedMs: Int64
     /// stderr 전체 바이트 수.
     public let stderrBytes: Int
-    public init(kind: CorrectionFailureKind, exitCode: Int32? = nil, signaled: Bool = false, elapsedMs: Int64 = 0, stderrBytes: Int = 0) {
+    /// turn-continuity §02-5 ④: 형식 실패의 세부와, id 관련이면 기대·반환 Turn 수. 원문은 담지 않는다.
+    public let detail: CorrectionFormatDetail?
+    public let expectedTurns: Int?
+    public let returnedTurns: Int?
+    public init(kind: CorrectionFailureKind, exitCode: Int32? = nil, signaled: Bool = false, elapsedMs: Int64 = 0, stderrBytes: Int = 0,
+                detail: CorrectionFormatDetail? = nil, expectedTurns: Int? = nil, returnedTurns: Int? = nil) {
         self.kind = kind; self.exitCode = exitCode; self.signaled = signaled; self.elapsedMs = elapsedMs; self.stderrBytes = stderrBytes
+        self.detail = detail; self.expectedTurns = expectedTurns; self.returnedTurns = returnedTurns
     }
 }
 
@@ -165,9 +171,10 @@ public actor CodexCorrectionClient {
     public func correct(chunk: CorrectionChunk, input: ConversionNotes, executable: URL,
                         timeout: Duration = .seconds(300)) async throws -> CodexCorrectionResult {
         let started = ContinuousClock.now
-        func failure(_ kind: CorrectionFailureKind, exitCode: Int32? = nil, signaled: Bool = false, stderrBytes: Int = 0) -> CodexCorrectionError {
+        func failure(_ kind: CorrectionFailureKind, exitCode: Int32? = nil, signaled: Bool = false, stderrBytes: Int = 0,
+                     detail: CorrectionFormatDetail? = nil) -> CodexCorrectionError {
             CodexCorrectionError(kind: kind, exitCode: exitCode, signaled: signaled,
-                                 elapsedMs: Self.milliseconds(started.duration(to: .now)), stderrBytes: stderrBytes)
+                                 elapsedMs: Self.milliseconds(started.duration(to: .now)), stderrBytes: stderrBytes, detail: detail)
         }
         guard FileManager.default.isExecutableFile(atPath: executable.path) else { throw failure(.unavailable) }
         guard !Task.isCancelled else { throw failure(.cancelled) }
@@ -224,11 +231,14 @@ public actor CodexCorrectionClient {
             throw failure(StderrScan.classify(timedOut: false, exitStatus: status, signaled: signaled, scan: scan),
                           exitCode: status, signaled: signaled, stderrBytes: scan.bytes)
         }
-        guard let handle = try? FileHandle(forReadingFrom: output) else { throw failure(.format, exitCode: 0, stderrBytes: scan.bytes) }
+        // 형식 실패 세부 (turn-continuity): 출력 파일 없음·0바이트 = noOutput · 2,000,000 B 초과 = tooLarge · 해독 = decode · 배열 누락.
+        func format(_ detail: CorrectionFormatDetail) -> CodexCorrectionError { failure(.format, exitCode: 0, stderrBytes: scan.bytes, detail: detail) }
+        guard let handle = try? FileHandle(forReadingFrom: output) else { throw format(.noOutput) }
         defer { try? handle.close() }
-        guard let bytes = try? handle.read(upToCount: 2_000_001), bytes.count <= 2_000_000,
-              let reply = try? JSONDecoder().decode(CorrectionReply.self, from: bytes),
-              reply.turns.allSatisfy({ $0.changes != nil && $0.unresolved != nil }) else { throw failure(.format, exitCode: 0, stderrBytes: scan.bytes) }
+        guard let bytes = try? handle.read(upToCount: 2_000_001), !bytes.isEmpty else { throw format(.noOutput) }
+        guard bytes.count <= 2_000_000 else { throw format(.tooLarge) }
+        guard let reply = try? JSONDecoder().decode(CorrectionReply.self, from: bytes) else { throw format(.decode) }
+        guard reply.turns.allSatisfy({ $0.changes != nil && $0.unresolved != nil }) else { throw format(.missingArrays) }
         return CodexCorrectionResult(reply: reply, elapsedMs: Self.milliseconds(started.duration(to: .now)), stderrBytes: scan.bytes)
     }
 }

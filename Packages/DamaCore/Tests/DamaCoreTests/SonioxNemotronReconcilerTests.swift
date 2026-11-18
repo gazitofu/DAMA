@@ -85,7 +85,7 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         let doc = try normalize([token("다음", 100, 900, "x"), token(" 네", 1000, 1030, "y")], aba)
         XCTAssertEqual(doc.provenance.engine, .hybridSonioxNemotron)
         XCTAssertEqual(doc.provenance.diarizationModel, "nemotron-3-diarization-coreml-offline")
-        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v3")
+        XCTAssertEqual(doc.provenance.algorithmVersion, "soniox-nemotron-word-v4")
         XCTAssertEqual(doc.speakers.map(\.providerId), ["channel-0", "channel-1"])
         XCTAssertEqual(doc.speakers.map(\.displayName), ["화자 1", "화자 2"])
         XCTAssertEqual(doc.diarization.map(\.id), ["d0", "d1", "d2"])
@@ -192,7 +192,9 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         let tokens = [token("연락", 100, 400), token(" 같", 900, 1000), token("이", 1100, 1300), token("요", 1300, 1400), token("?", 1400, 1410)]
         let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<1500, 0.8), (1, 1000..<1300, 0.8), (1, 1300..<1400, 0.9)]
         XCTAssertEqual(speakers(try normalize(tokens, on, version: .v2), ["같", "이", "요"]), [a, nil, b])
-        XCTAssertEqual(speakers(try normalize(tokens, on), ["같", "이", "요"]), [a, nil, a])
+        // turn-continuity G-08: 기본 버전 v4는 D-01로 «이»를 어절의 단일 화자로 맞춘다. v3 저장 Run 재현은 null 유지.
+        XCTAssertEqual(speakers(try normalize(tokens, on), ["같", "이", "요"]), [a, a, a])
+        XCTAssertEqual(speakers(try normalize(tokens, on, version: .v3), ["같", "이", "요"]), [a, nil, a])
     }
 
     func testConsecutiveSplitWordsAreJudgedFromTheSameSnapshot() throws {
@@ -209,5 +211,128 @@ final class SonioxNemotronReconcilerTests: XCTestCase {
         let first = try normalize([token("다음", 100, 900)], aba)
         let second = try normalize([token("다음", 100, 900)], aba, runID: other)
         XCTAssertTrue(Set(first.speakers.map(\.id)).isDisjoint(with: second.speakers.map(\.id)))
+    }
+
+    // MARK: turn-continuity AC-04 (D-01 어절 안 미상 조각) · AC-05 (D-03 Turn 구성)
+
+    private func speech(_ doc: TranscriptDocument) -> [TranscriptTurn] { doc.turns.filter { $0.kind == .speech } }
+    private func texts(_ doc: TranscriptDocument, _ turn: TranscriptTurn) -> String {
+        turn.wordIds.compactMap { id in doc.words.first { $0.id == id } }.map { $0.prefix + $0.text }.joined()
+    }
+
+    /// ① 한 화자 + 미상 조각 → 맞춤. 근거 = 자기 ∪ 같은 어절 배정 근거, coverage 없음, «화자 미확정» 이슈 없음.
+    func testV4FillsUnknownFragmentOfASingleSpeakerWord() throws {
+        let tokens = [token("연락", 100, 400), token(" 같", 900, 1000), token("이", 1100, 1300), token("요", 1300, 1400), token("?", 1400, 1410)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<1500, 0.8), (1, 1000..<1300, 0.8), (1, 1300..<1400, 0.9)]
+        let v3 = try normalize(tokens, on, version: .v3), v4 = try normalize(tokens, on, version: .v4)
+        XCTAssertEqual(v4.provenance.algorithmVersion, "soniox-nemotron-word-v4")
+        XCTAssertEqual(speakers(v4, ["같", "이", "요", "?"]), [a, a, a, a])
+        let filled = try XCTUnwrap(word(v4, "이")), before = try XCTUnwrap(word(v3, "이"))
+        let support = try ["같", "요"].map { try XCTUnwrap(word(v3, $0)).sourceIntervalIds }.flatMap { $0 }
+        XCTAssertEqual(filled.sourceIntervalIds, Array(Set(before.sourceIntervalIds + support)).sorted())
+        XCTAssertNil(filled.alignmentScore)
+        XCTAssertEqual(filled.assignmentSource, .reconciled)
+        XCTAssertFalse(v4.reviewIssues.contains { $0.kind == .ambiguous_speaker && $0.wordIds.contains(filled.id) })
+        XCTAssertTrue(v3.reviewIssues.contains { $0.kind == .ambiguous_speaker && $0.wordIds.contains(before.id) })
+        // 맞추지 않은 토큰의 근거·점수는 v3와 같다.
+        XCTAssertEqual(try XCTUnwrap(word(v4, "같")).sourceIntervalIds, try XCTUnwrap(word(v3, "같")).sourceIntervalIds)
+        XCTAssertEqual(try XCTUnwrap(word(v4, "같")).alignmentScore, try XCTUnwrap(word(v3, "같")).alignmentScore)
+        try TranscriptValidator().validate(v4)
+    }
+
+    /// ② 배정 화자가 둘인 갈린 어절의 미상 조각은 null 그대로.
+    func testV4LeavesUnknownFragmentOfASplitWord() throws {
+        let tokens = [token("앞", 100, 400), token(" 왔", 500, 600), token("어", 600, 700), token("요", 700, 800), token(" 뒤", 1000, 1300)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<700, 0.9), (1, 600..<700, 0.95), (1, 1000..<2000, 0.9)]
+        XCTAssertEqual(speakers(try normalize(tokens, on, version: .v3), ["왔", "어", "요"]), [a, b, nil])
+        XCTAssertEqual(speakers(try normalize(tokens, on, version: .v4), ["왔", "어", "요"]), [a, b, nil])
+    }
+
+    /// ③ 어절 전체가 미상이면 전부 null, «화자 미확정» 이슈 유지.
+    func testV4LeavesFullyUnknownWord() throws {
+        let tokens = [token("연락", 100, 400), token(" 그", 2100, 2200), token("래", 2200, 2300)]
+        let doc = try normalize(tokens, [(0, 0..<1000, 0.9)], version: .v4)
+        XCTAssertEqual(speakers(doc, ["연락", "그", "래"]), [a, nil, nil])
+        for text in ["그", "래"] {
+            let id = try XCTUnwrap(word(doc, text)).id
+            XCTAssertTrue(doc.reviewIssues.contains { $0.kind == .ambiguous_speaker && $0.wordIds == [id] }, text)
+        }
+    }
+
+    /// ④ 0길이 미상 조각도 맞춘다. 시간 이슈는 그대로 남는다.
+    func testV4FillsZeroLengthFragment() throws {
+        let tokens = [token("연락", 100, 400), token(" 왔", 500, 600), token("어", 1500, 1500)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<1000, 0.9), (1, 1100..<1300, 0.9)]
+        let v3 = try normalize(tokens, on, version: .v3), v4 = try normalize(tokens, on, version: .v4)
+        XCTAssertEqual(speakers(v3, ["왔", "어"]), [a, nil])
+        XCTAssertEqual(speakers(v4, ["왔", "어"]), [a, a])
+        let filled = try XCTUnwrap(word(v4, "어"))
+        XCTAssertNil(filled.alignmentScore)
+        XCTAssertTrue(Set(try XCTUnwrap(word(v4, "왔")).sourceIntervalIds).isSubset(of: filled.sourceIntervalIds))
+        XCTAssertTrue(v4.reviewIssues.contains { $0.kind == .invalid_timestamp && $0.wordIds == [filled.id] })
+        try TranscriptValidator().validate(v4)
+    }
+
+    /// AC-05 ① 어절 안 같은 화자 사이 틈에 다른 화자 일반 구간 → v4 한 Turn, v3 두 Turn (단어 화자는 같음).
+    func testV4JoinsSameSpeakerAcrossAnotherSpeakersIntervalInsideOneWord() throws {
+        let tokens = [token("왔", 500, 600), token("어", 700, 800)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<1000, 0.9), (1, 550..<750, 0.8)]
+        let v3 = try normalize(tokens, on, version: .v3), v4 = try normalize(tokens, on, version: .v4)
+        XCTAssertFalse(v4.turns.contains { $0.kind == .missingSpeech })
+        XCTAssertEqual(v3.words.map(\.speakerId), [a, a])
+        XCTAssertEqual(v4.words.map(\.speakerId), [a, a])
+        XCTAssertEqual(speech(v3).count, 2)
+        XCTAssertEqual(speech(v4).count, 1)
+        XCTAssertEqual(speech(v4)[0].wordIds, v4.words.map(\.id))
+        XCTAssertEqual(speech(v4)[0].startUs, 500_000); XCTAssertEqual(speech(v4)[0].endUs, 800_000)
+        try TranscriptValidator().validate(v4)
+    }
+
+    /// AC-05 ② 어절 사이 A → B → A는 v4에서도 세 Turn (RC-01), 어절 사이 같은 화자는 다른 화자 구간에서 끊긴다.
+    func testV4KeepsBarriersBetweenWords() throws {
+        let doc = try normalize([token("다음", 100, 900), token(" 네", 1000, 1030), token(" 안 합니다", 1100, 1900)], aba, version: .v4)
+        XCTAssertEqual(speech(doc).map(\.speakerId), [a, b, a])
+        let across = try normalize([token("왔", 500, 600), token(" 어", 700, 800)], [(0, 0..<1000, 0.9), (1, 550..<750, 0.8)], version: .v4)
+        XCTAssertEqual(across.words.map(\.speakerId), [a, a])
+        XCTAssertEqual(speech(across).count, 2)
+    }
+
+    /// AC-05 ④ 어절 안 누락 marker는 v4에서도 장벽이다 (RC-03).
+    func testV4MissingMarkerInsideAWordStillSplits() throws {
+        let tokens = [token("왔", 500, 600), token("어", 900, 1000)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<600, 0.9), (1, 650..<750, 0.9), (0, 800..<1100, 0.9)]
+        let doc = try normalize(tokens, on, version: .v4)
+        XCTAssertEqual(doc.words.map(\.speakerId), [a, a])
+        XCTAssertEqual(doc.turns.map(\.kind), [.speech, .missingSpeech, .speech])
+    }
+
+    /// AC-05 ⑤ 어절 안 녹음 중단 구간도 장벽이다. 정상 경로의 중단 이슈는 녹음 끝 한 점이라, 결과 문서에 구간 이슈를 넣고 다시 결합한다.
+    func testV4CaptureInterruptionInsideAWordStillSplits() throws {
+        let tokens = [token("왔", 500, 600), token("어", 700, 800)]
+        let on: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 0..<1000, 0.9), (1, 550..<750, 0.8)]
+        var base = try normalize(tokens, on, version: .v4)
+        XCTAssertEqual(speech(base).count, 1)
+        base.reviewIssues.append(ReviewIssue(id: "cut", kind: .capture_interrupted, startUs: 620_000, endUs: 680_000, severity: .warning,
+            status: .open, wordIds: [], sourceIntervalIds: []))
+        let doc = try SonioxPrecisionReconciler.applying(base, runID: runID, createdAt: "2026-10-30T00:00:00Z", policy: .wordRepair,
+            version: "soniox-nemotron-word-v4", keepsSpeakerIDs: true, unifiesSplitWords: true,
+            fillsWordFragments: true, continuesWithinWords: true)
+        XCTAssertTrue(doc.reviewIssues.contains { $0.kind == .capture_interrupted })
+        XCTAssertEqual(speech(doc).count, 2)
+    }
+
+    /// AC-05 ⑥ ⑦ ⑧ 미상 조각: 같은 어절 · 같은 라벨 → 한 Turn, 라벨 다름 → 따로, 다른 어절 → 따로 (INV-05).
+    func testV4JoinsUnknownPiecesOnlyWithinOneWordAndOneLabel() throws {
+        let none: [(channel: Int, ms: Range<Int>, value: Float)] = [(0, 2000..<2900, 0.9)]
+        let same = try normalize([token("그", 100, 200), token("래", 200, 300), token("요", 300, 400)], none, version: .v4)
+        XCTAssertEqual(same.words.map(\.speakerId), [nil, nil, nil])
+        XCTAssertEqual(speech(same).count, 1)
+        XCTAssertEqual(texts(same, speech(same)[0]), "그래요")
+        XCTAssertEqual(speech(try normalize([token("그", 100, 200), token("래", 200, 300)], none, version: .v3)).count, 2)
+        let labels = try normalize([token("그", 100, 200, "x"), token("래", 200, 300, "y")], none, version: .v4)
+        XCTAssertEqual(speech(labels).count, 2)
+        let words = try normalize([token("그", 100, 200), token(" 래", 200, 300)], none, version: .v4)
+        XCTAssertEqual(speech(words).count, 2)
+        for doc in [same, labels, words] { try TranscriptValidator().validate(doc) }
     }
 }

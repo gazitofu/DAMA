@@ -237,8 +237,9 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
             lines += ["## AI 교정 정보", "", "- 엔진: \(Self.escape(correction.engine))",
                       "- 상태: \(correction.state.rawValue)", "- 내보낸 본문: \(showsOriginal == true || correction.state != .completed ? "교정 전" : "AI 교정 반영") · 사용자 수정 우선",
                       "- 원문·시간·화자 경계 보존. AI는 원음을 듣지 않고 텍스트 문맥을 참고했습니다."]
-            // correction-turn-isolation 문구 4: 버린 원구간이 있을 때만.
-            if let count = correction.rejectedTurns?.count, count >= 1 { lines.append(CorrectionRejectionText.markdownSummary(count: count)) }
+            // correction-turn-isolation 문구 4: 검증 실패 원구간(6종)이 있을 때만. turn-continuity 문구 9: 응답 없음 원구간이 있을 때만.
+            if correction.rejectedTotal >= 1 { lines.append(CorrectionRejectionText.markdownSummary(count: correction.rejectedTotal)) }
+            if correction.noResponseTotal >= 1 { lines.append(CorrectionRejectionText.markdownNoResponseSummary(count: correction.noResponseTotal)) }
             lines += ["", "### 교정에 사용한 입력", "", Self.escape(correction.input.participants ?? ""),
                       Self.escape(correction.input.context), Self.escape(correction.input.reference), ""]
             for source in correction.input.referenceExcerpts ?? [] {
@@ -275,6 +276,10 @@ public struct LibraryScript: Codable, Sendable, Identifiable {
             // correction-turn-isolation 문구 5 + 2(·2a): 이 문단에 검증 실패로 원문을 유지한 원구간이 있을 때만.
             if let rejected = correction?.rejectedCount(in: block.turnIDs), rejected >= 1 {
                 lines += [CorrectionRejectionText.markdownPrefix + CorrectionRejectionText.paragraphNote(count: rejected), ""]
+            }
+            // turn-continuity 문구 10 + 7(·2a): 이 문단에 응답 없음으로 원문을 유지한 원구간이 있을 때만.
+            if let missing = correction?.noResponseCount(in: block.turnIDs), missing >= 1 {
+                lines += [CorrectionRejectionText.markdownNoResponsePrefix + CorrectionRejectionText.noResponseNote(count: missing), ""]
             }
         }
         return Data(lines.joined(separator: "\n").utf8)

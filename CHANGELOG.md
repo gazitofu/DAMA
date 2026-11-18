@@ -2,6 +2,48 @@
 
 형식은 유닛 단위. `/ship`이 최상단에 엔트리를 추가한다. 안 잰 축을 반드시 함께 적는다.
 
+## [v0.5.21] turn-continuity · 2026-11-18
+
+Nemotron에 넣는 음성만 메모리에서 음량을 맞추고(`nemotron-input-level-v1`), 결합 `soniox-nemotron-word-v4`가 한 어절 안의 미상 조각을 그 어절의 단일 화자로 맞추고 어절 안 Turn을 잇는다. 읽기 `reading-v9`는 같은 ASR 라벨의 이웃 미상 어절을 한 문단으로 묶는다. AI 교정 `context-correction-8`은 일부 Turn이 빠진 응답을 받고, 실패 청크를 재시도하거나 원문 유지로 넘겨 «이어서 교정» 없이 끝난다. 모르는 화자는 null, 어절 사이 A → B → A 장벽, 모델 원문 · 사람 수정 보존은 그대로다. 앱 0.5.21(39).
+
+같은 브랜치에 쌓인 이 유닛의 스펙 r1 · r2 · 게이트 ① 확정 문서 3커밋이 함께 main에 들어간다 (main 대비 18커밋 · 44파일 +3,463 / −214).
+
+### Added
+- `NemotronInputLevel` (DamaManaged): 0.1초 RMS의 90번째 백분위수(선형 보간)가 −20 dBFS가 되게 0–24 dB 이득, 무릎 0.7 소프트 리미터. 이득은 소수 2자리로 기록한 값을 그대로 적용하고, 0이면 표본을 건드리지 않는다. 분석 WAV · 원본 · Soniox 입력은 바꾸지 않는다. Nemotron 자식 meta에 `inputLevel` (version · gainDb · p90Dbfs), 없으면 키 생략.
+- 교정 규칙 `missing`(응답에서 빠진 Turn) · `chunk`(재시도 소진으로 건너뛴 청크의 Turn) = «응답 없음». 형식 실패 세부 `CorrectionFormatDetail` 8종(noOutput · tooLarge · decode · missingArrays · idDuplicate · idUnknown · idOrder · idTooFew). 실패 기록 선택 키 `retry` · `detail` · `expectedTurns` · `returnedTurns`. 완료한 교정에 `failures`(최근 20건, 원문 없음).
+- 문구(`ssot/tone/turn-continuity.md` 6–11): 구간 정보 «원문 유지 · AI 응답 없음», 완료 띠 «AI 응답을 받지 못한 {M}개 원구간은 원문을 유지했습니다.», Markdown «- 응답 없음으로 원문 유지: {M}개 원구간» · «> AI 응답 없음: …», 진행 줄 « · 응답 다시 받는 중 ({r}/2)». 응답 없음 0이면 현행과 같다.
+- 측정 도구 `scripts/nemotron-combine`: `NemotronAppRun` 확률 · meta 저장, `NemotronV4Check` (replay · measure), `level_compare.py`. 읽기 전용 · 네트워크 0.
+
+### Changed
+- 결합 v3 → v4 (새 Run만): 어절 안 배정 화자가 한 명이면 미배정 조각을 그 화자로(근거 구간 합침, `alignmentScore` null), 같은 어절의 같은 화자 토큰 사이에서는 다른 화자 구간을 Turn 장벽으로 보지 않음, 같은 어절 · 순번 연속 · 같은 ASR 라벨의 미상 토큰은 한 Turn. 누락 marker · 중단 이슈는 어절 안에서도 장벽. 저장된 v1–v3 Run은 저장 버전으로 재개 · 재생한다.
+- 계약: INV-06 단서(`ssot/design/04` :46 · :117, v4 어절 안 예외), `TranscriptValidator`도 같은 단서. `operating-baseline.md` Nemotron 재사용 키에 입력 음량 버전 추가 · v4 문장. `library-script.md` 8곳(v9 · v8 엔진 · 규칙 코드 · 실패 기록). `transcript.v1.schema.json` · `DomainContracts.swift` 변경 없음.
+- 읽기 v8 → v9: 원문 공백 보존 엔진에서 앞뒤 미상 어절이 ASR 라벨이 같고, 사이가 문장부호뿐이며, 간격 ≤ 300 ms(외부 설계 초기값)면 한 «화자 미확정» 문단. 기존 결과 읽기에도 적용. Markdown 머리 «- 문단 표시: reading-v9».
+- 교정 v7 → v8: 받은 Turn이 입력의 부분열이고 ⌈n/2⌉개 이상이면 받고, 빠진 Turn은 `missing`. 청크당 재시도 최대 2(형식 실패 즉시 · 시간 초과 · 네트워크 · 미분류는 5초 뒤), 소진하면 그 청크를 원문 유지로 건너뛰고, 연속 2청크 건너뜀이면 실패. 인증 · 설정 · 실행 불가 · 취소는 즉시 실패. 검증 실패 수(완료 띠 · Markdown 문구 4)는 검증 6종만 센다.
+- 골든: Nemotron 15 → 20키(v4 5개), Markdown 지문 76키 이동(머리 버전 줄), 정규화 1키 읽기 지문 이동(v9 이음). normalized 지문 76/76 불변.
+
+### Fixed
+- 한 어절 안에서 Nemotron 화자 구간이 잠깐 끊기면 미상 조각과 Turn 경계가 생기던 것. 실데이터 6개 녹음(저장 Soniox 원응답 + 새 확률)에서 어절 중간 Turn 경계 175 · 374 · 567 · 305 · 995 · 1,611 → 7 · 39 · 61 · 44 · 76 · 67.
+- 교정 응답에서 Turn 몇 개가 빠지거나 청크 하나가 형식 실패해 교정이 멈추고 «이어서 교정»을 눌러야 하던 것.
+
+### 결정
+- 게이트 ① D-01–D-05 전부 ⓐ(어절 안 조각 맞춤 · 읽기 v9 · INV-06 어절 안 단서 · 교정 재시도 · 건너뜀 · 입력 음량 v1). /plan D-NN 없음.
+- 게이트 ② AC-17 실행 조건 문언 정정(사용자 승인): 실행 = 사용자 선택 46.6분 결합본, Soniox는 참고 발췌 3 → 0으로 context가 달라 동의 후 새 전송(`operating-baseline.md:38`대로). 같은 Soniox 응답을 고정한 비교가 아니다.
+
+### 실측
+- check.sh `run-20261117T113241Z-l5BPo4`(HEAD `b936d65`, /ship 재실행): 계약 31 · byte-exact · SmokeCheck · swift test 408 실행 = 406 통과 + skipped 2(환경변수 게이트, 기준선과 같은 2개) · 실패 0 · xcodebuild Debug PASS. 기준선 362 → 408(신규 46, 사라진 테스트 이름 0). 역뮤테이션 11종 전부 붉음, 복원 해시 일치.
+- QA GPT-6.1-sol 판정 A · B · R · C · R2: AC-01–17 통과.
+- 실데이터 측정(이 Mac, 읽기 전용, 네트워크 0, 6개 녹음): 이득 0.00 · 22.97 · 17.06 · 13.83 · 11.41 · 18.44 dB, 이득 0인 9분 녹음 확률 = 저장 확률 바이트 동일. 무음 판정 단어 비율(85 · 47 · 141분) 3.13 → 0.87 · 0.94 → 0.57 · 6.04 → 5.16 %. 저장 v3 Run 6/6 재생 바이트 동일. v4 결합 계약 6/6. 화자 미확정 문단(읽기 v9 기준) 25 → 17 · 20 → 4 · 45 → 18 · 52 → 16 · 94 → 44 · 357 → 285.
+- 설치 앱 0.5.21(39): 실행 Bundle(`lsappinfo` Version 39 · Info.plist 0.5.21) 확인, 메뉴바 툴팁 사용자 관측. 백업 0.5.20(38) 파일 수 · 트리 SHA256 대조.
+- 게이트 ② 실데이터 1건(사용자 실행, `8EF2322B` 46.6분): 새 parent v4 · 자식 meta `inputLevel` 17.06 dB(설치 앱 확률 = 측정 도구 확률 바이트 동일) · 저장 v4 재생 바이트 동일 · 교정 completed 10/10, 이어서 교정 없음 · 재시도 2(청크 1/10 형식 idUnknown, 기대 100에 반환 106 · 110, 세 번째 성공) · 건너뜀 0 · 원문 유지 `text` 4 · `quote` 2, 응답 없음 0 · 완료 띠 문구(N = 6) · 진행 줄 재시도 글자 사용자 관측 · 화자 미확정 문단 45(v3 현행) → 23.
+
+### 안 잰 축
+- 화자 배정 정확도(E1 · E2): 원음 대조 없음. 실데이터 지표(Turn · 문단 · 미배정 수)는 정확도가 아니다. 이 릴리스는 화자 분리 정확도에 대해 아무것도 주장하지 않는다.
+- 관측된 악화(F-05, 원인 미분해): 141분 녹음 미배정 lexical 1,316 → 1,428개(3.69 → 4.01 %), 어절 하나가 두 화자 문단으로 갈린 경계 47분 9 → 16 · 80분 27 → 32, 85분 녹음 활성 채널 5 → 7.
+- 게이트 ② 비교는 Soniox 응답이 새것이라 v4 효과와 섞여 있다. Soniox 재사용 경로는 이번 게이트에서 검증하지 않았다.
+- 교정 품질 · 반환 Turn이 입력보다 많은 응답의 빈도와 원인(F-07) · «형식» 하위 원인 분포.
+- 응답 없음 구간 정보 · Markdown 문단 줄의 실화면(코드 대조까지, 실데이터 1건은 응답 없음 0) · 새 문장 키보드 · VoiceOver · 다른 Mac.
+- 141분 녹음 청취 밖 무음 81–87 %의 원인 · 입력 음량 v1 상수(−20 dBFS · 24 dB · 0.7)의 최적성(신규 후보값).
+
 ## [v0.5.20] correction-turn-isolation · 2026-11-09
 
 AI 교정 응답에서 검증을 통과하지 못한 Turn은 그 Turn만 원문을 유지하고 `rejectedTurns`(Turn ID · 규칙 코드)에 남긴다. 같은 청크의 다른 Turn은 v6 판정대로 반영한다. 응답을 입력과 짝지을 수 없는 실패(해독 실패 · Turn id 순서/개수 불일치 · `changes`/`unresolved` 누락)만 청크 실패(형식)로 남는다. 엔진 `context-correction-7`. 앱 0.5.20(38).

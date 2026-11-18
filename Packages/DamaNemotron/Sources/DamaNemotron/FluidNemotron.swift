@@ -5,11 +5,13 @@ import Foundation
 
 /// Nemotron 3 (FluidAudio 0.18.0, offline preset) on this Mac. Reads only verified local model files;
 /// `processComplete` sees the whole analysis WAV once so speaker channels stay consistent across the recording.
+/// turn-continuity D-05: only the samples handed to Nemotron get `NemotronInputLevel` in memory; the WAV file is unchanged.
 public actor FluidNemotronDiarizer: LocalDiarizing {
     public init() {}
 
     public func diarize(analysisWAV: URL, modelDirectory: URL) async throws -> LocalDiarization {
-        let samples = try Self.readMono16k(analysisWAV)
+        var samples = try Self.readMono16k(analysisWAV)
+        let inputLevel = NemotronInputLevel.apply(&samples)
         try Task.checkCancellation()
         var config = Nemotron3Config.offline
         config.modelFileName = NemotronModel.bundlePath
@@ -22,7 +24,7 @@ public actor FluidNemotronDiarizer: LocalDiarizing {
         var data = Data(capacity: probabilities.count * 4)
         for value in probabilities { withUnsafeBytes(of: value.bitPattern.littleEndian) { data.append(contentsOf: $0) } }
         return LocalDiarization(probabilities: data, frameCount: frameCount, channels: config.numSpeakers,
-                                sampleCount: samples.count, processingSeconds: elapsed)
+                                sampleCount: samples.count, processingSeconds: elapsed, inputLevel: inputLevel)
     }
 
     static func readMono16k(_ url: URL) throws -> [Float] {

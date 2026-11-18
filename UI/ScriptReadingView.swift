@@ -103,7 +103,7 @@ struct ScriptReadingView: View {
                     if capture.phase.busy { Text("녹음 중에는 재생할 수 없습니다.").font(.caption).foregroundStyle(.secondary) }
                     if correction.activeID == file.id {
                         ProgressView().controlSize(.small)
-                        Text("AI 보정 중… \(correction.completed)/\(correction.total)").font(.caption)
+                        Text("AI 보정 중… \(correction.completed)/\(correction.total)" + (correction.retry.map(CorrectionRejectionText.retrySuffix) ?? "")).font(.caption)
                         Button("보정 취소", action: correction.cancel)
                     } else {
                         if !readOnly { attemptControls }
@@ -267,6 +267,14 @@ struct ScriptReadingView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(CorrectionRejectionText.inspectorTitle).fontWeight(.semibold)
                             Text(CorrectionRejectionText.paragraphNote(count: rejected))
+                        }.font(.caption)
+                    }
+                    // turn-continuity 문구 6 · 7: 이 문단에 AI 응답 없음으로 원문을 유지한 원구간이 있을 때만(검증 실패 항목 다음).
+                    let missing = shown.script.correction?.noResponseCount(in: block.turnIDs) ?? 0
+                    if missing > 0 {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(CorrectionRejectionText.noResponseTitle).fontWeight(.semibold)
+                            Text(CorrectionRejectionText.noResponseNote(count: missing))
                         }.font(.caption)
                     }
                     DisclosureGroup("모델 원문") { Text(block.turns.map { shown.script.modelText(for: $0) }.joined(separator: "\n")).font(.caption) }

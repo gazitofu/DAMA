@@ -74,4 +74,31 @@ final class CorrectionRejectionStorageTests: XCTestCase {
                        ["outside.dama.json", "duplicate.dama.json", "edited.dama.json", "bogus.dama.json"])
         XCTAssertTrue(result.issues.allSatisfy { $0.reason == .unreadable })
     }
+
+    /// QA A D-3 (turn-continuity AC-09 ⓒ): 모르는 규칙 코드 · 모르는 실패 세부가 든 파일은 목록에서 빠지고 `.unreadable`. 응답 없음 규칙과
+    /// 실패 기록이 든 정상 파일은 목록에 남는다(양성 대조).
+    func testUnknownNoResponseRuleAndFailureDetailAreListedAsUnreadable() async throws {
+        let (folder, root, model) = try setup()
+        let script = try LibraryScript(transcript: model, title: "합성", recordedAt: nil, dateSource: "합성", input: ConversionNotes())
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
+        var value = script
+        var correction = try correction(for: script, rejected: [.init(turnID: "t2", rule: .missing), .init(turnID: "t3", rule: .chunk)])
+        correction.failures = [CorrectionFailureRecord(chunkIndex: 0, totalChunks: 1, kind: .format, exitCode: 0, elapsedMs: 1, stderrBytes: 0,
+                                                       recordedAt: Date(timeIntervalSinceReferenceDate: 0), retry: 2, detail: .idTooFew,
+                                                       expectedTurns: 3, returnedTurns: 1)]
+        value.correction = correction
+        let good = try encoder.encode(value)
+        try good.write(to: folder.appendingPathComponent("ok.dama.json"))
+        let text = String(decoding: good, as: UTF8.self)
+        XCTAssertTrue(text.contains(#""rule":"missing""#) && text.contains(#""detail":"idTooFew""#))
+        try Data(text.replacingOccurrences(of: #""rule":"chunk""#, with: #""rule":"bogus""#).utf8)
+            .write(to: folder.appendingPathComponent("rule.dama.json"))
+        try Data(text.replacingOccurrences(of: #""detail":"idTooFew""#, with: #""detail":"bogus""#).utf8)
+            .write(to: folder.appendingPathComponent("detail.dama.json"))
+        let result = try await FolderLibraryStore(root: root).scanScripts(in: folder)
+        XCTAssertEqual(result.items.map(\.url.lastPathComponent), ["ok.dama.json"])
+        XCTAssertEqual(result.items.first?.script.correction?.failures?.first?.detail, .idTooFew)
+        XCTAssertEqual(Set(result.issues.map(\.url.lastPathComponent)), ["rule.dama.json", "detail.dama.json"])
+        XCTAssertTrue(result.issues.allSatisfy { $0.reason == .unreadable })
+    }
 }

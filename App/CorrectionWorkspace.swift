@@ -9,6 +9,8 @@ import SwiftUI
     @Published private(set) var activeID: String?
     @Published private(set) var completed = 0
     @Published private(set) var total = 0
+    /// turn-continuity 문구 11: 같은 청크를 다시 보내는 동안의 재시도 차수(1 · 2). 그 밖에는 nil.
+    @Published private(set) var retry: Int?
     @Published private(set) var referenceURL: URL?
     @Published private(set) var preview: [ReferenceExcerpt] = []
     /// 안내 띠. 새 교정 안내가 생기면 남아 있던 작업 공간 안내를 지워 가려지지 않게 한다(띠는 `workspace.message`를 먼저 보인다, usage-bundle1 게이트 ② AC-14).
@@ -115,15 +117,16 @@ import SwiftUI
         return await Task.detached(priority: .utility) { runner.resumeState(for: script) }.value
     }
     private func setCompleted(_ value: Int) { completed = value }
+    private func setRetry(_ value: Int?) { retry = value }
     func cancel() { queue = []; task?.cancel() }
     private func runNext() {
         guard task == nil, !queue.isEmpty else { return }
         let (file, job) = queue.removeFirst()
-        activeID = file.id; completed = 0; total = 0; message = nil
+        activeID = file.id; completed = 0; total = 0; retry = nil; message = nil
         task = Task {
             var correction = ScriptCorrection(input: file.script.input, engine: CorrectionRunner.engine)
             let hasPreviousResult = file.script.correction?.state == .completed
-            defer { activeID = nil; task = nil; attemptVersion += 1; runNext() }
+            defer { activeID = nil; task = nil; retry = nil; attemptVersion += 1; runNext() }
             do {
                 let runner = try makeRunner(), script = file.script
                 // 새 교정은 기존 시도 기록을 버리고 새로 만든다. 이어서 교정은 계획·엔진이 같을 때만 기록을 그대로 쓴다.
@@ -138,18 +141,17 @@ import SwiftUI
                 total = attempt.totalChunks; completed = attempt.completedChunks
                 correction.totalChunks = total; correction.completedChunks = completed
                 if !hasPreviousResult { try await LibraryWorkspace.shared.storeCorrection(correction, file: file) }
-                let outcome = await runner.run(attempt, chunks: chunks) { [weak self] done in await self?.setCompleted(done) }
+                let outcome = await runner.run(attempt, chunks: chunks, progress: { [weak self] done in await self?.setCompleted(done) },
+                                               retrying: { [weak self] value in await self?.setRetry(value) })
                 switch outcome {
                 case .completed(let finished):
-                    let merged = finished.merged()
-                    correction.edits = merged.edits; correction.speakerNames = merged.names; correction.nameEvidence = merged.evidence
-                    correction.rejectedTurns = merged.rejected.isEmpty ? nil : merged.rejected
-                    correction.completedChunks = finished.totalChunks
-                    correction.state = .completed; correction.completedAt = Date()
+                    // turn-continuity: 건너뛴 청크의 원문 유지 결과·실패 기록(최근 20건)까지 한 번에 적용한다.
+                    correction.complete(with: finished)
                     try await LibraryWorkspace.shared.storeCorrection(correction, file: file)
                     // 성공 저장 직후 시도 기록을 지운다.
                     try? runner.discard(scriptID: file.id)
-                    message = CorrectionRejectionText.completionMessage(rejectedCount: merged.rejected.count)
+                    message = CorrectionRejectionText.completionMessage(rejectedCount: correction.rejectedTotal,
+                                                                        noResponseCount: correction.noResponseTotal)
                 case .failed(let failed, let error):
                     correction.state = .failed; correction.edits = []; correction.speakerNames = [:]; correction.nameEvidence = [:]
                     correction.rejectedTurns = nil

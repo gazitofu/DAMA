@@ -145,6 +145,29 @@ final class TranscriptValidatorEquivalenceTests: XCTestCase {
         XCTAssertEqual(assertSame(t.base), Outcome(code: nil, path: nil))
     }
 
+    /// turn-continuity D-03 (INV-06 단서): Nemotron v4 결과의 한 어절 안 같은 화자 토큰 사이만 다른 화자 구간을 장벽으로 보지 않는다.
+    /// 같은 Turn을 v3로 표기하거나 두 토큰을 다른 어절로 띄우면 두 검증기 모두 invalidBarrier.
+    func testInWordSameSpeakerExceptionMatchesReference() throws {
+        let tokens: [[String: Any]] = [["text": "왔", "start_ms": 500, "end_ms": 600, "speaker": "one", "confidence": 0.9],
+                                       ["text": "어", "start_ms": 700, "end_ms": 800, "speaker": "one", "confidence": 0.9]]
+        let asr = try JSONSerialization.data(withJSONObject: ["id": "job", "text": "왔어", "tokens": tokens])
+        var p = [Float](repeating: 0.02, count: 300 * 8)
+        for frame in 0..<100 { p[frame * 8] = 0.9 }
+        for frame in 55..<75 { p[frame * 8 + 1] = 0.8 }
+        var data = Data()
+        for value in p { withUnsafeBytes(of: value.bitPattern.littleEndian) { data.append(contentsOf: $0) } }
+        let v4 = try SonioxNemotronReconciler.normalize(soniox: asr, probabilities: data, frameCount: 300, channels: 8,
+            sonioxJobID: "job", sessionID: "s", runID: "00000000-0000-4000-8000-00000000e0b1", durationUs: 3_000_000,
+            audioSHA256: String(repeating: "a", count: 64), model: "stt-async-v5", createdAt: "2026-11-17T00:00:00Z",
+            synthetic: true, version: .v4)
+        XCTAssertEqual(v4.turns.filter { $0.kind == .speech }.map(\.wordIds.count), [2])
+        XCTAssertEqual(assertSame(v4), Outcome(code: nil, path: nil))
+        var relabeled = v4; relabeled.provenance.algorithmVersion = "soniox-nemotron-word-v3"
+        XCTAssertEqual(assertSame(relabeled).code, .invalidBarrier)
+        var spaced = v4; spaced.words[1].prefix = " "
+        XCTAssertEqual(assertSame(spaced).code, .invalidBarrier)
+    }
+
     // MARK: Generated documents
 
     private struct SplitMix64 {

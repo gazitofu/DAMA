@@ -12,6 +12,10 @@ let package = Package(
             .product(name: "DamaCore", package: "DamaCore"),
             .product(name: "DamaAudio", package: "DamaCore"),
         ]),
+        // turn-continuity AC-13 · AC-14: replay a stored Soniox + Nemotron parent byte for byte, or combine with new probabilities as v4.
+        .executableTarget(name: "NemotronV4Check", dependencies: [
+            .product(name: "DamaCore", package: "DamaCore"),
+        ]),
         // AC-13: the app's FluidNemotronDiarizer on a stored analysis WAV, compared with the 1a probabilities.
         .executableTarget(name: "NemotronAppRun", dependencies: [
             .product(name: "DamaManaged", package: "DamaCore"),
